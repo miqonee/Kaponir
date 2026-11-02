@@ -1,0 +1,49 @@
+name: Quality and release checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain
+        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy && rustup default stable
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --workspace --all-targets -- -D warnings
+      - run: cargo test --locked --workspace
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - run: python3 scripts/check_docs.py
+      - name: JavaScript syntax
+        run: |
+          node --check crates/kaponir-proxy/assets/app.js
+          node --check crates/kaponir-proxy/assets/panel.js
+          node --check crates/kaponir-proxy/assets/i18n.js
+      - run: cargo build --locked --release -p kaponir-cli
+      - run: python3 scripts/release_check.py target/release/kaponir --output dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kaponir-linux-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error
+  portability:
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup toolchain install stable --profile minimal && rustup default stable
+      - run: cargo test --locked --workspace
+      - run: cargo build --locked --release -p kaponir-cli
+      - run: python3 scripts/release_check.py target/release/kaponir --output dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kaponir-macos-${{ github.sha }}
+          path: dist/*
+          if-no-files-found: error

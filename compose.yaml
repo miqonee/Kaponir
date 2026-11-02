@@ -1,0 +1,39 @@
+services:
+  kaponir:
+    build:
+      context: .
+      target: proxy
+      args:
+        KAPONIR_BUILD: ${KAPONIR_BUILD:-source}
+    ports:
+      - "127.0.0.1:${KAPONIR_PORT:-8787}:8787"
+    environment:
+      KAPONIR_API_TOKEN: ${KAPONIR_API_TOKEN:?Set KAPONIR_API_TOKEN}
+      KAPONIR_WORKER_URL: http://worker:8788
+      KAPONIR_WORKER_TOKEN: ${KAPONIR_WORKER_TOKEN:-}
+    volumes:
+      - kaponir-data:/data
+    restart: unless-stopped
+    mem_limit: 1g
+  worker:
+    profiles: [analysis]
+    build:
+      context: .
+      target: worker
+      args:
+        KAPONIR_BUILD: ${KAPONIR_BUILD:-source}
+    environment:
+      KAPONIR_WORKER_TOKEN: ${KAPONIR_WORKER_TOKEN:-}
+      KAPONIR_API_TOKEN: ${KAPONIR_API_TOKEN:?Set KAPONIR_API_TOKEN}
+    volumes:
+      - kaponir-data:/data
+      - kaponir-models:/models
+      - ${KAPONIR_INPUT_DIR:-./documents}:/inputs:ro
+    depends_on:
+      - kaponir
+    restart: unless-stopped
+    cpus: "2.0"
+    mem_limit: 2560m
+volumes:
+  kaponir-data:
+  kaponir-models:

@@ -1,0 +1,3 @@
+# Внутренние зоны: у них нет регистрируемого домена, все метки слева — имена хостов/сервисов.
+cluster.local svc.cluster.local local localdomain internal lan corp intranet home.arpa consul
+service.consul node.consul ec2.internal compute.internal

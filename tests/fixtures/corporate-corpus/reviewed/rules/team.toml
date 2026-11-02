@@ -1,0 +1,34 @@
+# Правила команды: общие для участников. Решения из `kaponir review --scope team` попадают сюда.
+#
+# [corp]
+# domains = ["mycompany.ru", "corp.local"]   # регистрируемый домен компании маскируется всегда
+#
+# [[rule]]
+# kind = "CLIENT"
+# value = "Рога и Копыта"                    # точное значение по границам слова
+#
+# [[rule]]
+# template = "{env:prod|stage|dev}-{SVC}-{hash}"   # {KIND} — чувствительный слот
+#
+# [[rule]]
+# kind = "TICKET"
+# regex = 'SEC-\d{4,}'
+#
+# [[rule]]
+# action = "keep"                            # никогда не маскировать
+# value = "ingress-nginx"
+
+[[rule]]
+kind = "ORG"
+action = "mask"
+value = "ООО «Полярный Контур»"
+
+[[rule]]
+kind = "CLIENT"
+action = "mask"
+value = "АО «Янтарный Маяк»"
+
+[[rule]]
+kind = "PROJECT"
+action = "mask"
+value = "Ласточка-Резерв"

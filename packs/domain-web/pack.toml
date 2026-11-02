@@ -1,0 +1,8 @@
+[pack]
+id = "domain-web"
+kind = "domain"
+version = "0.1.0"
+api_version = 1
+scripts = ["Latin", "Cyrillic"]
+license = "Apache-2.0"
+description = "TLDs, multi-label public suffixes, internal zones and well-known public domains"

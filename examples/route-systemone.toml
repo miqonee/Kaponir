@@ -1,0 +1,22 @@
+# Пример config.toml после kaponir init. Ключи передаются через окружение/клиент.
+# Клиент: OPENAI_BASE_URL=http://127.0.0.1:8787/v1, model=ag/gemini-3.8-flash.
+
+[s1]
+provider = "http"
+shadow = true
+weight = 1.0
+keep_below = 0.1
+
+[s1.http]
+url = "https://route.fn.x3dev.ru/v1/systemone"
+protocol = "systemone"
+model = "oc/jev-1.13-free"
+token_env = "KAPONIR_S1_HTTP_TOKEN"
+timeout_ms = 20000
+disclosure = "l0"
+
+[serve]
+listen = "127.0.0.1:8787"
+# Прокси сам добавляет /v1/chat/completions: здесь нужен адрес БЕЗ /v1.
+openai_upstream = "https://route.fn.x3dev.ru"
+system_hint = true

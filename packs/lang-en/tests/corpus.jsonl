@@ -1,0 +1,11 @@
+// Labeled examples for `kaponir pack test packs/lang-en`: mask must disappear, keep must stay.
+{"text": "The report was prepared by John Smith and reviewed by Mary-Jane Watson.", "mask": ["John", "Smith", "Mary-Jane", "Watson"], "keep": ["The report was prepared by", "reviewed by"]}
+{"text": "Mr. Smith's laptop was replaced.", "mask": ["Smith"], "keep": ["Mr.", "'s laptop was replaced"]}
+{"text": "Ask Dr. O'Neil about the rollout.", "mask": ["O'Neil"], "keep": ["Ask Dr.", "about the rollout"]}
+{"text": "Thanks, Emily Clarke", "mask": ["Emily", "Clarke"], "keep": ["Thanks"]}
+{"text": "Ludwig van Beethoven wrote it.", "mask": ["Ludwig", "Beethoven"], "keep": ["van", "wrote it"]}
+{"text": "Contact J. R. Tolkien for details.", "mask": ["Tolkien"], "keep": ["Contact", "for details"]}
+{"text": "Will this work? Mark the ticket as done.", "keep": ["Will this work", "Mark the ticket"]}
+{"text": "Deploy the Report Builder Service to Kubernetes.", "keep": ["Report Builder Service", "Kubernetes"]}
+{"text": "We moved from Ruby to Julia and kept Hugo for docs.", "keep": ["Ruby", "Julia", "Hugo"]}
+{"text": "The meeting is in May; Grace period ends in June.", "keep": ["May", "Grace period", "June"]}

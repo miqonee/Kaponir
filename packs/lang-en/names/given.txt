@@ -1,0 +1,54 @@
+# Common English given names. Sections: [m], [f], [u] (unisex). Case does not matter.
+
+[m]
+James John Robert Michael William David Richard Joseph Thomas Charles Christopher Daniel Matthew Anthony
+Donald Steven Paul Andrew Joshua Kenneth Kevin Brian George Timothy Ronald Edward Jason Jeffrey Ryan
+Jacob Gary Nicholas Eric Jonathan Stephen Larry Justin Scott Brandon Benjamin Samuel Gregory Alexander
+Patrick Raymond Jack Dennis Jerry Tyler Aaron Jose Adam Nathan Henry Douglas Zachary Peter Kyle Noah
+Ethan Jeremy Walter Christian Keith Roger Terry Austin Sean Gerald Carl Harold Dylan Arthur Lawrence
+Jordan Jesse Bryan Billy Bruce Gabriel Joe Logan Alan Juan Albert Willie Elijah Wayne Randy Vincent
+Mason Roy Ralph Bobby Russell Bradley Philip Eugene Louis Liam Oliver Lucas Leo Oscar Harry Charlie
+Freddie Archie Theo Alfie Isaac Toby Hugo Felix Sebastian Rory Callum Connor Owen Luke Martin Simon
+Graham Colin Ian Neil Stuart Gordon Malcolm Trevor Nigel Derek Barry Clive Howard Victor Marcus Julian
+Dominic Adrian Vladimir Dmitry Sergey Alexey Mikhail Ivan Igor Oleg Andrey Nikolai Pavel Maxim Yuri
+Boris Konstantin Anton Artem Denis Roman Kirill Evgeny Vadim Vitaly Viktor Stanislav Grigory Fedor
+Ilya Timur Ruslan Arkady Gennady Vasily Valery Yaroslav Bogdan Pyotr Leonid Anatoly Semyon Stepan
+Mohammed Ahmed Ali Omar Hassan Carlos Luis Miguel Pedro Diego Juan Pablo Marco Luca Giovanni Francesco
+Hans Klaus Jurgen Stefan Lars Sven Pierre Jean Jacques Francois Rajesh Amit Rahul Wei Hiroshi Kenji
+Ludwig Wolfgang Johann Friedrich Karl Heinrich Dieter Uwe Matthias Tobias Florian Jan Piotr Tomasz
+Pawel Marek Jakub Krzysztof Andrzej Jiri Tomas Petr Lukas Mateo Javier Alejandro Antonio Manuel Rafael
+Fernando Ricardo Eduardo Andres Mario Roberto Alessandro Matteo Lorenzo Andrea Nikola Milan Dragan
+Ahmet Mehmet Mustafa Emre Yusuf Ibrahim Khalid Tariq Karim Arjun Vikram Sanjay Suresh Ravi Anil Vijay
+Deepak Rohan Arun Kiran Li Chen Jun Hao Takeshi Taro Hyun Min Jin Duc Minh Nathaniel Elliot Edmund
+Gavin Grant Harvey Jake Joel Leon Max Miles Nate Neil Phil Reece Rhys Ross Seth Shane Spencer Troy
+Vince Wesley Xavier Zach Alfred Bernard Cecil Clarence Clifford Earl Ernest Frederick Herbert Hubert
+Leonard Lloyd Marvin Melvin Norman Percy Ralph Rodney Stanley Wallace Wilbur Dave Mike Tom Tim Jim Jon
+Ben Dan Matt Andy Steve Tony Nick Greg Jeff Ken Ron Ted Rick Dick Bob Bill Will Fred Ed Jeremiah Caleb
+Isaiah Levi Ezra Asher Silas Jasper Finn Kai Ryder Brody Colton Hunter Easton Landon Parker Carter
+
+[f]
+Mary Patricia Jennifer Linda Elizabeth Barbara Susan Jessica Sarah Karen Lisa Nancy Betty Margaret
+Sandra Ashley Kimberly Emily Donna Michelle Carol Amanda Melissa Deborah Stephanie Rebecca Sharon
+Laura Cynthia Kathleen Amy Angela Shirley Anna Brenda Pamela Emma Nicole Helen Samantha Katherine
+Christine Debra Rachel Carolyn Janet Catherine Maria Heather Diane Ruth Julie Olivia Joyce Virginia
+Victoria Kelly Lauren Christina Joan Evelyn Judith Megan Andrea Cheryl Hannah Jacqueline Martha Gloria
+Teresa Ann Sara Madison Frances Kathryn Janice Jean Abigail Alice Judy Sophia Julia Denise Amber
+Doris Marilyn Danielle Beverly Isabella Theresa Diana Natalie Brittany Charlotte Marie Kayla Alexis
+Lori Amelia Ava Mia Isla Poppy Freya Ella Lily Grace Chloe Ruby Evie Daisy Phoebe Florence Harriet
+Imogen Lucy Holly Jasmine Molly Georgia Eleanor Zoe Fiona Gillian Alison Joanne Tracy Hazel Irene
+Natalia Natasha Olga Tatiana Svetlana Irina Elena Ekaterina Anastasia Yulia Ksenia Daria Marina
+Galina Ludmila Valentina Lyudmila Oksana Alina Polina Veronika Kristina Sofia Nadezhda Larisa Tamara
+Fatima Aisha Priya Ananya Mei Yuki Sakura Ingrid Astrid Greta Sophie Camille Chiara Giulia Lucia
+Jane Joanna Johanna Josephine Louise Lucille Mabel Matilda Maud Nora Norah Paula Pauline Peggy Penelope
+Rosa Rosemary Sally Stella Sylvia Ursula Vera Violet Wendy Yvonne Agnes Beatrice Bridget Caroline Claire
+Clara Cora Edith Eileen Elaine Ellen Elsie Esther Ethel Eva Gemma Gwen Hilda Ida Iris Jill Joy Kate
+Katie Kathy Kirsten Leah Lena Lillian Lindsay Lorraine Lydia Mandy Maureen Melanie Miriam Monica Naomi
+Nina Paige Rachael Rita Rose Roxanne Sabrina Selena Sheila Sonia Stacy Susanne Tina Tracey Vanessa Vivian
+Abby Addison Aria Aubrey Audrey Ellie Hailey Harper Layla Leila Luna Maya Mila Nova Riley Savannah Scarlett
+Skylar Stella Valerie Violet Zara Anja Annika Birgit Heike Ines Katarina Magdalena Malgorzata Agnieszka
+Monika Petra Renata Ewa Zofia Carmen Isabel Elena Pilar Rocio Lucia Francesca Giorgia Alessia Federica
+Sunita Deepa Pooja Neha Anjali Kavya Lakshmi Ling Xiu Yan Hana Aiko Mina Ji Thu Lan Nadia Leyla Zeynep
+
+[u]
+Alex Sam Chris Jamie Taylor Morgan Casey Robin Jordan Charlie Riley Avery Quinn Cameron Drew Kim
+Sasha Zhenya Valya

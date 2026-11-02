@@ -1,0 +1,15 @@
+.git
+artifacts
+.cache
+**/__pycache__
+.env
+.env.*
+documents
+**/*.gguf
+**/vault.key
+**/token.key
+**/vault.db*
+target/*
+!target/release
+target/release/*
+!target/release/kaponir

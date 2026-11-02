@@ -1,0 +1,4 @@
+# TLD, совпадающие с расширениями файлов и словами: `main.rs`, `setup.py`, `self.me`.
+# Хост из двух меток с таким TLD распознаётся только в URL или email.
+rs py sh md pl so ps cc ml mk am as at be by do go in is it me no on or to tv us la tf st
+ms gs ac re pm im sc ai io zip mov app dev cs fm ws nu

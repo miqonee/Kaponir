@@ -1,0 +1,12 @@
+[pack]
+id = "domain-tech"
+kind = "domain"
+version = "0.1.0"
+api_version = 1
+scripts = ["Latin"]
+license = "Apache-2.0"
+description = "IT vocabulary: system directories, tools, file extensions, Kubernetes/cloud terms"
+
+[context]
+IP = ["ip", "host", "server", "addr", "address", "node", "gateway", "subnet", "сервер", "адрес", "хост"]
+SECRET = ["ssh-rsa", "authorization", "x-api-key", "api_key"]

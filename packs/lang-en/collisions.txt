@@ -1,0 +1,9 @@
+# Given names that are also ordinary words, months, places or technology names.
+will mark bill may june april august grace hope faith joy rose lily art max frank jack sue rob pat ray
+dawn eve glen guy hunter nick chase drew gene lee page penny sky summer wade ward rich jay kit dash miles
+norman bob holly ruby julia ada jasmine hudson jordan georgia virginia victoria florence austin chelsea
+sydney madison lincoln phoenix amber daisy poppy angela christian carol sophia
+# Programming languages, products and tools named after people or words.
+hugo julia ada aria gemma jasper maya nova luna iris kai mina hunter parker carter grant earl norman
+bernard ross troy levi min jun jan li ji jin thu lan yan hao chen ken dan ed ida kate leon karl vera
+ellen petra ines hana carmen milan paige harper stella violet hazel ruby skylar zara ling

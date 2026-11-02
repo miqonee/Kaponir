@@ -1,0 +1,10 @@
+# Распространённые TLD (не полный список IANA: достаточно для распознавания хостов в тексте).
+com net org edu gov mil int info biz name pro aero coop museum mobi asia tel travel jobs
+io ai dev app cloud tech online site xyz top club shop store blog news live space website digital
+systems software solutions services network agency group company world global email link click
+page wiki tools codes zone host hosting server center studio team works design media
+ru su рф xn--p1ai moscow tatar ua by kz uz kg tj am az ge md lv lt ee fi se no dk is de at ch nl be lu fr
+es pt it gr pl cz sk hu ro bg rs hr si ba me mk al tr cy il ae sa qa kw ir in pk bd lk np cn hk tw jp kr
+sg my th vn id ph au nz ca us mx br ar cl co pe ve uy za ng ke eg ma tn uk eu
+co tv cc ws fm gg je im to la so sh st ly ms gs tf vc nu ac re pm wf yt
+local internal localdomain lan corp intranet home arpa test example invalid localhost

@@ -1,0 +1,9 @@
+[package]
+name = "kaponir-region-ru"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+kaponir-core = { version = "0.1.0", path = "../kaponir-core" }
+regex = "1.13.1"

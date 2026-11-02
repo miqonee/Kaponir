@@ -1,0 +1,7 @@
+# Name features for the shared name detector. Suffixes are lower-case.
+
+titles = [
+    "mr", "mrs", "ms", "miss", "mx", "dr", "prof", "professor", "sir", "madam", "dame", "lord", "lady",
+    "rev", "hon", "capt", "captain", "col", "gen", "lt", "sgt", "officer", "dear", "mister", "doctor",
+]
+particles = ["van", "von", "der", "den", "de", "del", "della", "di", "da", "la", "le", "du", "bin", "ibn", "al", "el", "ten", "ter"]

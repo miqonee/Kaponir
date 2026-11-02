@@ -1,0 +1,8002 @@
+[
+  {
+    "id": "001-incident_ru",
+    "family": "incident_ru",
+    "file": "original/001-incident_ru.md",
+    "format": "text",
+    "bytes": 17345,
+    "characters": 11235,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.1.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::1",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov001",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_001_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly001ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee001@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-01-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100001",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010015",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1801234.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "002-onboarding_en",
+    "family": "onboarding_en",
+    "file": "original/002-onboarding_en.json",
+    "format": "json",
+    "bytes": 17545,
+    "characters": 11502,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.2.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::2",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov002",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_002_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly002ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee002@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-02-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100002",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010022",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1802468.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "003-deployment_yaml",
+    "family": "deployment_yaml",
+    "file": "original/003-deployment_yaml.yaml",
+    "format": "yaml",
+    "bytes": 17674,
+    "characters": 11631,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.3.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::3",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov003",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_003_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly003ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee003@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-03-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100003",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010030",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1803702.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "004-invoice_ru",
+    "family": "invoice_ru",
+    "file": "original/004-invoice_ru.md",
+    "format": "text",
+    "bytes": 17251,
+    "characters": 11177,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.4.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::4",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov004",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_004_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly004ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee004@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-04-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100004",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010047",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1804936.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "005-support_chat",
+    "family": "support_chat",
+    "file": "original/005-support_chat.md",
+    "format": "text",
+    "bytes": 17380,
+    "characters": 11262,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.5.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::5",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov005",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_005_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly005ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee005@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-05-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100005",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010054",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1806170.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "006-security_env",
+    "family": "security_env",
+    "file": "original/006-security_env.env",
+    "format": "env",
+    "bytes": 17504,
+    "characters": 11461,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.6.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::6",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov006",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_006_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly006ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee006@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-06-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100006",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010061",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1807404.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "007-meeting_ru",
+    "family": "meeting_ru",
+    "file": "original/007-meeting_ru.md",
+    "format": "text",
+    "bytes": 17304,
+    "characters": 11201,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.7.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::7",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov007",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_007_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly007ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee007@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-07-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100007",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010079",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1808638.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "008-code_review",
+    "family": "code_review",
+    "file": "original/008-code_review.md",
+    "format": "text",
+    "bytes": 17287,
+    "characters": 11244,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.8.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::8",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov008",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_008_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly008ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee008@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-08-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100008",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010086",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1809872.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "009-incident_ru",
+    "family": "incident_ru",
+    "file": "original/009-incident_ru.md",
+    "format": "text",
+    "bytes": 17345,
+    "characters": 11235,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.9.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::9",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov009",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_009_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly009ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee009@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-09-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100009",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010093",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1811106.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "010-onboarding_en",
+    "family": "onboarding_en",
+    "file": "original/010-onboarding_en.json",
+    "format": "json",
+    "bytes": 17548,
+    "characters": 11505,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.10.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::a",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov010",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_010_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly010ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee010@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-10-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100010",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010103",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1812340.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "011-deployment_yaml",
+    "family": "deployment_yaml",
+    "file": "original/011-deployment_yaml.yaml",
+    "format": "yaml",
+    "bytes": 17676,
+    "characters": 11633,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.11.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::b",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov011",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_011_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly011ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee011@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-11-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100011",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010110",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1813574.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "012-invoice_ru",
+    "family": "invoice_ru",
+    "file": "original/012-invoice_ru.md",
+    "format": "text",
+    "bytes": 17252,
+    "characters": 11178,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.12.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::c",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov012",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_012_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly012ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee012@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-12-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100012",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010128",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1814808.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "013-support_chat",
+    "family": "support_chat",
+    "file": "original/013-support_chat.md",
+    "format": "text",
+    "bytes": 17381,
+    "characters": 11263,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.13.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::d",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov013",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_013_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly013ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee013@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-13-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100013",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010135",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1816042.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "014-security_env",
+    "family": "security_env",
+    "file": "original/014-security_env.env",
+    "format": "env",
+    "bytes": 17507,
+    "characters": 11464,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.14.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::e",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov014",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_014_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly014ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee014@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-14-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100014",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010142",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1817276.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "015-meeting_ru",
+    "family": "meeting_ru",
+    "file": "original/015-meeting_ru.md",
+    "format": "text",
+    "bytes": 17306,
+    "characters": 11203,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.15.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::f",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov015",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_015_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly015ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee015@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-15-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100015",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010150",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1818510.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "016-code_review",
+    "family": "code_review",
+    "file": "original/016-code_review.md",
+    "format": "text",
+    "bytes": 17289,
+    "characters": 11246,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.16.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::10",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov016",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_016_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly016ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee016@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-16-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100016",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010167",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1819744.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "017-incident_ru",
+    "family": "incident_ru",
+    "file": "original/017-incident_ru.md",
+    "format": "text",
+    "bytes": 17347,
+    "characters": 11237,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.17.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::11",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov017",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_017_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly017ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee017@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-17-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100017",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010174",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1820978.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "018-onboarding_en",
+    "family": "onboarding_en",
+    "file": "original/018-onboarding_en.json",
+    "format": "json",
+    "bytes": 17549,
+    "characters": 11506,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.18.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::12",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov018",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_018_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly018ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee018@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-18-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100018",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010181",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1822212.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "019-deployment_yaml",
+    "family": "deployment_yaml",
+    "file": "original/019-deployment_yaml.yaml",
+    "format": "yaml",
+    "bytes": 17677,
+    "characters": 11634,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.19.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::13",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov019",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_019_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly019ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee019@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-19-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100019",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010199",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1823446.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "020-invoice_ru",
+    "family": "invoice_ru",
+    "file": "original/020-invoice_ru.md",
+    "format": "text",
+    "bytes": 17253,
+    "characters": 11179,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.20.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::14",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov020",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_020_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly020ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee020@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-20-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100020",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010209",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1824680.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "021-support_chat",
+    "family": "support_chat",
+    "file": "original/021-support_chat.md",
+    "format": "text",
+    "bytes": 17382,
+    "characters": 11264,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.21.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::15",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov021",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_021_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly021ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee021@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-21-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100021",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010216",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1825914.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "022-security_env",
+    "family": "security_env",
+    "file": "original/022-security_env.env",
+    "format": "env",
+    "bytes": 17508,
+    "characters": 11465,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.22.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::16",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov022",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_022_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly022ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee022@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-22-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100022",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010223",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1827148.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "023-meeting_ru",
+    "family": "meeting_ru",
+    "file": "original/023-meeting_ru.md",
+    "format": "text",
+    "bytes": 17307,
+    "characters": 11204,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.23.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::17",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov023",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_023_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly023ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee023@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-23-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100023",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010230",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1828382.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "024-code_review",
+    "family": "code_review",
+    "file": "original/024-code_review.md",
+    "format": "text",
+    "bytes": 17289,
+    "characters": 11246,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.24.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::18",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov024",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_024_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly024ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee024@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-24-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100024",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010248",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1829616.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "025-incident_ru",
+    "family": "incident_ru",
+    "file": "original/025-incident_ru.md",
+    "format": "text",
+    "bytes": 17347,
+    "characters": 11237,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.25.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov025",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_025_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly025ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee025@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-25-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100025",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010255",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1830850.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "026-onboarding_en",
+    "family": "onboarding_en",
+    "file": "original/026-onboarding_en.json",
+    "format": "json",
+    "bytes": 17549,
+    "characters": 11506,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.26.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::1a",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov026",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_026_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly026ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee026@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-26-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100026",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010262",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1832084.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "027-deployment_yaml",
+    "family": "deployment_yaml",
+    "file": "original/027-deployment_yaml.yaml",
+    "format": "yaml",
+    "bytes": 17677,
+    "characters": 11634,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.27.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::1b",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov027",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_027_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly027ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee027@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-27-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100027",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010270",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1833318.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "028-invoice_ru",
+    "family": "invoice_ru",
+    "file": "original/028-invoice_ru.md",
+    "format": "text",
+    "bytes": 17253,
+    "characters": 11179,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.28.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::1c",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov028",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_028_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly028ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee028@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-28-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100028",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010287",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1834552.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "029-support_chat",
+    "family": "support_chat",
+    "file": "original/029-support_chat.md",
+    "format": "text",
+    "bytes": 17382,
+    "characters": 11264,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.29.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::1d",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov029",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_029_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly029ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee029@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-29-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100029",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010294",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1835786.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "030-security_env",
+    "family": "security_env",
+    "file": "original/030-security_env.env",
+    "format": "env",
+    "bytes": 17508,
+    "characters": 11465,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.30.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::1e",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov030",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_030_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly030ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee030@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-30-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100030",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010304",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1837020.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "031-meeting_ru",
+    "family": "meeting_ru",
+    "file": "original/031-meeting_ru.md",
+    "format": "text",
+    "bytes": 17307,
+    "characters": 11204,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.31.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::1f",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov031",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_031_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly031ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee031@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-31-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100031",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010311",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1838254.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "032-code_review",
+    "family": "code_review",
+    "file": "original/032-code_review.md",
+    "format": "text",
+    "bytes": 17289,
+    "characters": 11246,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.32.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::20",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov032",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_032_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly032ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee032@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-32-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100032",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010329",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1839488.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "033-incident_ru",
+    "family": "incident_ru",
+    "file": "original/033-incident_ru.md",
+    "format": "text",
+    "bytes": 17347,
+    "characters": 11237,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.33.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::21",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov033",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_033_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly033ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee033@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-33-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100033",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010336",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1840722.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "034-onboarding_en",
+    "family": "onboarding_en",
+    "file": "original/034-onboarding_en.json",
+    "format": "json",
+    "bytes": 17549,
+    "characters": 11506,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.34.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::22",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov034",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_034_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly034ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee034@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-34-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100034",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010343",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1841956.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "035-deployment_yaml",
+    "family": "deployment_yaml",
+    "file": "original/035-deployment_yaml.yaml",
+    "format": "yaml",
+    "bytes": 17677,
+    "characters": 11634,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.35.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::23",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov035",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_035_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly035ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee035@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-35-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100035",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010350",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1843190.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "036-invoice_ru",
+    "family": "invoice_ru",
+    "file": "original/036-invoice_ru.md",
+    "format": "text",
+    "bytes": 17253,
+    "characters": 11179,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.36.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::24",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov036",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_036_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly036ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee036@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-36-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100036",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010368",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1844424.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "037-support_chat",
+    "family": "support_chat",
+    "file": "original/037-support_chat.md",
+    "format": "text",
+    "bytes": 17382,
+    "characters": 11264,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.37.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::25",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov037",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_037_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly037ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee037@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-37-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100037",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010375",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1845658.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "038-security_env",
+    "family": "security_env",
+    "file": "original/038-security_env.env",
+    "format": "env",
+    "bytes": 17508,
+    "characters": 11465,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.38.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::26",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov038",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_038_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly038ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee038@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-38-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100038",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010382",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1846892.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "039-meeting_ru",
+    "family": "meeting_ru",
+    "file": "original/039-meeting_ru.md",
+    "format": "text",
+    "bytes": 17307,
+    "characters": 11204,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.39.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::27",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov039",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_039_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly039ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee039@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-39-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100039",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010390",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1848126.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "040-code_review",
+    "family": "code_review",
+    "file": "original/040-code_review.md",
+    "format": "text",
+    "bytes": 17289,
+    "characters": 11246,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.40.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::28",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov040",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_040_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly040ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee040@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-40-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100040",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010400",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1849360.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "041-incident_ru",
+    "family": "incident_ru",
+    "file": "original/041-incident_ru.md",
+    "format": "text",
+    "bytes": 17347,
+    "characters": 11237,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.41.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::29",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov041",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_041_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly041ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee041@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-41-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100041",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010417",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1850594.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "042-onboarding_en",
+    "family": "onboarding_en",
+    "file": "original/042-onboarding_en.json",
+    "format": "json",
+    "bytes": 17549,
+    "characters": 11506,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.42.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::2a",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov042",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_042_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly042ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee042@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-42-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100042",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010424",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1851828.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "043-deployment_yaml",
+    "family": "deployment_yaml",
+    "file": "original/043-deployment_yaml.yaml",
+    "format": "yaml",
+    "bytes": 17677,
+    "characters": 11634,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.43.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::2b",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov043",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_043_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly043ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee043@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-43-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100043",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010431",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1853062.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "044-invoice_ru",
+    "family": "invoice_ru",
+    "file": "original/044-invoice_ru.md",
+    "format": "text",
+    "bytes": 17253,
+    "characters": 11179,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.44.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::2c",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov044",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_044_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly044ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee044@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-44-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100044",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010449",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1854296.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "045-support_chat",
+    "family": "support_chat",
+    "file": "original/045-support_chat.md",
+    "format": "text",
+    "bytes": 17382,
+    "characters": 11264,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.45.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::2d",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov045",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_045_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly045ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee045@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-45-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100045",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010456",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1855530.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "046-security_env",
+    "family": "security_env",
+    "file": "original/046-security_env.env",
+    "format": "env",
+    "bytes": 17508,
+    "characters": 11465,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.46.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::2e",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov046",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_046_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly046ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee046@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-46-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100046",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010463",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1856764.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "047-meeting_ru",
+    "family": "meeting_ru",
+    "file": "original/047-meeting_ru.md",
+    "format": "text",
+    "bytes": 17307,
+    "characters": 11204,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.47.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::2f",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov047",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_047_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly047ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee047@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-47-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100047",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010470",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1857998.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "048-code_review",
+    "family": "code_review",
+    "file": "original/048-code_review.md",
+    "format": "text",
+    "bytes": 17289,
+    "characters": 11246,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.48.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::30",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov048",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_048_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly048ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee048@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-48-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100048",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010488",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1859232.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "049-incident_ru",
+    "family": "incident_ru",
+    "file": "original/049-incident_ru.md",
+    "format": "text",
+    "bytes": 17347,
+    "characters": 11237,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.49.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::31",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov049",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_049_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly049ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee049@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-49-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100049",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010495",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1860466.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "050-onboarding_en",
+    "family": "onboarding_en",
+    "file": "original/050-onboarding_en.json",
+    "format": "json",
+    "bytes": 17549,
+    "characters": 11506,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.50.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::32",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov050",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_050_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly050ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee050@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-50-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100050",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010505",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1861700.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "051-deployment_yaml",
+    "family": "deployment_yaml",
+    "file": "original/051-deployment_yaml.yaml",
+    "format": "yaml",
+    "bytes": 17677,
+    "characters": 11634,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.51.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::33",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov051",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_051_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly051ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee051@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-51-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100051",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010512",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1862934.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "052-invoice_ru",
+    "family": "invoice_ru",
+    "file": "original/052-invoice_ru.md",
+    "format": "text",
+    "bytes": 17253,
+    "characters": 11179,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.52.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::34",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov052",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_052_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly052ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee052@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-52-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100052",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010520",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1864168.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "053-support_chat",
+    "family": "support_chat",
+    "file": "original/053-support_chat.md",
+    "format": "text",
+    "bytes": 17382,
+    "characters": 11264,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.53.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::35",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov053",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_053_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly053ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee053@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-53-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100053",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010537",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1865402.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "054-security_env",
+    "family": "security_env",
+    "file": "original/054-security_env.env",
+    "format": "env",
+    "bytes": 17508,
+    "characters": 11465,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.54.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::36",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov054",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_054_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly054ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee054@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-54-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100054",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010544",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1866636.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "055-meeting_ru",
+    "family": "meeting_ru",
+    "file": "original/055-meeting_ru.md",
+    "format": "text",
+    "bytes": 17307,
+    "characters": 11204,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.55.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::37",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov055",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_055_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly055ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee055@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-55-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100055",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010551",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1867870.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "056-code_review",
+    "family": "code_review",
+    "file": "original/056-code_review.md",
+    "format": "text",
+    "bytes": 17289,
+    "characters": 11246,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.56.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::38",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov056",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_056_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly056ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee056@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-56-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100056",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010569",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1869104.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "057-incident_ru",
+    "family": "incident_ru",
+    "file": "original/057-incident_ru.md",
+    "format": "text",
+    "bytes": 17347,
+    "characters": 11237,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.57.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::39",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov057",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_057_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly057ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee057@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-57-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100057",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010576",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1870338.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "058-onboarding_en",
+    "family": "onboarding_en",
+    "file": "original/058-onboarding_en.json",
+    "format": "json",
+    "bytes": 17549,
+    "characters": 11506,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.58.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::3a",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov058",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_058_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly058ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee058@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-58-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100058",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010583",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1871572.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "059-deployment_yaml",
+    "family": "deployment_yaml",
+    "file": "original/059-deployment_yaml.yaml",
+    "format": "yaml",
+    "bytes": 17677,
+    "characters": 11634,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.59.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::3b",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov059",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_059_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly059ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee059@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-59-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100059",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010590",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1872806.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "060-invoice_ru",
+    "family": "invoice_ru",
+    "file": "original/060-invoice_ru.md",
+    "format": "text",
+    "bytes": 17253,
+    "characters": 11179,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.60.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::3c",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov060",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_060_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly060ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee060@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-60-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100060",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010600",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1874040.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "061-support_chat",
+    "family": "support_chat",
+    "file": "original/061-support_chat.md",
+    "format": "text",
+    "bytes": 17382,
+    "characters": 11264,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.61.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::3d",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov061",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_061_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly061ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee061@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-61-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100061",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010618",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1875274.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "062-security_env",
+    "family": "security_env",
+    "file": "original/062-security_env.env",
+    "format": "env",
+    "bytes": 17508,
+    "characters": 11465,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.62.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::3e",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov062",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_062_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly062ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee062@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-62-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100062",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010625",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1876508.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "063-meeting_ru",
+    "family": "meeting_ru",
+    "file": "original/063-meeting_ru.md",
+    "format": "text",
+    "bytes": 17307,
+    "characters": 11204,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.63.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::3f",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov063",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_063_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly063ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee063@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-63-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100063",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010632",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1877742.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  },
+  {
+    "id": "064-code_review",
+    "family": "code_review",
+    "file": "original/064-code_review.md",
+    "format": "text",
+    "bytes": 17289,
+    "characters": 11246,
+    "entities": [
+      {
+        "kind": "organization",
+        "value": "ООО «Полярный Контур»",
+        "scope": "business"
+      },
+      {
+        "kind": "client",
+        "value": "АО «Янтарный Маяк»",
+        "scope": "business"
+      },
+      {
+        "kind": "codeword",
+        "value": "Ласточка-Резерв",
+        "scope": "business"
+      },
+      {
+        "kind": "project",
+        "value": "kedrledger",
+        "scope": "business"
+      },
+      {
+        "kind": "name_ru",
+        "value": "Михаил",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_ru",
+        "value": "Голошанов",
+        "scope": "builtin"
+      },
+      {
+        "kind": "name_en",
+        "value": "Alice",
+        "scope": "builtin"
+      },
+      {
+        "kind": "surname_en",
+        "value": "Brown",
+        "scope": "builtin"
+      },
+      {
+        "kind": "domain",
+        "value": "polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv4",
+        "value": "10.72.64.19",
+        "scope": "builtin"
+      },
+      {
+        "kind": "ipv6",
+        "value": "fd42:72::40",
+        "scope": "builtin"
+      },
+      {
+        "kind": "username",
+        "value": "osipov064",
+        "scope": "builtin"
+      },
+      {
+        "kind": "password",
+        "value": "Synthetic_064_Q7!Only",
+        "scope": "builtin"
+      },
+      {
+        "kind": "api_key",
+        "value": "sk-proj-SyntheticAuditOnly064ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "scope": "builtin"
+      },
+      {
+        "kind": "email",
+        "value": "employee064@polar-ledger.example",
+        "scope": "builtin"
+      },
+      {
+        "kind": "phone",
+        "value": "+7 (900) 123-64-45",
+        "scope": "builtin"
+      },
+      {
+        "kind": "passport",
+        "value": "45 19 100064",
+        "scope": "builtin"
+      },
+      {
+        "kind": "inn",
+        "value": "9900010640",
+        "scope": "builtin"
+      },
+      {
+        "kind": "contract_amount",
+        "value": "1878976.37",
+        "scope": "business"
+      },
+      {
+        "kind": "surname_lowercase",
+        "value": "голошанову",
+        "scope": "builtin"
+      },
+      {
+        "kind": "card",
+        "value": "4111 1111 1111 1111",
+        "scope": "builtin"
+      }
+    ],
+    "public": [
+      "Kubernetes",
+      "PostgreSQL",
+      "nginx",
+      "OpenTelemetry",
+      "Linux",
+      "Python",
+      "HTTP",
+      "TLS"
+    ]
+  }
+]

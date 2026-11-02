@@ -1,0 +1,25 @@
+# Публичные домены: регистрируемая часть не маскируется (поддомены-арендаторы — маскируются).
+example.com example.org example.net
+github.com githubusercontent.com github.dev githubassets.com gitlab.com bitbucket.org gitea.com sourceforge.net
+google.com googleapis.com gstatic.com googleusercontent.com gcr.io pkg.dev golang.org go.dev
+microsoft.com azure.com windows.net live.com office.com outlook.com visualstudio.com msdn.com
+amazon.com amazonaws.com aws.amazon.com awsstatic.com apple.com icloud.com
+cloudflare.com cloudflare.net akamai.net fastly.net jsdelivr.net unpkg.com cdnjs.com
+docker.com docker.io quay.io ghcr.io k8s.io kubernetes.io helm.sh artifacthub.io cncf.io
+npmjs.com npmjs.org yarnpkg.com pypi.org python.org pythonhosted.org crates.io rust-lang.org docs.rs
+rubygems.org ruby-lang.org maven.org apache.org spring.io gradle.org nuget.org php.net packagist.org
+nodejs.org deno.land deno.com bun.sh typescriptlang.org reactjs.org react.dev vuejs.org angular.io
+svelte.dev nextjs.org vercel.com netlify.com heroku.com digitalocean.com linode.com hetzner.com
+stackoverflow.com stackexchange.com wikipedia.org wikimedia.org medium.com dev.to habr.com
+mozilla.org mozilla.net debian.org ubuntu.com canonical.com redhat.com fedoraproject.org centos.org
+archlinux.org alpinelinux.org kernel.org gnu.org freebsd.org openbsd.org
+nginx.org nginx.com postgresql.org mysql.com mongodb.com mongodb.org redis.io elastic.co grafana.com
+prometheus.io jaegertracing.io opentelemetry.io hashicorp.com terraform.io vaultproject.io consul.io
+ansible.com jenkins.io argoproj.io sentry.io datadoghq.com newrelic.com pagerduty.com atlassian.com
+jetbrains.com eclipse.org visualstudio.com openai.com anthropic.com claude.ai huggingface.co
+yandex.ru yandex.net yandex.com ya.ru yandexcloud.net yandex.cloud mail.ru vk.com ok.ru sber.ru
+gosuslugi.ru nalog.ru nalog.gov.ru cbr.ru consultant.ru garant.ru 1c.ru
+slack.com zoom.us telegram.org t.me whatsapp.com discord.com discord.gg teams.microsoft.com
+gmail.com googlemail.com yahoo.com hotmail.com protonmail.com proton.me yandex.ru rambler.ru bk.ru inbox.ru list.ru
+letsencrypt.org digicert.com sectigo.com globalsign.com
+schema.org w3.org ietf.org rfc-editor.org iana.org json-schema.org yaml.org toml.io

@@ -1,0 +1,54 @@
+# Общие английские слова, которые встречаются в путях, хостах и идентификаторах.
+# Слова через пробел или с новой строки; регистр не важен. Словоформы покрываются `inflections`.
+a about above access account accounts act action active activity actual add address admin advanced after again
+against age agent agreement alert alerts algorithm alias align all allow alpha also alternate always amount analysis
+analytics analyzer and another answer any app application apply approval approve archive area argument arguments array
+article as asset assets assign assistant async at attach attachment attribute audit auth author authority auto
+automatic automation available avatar away back backend background backup bad balance bank bar base basic batch be
+before begin behavior beta better between big bill billing binary bind bit black blank block blog blue board body
+book boot bot both bottom bound box branch break bridge broker browser bucket budget buffer bug build builder
+bulk bundle business button by cache calendar call callback camera campaign can cancel capacity capture card care
+cart case cash catalog category center central certificate chain change channel chart chat check checkout child
+choice choose chunk city class clean clear click client clients clock clone close cloud cluster code collect
+collection collector color column command comment commerce commit common community company compare compiler complete
+component compose compute condition config configuration confirm connect connection connector console consumer
+contact container content context contract control controller convert cookie copy core cost count counter country
+course cover crash create credit critical cron crop cross current custom customer cycle daily dash dashboard data
+database date day dead debug decision decode default define delay delete delivery demo deploy deployment design
+desktop detail details detect dev device diff digital direct direction directory disable discount discovery disk
+display distribution doc docs document documents domain done down download draft drive driver drop dump duplicate
+dynamic each early east edge edit editor effect element email embed empty enable encode end endpoint engine
+enterprise entity entry environment error errors event events example exception exchange exec execute exit expand
+expense experiment export express extension external extra extract face factory fail failure fallback fast feature
+features feed feedback fetch field file files filter final finance find first fix flag flags flow folder follow
+font for form format forward frame free from front frontend full function functions gallery game gate gateway
+general generate generator get global goal good graph green grid group groups guard guest guide handler hard hash
+head header health heap help helper hidden high history hold home hook host hot hour hub id identity idle image
+images import in inbox index info information init inner input insert inside install instance integration
+interface internal invoice issue issues item items job jobs join journal key keys kind label lab language large
+last latest launch layer layout lead learn ledger left legacy level library license life light limit line link
+links list listener live load loader local location lock log logger logic login logout logs long lookup loop low
+machine mail main maintenance major manage manager manual map mapping market master match max media member
+memory menu merge message messages meta method metric metrics middle middleware migration min minor mirror mobile
+mock mode model module modules money monitor monitoring month more move multi name native nav network new news
+next night no node nodes none normal note notes notification notifications now null number object office offline
+offset old on one online only open operation operator option options order orders org origin other out outbound
+output outside overview owner package page pages panel parent parser part partner party pass patch path pattern
+pay payment payments peer pending people per performance permission permissions person phone pipeline place plan
+platform play player plugin plugins point policy pool port portal post power preview price pricing primary print private
+process processor product production products profile program progress project projects promo property protocol
+provider proxy public publish pull push query queue quick quota random range rate raw read reader real receipt
+receive record records recovery red redirect reference refresh region register registry release remote remove
+render replica replicas reply report reports repository request requests required reserve reset resource resources
+response rest restore result results retry return review right risk role roles room root route router routes
+rule rules run runner runtime safe sale sample save scan schedule scheduler schema scope score script scripts
+search second secret secrets section secure security seed select self send sender sensor server servers service
+services session set settings setup share shared shell shop short show side sign signal signature simple single
+site size slave slot small smart snapshot social socket soft source space spec special split stable stack staff
+standard start state static stats status step stock storage store stream string style sub submit subscription
+success summary super supply support switch sync system systems table tag tags target task tasks tax team teams
+template temp tenant term terms test tests text theme thread ticket tickets time timeout timer title to today
+token tool tools top topic total trace track tracker trade traffic transaction transfer transform transport tree
+trigger trust type types ui unit unknown up update upload usage use user users util utils valid validate value
+values vault vendor verify version video view viewer views virtual visitor voice volume wallet warning watch
+watcher web week welcome west white widget window work worker workers workflow workspace write writer year zone

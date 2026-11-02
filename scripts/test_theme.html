@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<title>Kaponir — изолированный тест темы</title>
+<style>
+  body { font: 16px system-ui; max-width: 920px; margin: 32px auto; padding: 0 20px; }
+  li { margin: 12px 0; white-space: pre-wrap; }
+  iframe { width: 100%; height: 100px; border: 1px solid #888; }
+  .pass { color: #167038; } .fail { color: #b32424; }
+</style>
+<h1>Изолированный тест темы Kaponir</h1>
+<p>Исходные скрипты и переключатель приложения; настоящий localStorage и перезагрузка iframe.
+Системная тема имитируется через matchMedia. API приложения не используется.</p>
+<p id="status" role="status">Выполняется…</p>
+<ol id="results"></ol>
+<iframe title="Изолированная страница темы"></iframe>
+<script type="module">
+const frame = document.querySelector('iframe');
+const status = document.querySelector('#status');
+const results = document.querySelector('#results');
+const themeKey = 'kaponir-theme';
+const systemKey = 'kaponir-test-system-dark';
+const previous = new Map([themeKey, systemKey].map(key => [key, localStorage.getItem(key)]));
+let fixtureURL;
+let passed = 0;
+let failed = 0;
+
+function equal(actual, expected, message) {
+  if (actual !== expected) throw new Error(`${message}: ожидалось ${JSON.stringify(expected)}, получено ${JSON.stringify(actual)}`);
+}
+
+async function source(path) {
+  const response = await fetch(new URL(`../crates/kaponir-proxy/assets/${path}`, location.href));
+  if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+  return response.text();
+}
+
+function load(action) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => finish(new Error('Тайм-аут загрузки iframe')), 5000);
+    function finish(error) {
+      clearTimeout(timeout);
+      frame.removeEventListener('load', loaded);
+      if (error) reject(error); else resolve();
+    }
+    function loaded() {
+      const win = frame.contentWindow;
+      if (!win.testReady || win.testErrors.length) {
+        finish(new Error(`Ошибка скрипта: ${(win.testErrors || []).join('; ') || 'нет testReady'}`));
+      } else finish();
+    }
+    frame.addEventListener('load', loaded);
+    try { action(); } catch (error) { finish(error); }
+  });
+}
+
+async function fresh(saved, dark) {
+  if (saved === null) localStorage.removeItem(themeKey); else localStorage.setItem(themeKey, saved);
+  localStorage.setItem(systemKey, String(dark));
+  await load(() => { frame.src = fixtureURL; });
+}
+
+async function reload() {
+  const oldDocument = frame.contentDocument;
+  await load(() => frame.contentWindow.location.reload());
+  equal(frame.contentDocument === oldDocument, false, 'Перезагрузка создаёт новый документ');
+}
+
+function select(mode) {
+  frame.contentDocument.querySelector(`input[name="interface-theme"][value="${mode}"]`).click();
+}
+
+function check(mode, theme, saved, initial = false) {
+  const win = frame.contentWindow;
+  const root = win.document.documentElement;
+  equal(root.dataset.themeMode, mode, 'Режим');
+  equal(root.dataset.theme, theme, 'Применённая тема');
+  equal(win.getComputedStyle(root).colorScheme, theme, 'CSS color-scheme');
+  equal(win.document.querySelectorAll('input[name="interface-theme"]:checked').length, 1, 'Один выбранный переключатель');
+  equal(win.document.querySelector('input[name="interface-theme"]:checked').value, mode, 'Выбранный переключатель');
+  equal(localStorage.getItem(themeKey), saved, 'Сохранённый выбор');
+  equal(win.testErrors.length, 0, 'Ошибки JavaScript');
+  if (initial) {
+    equal(win.initialTheme.themeMode, mode, 'Режим до запуска app.js');
+    equal(win.initialTheme.theme, theme, 'Тема до запуска app.js');
+  }
+}
+
+async function test(name, run) {
+  const row = document.createElement('li');
+  results.append(row);
+  try {
+    await run();
+    passed++;
+    row.className = 'pass';
+    row.textContent = `PASS — ${name}`;
+  } catch (error) {
+    failed++;
+    row.className = 'fail';
+    row.textContent = `FAIL — ${name}\n${error.stack || error}`;
+  }
+}
+
+try {
+  const [html, app] = await Promise.all([source('index.html'), source('app.js')]);
+  const markup = new DOMParser().parseFromString(html, 'text/html');
+  const bootstrap = [...markup.querySelectorAll('head script:not([src])')]
+    .filter(script => script.textContent.includes('kaponir-theme'));
+  equal(bootstrap.length, 1, 'Найден ранний скрипт темы');
+  const switchMarkup = markup.querySelector('#theme-switch');
+  if (!switchMarkup) throw new Error('Не найден переключатель темы');
+  // Fail loudly if source boundaries change; never substitute a copy of theme logic.
+  const start = app.indexOf('const themeMedia =');
+  const end = app.indexOf('\nfunction h(', start);
+  if (start < 0 || end < start) throw new Error('Изменились границы блока темы в app.js');
+  const themeScript = app.slice(start, end);
+  const cssURL = new URL('../crates/kaponir-proxy/assets/app.css', location.href).href;
+  const mock = `
+    window.testErrors = [];
+    addEventListener('error', event => testErrors.push(event.message));
+    addEventListener('unhandledrejection', event => testErrors.push(String(event.reason)));
+    const media = new EventTarget();
+    media.matches = localStorage.getItem('${systemKey}') === 'true';
+    media.media = '(prefers-color-scheme: dark)';
+    window.matchMedia = query => {
+      if (query !== media.media) throw new Error('Неожиданный media query: ' + query);
+      return media;
+    };
+    window.setSystemDark = dark => {
+      localStorage.setItem('${systemKey}', String(dark));
+      if (media.matches === dark) return;
+      media.matches = dark;
+      media.dispatchEvent(new MediaQueryListEvent('change', {matches: dark, media: media.media}));
+    };
+  `;
+  const script = text => '<script>' + text + '<' + '/script>';
+  fixtureURL = URL.createObjectURL(new Blob([
+    '<!doctype html><html><head><meta charset="utf-8">',
+    script(mock), script(bootstrap[0].textContent),
+    script('window.initialTheme = {...document.documentElement.dataset};'),
+    `<link rel="stylesheet" href="${cssURL}"></head><body>`,
+    switchMarkup.outerHTML, script(themeScript), script('window.testReady = true;'),
+    '</body></html>',
+  ], {type: 'text/html'}));
+
+  for (const mode of ['light', 'dark']) {
+    await test(`${mode}: последний ручной выбор сохраняется, переживает перезагрузку и смену системной темы`, async () => {
+      const opposite = mode === 'light' ? 'dark' : 'light';
+      await fresh(null, mode === 'light');
+      select(opposite);
+      check(opposite, opposite, opposite);
+      select(mode);
+      check(mode, mode, mode);
+      for (const dark of [false, true, false]) {
+        frame.contentWindow.setSystemDark(dark);
+        check(mode, mode, mode);
+      }
+      frame.contentWindow.setSystemDark(mode === 'light');
+      await reload();
+      check(mode, mode, mode, true);
+      frame.contentWindow.setSystemDark(mode !== 'light');
+      check(mode, mode, mode);
+    });
+  }
+
+  for (const dark of [false, true]) {
+    await test(`Авто при системной ${dark ? 'тёмной' : 'светлой'} теме: смена ОС в обе стороны и восстановление режима`, async () => {
+      await fresh(dark ? 'light' : 'dark', dark);
+      select('auto');
+      check('auto', dark ? 'dark' : 'light', 'auto');
+      for (const next of [!dark, dark]) {
+        frame.contentWindow.setSystemDark(next);
+        check('auto', next ? 'dark' : 'light', 'auto');
+      }
+      // The next load observes a different OS theme without a preceding change event.
+      localStorage.setItem(systemKey, String(!dark));
+      await reload();
+      check('auto', dark ? 'light' : 'dark', 'auto', true);
+      frame.contentWindow.setSystemDark(dark);
+      check('auto', dark ? 'dark' : 'light', 'auto');
+    });
+    await test(`Без сохранённого выбора: Авто при системной ${dark ? 'тёмной' : 'светлой'} теме`, async () => {
+      await fresh(null, dark);
+      check('auto', dark ? 'dark' : 'light', null, true);
+      await reload();
+      check('auto', dark ? 'dark' : 'light', null, true);
+    });
+  }
+
+  await test('Некорректное сохранённое значение: переход в Авто', async () => {
+    await fresh('invalid-theme', true);
+    check('auto', 'dark', 'invalid-theme', true);
+    frame.contentWindow.setSystemDark(false);
+    check('auto', 'light', 'invalid-theme');
+  });
+} catch (error) {
+  failed++;
+  const row = document.createElement('li');
+  row.className = 'fail';
+  row.textContent = `FAIL — подготовка теста: ${error.stack || error}`;
+  results.append(row);
+} finally {
+  frame.remove();
+  if (fixtureURL) URL.revokeObjectURL(fixtureURL);
+  for (const [key, value] of previous) {
+    if (value === null) localStorage.removeItem(key); else localStorage.setItem(key, value);
+  }
+  status.textContent = `Завершено: ${passed} успешно, ${failed} ошибок.`;
+  status.className = failed ? 'fail' : 'pass';
+  document.title = `${failed ? 'FAIL' : 'PASS'} — тест темы Kaponir`;
+}
+</script>
+</html>

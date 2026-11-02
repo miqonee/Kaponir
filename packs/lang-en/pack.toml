@@ -1,0 +1,42 @@
+[pack]
+id = "lang-en"
+kind = "lang"
+version = "0.1.0"
+api_version = 1
+scripts = ["Latin"]
+license = "Apache-2.0"
+description = "English: common words (allowlist for structural slots), inflections, context and config-key words, given names"
+
+[lexicon]
+inflections = ["s", "es", "ies>y", "ed", "d", "ing", "er", "ers", "ly", "ment", "ments", "ness", "able", "ation", "ations", "al"]
+
+[context]
+PERSON = [
+    "by", "author", "contact", "owner", "assignee", "reviewer", "reporter", "manager", "engineer", "employee",
+    "colleague", "customer", "client", "ping", "ask", "asked", "said", "says", "wrote", "cc", "hi", "hello", "dear",
+    "thanks", "regards", "signed", "name", "fullname", "approved", "assigned",
+]
+SECRET = ["password", "passwd", "secret", "token", "apikey", "credentials", "key", "bearer", "auth"]
+EMAIL = ["email", "mail", "contact", "from", "to", "cc"]
+PHONE = ["phone", "tel", "mobile", "call"]
+CARD = ["card", "visa", "mastercard", "payment", "pan"]
+IBAN = ["iban", "account", "bank", "transfer"]
+USER = ["user", "username", "login", "owner", "author"]
+
+[keys]
+SECRET = [
+    "password", "passwd", "pwd", "pass", "passphrase", "secret", "secrets", "token", "apikey", "apitoken",
+    "accesskey", "secretkey", "privatekey", "accesstoken", "refreshtoken", "authtoken", "sessiontoken",
+    "clientsecret", "credentials", "credential", "salt", "signingkey", "encryptionkey", "masterkey",
+    "webhooksecret", "jwtsecret", "cookiesecret", "sessionsecret", "secretaccesskey", "awssecretaccesskey",
+    "accesskeyid", "awsaccesskeyid", "licensekey", "authkey",
+]
+DSN = [
+    "dsn", "connectionstring", "connstr", "connstring", "databaseurl", "dburl", "redisurl", "mongourl",
+    "mongouri", "mongodburi", "amqpurl", "rabbitmqurl", "brokerurl", "sentrydsn", "jdbcurl", "databaseuri",
+    "sqlalchemydatabaseuri", "postgresurl", "mysqlurl", "kafkaurl",
+]
+BUCKET = ["bucket", "bucketname", "s3bucket"]
+ENDPOINT = ["endpoint", "endpointurl", "webhookurl", "webhook", "callbackurl"]
+USER = ["username", "user", "login", "dbuser", "adminuser"]
+EMAIL = ["email", "mail", "adminemail"]

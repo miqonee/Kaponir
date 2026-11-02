@@ -1,0 +1,10 @@
+# Публичные суффиксы из нескольких меток: всё слева от них — домен арендатора (чувствительно).
+co.uk org.uk ac.uk gov.uk com.au net.au org.au co.nz co.jp ne.jp or.jp co.kr com.br com.cn com.tw com.hk
+com.sg com.my co.in com.tr com.ua com.kz com.by co.il co.za com.mx com.ar
+msk.ru spb.ru com.ru net.ru org.ru pp.ru msk.su
+github.io gitlab.io bitbucket.io pages.dev workers.dev vercel.app netlify.app herokuapp.com
+azurewebsites.net cloudapp.net blob.core.windows.net azure-api.net trafficmanager.net cloudfront.net
+s3.amazonaws.com elasticbeanstalk.com execute-api.amazonaws.com appspot.com web.app firebaseapp.com
+run.app cloudfunctions.net ngrok.io ngrok-free.app onrender.com fly.dev railway.app
+website.yandexcloud.net storage.yandexcloud.net atlassian.net slack.com zendesk.com myshopify.com
+salesforce.com my.salesforce.com sharepoint.com bitrix24.ru amocrm.ru

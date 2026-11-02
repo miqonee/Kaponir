@@ -1,0 +1,61 @@
+# Системные каталоги
+bin sbin boot dev etc lib lib64 libexec opt proc root run srv sys tmp usr var mnt media snap home users
+local share include cache log logs spool mail cron systemd init rc profile skel applications library
+volumes private program files programdata appdata roaming windows system32 desktop documents downloads
+pictures music videos public shared
+# Разработка
+src source sources lib libs pkg pkgs cmd internal vendor node_modules dist build out target release debug
+test tests spec specs mock mocks fixture fixtures example examples sample samples docs doc assets static
+public resources res scripts script tools tool util utils helper helpers common shared core api apis app apps
+web www ui frontend backend server client cli sdk bin config configs conf cfg settings env envs deploy
+deployment deployments infra infrastructure ops devops ci cd pipeline pipelines workflows github gitlab gitea
+bitbucket git svn hg readme license changelog makefile dockerfile containerfile vagrantfile jenkinsfile
+procfile gemfile rakefile cargo gradle maven pom npm yarn pnpm pip poetry venv virtualenv conda requirements
+migrations migration seeds models model views view controllers controller handlers handler routes router
+middleware services service repository repositories entities entity dto schemas schema types interfaces
+components component pages page layouts layout hooks store stores reducers actions styles css img images
+icons fonts locales locale i18n l10n translations proto protos graphql grpc rest openapi swagger
+# Расширения файлов
+yaml yml json jsonc toml ini cfg conf env txt md rst adoc csv tsv xml html htm xhtml svg png jpg jpeg gif webp
+ico bmp tiff pdf doc docx xls xlsx ppt pptx odt ods zip tar gz tgz bz2 xz zst rar 7z iso img dmg deb rpm apk
+exe dll so dylib lib bin dat db sqlite sqlite3 sql dump bak tmp swp lock pid sock log out err
+rs go py pyc pyi rb php java kt kts scala groovy clj cs fs vb swift m mm c cc cpp cxx h hh hpp hxx js mjs cjs
+jsx ts tsx vue svelte astro dart lua pl pm r jl ex exs erl hrl hs elm ml mli nim zig v sh bash zsh fish ps1
+psm1 bat cmd tf tfvars hcl nix dhall cue jsonnet libsonnet tpl tmpl j2 jinja jinja2 mustache hbs ejs pug
+erb haml slim twig liquid proto thrift avsc parquet avro orc ipynb pem crt cer key pub csr p12 pfx jks
+keystore truststore gpg asc sig whl egg jar war ear class wasm map min lockb mod sum
+# Контейнеры, Kubernetes, облака
+docker podman containerd cri kubernetes k8s k3s kubectl kubeconfig kube helm chart charts values templates
+kustomize kustomization overlays base manifests manifest namespace namespaces pod pods deployment
+statefulset daemonset replicaset job cronjob ingress egress gateway virtualservice destinationrule
+service serviceaccount configmap secret secrets pvc pv persistentvolume storageclass volume volumes mount
+node nodes cluster clusters master worker workers control plane etcd coredns kubelet kubeproxy calico
+cilium flannel istio linkerd envoy nginx traefik haproxy caddy apache httpd tomcat jetty
+argocd argo flux tekton jenkins gitlab-runner runner runners harbor registry nexus artifactory sonarqube
+sonar vault consul nomad terraform terragrunt ansible puppet chef salt pulumi packer vagrant
+prometheus alertmanager grafana loki tempo mimir jaeger zipkin opentelemetry otel elastic elasticsearch
+kibana logstash fluentd fluentbit filebeat metricbeat beats opensearch splunk datadog sentry newrelic
+victoria victoriametrics thanos cortex graphite statsd influxdb telegraf zabbix nagios icinga
+postgres postgresql pg pgbouncer mysql mariadb sqlite mongo mongodb redis valkey memcached cassandra
+scylla clickhouse kafka zookeeper rabbitmq nats pulsar activemq minio ceph rook s3 gcs blob
+spark hadoop hdfs hive presto trino flink airflow dagster prefect dbt superset metabase redash
+aws gcp azure yandex yc sbercloud selectel vk ec2 eks ecs fargate lambda rds dynamodb sqs sns iam
+cloudfront route53 vpc subnet subnets gke gce aks openshift rancher
+# Окружения и общие технические части
+prod production prd stage staging stg dev develop development test testing qa uat preprod sandbox demo
+canary blue green primary secondary replica standby leader follower shard shards partition partitions
+region zone az east west north south central eu us ru msk spb
+api apis gw gateway proxy lb balancer edge cdn dns ns mx smtp imap pop3 ftp sftp ssh vpn ldap ad sso
+oauth oidc saml jwt tls ssl https http tcp udp grpc ws wss amqp mqtt
+v1 v2 v3 alpha beta rc latest stable nightly snapshot release releases hotfix feature bugfix main
+master trunk head origin upstream fork tag tags
+admin auth authz authn login logout signin signup register account accounts user users profile
+health healthz livez readyz ready live status metrics stats ping debug pprof trace traces span spans
+cron worker workers scheduler queue queues consumer producer publisher subscriber listener webhook
+webhooks callback callbacks notify notifier notification notifications mailer sender email sms push
+payments payment billing invoice invoices checkout cart orders order catalog search index indexer
+storage upload uploads download downloads media files file images image video thumbnails thumbs
+cache caches session sessions token tokens keys key secret config configuration settings flags
+feature features toggle toggles experiment experiments analytics tracking events event log logs
+audit report reports export import sync backup backups restore archive archives tmp temp
+localhost loopback hostname host hosts domain domains
