@@ -2,12 +2,16 @@
 
 **English · [Русский](README.ru.md)**
 
-**A local, reversible text anonymizer and proxy for LLMs.**
+**Mask sensitive values before an LLM request and restore them in the response.**
 
-Kaponir hides secrets, internal infrastructure, personal data, and commercial information
-before sending text to an external language model, then restores the original values in its
-response. The CLI, Web UI, proxy, and background document analysis share one local rule space
-and encrypted vault.
+Kaponir is a local, reversible text anonymizer and LLM proxy. It detects and replaces
+sensitive values using recognizers and your rules, then restores original values
+from known tokens in the model response. The CLI, Web UI, proxy, and background document
+analysis share one local rule space and encrypted vault.
+
+- **For agent workflows:** mask and restore text, streaming responses, and tool arguments.
+- **For setup using your own data:** document directory → Xiaomi and local candidates → confirmed rules.
+- **For deployment:** one binary for CLI and Web UI; background analysis through a separate worker or Compose.
 
 [Quick start](#quick-start) ·
 [Features](#what-kaponir-does) ·
@@ -25,14 +29,19 @@ password: Cedar-47!Plum        →     password: ANON_SECRET_1      →     pass
                        Mappings remain in the local vault
 ```
 
-> **The main idea:** the model receives a useful working context without the original
-> protected values. Reversibility comes from local storage, not model memory.
+The diagram illustrates replacements with configured rules; token numbers and IP surrogates
+depend on the workspace, keys, and strategy.
+
+> **The main idea:** send useful context with detected sensitive values replaced.
+> Reversibility comes from local storage, not model memory.
 
 ## Contents
 
 - [Project goals](#project-goals)
 - [What Kaponir does](#what-kaponir-does)
 - [Quick start](#quick-start)
+- [Screenshots](#screenshots)
+- [Kaponir and Microsoft Presidio](#kaponir-and-microsoft-presidio)
 - [Use cases](#use-cases)
 - [Rules, packs, and discover](#rules-packs-and-discover)
 - [S1: optional candidate scoring](#s1-optional-candidate-scoring)
@@ -72,7 +81,7 @@ rules must be configured for your data.
 | **Providers** | Up to 64 connections with separately encrypted keys, individual endpoints, shared model pools, session affinity, and explicitly enabled retry on HTTP 429. |
 | **Web UI** | Traffic overview, connections, events, rules, decision review, masking laboratory, discover, S1 settings, and background analysis. Available in Russian and English. |
 | **Discover** | Local document analysis, occurrence examples, stable IDs, an encrypted collection, and explicit confirmation of selected MASK rules. |
-| **Background analysis** | A separate worker, SQLite queue, checkpoints, pause/resume/cancel; text files, images, PDF, and opt-in OCR. |
+| **Background analysis and Xiaomi** | Directories, text session exports, images, and PDF; OCR and additional model-based candidate discovery. A separate worker with a persistent queue, pause/resume, and saved suggestions. |
 | **Integrations** | Sidecar REST for custom gateways and per-session streaming restoration; Docker Compose for the proxy and worker. |
 | **Observability** | Sanitized events, technical JSON metrics, and Prometheus metrics without message contents or original values. |
 
@@ -82,52 +91,47 @@ are currently written in Russian.
 
 ## Quick start
 
-### Requirements
+You need a stable Rust toolchain with Cargo. No external model or provider account is needed
+for the first mask → restore check. Linux x64 is the primary verified platform.
 
-- A stable Rust toolchain with Cargo;
-- Linux x64 is the primary locally verified platform; CI includes tests and builds on macOS,
-  but macOS was not exercised in this local verification;
-- Python 3.12+ and worker dependencies are required only for native image/PDF processing;
-- No external models are required to build the project or run its standard tests.
-
-### Build and mask locally
+### 1. Build and initialize
 
 ```bash
 cargo build --locked --release -p kaponir-cli
 export PATH="$PWD/target/release:$PATH"
-
-# Creates ~/.config/kaponir: configuration, keys, vault, and rule files.
-# Use KAPONIR_HOME or the global --home option for a different directory.
 kaponir init --corp-domain mycompany.ru
-
-printf '%s\n' 'password: Cedar-47!Plum' | kaponir mask
-printf '%s\n' 'password: ANON_SECRET_1' | kaponir restore
 ```
 
-The actual token number depends on the current vault. Do not copy the example token as a
-ready-made restoration secret: first perform your own masking in a new workspace.
+This creates the local configuration, keys, encrypted vault, and rule files in
+`~/.config/kaponir`. Back up `vault.key`: without it, saved mappings cannot be restored.
 
-Inspect a file without storing mappings:
+### 2. Mask and restore the actual result
 
 ```bash
-kaponir mask deployment.yaml --format yaml --dry-run --explain --report
-kaponir mask deployment.yaml --format yaml --output safe.yaml
-kaponir restore safe.yaml --output restored.yaml
+masked=$(printf '%s\n' 'password: Cedar-47!Plum' | kaponir mask)
+printf 'Masked:   %s\n' "$masked"
+printf 'Restored: %s\n' "$masked" | kaponir restore
 ```
 
-`--dry-run` does not save new mappings, so its preview output is not intended for subsequent
-restoration in another process. Keep the vault for a working mask → restore cycle.
+Expected result: the first line contains an `ANON_...` token instead of the password; the
+second restores `password: Cedar-47!Plum`. Use the actual output rather than a hardcoded token:
+numbers depend on the current vault.
 
-### Web UI
+### 3. Open the Web UI
 
 ```bash
 kaponir ui --no-open
 # Open http://127.0.0.1:8787/ui/
 ```
 
-`kaponir ui` without `--no-open` also tries to open a browser. The same UI is available after a
-normal `kaponir serve`. For the first connection, open **Providers and API**, add a provider,
-retrieve its models, and save the connection. The panel displays the client address and an SDK example.
+The same UI is available after `kaponir serve`. `kaponir ui` without `--no-open` also tries to
+open a browser. For a real provider connection, open **Providers and API**, save a provider,
+and verify the route with synthetic data first.
+
+For file processing, `--dry-run`, proxy client setup, OCR, and Docker, see the examples below
+and the [CLI reference](docs/COMMANDS.md). Every native worker needs Python 3.12+, including
+for text files. Images/PDF and Xiaomi mode need additional dependencies; the regular
+mask/restore CLI and proxy do not require Python.
 
 ### Proxy for an existing client
 
@@ -144,6 +148,41 @@ OPENAI_BASE_URL=http://127.0.0.1:8787/v1 my-script
 When a connection is saved, Kaponir injects the provider key. Without a matching profile, it uses
 direct upstream mode with the client's credentials. Do not send real requests until you have
 verified the address, route, and rules with synthetic data.
+
+## Screenshots
+
+The screenshots below show the real panel running with an isolated workspace and synthetic
+values; no provider or external model was contacted.
+
+| Masking laboratory | Background document analysis |
+|---|---|
+| ![Masking laboratory with synthetic source text and masked result](docs/images/kaponir-masking.jpg) | ![Background analysis with the connected worker and Xiaomi-OCR-0 model selection](docs/images/kaponir-worker.jpg) |
+
+The laboratory explains replacements and supports later restoration. The worker downloads
+Xiaomi-OCR-0 on request and processes documents separately from LLM traffic. Both screenshots
+show the Russian interface; the **EN** switch enables English.
+
+## Kaponir and Microsoft Presidio
+
+[Microsoft Presidio](https://github.com/microsoft/presidio) and Kaponir overlap in sensitive-data
+detection and anonymization, but their primary workflows differ. This is an architectural
+comparison, not a benchmark of detection accuracy.
+
+| Aspect | Kaponir | Microsoft Presidio |
+|---|---|---|
+| **Primary workflow** | A local mask → external LLM → restore cycle with CLI, Web UI, and OpenAI/Anthropic-compatible proxy. | Python services and libraries for detecting PII and applying configurable anonymization operators. |
+| **Restoration and state** | The vault stores encrypted mappings and known session values. Incomplete stream buffers remain in process memory. | The anonymizer provides operators such as replace, mask, redact, and encrypt/decrypt; reversible application state and its storage are designed by the integrator. |
+| **Detection approach** | Deterministic recognizers, language/domain packs, exact MASK/KEEP rules, and optional scoring of already detected uncertain candidates. | Predefined and custom recognizers using patterns, checksums, NER/NLP engines, and other logic. |
+| **Images and documents** | A worker extracts text and can discover candidates using Xiaomi-OCR-0. Confirmations create text MASK rules; source image pixels are not redacted. | The separate image-redactor package detects and redacts PII in image pixels. It does not provide Kaponir's rule-discovery queue. |
+| **Best fit** | Sending working context to an LLM while keeping original values local and restoring supported response tokens. | Building PII detection/redaction into Python data pipelines, APIs, and structured processing workflows. |
+
+Presidio is a mature, extensible choice when its analyzer/anonymizer APIs and operator model fit
+the application. Kaponir is focused on the end-to-end LLM gateway workflow, local reversible
+mappings, and human-reviewed rules. Neither project guarantees complete detection on arbitrary
+data; evaluate both on representative examples. See Presidio's official
+[analyzer](https://microsoft.github.io/presidio/analyzer/),
+[anonymizer](https://microsoft.github.io/presidio/anonymizer/), and
+[image redactor](https://microsoft.github.io/presidio/image-redactor/) documentation.
 
 ## Use cases
 
@@ -183,6 +222,34 @@ kaponir discover --saved --json
 For a persistent queue, run `kaponir worker serve` alongside `kaponir serve`. The worker extracts
 text, passes it to discover, and stores suggestions; OCR model output does not become rules.
 Q4/Q5 downloads, job management, and Compose are described in the [worker guide](docs/WORKER.md).
+
+Xiaomi-OCR-0 helps build a sensitive-value collection from documents. Select
+**“Xiaomi candidates + local discovery”** in the UI, or run:
+
+```bash
+kaponir worker submit contracts --mode xiaomi --s1
+```
+
+**Document → text → Xiaomi + discover → collection → confirmed rules.**
+The model proposes values, including ones missed by local detectors. Kaponir checks
+exact source matches and merges duplicates; optional S1 supplies scores.
+Confirmed values become rules for subsequent requests. Labels can be used in a separate
+`kaponir s1 train` run; Xiaomi weights remain unchanged.
+
+This mode also supports text files: they are rendered as pages for the model.
+Q4/Q5, Pillow and DejaVu Sans are required; the Compose worker includes the dependencies
+and font. In the default `local` mode, the model is used only for OCR of scans.
+[Capabilities, limits and setup](docs/WORKER.md#поиск-кандидатов-моделью).
+
+**Tested on CPU:** Q4 added 3 exact candidates from two synthetic text documents where
+local discovery proposed none. In a separate OCR test, Q4 read 18/18 control values on
+two clean EN/RU pages. These are small checks of different tasks; omissions and category
+errors occurred. [Results and conditions](docs/XIAOMI_OCR_EVALUATION.md#результаты-практических-проверок).
+
+**Sessions:** a saved TXT/Markdown/JSON/JSONL export can be submitted as a regular file.
+Automatic conversation recording and analysis when a session ends are not implemented;
+the worker does not watch directories for new files either.
+[Submitting a session export](docs/WORKER.md#анализ-сессий-что-доступно).
 
 ### 5. Integrate processing into a custom gateway
 
@@ -317,6 +384,7 @@ models/                 OCR weights and runtime when this directory is selected
 ```
 
 - Vault values and provider keys are encrypted with ChaCha20-Poly1305; searches use blind indexes.
+  Rule files in `rules/*.toml`, including exact values, are stored as plain text.
 - `vault.key` is required for restoration. Losing it makes old mappings unavailable.
 - `token.key` / `KAPONIR_TOKEN_KEY` lets a team generate identical HMAC pseudonyms.
 - `mask --irreversible` stores no mappings and cannot restore the original values.
@@ -332,11 +400,12 @@ Understand these boundaries before using Kaponir with real data:
 
 - **Detection completeness is not guaranteed.** A secret unknown to the detectors can remain exposed; S1 does not search for it.
 - **Uncertain does not always mean secret.** Extra masks are possible; review them through rules and review.
-- **Reversibility requires the vault and keys.** HMAC/irreversible mode and a lost vault cannot be reversed.
+- **Reversibility requires the vault and keys.** Regular `--strategy hmac` restores through the vault;
+  `--irreversible` does not save new mappings. Losing the vault or its key prevents restoration.
 - **The proxy does not support the OpenAI Responses API.** Supported interfaces are Chat Completions, Anthropic Messages, and sidecar REST.
 - **Not every model will preserve meaning.** Substitutions change the text visible to the model; exact restoration is possible only for tokens returned without distortion.
 - **In-memory traffic is not an audit log.** The overview and events are bounded and lost on restart.
-- **OCR is only a text source.** Quality depends on the page; the model does not automatically make mask/keep decisions.
+- **Xiaomi findings need review.** The model can miss values or propose unnecessary ones; it does not automatically make mask/keep decisions.
 - **Team/Global are not RBAC.** Separate user roles and a shared multi-server vault are not implemented.
 - **The server trusts the workspace owner.** Kaponir does not protect data from a host administrator who controls the process, memory, keys, and vault.
 - **Synthetic regressions are not a production evaluation.** Saved corpora verify known scenarios, not universal completeness and accuracy.

@@ -501,6 +501,7 @@ fn discover(home: &Home, args: &DiscoverArgs) -> Result<ExitCode> {
             name: path.display().to_string(),
             text: std::fs::read_to_string(path).with_context(|| format!("{}", path.display()))?,
             format: format_from_path(path),
+            model_candidates: vec![],
         });
     }
     discover::validate_documents(&documents).map_err(anyhow::Error::msg)?;

@@ -774,7 +774,7 @@ function renderDiscover() {
       return h('tr', {},
         h('td', {}, checkbox), h('td', { text: s.kind }), h('td', { class: 'mono', text: s.value }),
         h('td', { class: 'num', text: s.count }), h('td', { class: 'num', text: s.documents }),
-        h('td', { text: s.reason.startsWith('кандидат детектора ') ? tr('Кандидат детектора {{0}}', [s.reason.slice('кандидат детектора '.length)]) : tr(s.reason) }), h('td', {}, h('details', {}, h('summary', {}, tr('Примеры: {{0}}', [(s.examples||[]).length])+scoreLabel),
+        h('td', { text: s.reason.split('; ').map(reason => reason.startsWith('кандидат детектора ') ? tr('Кандидат детектора {{0}}', [reason.slice('кандидат детектора '.length)]) : tr(reason)).join('; ') }), h('td', {}, h('details', {}, h('summary', {}, tr('Примеры: {{0}}', [(s.examples||[]).length])+scoreLabel),
           ...(s.examples||[]).map(e => h('div', {}, h('p', {class:'hint'}, e.document + ' · ' + e.start + '–' + e.end + ' · S1: ' + (e.s1_score == null ? '—' : e.s1_score.toFixed(2))), h('pre', {class:'mono'}, e.context))))));
     })))));
 }

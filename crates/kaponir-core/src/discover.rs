@@ -16,6 +16,28 @@ pub struct Document {
     pub text: String,
     #[serde(default)]
     pub format: crate::Format,
+    /// Untrusted model proposals. Only exact, source-backed values are considered.
+    #[serde(default)]
+    pub model_candidates: Vec<ModelCandidate>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct ModelCandidate {
+    pub value: String,
+    pub kind: String,
+    pub quote: String,
+}
+
+impl ModelCandidate {
+    fn valid_for(&self, text: &str) -> bool {
+        (3..=512).contains(&self.value.len())
+            && !self.value.chars().any(char::is_control)
+            && self.value.trim() == self.value
+            && self.quote.len() <= 2048
+            && self.quote.contains(&self.value)
+            && text.contains(&self.quote)
+            && profile_categories().contains_key(self.kind.as_str())
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -89,6 +111,12 @@ pub fn analyze(engine: &Engine, documents: &[Document]) -> Report {
 }
 
 pub fn validate_documents(documents: &[Document]) -> Result<(), String> {
+    if documents.iter().any(|d| {
+        d.model_candidates.len() > MAX_SUGGESTIONS
+            || d.model_candidates.iter().any(|c| !c.valid_for(&d.text))
+    }) {
+        return Err("invalid model candidates: require exact source quote, known kind, bounded values/count".into());
+    }
     if documents.iter().any(|d| d.name.len() > 1024) {
         return Err("discover document name limit: 1024 bytes".into());
     }
@@ -160,8 +188,48 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
                 recognizer: c.recognizer.clone(),
             });
         }
+        // Do not trust model offsets, categories or quotations without checking the source.
+        // All occurrences are rediscovered locally, retaining UTF-8 byte offsets.
+        let mut model_occurrences = 0;
+        'model: for hint in doc.model_candidates.iter().take(MAX_SUGGESTIONS) {
+            if !hint.valid_for(&doc.text) {
+                continue;
+            }
+            for (start, value) in doc.text.match_indices(&hint.value) {
+                if model_occurrences >= 4096 {
+                    report.truncated = true;
+                    break 'model;
+                }
+                model_occurrences += 1;
+                let end = start + value.len();
+                if let Some(existing) = spans.iter_mut().find(|s| s.start == start && s.end == end)
+                {
+                    if hint.kind == "SECRET" {
+                        existing.kind = hint.kind.clone();
+                        existing.category = Category::Credential;
+                    }
+                    if !existing.reason.contains("Xiaomi") {
+                        existing.reason.push_str("; также предложено Xiaomi");
+                    }
+                } else {
+                    spans.push(Span {
+                        start,
+                        end,
+                        kind: hint.kind.clone(),
+                        category: profile_categories()[hint.kind.as_str()],
+                        reason: "кандидат Xiaomi, значение проверено по источнику".into(),
+                        recognizer: "xiaomi".into(),
+                    });
+                }
+            }
+        }
         spans.sort_by_key(|s| (s.start, s.end, s.kind.clone()));
         spans.dedup_by(|a, b| a.start == b.start && a.end == b.end && a.kind == b.kind);
+        let model_secrets: Vec<_> = spans
+            .iter()
+            .filter(|s| s.category == Category::Credential)
+            .map(|s| (s.start, s.end))
+            .collect();
         let all_masks: Vec<_> = candidates
             .iter()
             .filter(|c| c.polarity == crate::Polarity::Mask)
@@ -177,6 +245,10 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
         for span in spans {
             let value = doc.text[span.start..span.end].trim();
             if value.len() < 3
+                || (span.category != Category::Credential
+                    && model_secrets
+                        .iter()
+                        .any(|&(a, b)| a < span.end && span.start < b))
                 || value.chars().any(char::is_control)
                 || engine.lexicon().is_word(value)
                 || covered
@@ -494,6 +566,11 @@ pub fn profile_categories() -> HashMap<&'static str, Category> {
         ("PROJ", Category::Infra),
         ("AMOUNT", Category::Financial),
         ("SECRET", Category::Credential),
+        ("PERSON", Category::Identity),
+        ("EMAIL", Category::Contact),
+        ("PHONE", Category::Contact),
+        ("ADDRESS", Category::Contact),
+        ("CUSTOM", Category::Custom),
     ]
     .into_iter()
     .collect()
@@ -567,6 +644,7 @@ mod tests {
                 name: "a.txt".into(),
                 text: "internalproject".into(),
                 format: crate::Format::Text,
+                model_candidates: vec![],
             }],
         );
         assert_eq!(report.suggestions.len(), 1);
@@ -634,6 +712,9 @@ impl Profile {
                 continue;
             }
             if let Some(current) = merged.suggestions.iter_mut().find(|s| s.id == incoming.id) {
+                if incoming.reason.contains("Xiaomi") && !current.reason.contains("Xiaomi") {
+                    current.reason.push_str("; также предложено Xiaomi");
+                }
                 for (document, count) in &incoming.occurrences {
                     current
                         .occurrences

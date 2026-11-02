@@ -647,5 +647,15 @@
   "Действия": "Actions",
   "Очередь пуста": "Queue is empty",
   "worker unavailable": "Worker unavailable",
-  "worker is not configured": "Worker is not configured"
+  "worker is not configured": "Worker is not configured",
+  "Xiaomi может читать сканы и искать кандидатов в документах. Находки сохраняются в подборку для оценки S1 или вашего подтверждения.": "Xiaomi can read scans and find candidates in documents. Findings are saved for S1 scoring or your confirmation.",
+  "Способ поиска": "Discovery mode",
+  "Локальный поиск · OCR для сканов": "Local discovery · OCR for scans",
+  "Поиск кандидатов Xiaomi + локальный поиск": "Xiaomi candidates + local discovery",
+  "В режиме Xiaomi текст отображается страницами для модели. Нужны загруженная модель и Pillow; обработка занимает больше времени. Значения сверяются с исходным текстом.": "Xiaomi mode renders text as pages for the model. Downloaded weights and Pillow are required; processing takes longer. Values are checked against the source text.",
+  "S1 оценивает находки по выбранному уровню L0–L2. Правила подтверждаете вы. Завершённую сессию можно подать файлом; живой трафик автоматически не записывается.": "S1 scores findings at the selected L0–L2 level. You confirm rules. Submit a session export as a file; live traffic is not recorded automatically.",
+  "Xiaomi: страница {{0}}": "Xiaomi: page {{0}}",
+  "Не подтверждены текстом: {{0}}": "Not supported by source text: {{0}}",
+  "кандидат Xiaomi, значение проверено по источнику": "Xiaomi candidate, exact source match verified",
+  "также предложено Xiaomi": "also proposed by Xiaomi"
 }

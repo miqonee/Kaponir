@@ -823,3 +823,47 @@ async fn worker_management_is_authenticated_and_optional() {
     .await;
     assert_eq!(status, 503);
 }
+
+#[tokio::test]
+async fn model_candidates_require_source_evidence_and_manual_confirmation() {
+    let base = spawn(None).await;
+    let document = json!({"name":"model.txt", "text":"Наш движок называется Лунная Слива.",
+        "model_candidates":[{"value":"Лунная Слива","kind":"CUSTOM","quote":"Наш движок называется Лунная Слива."}]});
+    let (status, report) = call(
+        "POST",
+        format!("{base}/api/v1/ui/discover"),
+        Some(json!({"documents":[document.clone()],"remember":true})),
+    )
+    .await;
+    assert_eq!(status, 200, "{report}");
+    let candidate = report["suggestions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["value"] == "Лунная Слива")
+        .unwrap();
+    assert!(candidate["reason"].as_str().unwrap().contains("Xiaomi"));
+    let id = candidate["id"].clone();
+    let (_, profile) = call("GET", format!("{base}/api/v1/ui/discover/profile"), None).await;
+    assert_eq!(profile["labels"], 0);
+    let mut forged = document.clone();
+    forged["model_candidates"][0]["value"] = json!("выдумка");
+    let (status, _) = call(
+        "POST",
+        format!("{base}/api/v1/ui/discover"),
+        Some(json!({"documents":[forged],"remember":true})),
+    )
+    .await;
+    assert_eq!(status, 400);
+    let (_, after) = call("GET", format!("{base}/api/v1/ui/discover/profile"), None).await;
+    assert_eq!(after, profile);
+    let (status, result) = call(
+        "POST",
+        format!("{base}/api/v1/ui/discover/apply"),
+        Some(json!({"saved":true,"ids":[id],"action":"mask"})),
+    )
+    .await;
+    assert_eq!(status, 200, "{result}");
+    let (_, profile) = call("GET", format!("{base}/api/v1/ui/discover/profile"), None).await;
+    assert_eq!(profile["labels"], 1);
+}

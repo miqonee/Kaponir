@@ -24,7 +24,7 @@ ENTRYPOINT ["kaponir-entrypoint"]
 CMD ["serve", "--listen", "0.0.0.0:8787"]
 
 FROM python:3.13-slim-trixie AS worker
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgomp1 libstdc++6 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgomp1 libstdc++6 fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 COPY scripts/requirements-worker.txt /tmp/requirements-worker.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-worker.txt
 COPY --from=selected /out/kaponir /usr/local/bin/kaponir

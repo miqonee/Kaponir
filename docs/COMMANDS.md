@@ -222,11 +222,16 @@ kaponir worker download q5
 kaponir worker submit contracts
 kaponir worker submit sessions/export.json
 kaponir worker submit scans --s1
+kaponir worker submit contracts --mode xiaomi --s1
 kaponir worker status
 kaponir worker pause JOB_ID
 kaponir worker resume JOB_ID
 kaponir worker cancel JOB_ID
 ```
+
+`--mode local` (по умолчанию) использует локальный поиск и OCR для сканов.
+`--mode xiaomi` добавляет модельный поиск кандидатов, в том числе в текстовых файлах;
+S1 оценивает предложения, правила подтверждает пользователь.
 
 CLI управления обращается к настроенному worker; `run` выполняет обработку сам и требует свободной
 очереди. Путь для `run`/`submit` относителен к `input_root`. Модель и Python-зависимости, токены,

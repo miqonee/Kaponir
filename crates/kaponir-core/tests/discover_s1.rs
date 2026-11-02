@@ -83,6 +83,7 @@ fn doc(name: &str, text: &str) -> Document {
         name: name.into(),
         text: text.into(),
         format: Default::default(),
+        model_candidates: vec![],
     }
 }
 
@@ -231,4 +232,95 @@ fn candidate_and_scoring_limits_are_visible() {
     assert_eq!(r.suggestions.len(), 256);
     assert_eq!(r.s1_status, "partial");
     assert_eq!(seen.lock().unwrap().len(), 96);
+}
+
+#[test]
+fn model_candidates_are_grounded_merged_and_scored_without_labels() {
+    use discover::ModelCandidate;
+    let (engine, seen) = engine(Disclosure::L2, false);
+    let mut document = doc(
+        "model",
+        "Наш движок называется Лунная Слива. Фраза доступа: туман-482-ирис. Лунная Слива закрыта.",
+    );
+    document.model_candidates = vec![
+        ModelCandidate {
+            value: "Лунная Слива".into(),
+            kind: "PROJ".into(),
+            quote: "Наш движок называется Лунная Слива.".into(),
+        },
+        ModelCandidate {
+            value: "туман-482-ирис".into(),
+            kind: "SECRET".into(),
+            quote: "Фраза доступа: туман-482-ирис.".into(),
+        },
+    ];
+    discover::validate_documents(&[document.clone()]).unwrap();
+    let report =
+        discover::analyze_with_options(&engine, &[document.clone()], &Options { use_s1: true });
+    let project = report
+        .suggestions
+        .iter()
+        .find(|s| s.value == "Лунная Слива")
+        .unwrap();
+    assert_eq!(project.count, 2);
+    assert!(project.reason.contains("Xiaomi"));
+    assert!(project.examples.iter().all(|e| e.s1_score == Some(0.9)));
+    for example in &project.examples {
+        assert_eq!(&document.text[example.start..example.end], project.value);
+    }
+    assert!(
+        report
+            .suggestions
+            .iter()
+            .any(|s| s.kind == "SECRET" && s.examples.iter().all(|e| e.s1_score.is_none()))
+    );
+    assert!(
+        seen.lock()
+            .unwrap()
+            .iter()
+            .all(|v| !format!("{v:?}").contains("туман-482-ирис"))
+    );
+    let mut profile = Profile::default();
+    profile.merge(&report).unwrap();
+    profile.merge(&report).unwrap();
+    assert_eq!(profile.report().suggestions, report.suggestions);
+    assert!(profile.feedback.is_empty());
+    document.model_candidates[0].quote = "выдуманная цитата".into();
+    assert!(discover::validate_documents(&[document.clone()]).is_err());
+    let report = discover::analyze(&engine, &[document]);
+    assert!(!report.suggestions.iter().any(|s| s.value == "Лунная Слива"));
+}
+
+#[test]
+fn model_and_local_duplicate_share_occurrences_and_provenance() {
+    let (engine, _) = engine(Disclosure::L0, false);
+    let mut document = doc("both", "Проект: Северный Вектор");
+    let local = discover::analyze(&engine, &[document.clone()]);
+    document.model_candidates.push(discover::ModelCandidate {
+        value: "Северный Вектор".into(),
+        kind: "CUSTOM".into(),
+        quote: document.text.clone(),
+    });
+    let both = discover::analyze(&engine, &[document]);
+    assert_eq!(both.suggestions.len(), local.suggestions.len());
+    let candidate = both
+        .suggestions
+        .iter()
+        .find(|s| s.value == "Северный Вектор")
+        .unwrap();
+    assert_eq!(candidate.count, 1);
+    assert_eq!(candidate.kind, "PROJ");
+    assert!(candidate.reason.contains("Xiaomi"));
+    let mut profile = Profile::default();
+    profile.merge(&local).unwrap();
+    profile.merge(&both).unwrap();
+    assert!(
+        profile
+            .suggestions
+            .iter()
+            .find(|s| s.value == candidate.value)
+            .unwrap()
+            .reason
+            .contains("Xiaomi")
+    );
 }

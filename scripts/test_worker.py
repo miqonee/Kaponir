@@ -5,10 +5,11 @@ from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from kaponir_worker import Worker, configuration, handler, Interrupted
+from kaponir_worker import Worker, configuration, handler, Interrupted, grounded_candidates, text_pages
 
 
 class WorkerTests(unittest.TestCase):
@@ -92,5 +93,85 @@ class WorkerTests(unittest.TestCase):
         for name in ['a','b']:(self.root/(name+'.txt')).write_text('a')
         job=self.worker.submit('scan')
         self.worker.process_one(job['id']);self.assertEqual(self.worker.get(job['id'])['state'],'failed')
+
+
+    def test_grounding_rejects_hallucinations_labels_and_preserves_credentials(self):
+        text = 'Наш движок называется Лунная Слива. Фраза доступа: туман-482-ирис.'
+        proposals, rejected = grounded_candidates({
+            'candidates': ['Лунная Слива', 'Лунная Слива', 'Туман-482-ирис', 'Выдумка', 'Фраза доступа'],
+            'credentials': ['туман-482-ирис'],
+        }, text)
+        self.assertEqual(rejected, 3)
+        self.assertEqual({p['value'] for p in proposals}, {'Лунная Слива', 'туман-482-ирис'})
+        self.assertEqual(proposals[0]['kind'], 'SECRET')
+        self.assertTrue(all(p['quote'] in text and p['value'] in p['quote'] for p in proposals))
+        for bad in [{}, {'candidates': [None], 'credentials': []}, {'candidates': [], 'credentials': 'key'}]:
+            with self.assertRaises(ValueError): grounded_candidates(bad, text)
+
+    def test_model_mode_roundtrip_and_old_jobs_default_local(self):
+        for mode in ['local', 'xiaomi']:
+            job = self.worker.submit('scan', mode=mode)
+            self.assertEqual(self.worker.get(job['id'])['mode'], mode)
+        for mode in ['other', None, [], 1]:
+            with self.assertRaises(ValueError): self.worker.submit('scan', mode=mode)
+        job = self.worker.submit('scan')
+        with patch('kaponir_worker.subprocess.run') as run:
+            run.return_value.returncode = 0
+            run.return_value.stdout = b'{}'
+            with patch.object(self.worker, 'model_candidates', side_effect=AssertionError('model not requested')):
+                self.worker.import_text(job['id'], 'test', 'Aster Birch', False)
+
+    def test_model_failure_preserves_local_import_and_reports_failure_without_raw_text(self):
+        (self.root/'a.txt').write_text('project: Amber Pine')
+        job = self.worker.submit('scan', mode='xiaomi')
+        with patch.object(self.worker, 'model_candidates', side_effect=RuntimeError('RAW_SECRET')):
+            with patch('kaponir_worker.subprocess.run') as run:
+                run.return_value.returncode = 0; run.return_value.stdout = b'{}'
+                self.worker.process_one(job['id'])
+                self.assertEqual(run.call_count, 1)
+        result = self.worker.get(job['id'])
+        self.assertEqual(result['state'], 'failed')
+        self.assertIn('local candidates saved', result['errors'][0]['message'])
+        self.assertNotIn('RAW_SECRET', json.dumps(result))
+
+    def test_model_import_passes_evidence_to_remote_discover_and_s1(self):
+        job = self.worker.submit('scan', mode='xiaomi', use_s1=True)
+        self.worker.cfg['api_url'] = 'http://localhost:1234'
+        proposals = [{'value': 'Amber Pine', 'kind': 'CUSTOM', 'quote': 'Internal Amber Pine'}]
+        with patch.object(self.worker, 'model_candidates', return_value=proposals):
+            with patch('kaponir_worker.http_json', return_value={'s1_status':'scored'}) as request:
+                self.worker.import_text(job['id'], 'doc', 'Internal Amber Pine', True)
+        body = request.call_args.args[1]
+        self.assertTrue(body['remember']); self.assertTrue(body['use_s1'])
+        self.assertEqual(body['documents'][0]['model_candidates'], proposals)
+        self.assertNotIn('Amber Pine', json.dumps(self.worker.get(job['id'])))
+
+    def test_pause_during_model_analysis_does_not_import_incomplete_result(self):
+        job = self.worker.submit('scan', mode='xiaomi')
+        with patch.object(self.worker, 'model_candidates', side_effect=Interrupted()):
+            with patch('kaponir_worker.subprocess.run') as run:
+                with self.assertRaises(Interrupted): self.worker.import_text(job['id'], 'doc', 'Amber Pine', False)
+                run.assert_not_called()
+
+    def test_rendering_keeps_original_slices_and_enforces_page_limit(self):
+        try:
+            import PIL
+        except ImportError:
+            self.skipTest('Pillow required for document rendering')
+        text = '\n'.join(f'Строка {n}: внутреннее название Лунная Слива {n}.' for n in range(120))
+        pages = list(text_pages(text, 20))
+        self.assertGreater(len(pages), 1)
+        self.assertTrue(all(source in text and image.size == (1024,1024) for source,image in pages))
+        self.assertTrue(text.startswith(pages[0][0])); self.assertTrue(text.endswith(pages[-1][0]))
+        covered = [False] * len(text)
+        cursor = 0
+        for source, _ in pages:
+            start = text.find(source, cursor)
+            self.assertGreaterEqual(start, 0)
+            covered[start:start+len(source)] = [True]*len(source)
+            cursor = start+1
+        self.assertTrue(all(covered))
+        with self.assertRaises(ValueError): list(text_pages(text, 1))
+        with self.assertRaises(ValueError): list(text_pages('hello', 1, edge=256))
 
 if __name__=='__main__':unittest.main()

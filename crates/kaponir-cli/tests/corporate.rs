@@ -43,6 +43,7 @@ fn corporate_corpus_after_confirmed_discovery_has_no_leaks_or_public_losses() {
             name: c.id.clone(),
             text: std::fs::read_to_string(root.join(&c.file)).unwrap(),
             format: c.format,
+            model_candidates: vec![],
         })
         .collect();
     let mut rules = vec![ScopedRules {
@@ -136,6 +137,7 @@ fn ocr_regression_covers_contracts_passwords_and_public_paths() {
             name: "ocr-regression".into(),
             text: text.into(),
             format: Format::Text,
+            model_candidates: vec![],
         }],
     );
     let ids: Vec<_> = report
@@ -190,6 +192,7 @@ fn discovery_generalizes_and_requires_confirmation_for_business_data() {
             name: "independent".into(),
             text: text.into(),
             format: Format::Text,
+            model_candidates: vec![],
         }],
     );
     for value in [
