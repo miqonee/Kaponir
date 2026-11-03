@@ -2,92 +2,47 @@
 
 **English · [Русский](README.ru.md)**
 
-**Mask sensitive values before an LLM request and restore them in the response.**
+Local processing · Rust · [Apache-2.0](LICENSE)
 
-Kaponir is a local, reversible text anonymizer and LLM proxy. It detects and replaces
-sensitive values using recognizers and your rules, then restores original values
-from known tokens in the model response. The CLI, Web UI, proxy, and background document
-analysis share one local rule space and encrypted vault.
+### Useful context for AI. Sensitive values stay under your control.
 
-- **For agent workflows:** mask and restore text, streaming responses, and tool arguments.
-- **For setup using your own data:** document directory → Xiaomi and local candidates → confirmed rules.
-- **For deployment:** one binary for CLI and Web UI; background analysis through a separate worker or Compose.
+Mask sensitive values before an LLM request and restore them in the response.
+Kaponir is an **extensible anonymization system with a modular Rust core and built-in
+AI-agent integration**. Its engine, recognizers, rule policy, packs, and encrypted vault
+power a CLI, Web UI, LLM proxy, and document discovery worker. Use shared rules with an
+agent, in a shell pipeline, or behind your own API.
 
-[Quick start](#quick-start) ·
-[Features](#what-kaponir-does) ·
-[Documentation](docs/README.md) ·
-[Security](docs/SECURITY.md) ·
-[Contributing](CONTRIBUTING.md)
+[Quick start](#quick-start) · [Features](#what-kaponir-does) ·
+[Comparison](#kaponir-and-presidio) · [Documentation](#documentation)
 
-```text
-Original request                     External LLM                       User response
+![Workflow: Kaponir masks a password before the LLM request and restores its token locally in the response](docs/images/kaponir-flow-en.svg)
 
-Project: Northern Vector       →     Project: ANON_PROJ_1         →     Project: Northern Vector
-password: Cedar-47!Plum        →     password: ANON_SECRET_1      →     password: Cedar-47!Plum
-10.50.12.15                    →     248.131.59.15                →     10.50.12.15
-                                    ↑
-                       Mappings remain in the local vault
-```
-
-The diagram illustrates replacements with configured rules; token numbers and IP surrogates
-depend on the workspace, keys, and strategy.
-
-> **The main idea:** send useful context with detected sensitive values replaced.
-> Reversibility comes from local storage, not model memory.
-
-## Contents
-
-- [Project goals](#project-goals)
-- [What Kaponir does](#what-kaponir-does)
-- [Quick start](#quick-start)
-- [Screenshots](#screenshots)
-- [Kaponir and Microsoft Presidio](#kaponir-and-microsoft-presidio)
-- [Use cases](#use-cases)
-- [Rules, packs, and discover](#rules-packs-and-discover)
-- [S1: optional candidate scoring](#s1-optional-candidate-scoring)
-- [Data and security](#data-and-security)
-- [Limitations](#limitations)
-- [Architecture](#architecture)
-- [Verification and development](#verification-and-development)
-- [Documentation](#documentation)
+*Illustrative workflow with synthetic data. Restoration uses mappings in your local vault.*
 
 ## Project goals
 
-AI agents benefit from real configurations, document excerpts, and support history, but these
-sources may contain passwords, internal system addresses, customer names, payment details, and
-commercial terms. Replacing all text with random characters destroys its structure and prevents
-the model from reasoning effectively.
+Give an AI agent useful configurations, document excerpts, and support history while replacing
+sensitive fragments. Kaponir preserves supported text and configuration syntax, then restores
+known tokens returned by the model—including in streaming responses and tool arguments.
 
-Kaponir addresses two connected tasks:
-
-1. **Before a request**, it detects sensitive fragments and replaces them with stable placeholders
-   or surrogates while preserving the syntax of text, JSON, YAML, configurations, and tool calls.
-2. **After a response**, it finds known tokens and restores the corresponding original values,
-   including inside streaming SSE and JSON tool arguments.
-
-The project is designed for local operation. S1 is disabled by default, the interface and proxy
-listen on a loopback address, and the external LLM provider receives only the processed request.
-Kaponir is not a universal DLP and does not guarantee detection of every secret: its policy and
-rules must be configured for your data.
+**Start locally:** basic masking needs no model or provider account. Add your own rules,
+connect an LLM provider, or use document discovery when your workflow needs them.
+Detection depends on your policy and data; review representative examples before deployment.
 
 ## What Kaponir does
 
-| Area | Implemented capabilities |
+| Workflow | What you can use today |
 |---|---|
-| **Masking** | Secrets and credentials, IP addresses, email, domains and URLs, paths, service names, identifiers, personal data, and user-defined values. Decisions depend on detectors, packs, rules, and policy. |
-| **Reversibility** | Stable `ANON_<KIND>_<N>` tokens, DNS-compatible forms, HMAC pseudonyms, and IP surrogates; restoration of plain text and escaped JSON strings. |
-| **CLI** | `mask`, `restore`, `discover`, uncertain-decision review, rules, packs, statistics, S1, and settings transfer. Works with files and shell pipelines. |
-| **LLM proxy** | OpenAI Chat Completions and Anthropic Messages; text, `tool_result`, tool arguments, buffered responses, and streaming responses. |
-| **Providers** | Up to 64 connections with separately encrypted keys, individual endpoints, shared model pools, session affinity, and explicitly enabled retry on HTTP 429. |
-| **Web UI** | Traffic overview, connections, events, rules, decision review, masking laboratory, discover, S1 settings, and background analysis. Available in Russian and English. |
-| **Discover** | Local document analysis, occurrence examples, stable IDs, an encrypted collection, and explicit confirmation of selected MASK rules. |
-| **Background analysis and Xiaomi** | Directories, text session exports, images, and PDF; OCR and additional model-based candidate discovery. A separate worker with a persistent queue, pause/resume, and saved suggestions. |
-| **Integrations** | Sidecar REST for custom gateways and per-session streaming restoration; Docker Compose for the proxy and worker. |
-| **Observability** | Sanitized events, technical JSON metrics, and Prometheus metrics without message contents or original values. |
+| **Mask text and files** | Secrets, infrastructure identifiers, personal data, and custom values; text, JSON, YAML, TOML, ENV, and INI; CLI pipelines, preview, and explanations. |
+| **Restore original values** | Stable tokens, DNS-compatible forms, HMAC pseudonyms, and IP surrogates; encrypted mappings; text, escaped JSON, and streaming restoration. An irreversible mode is also available. |
+| **Set your own policy** | Exact values, regex, Composite DSL templates, MASK/KEEP, per-kind strategies, and Personal/Team/Global scopes with enforced global rules. Language/domain packs and custom dictionaries extend detection. |
+| **Connect an AI agent** | OpenAI Chat Completions and Anthropic Messages; supported message text, tool results and arguments, buffered responses, SSE, and session memory. |
+| **Manage provider connections** | Up to 64 connections with encrypted keys, custom compatible endpoints, model pools, session affinity, and opt-in HTTP 429 retry. |
+| **Build rules from documents** | Local discovery plus optional Xiaomi model-based candidates; text, images, PDF, and exported sessions; persistent worker queue, review, and explicit rule confirmation. |
+| **Operate and integrate** | English/Russian Web UI, sidecar REST, Docker Compose, settings transfer, sanitized events, JSON metrics, and Prometheus. |
 
-For the detailed request and response field schema, see the [architecture](docs/DESIGN.md#9-прокси-для-агентов-этап-2-kaponir-proxy-kaponir-serve).
-For the control panel, see the [control panel guide](docs/CONTROL_PANEL.md). The detailed guides
-are currently written in Russian.
+Optional **S1** scores already detected uncertain candidates using a local model or HTTP service.
+It complements rules; it does not find entities missed by detectors. [How S1 works](docs/S1.md).
 
 ## Quick start
 
@@ -149,40 +104,58 @@ When a connection is saved, Kaponir injects the provider key. Without a matching
 direct upstream mode with the client's credentials. Do not send real requests until you have
 verified the address, route, and rules with synthetic data.
 
-## Screenshots
+<a id="screenshots"></a>
 
-The screenshots below show the real panel running with an isolated workspace and synthetic
-values; no provider or external model was contacted.
+## Web UI
 
-| Masking laboratory | Background document analysis |
-|---|---|
-| ![Masking laboratory with synthetic source text and masked result](docs/images/kaponir-masking.jpg) | ![Background analysis with the connected worker and Xiaomi-OCR-0 model selection](docs/images/kaponir-worker.jpg) |
+The built-in panel includes a masking laboratory, rules and decision review, provider
+connections, traffic metrics, document discovery, and worker controls. Switch to **EN**
+in the header for English labels. [Panel guide](docs/CONTROL_PANEL.md).
 
-The laboratory explains replacements and supports later restoration. The worker downloads
-Xiaomi-OCR-0 on request and processes documents separately from LLM traffic. Both screenshots
-show the Russian interface; the **EN** switch enables English.
+<!-- Add only genuine English-interface captures here. See docs/images/README.md. -->
 
-## Kaponir and Microsoft Presidio
+<a id="kaponir-and-microsoft-presidio"></a>
 
-[Microsoft Presidio](https://github.com/microsoft/presidio) and Kaponir overlap in sensitive-data
-detection and anonymization, but their primary workflows differ. This is an architectural
-comparison, not a benchmark of detection accuracy.
+## Kaponir and Presidio
 
-| Aspect | Kaponir | Microsoft Presidio |
+Both projects have extensible detection and anonymization components. Kaponir combines a
+**modular Rust engine with built-in integration across the AI-agent request/response cycle**:
+custom detection and policy, encrypted mappings, session handling, and streaming restoration.
+Presidio provides Python detection and anonymization components, configurable NLP engines,
+additional data-processing modules, and gateway integrations.
+
+| Capability | Kaponir | Presidio |
 |---|---|---|
-| **Primary workflow** | A local mask → external LLM → restore cycle with CLI, Web UI, and OpenAI/Anthropic-compatible proxy. | Python services and libraries for detecting PII and applying configurable anonymization operators. |
-| **Restoration and state** | The vault stores encrypted mappings and known session values. Incomplete stream buffers remain in process memory. | The anonymizer provides operators such as replace, mask, redact, and encrypt/decrypt; reversible application state and its storage are designed by the integrator. |
-| **Detection approach** | Deterministic recognizers, language/domain packs, exact MASK/KEEP rules, and optional scoring of already detected uncertain candidates. | Predefined and custom recognizers using patterns, checksums, NER/NLP engines, and other logic. |
-| **Images and documents** | A worker extracts text and can discover candidates using Xiaomi-OCR-0. Confirmations create text MASK rules; source image pixels are not redacted. | The separate image-redactor package detects and redacts PII in image pixels. It does not provide Kaponir's rule-discovery queue. |
-| **Best fit** | Sending working context to an LLM while keeping original values local and restoring supported response tokens. | Building PII detection/redaction into Python data pipelines, APIs, and structured processing workflows. |
+| **Core components** | Separate Rust crates for the engine/policy, recognizers, packs, vault, S1, and proxy; shared engine behavior across CLI, Web UI, and REST. | Separate analyzer/anonymizer packages, recognizer and operator extension interfaces, and additional image/structured-data modules. |
+| **Custom detection** | Recognizers, exact values, regex, Composite DSL templates, language/domain packs, and dictionaries. | Predefined/custom recognizers, regex, context, checksums, NLP/NER engines, and external models. |
+| **Policy and exceptions** | MASK/KEEP, Personal/Team/Global priority, enforced global rules, and per-kind strategies. | Entity selection, score thresholds, allow-lists, recognizer configuration, and per-entity operators; application-level policy is assembled by the integrator. |
+| **Replacement strategies** | Numbered tokens, HMAC pseudonyms, DNS forms, IP surrogates, and irreversible HMAC mode. | Replace, redact, mask, hash, encrypt, and custom operators. The operator sets are not identical. |
+| **Reversible processing** | Encrypted local vault, stable mappings, session memory, and restoration built into CLI/API/proxy. | Encrypt/decrypt operators and mapping-based pseudonymization examples; persistence and session lifecycle depend on the integration. |
+| **LLM requests and responses** | Built-in Chat Completions/Anthropic proxy, SSE restoration, and supported tool arguments/results. | Documented gateway integrations, including LiteLLM; protocol handling, streaming, and restoration depend on the chosen integration. |
+| **Gateway integration and routing** | Sidecar REST with per-session streaming restoration, up to 64 provider connections, model pools, session affinity, and opt-in HTTP 429 retry. | Analyzer/anonymizer HTTP services; provider routing, keys, and session handling are supplied by the gateway or application integration. |
+| **Files and structured data** | CLI pipelines, configuration formats, and REST; discovery over text and extracted document content. | Python/REST, batch processing, and a dedicated structured/semi-structured data package. |
+| **Images and PDF** | Worker extracts text for discovery and review; optional Xiaomi candidate discovery. Does not redact source pixels. | Image-redactor uses OCR and detection to redact image pixels. |
+| **Review and adaptation** | Web laboratory, decision review, saved suggestions → confirmed rules; optional S1 scoring and local training on confirmed decisions. | Analyzer decision explanations and configurable recognizers/models; a review and rule-approval workflow can be built around the APIs. |
+| **Running the workflow** | CLI + bilingual Web UI + proxy in one Rust binary; optional Python worker and Compose; provider pools and metrics. | Python packages, HTTP services, Docker/Kubernetes deployment examples, and ecosystem integrations. |
 
-Presidio is a mature, extensible choice when its analyzer/anonymizer APIs and operator model fit
-the application. Kaponir is focused on the end-to-end LLM gateway workflow, local reversible
-mappings, and human-reviewed rules. Neither project guarantees complete detection on arbitrary
-data; evaluate both on representative examples. See Presidio's official
-[analyzer](https://microsoft.github.io/presidio/analyzer/),
-[anonymizer](https://microsoft.github.io/presidio/anonymizer/), and
-[image redactor](https://microsoft.github.io/presidio/image-redactor/) documentation.
+**Kaponir's strength for AI-agent workflows is the combination of extensible components and
+built-in protocol, session, and restoration support.** You can customize detection and policy,
+connect an existing agent, or integrate through REST and CLI while using the same engine and vault.
+Provider routing and document-to-rule discovery are part of that system as well.
+
+Presidio is a strong fit for Python/NLP pipelines, its anonymization operator model,
+dedicated structured-data processing, and image-pixel redaction. The table distinguishes
+built-in capabilities from integration-dependent ones; it does not rank detection quality.
+Neither project guarantees complete detection on arbitrary data.
+
+Sources: Presidio [analyzer](https://presidio.dataprivacystack.org/analyzer/),
+[anonymizer](https://presidio.dataprivacystack.org/anonymizer/),
+[structured data](https://presidio.dataprivacystack.org/structured/),
+[image redactor](https://presidio.dataprivacystack.org/image-redactor/), and
+[integration examples](https://presidio.dataprivacystack.org/samples/).
+This compares documented capabilities, not measured accuracy or speed.
+Presidio, originally developed at Microsoft, is now a
+[community-owned project](https://presidio.dataprivacystack.org/project_transition/) under Data Privacy Stack.
 
 ## Use cases
 
@@ -223,33 +196,10 @@ For a persistent queue, run `kaponir worker serve` alongside `kaponir serve`. Th
 text, passes it to discover, and stores suggestions; OCR model output does not become rules.
 Q4/Q5 downloads, job management, and Compose are described in the [worker guide](docs/WORKER.md).
 
-Xiaomi-OCR-0 helps build a sensitive-value collection from documents. Select
-**“Xiaomi candidates + local discovery”** in the UI, or run:
-
-```bash
-kaponir worker submit contracts --mode xiaomi --s1
-```
-
-**Document → text → Xiaomi + discover → collection → confirmed rules.**
-The model proposes values, including ones missed by local detectors. Kaponir checks
-exact source matches and merges duplicates; optional S1 supplies scores.
-Confirmed values become rules for subsequent requests. Labels can be used in a separate
-`kaponir s1 train` run; Xiaomi weights remain unchanged.
-
-This mode also supports text files: they are rendered as pages for the model.
-Q4/Q5, Pillow and DejaVu Sans are required; the Compose worker includes the dependencies
-and font. In the default `local` mode, the model is used only for OCR of scans.
-[Capabilities, limits and setup](docs/WORKER.md#поиск-кандидатов-моделью).
-
-**Tested on CPU:** Q4 added 3 exact candidates from two synthetic text documents where
-local discovery proposed none. In a separate OCR test, Q4 read 18/18 control values on
-two clean EN/RU pages. These are small checks of different tasks; omissions and category
-errors occurred. [Results and conditions](docs/XIAOMI_OCR_EVALUATION.md#результаты-практических-проверок).
-
-**Sessions:** a saved TXT/Markdown/JSON/JSONL export can be submitted as a regular file.
-Automatic conversation recording and analysis when a session ends are not implemented;
-the worker does not watch directories for new files either.
-[Submitting a session export](docs/WORKER.md#анализ-сессий-что-доступно).
+For model-based candidate discovery, select **Xiaomi candidates + local discovery** in the UI.
+Findings are checked against source text and require confirmation before becoming rules.
+Saved TXT/Markdown/JSON/JSONL session exports can be submitted as files; automatic session
+capture and directory watching are not implemented. [Worker setup and modes](docs/WORKER.md).
 
 ### 5. Integrate processing into a custom gateway
 
@@ -328,71 +278,24 @@ measurement on an independent production corpus.
 
 ## S1: optional candidate scoring
 
-S1 estimates the confidentiality probability of **already detected uncertain candidates**. It does
-not scan documents for new entities or compensate for detector misses. Hard masks and explicit
-rules are not reevaluated by the model.
+S1 scores **already detected uncertain candidates**. Choose deterministic processing (`none`,
+the default), a local `ngram` model, or an HTTP service. Confirmed labels can train the local
+model; explicit rules and hard masks are not reevaluated. Start in shadow mode.
 
-| Provider | Purpose |
-|---|---|
-| `none` | Default: deterministic detectors, rules, and policy only. |
-| `ngram` | A local model based on L0 features; trained manually on confirmed decisions. |
-| `http` | An external `probabilities` service or SystemOne within the selected disclosure level. |
-
-Disclosure levels: **L0** provides features without the original string or context; **L1** adds
-the value; **L2** adds limited context with other detected candidates replaced. L0 is not
-encryption. L1/L2 disclose data to the selected service even in shadow mode. Credentials are
-limited to L0, and new SECRET candidates from discover are never sent to S1 for scoring.
-
-Start with shadow mode:
-
-```toml
-[s1]
-provider = "ngram"
-shadow = true
-
-[s1.http]
-# Used only when provider = "http".
-disclosure = "l0"
-timeout_ms = 200
-```
-
-```bash
-kaponir s1 train       # at least 3 different confirmed values for each class
-kaponir s1 status
-kaponir s1 rollback
-```
-
-Training does not enable `ngram` automatically. `shadow = false` allows scoring to affect
-uncertain decisions but does not prove calibration quality. If S1 fails, local decisions are
-preserved and `[policy] uncertain` applies; its default is `mask`. See the [S1 guide](docs/S1.md)
-for full contracts, the L2 profile, and limitations.
+L0 sends features without the source string; L1 includes the value; L2 adds limited context.
+L1/L2 disclose data to the selected service even in shadow mode. Credentials are restricted
+to L0; new SECRET candidates from discover are not sent to S1. [Configuration and limits](docs/S1.md).
 
 ## Data and security
 
-By default, data is stored in `KAPONIR_HOME`, otherwise `$XDG_CONFIG_HOME/kaponir`, otherwise
-`~/.config/kaponir`:
+- Local data lives in `KAPONIR_HOME`, then `$XDG_CONFIG_HOME/kaponir`, otherwise `~/.config/kaponir`.
+- Vault values and provider keys use ChaCha20-Poly1305 encryption and blind indexes.
+  Exact values in `rules/*.toml` are plain text.
+- Back up the vault **and `vault.key`**: restoration requires both. Settings export is not a vault backup.
+- `--irreversible` does not save mappings. A shared `token.key` can make HMAC pseudonyms consistent across a team.
+- The server binds to loopback by default. Non-local binding requires an API token; external access also needs TLS and network controls.
 
-```text
-config.toml             settings; provider keys need not be stored in plaintext
-vault.db                encrypted mappings, journal, sessions, and discover collection
-vault.key               vault master key
-token.key               optional shared HMAC/surrogate key
-rules/*.toml            Personal, Team, and Global scopes
-s1/                     local ngram models
-worker/                 queue and checkpoints when the worker is configured here
-models/                 OCR weights and runtime when this directory is selected
-```
-
-- Vault values and provider keys are encrypted with ChaCha20-Poly1305; searches use blind indexes.
-  Rule files in `rules/*.toml`, including exact values, are stored as plain text.
-- `vault.key` is required for restoration. Losing it makes old mappings unavailable.
-- `token.key` / `KAPONIR_TOKEN_KEY` lets a team generate identical HMAC pseudonyms.
-- `mask --irreversible` stores no mappings and cannot restore the original values.
-- A non-local `listen` address requires an API token; external access additionally needs TLS and network controls.
-- The UI uses no frontend build step, external fonts, trackers, or JavaScript dependencies.
-
-For the complete trust model, storage, backup, and secret export, see [SECURITY.md](docs/SECURITY.md).
-Settings transfer is not a vault backup: see [SETTINGS_TRANSFER.md](docs/SETTINGS_TRANSFER.md).
+[Trust model and backups](docs/SECURITY.md) · [Settings transfer](docs/SETTINGS_TRANSFER.md)
 
 ## Limitations
 
@@ -423,21 +326,7 @@ Worker → Discover ─┘       ├─→ optional S1      │
                                   └─→ response restoration
 ```
 
-The Rust workspace consists of nine crates:
-
-| Crate | Responsibility |
-|---|---|
-| `kaponir-core` | Engine, tokens, policy, rules, discover, sessions, and interfaces. |
-| `kaponir-recognizers` | Deterministic detectors and candidate resolution. |
-| `kaponir-lang-ru` | Russian morphology and word forms. |
-| `kaponir-region-ru` | Regional validators and payment details. |
-| `kaponir-packs` | Loading language, domain, and regional packs. |
-| `kaponir-vault` | SQLite, encryption, blind indexes, journal, and settings storage. |
-| `kaponir-s1` | Local ngram and HTTP/SystemOne adapters. |
-| `kaponir-proxy` | Proxy, REST, SSE, Web UI, metrics, and connections. |
-| `kaponir-cli` | The unified `kaponir` binary, configuration, worker, and engine assembly. |
-
-Architectural decisions and formats: [DESIGN.md](docs/DESIGN.md).
+[Crates, contracts, and design decisions](docs/DESIGN.md).
 
 ## Verification and development
 
