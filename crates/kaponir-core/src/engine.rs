@@ -294,6 +294,10 @@ impl Engine {
         out
     }
 
+    pub fn s1_config(&self) -> Option<&S1Config> {
+        self.s1.as_ref()
+    }
+
     pub(crate) fn discovery_s1(&self) -> Option<&S1Config> {
         self.s1.as_ref()
     }

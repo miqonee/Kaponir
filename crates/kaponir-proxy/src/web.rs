@@ -105,6 +105,8 @@ pub(crate) fn routes() -> Router<Shared> {
             }),
         )
         .route("/api/v1/ui/info", get(info))
+        .route("/api/v1/ui/events", get(ui_events))
+        .route("/api/v1/ui/events/{id}", get(ui_event_by_id))
         .route("/api/v1/ui/config/export", post(export_settings))
         .route("/api/v1/ui/config/import", post(import_settings))
         .route("/api/v1/ui/s1", get(get_s1).put(put_s1))
@@ -112,10 +114,13 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/mask", post(mask))
         .route("/api/v1/ui/restore", post(restore))
         .route("/api/v1/ui/discover", post(discover))
+        .route("/api/v1/ui/discover/sessions", post(discover_sessions))
         .route("/api/v1/ui/discover/profile", get(discovery_profile))
         .route("/api/v1/ui/discover/apply", post(apply_discover))
         .route("/api/v1/journal", get(journal))
         .route("/api/v1/journal/decide", post(decide))
+        .route("/api/v1/journal/auto-review", post(auto_review))
+        .route("/api/v1/ui/journal/auto-review", post(auto_review))
         .route("/api/v1/journal/template", post(template))
         .route("/api/v1/rules", get(rules).post(add_rule))
         .route("/api/v1/rules/{scope}/{index}", delete(remove_rule))
@@ -219,6 +224,18 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     let openai = crate::providers::saved(&st, "openai")?;
     let anthropic = crate::providers::saved(&st, "anthropic")?;
     let stats = st.with_vault(|_, v| Ok(v.stats()?)).map_err(internal)?;
+    let (rules_count, corp_domains_count) = control(&st)
+        .ok()
+        .and_then(|ctl| ctl.rules().ok())
+        .map_or((0usize, 0usize), |sets| {
+            let r = sets.iter().map(|s| s.file.rules.len()).sum();
+            let d = sets.iter().map(|s| s.file.corp.domains.len()).sum();
+            (r, d)
+        });
+    let uncertain_policy = match engine.policy().uncertain {
+        kaponir_core::UncertainAction::Mask => "mask",
+        kaponir_core::UncertainAction::Keep => "keep",
+    };
     let packs: Vec<_> = engine
         .packs()
         .iter()
@@ -227,6 +244,7 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
             json!({"id": i.id, "kind": i.kind, "version": i.version, "description": i.description})
         })
         .collect();
+    let m = engine.metrics();
     Ok(Json(json!({
         "version": env!("CARGO_PKG_VERSION"),
         "owner": st.owner(),
@@ -234,14 +252,58 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
         "packs": packs,
         "editable": st.control.is_some(),
         "s1_mode": engine.s1_mode(),
+        "uncertain_policy": uncertain_policy,
+        "rules_count": rules_count,
+        "corp_domains_count": corp_domains_count,
+        "unique_entities": stats.entries,
         "api_token_required": st.cfg.api_token.is_some(),
         "upstreams": {
             "openai": reqwest::Url::parse(openai.as_ref().map_or(st.cfg.openai_upstream.as_str(), |p| p.base_url.as_str())).ok().and_then(|u| u.host_str().map(str::to_owned)),
             "anthropic": reqwest::Url::parse(anthropic.as_ref().map_or(st.cfg.anthropic_upstream.as_str(), |p| p.base_url.as_str())).ok().and_then(|u| u.host_str().map(str::to_owned)),
         },
         "stats": stats,
+        "latency": {
+            "mask": m.mask.snapshot(),
+            "restore": m.restore.snapshot(),
+            "s1": m.s1.snapshot(),
+            "http": st.requests.snapshot(),
+        },
     }))
     .into_response())
+}
+
+// ---------- events & request inspector ----------
+
+async fn ui_events(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    Ok(Json(st.traffic.snapshot()).into_response())
+}
+
+async fn ui_event_by_id(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Path(id): Path<u64>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    if let Some(ev) = st.traffic.event_by_id(id) {
+        return Ok(Json(ev).into_response());
+    }
+    let from_vault: Option<crate::traffic::Event> = st
+        .with_vault(|_, v| {
+            for raw in v.load_traffic_events(200)? {
+                if let Ok(ev) = serde_json::from_str::<crate::traffic::Event>(&raw)
+                    && ev.id == id
+                {
+                    return Ok(Some(ev));
+                }
+            }
+            Ok(None)
+        })
+        .map_err(internal)?;
+    match from_vault {
+        Some(ev) => Ok(Json(ev).into_response()),
+        None => Err(error(StatusCode::NOT_FOUND, format!("event #{id} not found"))),
+    }
 }
 
 // ---------- S1 ----------
@@ -572,6 +634,9 @@ async fn apply_discover(
         })
         .map_err(bad)?;
     if applied > 0 && req.action == DiscoverAction::Mask {
+        if let Ok(ctl) = control(&st) {
+            let _ = ctl.auto_train_s1();
+        }
         reload(&st)?;
     }
     let report = if req.saved {
@@ -583,6 +648,83 @@ async fn apply_discover(
         report
     };
     Ok(Json(json!({"applied":applied,"scope":req.scope,"report":report})).into_response())
+}
+
+#[derive(Deserialize, Default)]
+struct DiscoverSessionsReq {
+    #[serde(default = "default_true")]
+    use_s1: bool,
+    #[serde(default = "default_true")]
+    remember: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+async fn discover_sessions(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<DiscoverSessionsReq>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let snap = st.traffic.snapshot();
+    let mut documents = Vec::new();
+    for ev in snap.events {
+        if let Some(insp) = ev.inspector {
+            let mut text = String::new();
+            if !insp.original_request.trim().is_empty() {
+                text.push_str(&insp.original_request);
+            }
+            if !insp.restored_response.trim().is_empty() {
+                if !text.is_empty() {
+                    text.push_str("\n\n");
+                }
+                text.push_str(&insp.restored_response);
+            }
+            if !text.trim().is_empty() {
+                documents.push(kaponir_core::discover::Document {
+                    name: format!("session-event-{}", ev.id),
+                    text,
+                    format: Format::Auto,
+                    model_candidates: Vec::new(),
+                });
+            }
+        }
+    }
+    let docs_count = documents.len();
+    if documents.is_empty() {
+        let report = st
+            .with_vault(|_, v| Ok(crate::discovery::load(v)?.report()))
+            .map_err(internal)?;
+        return Ok(Json(json!({"documents_analyzed": 0, "report": report})).into_response());
+    }
+    let engine = st.engine();
+    let use_s1 = req.use_s1;
+    let mut report = tokio::task::spawn_blocking(move || {
+        kaponir_core::discover::analyze_with_options(
+            &engine,
+            &documents,
+            &kaponir_core::discover::Options { use_s1 },
+        )
+    })
+    .await
+    .map_err(|e| internal(e.into()))?;
+    if req.remember {
+        report = st
+            .with_vault(|_, v| {
+                crate::discovery::update(v, |profile| {
+                    profile.merge(&report).map_err(anyhow::Error::msg)?;
+                    let mut combined = profile.report();
+                    combined.s1_status = report.s1_status;
+                    combined.s1_scored = report.s1_scored;
+                    combined.truncated = report.truncated;
+                    Ok(combined)
+                })
+            })
+            .map_err(bad)?;
+    }
+    Ok(Json(json!({"documents_analyzed": docs_count, "report": report})).into_response())
 }
 
 // ---------- journal ----------
@@ -691,9 +833,140 @@ async fn decide(
     })
     .map_err(internal)?;
     if rules_changed {
+        if let Ok(ctl) = control(&st) {
+            let _ = ctl.auto_train_s1();
+        }
         reload(&st)?;
     }
     Ok(Json(json!({"closed": rows.len(), "status": status})).into_response())
+}
+
+#[derive(Deserialize, Default)]
+struct AutoReviewReq {
+    #[serde(default)]
+    ids: Vec<i64>,
+    #[serde(default)]
+    auto_save: bool,
+    #[serde(default = "default_auto_save_threshold")]
+    auto_save_threshold: f32,
+}
+
+fn default_auto_save_threshold() -> f32 {
+    0.85
+}
+
+async fn auto_review(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<AutoReviewReq>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let rows = st
+        .with_vault(|_, v| Ok(v.journal(Some("open"), 500)?))
+        .map_err(internal)?;
+    let rows: Vec<JournalRow> = if req.ids.is_empty() {
+        rows
+    } else {
+        rows.into_iter().filter(|r| req.ids.contains(&r.id)).collect()
+    };
+    if rows.is_empty() {
+        return Ok(Json(json!({"items": [], "auto_saved": 0, "total": 0})).into_response());
+    }
+    let engine = st.engine();
+    let rows_for_cls = rows.clone();
+    let classifications = tokio::task::spawn_blocking(move || {
+        use kaponir_core::s1::{CandidateView, Disclosure, classify_from_score, features};
+        let lex = engine.lexicon();
+        if let Some(s1) = engine.s1_config() {
+            let disc = s1.provider.disclosure();
+            let views: Vec<CandidateView<'_>> = rows_for_cls
+                .iter()
+                .map(|r| {
+                    let cat = serde_json::from_value(json!(r.category))
+                        .unwrap_or(kaponir_core::Category::Custom);
+                    let f = features(&r.value, lex.is_word(&r.value), &r.kind, cat, &r.recognizer);
+                    CandidateView {
+                        features: f,
+                        kind: &r.kind,
+                        category: cat,
+                        recognizer: &r.recognizer,
+                        surface: matches!(disc, Disclosure::L1 | Disclosure::L2)
+                            .then_some(r.value.as_str()),
+                        left: matches!(disc, Disclosure::L2).then_some(r.context.as_str()),
+                        right: matches!(disc, Disclosure::L2).then_some(""),
+                        profile: Some(s1.profile.as_ref()),
+                    }
+                })
+                .collect();
+            if let Ok(cls) = s1
+                .provider
+                .classify(&views, std::time::Duration::from_secs(5))
+                && cls.len() == rows_for_cls.len()
+            {
+                return cls;
+            }
+        }
+        rows_for_cls
+            .iter()
+            .map(|r| classify_from_score(r.probability, &r.kind))
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| internal(e.into()))?;
+
+    let mut items = Vec::with_capacity(rows.len());
+    let mut auto_saved = 0usize;
+    let mut seen_values = std::collections::HashSet::new();
+    let threshold = req.auto_save_threshold.clamp(0.5, 0.99);
+    let ctl = control(&st).ok();
+
+    for (r, cls) in rows.iter().zip(classifications.into_iter()) {
+        let mut saved_this = false;
+        if req.auto_save
+            && cls.confidence >= threshold
+            && let Some(ctl) = ctl
+        {
+            if seen_values.insert((cls.scope, r.value.clone())) {
+                let rule = if cls.sensitive {
+                    r.mask_rule(Some(&cls.kind))
+                } else {
+                    r.keep_rule()
+                };
+                if ctl.add_rule(cls.scope, rule).is_ok() {
+                    saved_this = true;
+                }
+            } else {
+                saved_this = true;
+            }
+            if saved_this {
+                let status = if cls.sensitive { "masked" } else { "kept" };
+                let _ = st.with_vault(|_, v| Ok(v.set_journal_status(r.id, status)?));
+                auto_saved += 1;
+            }
+        }
+        items.push(json!({
+            "id": r.id,
+            "value": r.value,
+            "sensitive": cls.sensitive,
+            "action": if cls.sensitive { "mask" } else { "keep" },
+            "kind": cls.kind,
+            "scope": cls.scope,
+            "confidence": cls.confidence,
+            "auto_saved": saved_this,
+        }));
+    }
+    if auto_saved > 0 {
+        if let Some(ctl) = ctl {
+            let _ = ctl.auto_train_s1();
+        }
+        reload(&st)?;
+    }
+    Ok(Json(json!({
+        "items": items,
+        "auto_saved": auto_saved,
+        "total": rows.len(),
+    }))
+    .into_response())
 }
 
 #[derive(Deserialize)]

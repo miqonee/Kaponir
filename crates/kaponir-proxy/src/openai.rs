@@ -92,6 +92,7 @@ fn add_hint(messages: &mut Vec<Value>, hint: &str) {
 }
 
 pub fn restore_response(body: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> {
+    cx.record_token_usage(body);
     if let Some(Value::Array(choices)) = body.get_mut("choices") {
         for ch in choices {
             let Some(msg) = ch.get_mut("message") else {
@@ -156,6 +157,7 @@ impl Rewriter for StreamRewriter {
         let Ok(mut v) = serde_json::from_str::<Value>(&ev.data) else {
             return Ok(vec![ev.raw]);
         };
+        cx.record_token_usage(&v);
         let Some(choices) = v.get_mut("choices").and_then(Value::as_array_mut) else {
             return Ok(vec![ev.raw]);
         };

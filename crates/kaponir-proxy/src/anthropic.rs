@@ -89,6 +89,7 @@ fn add_hint(body: &mut Value, hint: &str) {
 }
 
 pub fn restore_response(body: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> {
+    cx.record_token_usage(body);
     if let Some(Value::Array(blocks)) = body.get_mut("content") {
         for b in blocks {
             match ty(b).as_str() {
@@ -147,6 +148,7 @@ impl Rewriter for StreamRewriter {
         let Ok(mut v) = serde_json::from_str::<Value>(&ev.data) else {
             return Ok(vec![ev.raw]);
         };
+        cx.record_token_usage(&v);
         let index = v.get("index").and_then(Value::as_u64);
         match (ty(&v).as_str(), index) {
             ("content_block_start", Some(i)) => {

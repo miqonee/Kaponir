@@ -19,15 +19,15 @@ class Markup(HTMLParser):
 
 class LocaleTests(unittest.TestCase):
     def test_dictionary_keys_and_placeholders_match(self):
-        ru = json.loads((ASSETS/'locales/ru.json').read_text())
-        en = json.loads((ASSETS/'locales/en.json').read_text())
+        ru = json.loads((ASSETS/'locales/ru.json').read_text(encoding='utf-8'))
+        en = json.loads((ASSETS/'locales/en.json').read_text(encoding='utf-8'))
         self.assertEqual(set(ru), set(en))
         for key in ru:
             self.assertTrue(en[key], key)
             self.assertEqual(sorted(re.findall(r'\{\{\d+\}\}',ru[key])),
                              sorted(re.findall(r'\{\{\d+\}\}',en[key])), key)
     def test_static_labels_are_translated_and_ids_are_unique(self):
-        markup=Markup();markup.feed((ASSETS/'index.html').read_text())
-        en=json.loads((ASSETS/'locales/en.json').read_text())
+        markup=Markup();markup.feed((ASSETS/'index.html').read_text(encoding='utf-8'))
+        en=json.loads((ASSETS/'locales/en.json').read_text(encoding='utf-8'))
         self.assertFalse(set(markup.keys)-set(en))
         self.assertEqual(len(markup.ids),len(set(markup.ids)),Counter(markup.ids))

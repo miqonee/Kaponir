@@ -12,9 +12,12 @@ function syncS1Visibility() {
   $('#s1-http-fields').hidden = !external;
   $('#s1-model-fields').hidden = !enabled;
   $('#s1-url').required = external;
-  const systemone = $('#s1-protocol').value === 'systemone';
-  $('#s1-model-field').hidden = !systemone;
-  $('#s1-model').required = external && systemone;
+  const proto = $('#s1-protocol').value;
+  const needsModel = proto === 'systemone' || proto === 'openai';
+  $('#s1-model-field').hidden = !needsModel;
+  $('#s1-model').required = external && needsModel;
+  $('#s1-model').placeholder = proto === 'openai' ? 'deepseek-chat / qwen2.5-7b-instruct' : 'provider/model';
+  $('#s1-url').placeholder = proto === 'openai' ? 'https://api.deepseek.com/v1/chat/completions' : 'https://s1.example/score';
   $('#s1-disclosure-field').hidden = !external;
   const disclosure = selectedS1Level();
   $('#s1-context-field').hidden = !external || disclosure !== 'l2';

@@ -10,8 +10,14 @@ pub const LATENCY_BOUNDS_US: [u64; 8] =
     [1000, 5000, 10000, 50000, 100000, 500000, 1000000, 10000000];
 
 #[derive(Default)]
+struct OperationState {
+    snapshot: OperationSnapshot,
+    samples_us: VecDeque<u64>,
+}
+
+#[derive(Default)]
 pub struct OperationMetrics {
-    inner: Mutex<OperationSnapshot>,
+    inner: Mutex<OperationState>,
 }
 
 #[derive(Clone, Serialize)]
@@ -19,6 +25,9 @@ pub struct OperationSnapshot {
     pub calls: u64,
     pub errors: u64,
     pub duration_us: u64,
+    pub p50_us: u64,
+    pub p95_us: u64,
+    pub p99_us: u64,
     pub bounds_us: [u64; 8],
     pub buckets: [u64; 8],
 }
@@ -29,34 +38,58 @@ impl Default for OperationSnapshot {
             calls: 0,
             errors: 0,
             duration_us: 0,
+            p50_us: 0,
+            p95_us: 0,
+            p99_us: 0,
             bounds_us: LATENCY_BOUNDS_US,
             buckets: [0; 8],
         }
     }
 }
 
+fn percentile(sorted: &[u64], pct: usize) -> u64 {
+    if sorted.is_empty() {
+        return 0;
+    }
+    let idx = ((sorted.len() - 1) * pct) / 100;
+    sorted[idx]
+}
+
 impl OperationMetrics {
     pub fn observe(&self, elapsed: Duration, failed: bool) {
         let micros = elapsed.as_micros().min(u64::MAX as u128) as u64;
-        let mut s = self
+        let mut st = self
             .inner
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        s.calls += 1;
-        s.errors += u64::from(failed);
-        s.duration_us = s.duration_us.saturating_add(micros);
-        for (bound, bucket) in LATENCY_BOUNDS_US.iter().zip(&mut s.buckets) {
+        st.snapshot.calls += 1;
+        st.snapshot.errors += u64::from(failed);
+        st.snapshot.duration_us = st.snapshot.duration_us.saturating_add(micros);
+        for (bound, bucket) in LATENCY_BOUNDS_US.iter().zip(&mut st.snapshot.buckets) {
             if micros <= *bound {
                 *bucket += 1;
             }
         }
+        if st.samples_us.len() >= 512 {
+            st.samples_us.pop_front();
+        }
+        st.samples_us.push_back(micros);
     }
 
     pub fn snapshot(&self) -> OperationSnapshot {
-        self.inner
+        let st = self
+            .inner
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut snap = st.snapshot.clone();
+        if !st.samples_us.is_empty() {
+            let mut sorted: Vec<u64> = st.samples_us.iter().copied().collect();
+            sorted.sort_unstable();
+            snap.p50_us = percentile(&sorted, 50);
+            snap.p95_us = percentile(&sorted, 95);
+            snap.p99_us = percentile(&sorted, 99);
+        }
+        snap
     }
 }
 

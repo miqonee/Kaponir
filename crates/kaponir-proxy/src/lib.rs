@@ -61,6 +61,10 @@ pub trait Control: Send + Sync {
     /// Заменяет список корпоративных доменов контура.
     fn set_corp_domains(&self, scope: Scope, domains: &[String]) -> anyhow::Result<()>;
     fn build_engine(&self) -> anyhow::Result<Engine>;
+    /// Автоматическое переобучение локальной модели S1 (ngram) при появлении новых меток.
+    fn auto_train_s1(&self) -> anyhow::Result<bool> {
+        Ok(false)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

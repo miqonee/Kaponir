@@ -125,6 +125,59 @@ fn summary(model: &Model) -> serde_json::Value {
         "keep_labels": model.negatives, "cross_validation": model.cv})
 }
 
+/// Автоматическое обновление локальной модели ngram при подтверждении решений (если достаточно меток).
+pub fn auto_train(home: &Home) -> Result<bool> {
+    let cfg = home.load_config()?;
+    let dir = home.s1_dir();
+    let mut lex = Lexicon::default();
+    for pack in load_packs(&cfg)? {
+        lex.merge(pack.lexicon());
+    }
+    let vault = SqliteVault::open(&home.vault_path(), &home.master_key()?)?;
+    let mut training_rules = home.load_rules()?;
+    if let Ok(profile) = kaponir_proxy::discovery::load(&vault) {
+        training_rules.push(ScopedRules {
+            scope: kaponir_core::Scope::Personal,
+            file: kaponir_core::rules::RuleFile {
+                rules: profile
+                    .feedback
+                    .into_iter()
+                    .map(|f| kaponir_core::rules::Rule {
+                        category: kaponir_core::discover::profile_categories()
+                            .get(f.kind.as_str())
+                            .copied(),
+                        kind: f.kind,
+                        value: Some(f.value),
+                        action: if f.sensitive {
+                            RuleAction::Mask
+                        } else {
+                            RuleAction::Keep
+                        },
+                        ..Default::default()
+                    })
+                    .collect(),
+                ..Default::default()
+            },
+        });
+    }
+    let (samples, _) = samples(
+        &lex,
+        &vault.journal(None, usize::MAX >> 1)?,
+        &training_rules,
+    );
+    let mut version = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    if dir.join(ngram::MODEL_FILE).exists()
+        && let Ok(existing) = Model::load(&dir.join(ngram::MODEL_FILE))
+    {
+        version = version.max(existing.version().saturating_add(1));
+    }
+    if let Ok(model) = ngram::train(&samples, version) {
+        model.install(&dir)?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
 /// Повторы не увеличивают вес примера; конфликтующие метки исключаются целиком.
 /// Шаблоны и regex не являются примерами строк. Open/dismissed не являются разметкой.
 pub fn samples(

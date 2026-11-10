@@ -30,19 +30,28 @@ import urllib.parse
 import urllib.request
 import uuid
 
-MODEL_BASE = 'https://huggingface.co/prithivMLmods/Xiaomi-OCR-0-GGUF/resolve/main/'
+MODEL_BASE = 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/'
 FILES = {
-    'q4': ('Xiaomi-OCR-0.Q4_K_M.gguf', 529297664, '1e497ff06b91a3d822c543066df3e9ef69c62c5423be09d739dfa1db55630d3a'),
-    'q5': ('Xiaomi-OCR-0.Q5_K_M.gguf', 577999104, '941843ae6fd31dc62eff7619eede813e6b3df664a6eb6a25bb8406fc65641e94'),
-    'vision': ('Xiaomi-OCR-0.mmproj-bf16.gguf', 207346624, '634d6bc95781ebf4a3f06570a59859fa5082d488db540fd474bc6b4061aec90e'),
+    'q4': ('Qwen3-0.6B-Q4_K_M.gguf', 396705472, 'f3fc6b7d42c01f07aa6fa2c517fa492c179f7de0e1fd2275fb8ed6e3c9c90c9f'),
+    'q5': ('Qwen3-0.6B-Q8_0.gguf', 639446688, '8f02b92277a0eb2d11b3b7248511859b02c1b0a5ff5ebfc81b03c5222ebfc79e'),
+}
+MODEL_ALIASES = {
+    'q4': 'q4',
+    'q5': 'q5',
+    'qwen3-0.6b': 'q4',
+    'qwen3.5-0.8b': 'q5',
+}
+MODEL_LABELS = {
+    'q4': 'Qwen3-0.6B (Q4_K_M · быстрый CPU)',
+    'q5': 'Qwen3.5-0.8B / Qwen3-Q8 (повышенная точность CPU)',
 }
 RUNTIME_NAME = 'llama-b12038-bin-ubuntu-x64.tar.gz'
 RUNTIME_URL = 'https://github.com/ggml-org/llama.cpp/releases/download/b12038/' + RUNTIME_NAME
 RUNTIME_SHA = '46b89b9a84c7a0fa46e89911034c4f6d3024150cb5d477e1426b921f81f4ddab'
-TEXT = {'.txt', '.md', '.json', '.jsonl', '.log', '.yaml', '.yml', '.toml', '.ini', '.env', '.csv'}
+TEXT = {'.txt', '.md', '.json', '.jsonl', '.log', '.yaml', '.yml', '.toml', '.ini', '.env', '.csv', '.tsv'}
 IMAGES = {'.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'}
 TERMINAL = {'succeeded', 'failed', 'cancelled'}
-MODES = {'local', 'xiaomi'}
+MODES = {'local', 'qwen', 'xiaomi'}
 CANDIDATE_SCHEMA = {
     'type': 'object',
     'properties': {key: {'type': 'array', 'items': {'type': 'string', 'maxLength': 160},
@@ -126,6 +135,39 @@ def text_pages(text, max_pages, edge=1024):
         yield text[batch[0][0]:batch[-1][1]], image
 
 
+def text_chunks(text, max_chunks, chunk_chars=2400):
+    """Split text into overlapping UTF-8 chunks on line/whitespace boundaries for CPU text LLM."""
+    if chunk_chars < 256:
+        raise ValueError('chunk_chars must be >= 256')
+    if not text:
+        return
+    overlap = min(240, chunk_chars // 6)
+    step = max(1, chunk_chars - overlap)
+    chunks = []
+    start = 0
+    n = len(text)
+    while start < n:
+        end = min(n, start + chunk_chars)
+        if end < n:
+            nl = text.rfind('\n', start + step // 2, end)
+            sp = text.rfind(' ', start + step // 2, end)
+            cut = nl + 1 if nl >= 0 else (sp + 1 if sp >= 0 else end)
+            if cut > start:
+                end = cut
+        chunks.append(text[start:end])
+        if end >= n:
+            break
+        next_start = max(start + 1, end - overlap)
+        nl_prev = text.find('\n', next_start, end)
+        start = nl_prev + 1 if nl_prev >= 0 and nl_prev + 1 < end else next_start
+        if len(chunks) > max_chunks:
+            raise ValueError('candidate page limit exceeded; split the document')
+    if len(chunks) > max_chunks:
+        raise ValueError('candidate page limit exceeded; split the document')
+    for chunk in chunks:
+        yield chunk
+
+
 class Interrupted(Exception):
     pass
 
@@ -154,7 +196,8 @@ def configuration(home, overrides=None):
         defaults[key] = (p if p.is_absolute() else home / p).resolve()
     for key, upper in [('threads',32),('max_files',10000),('max_file_bytes',134217728),('max_pages',1000),('max_edge',1536),('ocr_timeout_seconds',1800)]:
         if not isinstance(defaults[key],int) or not 1 <= defaults[key] <= upper: raise ValueError('invalid worker setting: '+key)
-    if defaults['model'] not in ['q4','q5']: raise ValueError('unsupported model')
+    if defaults['model'] not in MODEL_ALIASES: raise ValueError('unsupported model')
+    defaults['model'] = MODEL_ALIASES[defaults['model']]
     return defaults
 
 
@@ -206,9 +249,10 @@ class Worker:
         if not isinstance(use_s1,bool): raise ValueError('use_s1 must be a boolean')
         if not isinstance(mode, str) or mode not in MODES: raise ValueError('unsupported analysis mode')
         model=model or self.cfg['model']
-        if model not in ['q4','q5']: raise ValueError('unsupported model')
+        if not isinstance(model, str) or model not in MODEL_ALIASES: raise ValueError('unsupported model')
+        model=MODEL_ALIASES[model]
         if not isinstance(source,str) or len(source)>1024: raise ValueError('invalid source path')
-        if kind=='scan': self.resolve(source)
+        if kind=='scan' and source!='@sessions': self.resolve(source)
         job={'id':uuid.uuid4().hex,'kind':kind,'source':source,'root':str(self.root),'model':model,'use_s1':bool(use_s1),'mode':mode,
              'state':'queued','created':time.time(),'updated':time.time(),'completed':0,'page':0,'files':None,
              'total':0,'errors':[],'skipped':0,'control':None,'progress':0,'progress_total':0,'current':''}
@@ -260,8 +304,13 @@ class Worker:
     def status(self):
         models={}
         for variant in ['q4','q5']:
-            ready=all((self.models/FILES[k][0]).is_file() and (self.models/FILES[k][0]).stat().st_size==FILES[k][1] for k in [variant,'vision'])
-            models[variant]={'downloaded':ready,'bytes':FILES[variant][1]+FILES['vision'][1]}
+            fname, fsize, _ = FILES[variant]
+            fpath = self.models / fname
+            ready = fpath.is_file() and fpath.stat().st_size == fsize
+            info = {'downloaded':ready,'bytes':fsize,'file':fname,'label':MODEL_LABELS.get(variant,variant),'kind':'text-cpu'}
+            models[variant] = info
+        models['qwen3-0.6b'] = dict(models['q4'])
+        models['qwen3.5-0.8b'] = dict(models['q5'])
         return {'configured':True,'online':True,'input_root':str(self.root),'models':models,'runtime_ready':self.runtime.is_file(),
                 'image_support':importlib.util.find_spec('PIL') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
                 'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'jobs':self.jobs()}
@@ -311,10 +360,10 @@ class Worker:
         return path
 
     def install(self, ident, variant):
-        for key in [variant,'vision']:
-            name,size,digest=FILES[key]
-            self.check(ident);self.update(ident,current=name,progress=0,progress_total=size)
-            self.download_file(ident,name,MODEL_BASE+name,digest,size)
+        variant = MODEL_ALIASES.get(variant, variant)
+        name,size,digest=FILES[variant]
+        self.check(ident);self.update(ident,current=name,progress=0,progress_total=size)
+        self.download_file(ident,name,MODEL_BASE+name,digest,size)
         if not self.runtime.is_file():
             if self.cfg['runtime']: raise ValueError('configured runtime is missing')
             if platform.system()!='Linux' or platform.machine() not in ['x86_64','AMD64']:
@@ -332,25 +381,26 @@ class Worker:
         if not self.runtime.is_file(): raise ValueError('runtime installation incomplete')
 
     def start_runtime(self, ident, variant):
+        variant = MODEL_ALIASES.get(variant, variant)
         if self.process and self.process.poll() is None: return
         if not self.runtime.is_file() or not self.status()['models'][variant]['downloaded']:
-            raise ValueError('OCR model/runtime missing; download the model first')
+            raise ValueError('CPU LLM model/runtime missing; download the model first')
         with socket.socket() as sock:
             sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         self.ocr_base=f'http://127.0.0.1:{port}'
-        cmd=[str(self.runtime),'-m',str(self.models/FILES[variant][0]),'--mmproj',str(self.models/FILES['vision'][0]),
+        cmd=[str(self.runtime),'-m',str(self.models/FILES[variant][0]),
              '--host','127.0.0.1','--port',str(port),'-c','4096','-np','1','-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
-             '-b','512','-ub','256','-ngl','0','--no-mmproj-offload','--no-warmup','--reasoning','off']
+             '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning','off']
         # Runtime output may contain source text; do not persist it as a log.
         self.process=subprocess.Popen(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         deadline=time.monotonic()+120
         while time.monotonic()<deadline:
             self.check(ident)
-            if self.process.poll() is not None: raise RuntimeError('OCR runtime exited during startup')
+            if self.process.poll() is not None: raise RuntimeError('LLM runtime exited during startup')
             try:
                 http_json(self.ocr_base+'/health',timeout=1);return
             except (OSError,ValueError):time.sleep(.25)
-        raise TimeoutError('OCR runtime startup timeout')
+        raise TimeoutError('LLM runtime startup timeout')
 
     def stop_runtime(self):
         process=self.process
@@ -361,46 +411,61 @@ class Worker:
         self.process=None;self.ocr_base=None
 
     def ocr(self, ident, image, variant):
-        import io
-        self.start_runtime(ident,variant)
+        """Extract text from image or scanned PDF page using local Tesseract OCR on CPU."""
         image=image.convert('RGB');image.thumbnail((self.cfg['max_edge'],self.cfg['max_edge']))
-        buf=io.BytesIO();image.save(buf,format='PNG')
-        payload={'model':'xiaomi-ocr-0','messages':[{'role':'user','content':[
-            {'type':'image_url','image_url':{'url':'data:image/png;base64,'+base64.b64encode(buf.getvalue()).decode()}},
-            {'type':'text','text':'Extract the text in the image.'}]}], 'temperature':0,'top_p':.8,'repeat_penalty':1,
-            'max_tokens':1200,'stream':False,'cache_prompt':False,'chat_template_kwargs':{'enable_thinking':False}}
-        reply=http_json(self.ocr_base+'/v1/chat/completions',payload,timeout=self.cfg['ocr_timeout_seconds'])
-        self.check(ident)
-        choice=reply['choices'][0]
-        if choice.get('finish_reason')!='stop': raise ValueError('OCR output truncated; split the page')
-        text=choice['message'].get('content')
-        if not isinstance(text,str) or not text.strip():raise ValueError('OCR returned no text')
-        return text
+        tesseract_bin = shutil.which('tesseract')
+        if tesseract_bin:
+            with tempfile.TemporaryDirectory(prefix='ocr-', dir=self.data) as tmp:
+                img_path = Path(tmp) / 'page.png'
+                image.save(img_path, format='PNG')
+                lang = os.getenv('KAPONIR_OCR_LANG', 'rus+eng')
+                res = subprocess.run([tesseract_bin, str(img_path), 'stdout', '-l', lang],
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=self.cfg['ocr_timeout_seconds'])
+                self.check(ident)
+                if res.returncode == 0:
+                    text = res.stdout.decode('utf-8', errors='replace')
+                    if text.strip():
+                        return text
+        raise ValueError('Image/PDF scan OCR requires tesseract installed in PATH')
 
-    def extract_candidates(self, ident, image, variant, source):
-        import io
+    def extract_text_candidates(self, ident, variant, source):
+        """Run compact CPU text LLM (Qwen3-0.6B / Qwen3.5-0.8B) directly on text chunk."""
         self.start_runtime(ident, variant)
-        buf = io.BytesIO()
-        image.convert('RGB').save(buf, format='PNG')
-        payload = {'model': 'xiaomi-ocr-0', 'messages': [{'role': 'user', 'content': [
-            {'type': 'image_url', 'image_url': {'url': 'data:image/png;base64,'+base64.b64encode(buf.getvalue()).decode()}},
-            {'type': 'text', 'text': CANDIDATE_PROMPT}]}], 'temperature': 0, 'max_tokens': 1200,
-            'stream': False, 'cache_prompt': False, 'chat_template_kwargs': {'enable_thinking': False},
-            'response_format': {'type': 'json_schema', 'json_schema': {
-                'name': 'candidates', 'strict': True, 'schema': CANDIDATE_SCHEMA}}}
-        reply = http_json(self.ocr_base+'/v1/chat/completions', payload, timeout=self.cfg['ocr_timeout_seconds'])
+        payload = {
+            'model': 'qwen3-cpu',
+            'messages': [
+                {'role': 'system', 'content': CANDIDATE_PROMPT},
+                {'role': 'user', 'content': source},
+            ],
+            'temperature': 0,
+            'max_tokens': 800,
+            'stream': False,
+            'cache_prompt': False,
+            'chat_template_kwargs': {'enable_thinking': False},
+            'response_format': {
+                'type': 'json_schema',
+                'json_schema': {'name': 'candidates', 'strict': True, 'schema': CANDIDATE_SCHEMA},
+            },
+        }
+        reply = http_json(self.ocr_base + '/v1/chat/completions', payload, timeout=self.cfg['ocr_timeout_seconds'])
         self.check(ident)
         choice = reply['choices'][0]
-        if choice.get('finish_reason') != 'stop': raise ValueError('candidate response truncated; split the source')
+        if choice.get('finish_reason') != 'stop':
+            raise ValueError('candidate response truncated; split the source')
         return grounded_candidates(json.loads(choice['message']['content']), source)
+
+    def extract_candidates(self, ident, image_or_text, variant, source=None):
+        if source is None and isinstance(image_or_text, str):
+            return self.extract_text_candidates(ident, variant, image_or_text)
+        return self.extract_text_candidates(ident, variant, source or '')
 
     def model_candidates(self, ident, text):
         job = self.get(ident)
         found, rejected = {}, 0
-        for index, (source, image) in enumerate(text_pages(text, self.cfg['max_pages'], self.cfg['max_edge'])):
+        for index, source in enumerate(text_chunks(text, self.cfg['max_pages'])):
             self.check(ident)
             self.update(ident, candidate_page=index+1)
-            candidates, dropped = self.extract_candidates(ident, image, job['model'], source)
+            candidates, dropped = self.extract_text_candidates(ident, job['model'], source)
             rejected += dropped
             for candidate in candidates:
                 value = candidate['value']
@@ -418,7 +483,7 @@ class Worker:
         if len(text.encode())>2*1024*1024: raise ValueError('extracted text exceeds discover limit')
         docs=[{'name':name,'text':text,'format':'auto'}]
         model_error = None
-        if self.get(ident).get('mode', 'local') == 'xiaomi':
+        if self.get(ident).get('mode', 'local') in ('qwen', 'xiaomi'):
             try:
                 docs[0]['model_candidates'] = self.model_candidates(ident, text)
             except Interrupted:
@@ -442,10 +507,26 @@ class Worker:
         if use_s1 and report.get('s1_status') not in ['scored','no_candidates']:
             warnings=self.get(ident).get('warnings',[]);warnings.append({'file':name,'s1_status':report.get('s1_status')});self.update(ident,warnings=warnings[-100:])
         if model_error is not None:
-            raise ValueError('Xiaomi candidate extraction failed; local candidates saved ('+type(model_error).__name__+')')
+            raise ValueError('LLM candidate extraction failed; local candidates saved ('+type(model_error).__name__+')')
+
+    def process_sessions(self, job):
+        ident = job['id']
+        self.check(ident)
+        self.update(ident, current='@sessions', total=1, completed=0)
+        if self.cfg['api_url']:
+            http_json(
+                self.cfg['api_url'].rstrip('/') + '/api/v1/ui/discover/sessions',
+                {'use_s1': bool(job.get('use_s1', False)), 'remember': True},
+                os.getenv('KAPONIR_API_TOKEN', ''),
+                timeout=90,
+            )
+        self.check(ident)
+        self.update(ident, completed=1, state='succeeded', current='')
 
     def process_scan(self, job):
         ident=job['id']
+        if job['source']=='@sessions':
+            return self.process_sessions(job)
         if job['root']!=str(self.root): raise ValueError('input_root changed; submit a new job')
         if job['files'] is None:
             files,skipped=self.scan(ident,job['source']);job=self.update(ident,files=files,total=len(files),skipped=skipped)
@@ -563,7 +644,12 @@ def handler(worker, token):
 
 @contextlib.contextmanager
 def exclusive(worker):
-    import fcntl
+    try:
+        import fcntl
+    except ImportError:
+        worker.recover()
+        yield
+        return
     with (worker.data/'worker.lock').open('a') as f:
         try:fcntl.flock(f,fcntl.LOCK_EX|fcntl.LOCK_NB)
         except BlockingIOError:raise RuntimeError('another worker owns this queue') from None
@@ -578,9 +664,9 @@ def main():
     sub=parser.add_subparsers(dest='command',required=True)
     sub.add_parser('serve');sub.add_parser('status')
     for mode in ['submit','run']:
-        p=sub.add_parser(mode);p.add_argument('source',nargs='?',default='.');p.add_argument('--model',choices=['q4','q5']);p.add_argument('--s1',action='store_true')
-        p.add_argument('--mode', choices=sorted(MODES), default='local', help='local detection or Xiaomi candidate extraction plus local detection')
-    p=sub.add_parser('download');p.add_argument('model',choices=['q4','q5'])
+        p=sub.add_parser(mode);p.add_argument('source',nargs='?',default='.');p.add_argument('--model',choices=sorted(MODEL_ALIASES));p.add_argument('--s1',action='store_true')
+        p.add_argument('--mode', choices=sorted(MODES), default='local', help='local detection or CPU LLM (Qwen3) candidate extraction plus local detection')
+    p=sub.add_parser('download');p.add_argument('model',choices=sorted(MODEL_ALIASES))
     for mode in ['pause','resume','cancel']:
         p=sub.add_parser(mode);p.add_argument('id')
     args=parser.parse_args();home=Path(args.home).resolve()

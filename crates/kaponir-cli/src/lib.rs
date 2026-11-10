@@ -289,6 +289,8 @@ pub fn format_from_path(path: &Path) -> Format {
         Some("json") => Format::Json,
         Some("toml") => Format::Toml,
         Some("ini" | "conf" | "cfg") => Format::Ini,
+        Some("csv") => Format::Csv,
+        Some("tsv") => Format::Tsv,
         Some("txt" | "log" | "md") => Format::Text,
         _ => Format::Auto,
     }
@@ -528,6 +530,7 @@ fn save_s1_settings(existing: &str, settings: &kaponir_s1::Settings) -> Result<S
     doc["s1"]["http"]["protocol"] = toml_edit::value(match settings.http.protocol {
         kaponir_s1::http::HttpProtocol::Probabilities => "probabilities",
         kaponir_s1::http::HttpProtocol::Systemone => "systemone",
+        kaponir_s1::http::HttpProtocol::Openai => "openai",
     });
     doc["s1"]["http"]["timeout_ms"] = toml_edit::value(settings.http.timeout_ms as i64);
     doc["s1"]["http"]["disclosure"] = toml_edit::value(match settings.http.disclosure {
@@ -630,6 +633,10 @@ impl kaponir_proxy::Control for HomeControl {
     fn build_engine(&self) -> Result<Engine> {
         let cfg = self.home.load_config()?;
         self.home.build_engine(&cfg)
+    }
+
+    fn auto_train_s1(&self) -> Result<bool> {
+        crate::s1::auto_train(&self.home)
     }
 }
 

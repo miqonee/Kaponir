@@ -72,6 +72,43 @@ fn host(
         recognizer: ID,
     };
 
+    if let Some(corp_dom) = lex
+        .corp_domains
+        .iter()
+        .filter(|d| lower == **d || lower.ends_with(&format!(".{d}")))
+        .max_by_key(|d| d.len())
+    {
+        let corp_parts = corp_dom.split('.').filter(|s| !s.is_empty()).count();
+        if n >= corp_parts && corp_parts >= 1 {
+            let reg = n - corp_parts;
+            let (a, b) = labels[reg];
+            out.push(
+                Candidate::new(a, b, "DOM", Category::Infra, ID, 0.99)
+                    .hard()
+                    .dns()
+                    .canonical(text[a..b].to_lowercase())
+                    .with_evidence("corp-domain", 1.0),
+            );
+            for &(sa, sb) in &labels[..reg] {
+                let seg_low = text[sa..sb].to_ascii_lowercase();
+                if seg_low == "www" {
+                    continue;
+                }
+                let before_len = out.len();
+                push_slots(lex, text, sa, sb, &sub("SUB", 0.95), out);
+                if out.len() == before_len {
+                    out.push(
+                        Candidate::new(sa, sb, "SUB", Category::Infra, ID, 0.92)
+                            .dns()
+                            .canonical(seg_low)
+                            .with_evidence("corp-subdomain", 0.8),
+                    );
+                }
+            }
+            return true;
+        }
+    }
+
     if let Some(k) = (1..=n)
         .rev()
         .find(|&k| lex.internal_suffixes.contains(&join(k)))
@@ -102,33 +139,15 @@ fn host(
     }
     let reg = n - k - 1;
     let registrable = join(k + 1);
-    let corp = lex
-        .corp_domains
-        .iter()
-        .any(|d| lower == *d || lower.ends_with(&format!(".{d}")));
-    let public =
-        !corp && (lex.public_domains.contains(&registrable) || lex.public_domains.contains(&lower));
-    let (dom_prior, sub_prior) = if corp {
-        (0.99, 0.9)
-    } else if public {
-        (0.0, 0.6)
-    } else {
-        (0.65, 0.65)
-    };
+    let public = lex.public_domains.contains(&registrable) || lex.public_domains.contains(&lower);
+    let (dom_prior, sub_prior) = if public { (0.0, 0.6) } else { (0.65, 0.65) };
     if !public {
         let (a, b) = labels[reg];
         out.push(
             Candidate::new(a, b, "DOM", Category::Infra, ID, dom_prior)
                 .dns()
                 .canonical(text[a..b].to_lowercase())
-                .with_evidence(
-                    if corp {
-                        "corp-domain"
-                    } else {
-                        "unknown-domain"
-                    },
-                    0.0,
-                ),
+                .with_evidence("unknown-domain", 0.0),
         );
     }
     for &(a, b) in &labels[..reg] {
@@ -225,16 +244,17 @@ impl Recognizer for Web {
                 continue;
             }
             let domain = dom.as_str().to_lowercase();
-            if !lex
-                .tlds
-                .contains(domain.rsplit('.').next().unwrap_or_default())
-            {
-                continue;
-            }
             let corp = lex
                 .corp_domains
                 .iter()
                 .any(|d| domain == *d || domain.ends_with(&format!(".{d}")));
+            if !corp
+                && !lex
+                    .tlds
+                    .contains(domain.rsplit('.').next().unwrap_or_default())
+            {
+                continue;
+            }
             let prior = if corp { 0.97 } else { 0.9 };
             out.push(
                 Candidate::new(m.start(), m.end(), "EMAIL", Category::Contact, ID, prior)
@@ -421,5 +441,26 @@ mod tests {
             f,
             vec![("EMAIL".to_string(), "ivan.petrov@mycorp.ru".to_string())]
         );
+    }
+
+    #[test]
+    fn corporate_domains_masked_in_all_contexts() {
+        let mut l = lex();
+        l.ambiguous_tlds.insert("io".into());
+        l.corp_domains.insert("company.com".into());
+        l.corp_domains.insert("acme.io".into());
+        l.corp_domains.insert("intranet.corp".into());
+        let text = "Visit company.com or acme.io, push to https://git.company.com/core and ping api.intranet.corp";
+        let mut out = Vec::new();
+        Web::new().analyze(&Input::text(text), &AnalyzeCtx::new(&l), &mut out);
+        let f: Vec<(String, String)> = out
+            .into_iter()
+            .map(|c| (c.kind.clone(), text[c.start..c.end].to_string()))
+            .collect();
+        assert!(f.contains(&("DOM".into(), "company".into())), "{f:?}");
+        assert!(f.contains(&("DOM".into(), "acme".into())), "{f:?}");
+        assert!(f.contains(&("SUB".into(), "git".into())), "{f:?}");
+        assert!(f.contains(&("DOM".into(), "intranet".into())), "{f:?}");
+        assert!(f.contains(&("SUB".into(), "api".into())), "{f:?}");
     }
 }

@@ -118,6 +118,59 @@ fn looks_like_host(lex: &Lexicon, seg: &str) -> bool {
         })
 }
 
+const KNOWN_DIRS: &[&str] = &[
+    "src", "lib", "bin", "pkg", "cmd", "app", "etc", "var", "opt", "srv", "usr", "home", "users",
+    "k8s", "deploy", "config", "conf", "crates", "services", "internal", "test", "tests", "docs",
+    "scripts", "assets", "log", "logs", "api", "core", "web", "ui", "db", "migrations", "helm",
+    "charts", "terraform", "ansible", "docker",
+];
+
+const KNOWN_EXTS: &[&str] = &[
+    "rs", "py", "js", "ts", "tsx", "jsx", "go", "java", "kt", "c", "cpp", "h", "hpp", "cs", "rb",
+    "php", "swift", "scala", "sh", "bash", "zsh", "ps1", "yaml", "yml", "json", "toml", "ini",
+    "cfg", "conf", "env", "xml", "html", "css", "sql", "md", "txt", "csv", "tsv", "pem", "key",
+    "crt", "cer", "lock", "dockerfile", " proto", "graphql", "tf", "hcl",
+];
+
+fn has_file_extension(lex: &Lexicon, seg: &str) -> bool {
+    let Some(dot) = seg.rfind('.').filter(|&d| d > 0) else {
+        return false;
+    };
+    let ext = seg[dot + 1..].to_ascii_lowercase();
+    !ext.is_empty()
+        && ext.len() <= 10
+        && ext.chars().all(|c| c.is_ascii_alphanumeric())
+        && (KNOWN_EXTS.contains(&ext.as_str()) || lex.classify(&ext) != PartClass::Unknown)
+}
+
+/// Отличает реальный относительный путь (`zorgproj/src/main.rs`, `my-svc/k8s`)
+/// от обычной речи со слэшем (`сервер/клиент`, `демон/клиент`, `client/server`).
+fn looks_like_relative_path(lex: &Lexicon, raw: &str) -> bool {
+    // В относительных путях без `./`, `../`, `~/` кириллица и не-ASCII буквы — это естественная речь («или»).
+    if !raw.is_ascii() {
+        return false;
+    }
+    let segs: Vec<&str> = raw.split('/').filter(|s| !s.is_empty()).collect();
+    if segs.len() < 2 {
+        return false;
+    }
+    let has_ext = segs.last().is_some_and(|last| has_file_extension(lex, last));
+    let has_known_dir = segs.iter().any(|s| {
+        let low = s.to_ascii_lowercase();
+        KNOWN_DIRS.contains(&low.as_str()) || lex.is_word(&low)
+    });
+    if segs.len() >= 3 {
+        return has_ext || has_known_dir || segs.iter().any(|s| s.contains(['-', '_', '.']));
+    }
+    // Для ровно 2 сегментов (`a/b`) требуем файловое расширение (`dir/file.rs`)
+    // или сочетание известного каталога с техническим именем (`my-proj/k8s`, `src/zorgproj`).
+    if has_ext {
+        return true;
+    }
+    let has_tech_punct = segs.iter().any(|s| s.contains(['-', '_']));
+    has_known_dir && has_tech_punct
+}
+
 impl Recognizer for Paths {
     fn id(&self) -> &str {
         ID
@@ -135,6 +188,17 @@ impl Recognizer for Paths {
             if text[..m.start()].ends_with(':') && m.as_str().starts_with("//") {
                 continue;
             }
+            let raw = m.as_str();
+            let seg_count = raw
+                .split('/')
+                .filter(|s| !s.is_empty() && *s != "~" && *s != "." && *s != "..")
+                .count();
+            // Одиночный `/слово` без префикса `./` или второго сегмента (особенно кириллицей) —
+            // это слэш с пробелом в тексте («сервер /клиент»), а не путь от корня ФС.
+            let has_dot_or_tilde = raw.starts_with("./") || raw.starts_with("../") || raw.starts_with("~/");
+            if !has_dot_or_tilde && (seg_count < 2 || !raw.is_ascii()) {
+                continue;
+            }
             segments(lex, text, m.start(), m.end(), '/', out);
             covered.push((m.start(), m.end()));
         }
@@ -148,6 +212,7 @@ impl Recognizer for Paths {
             if looks_like_host(lex, first)
                 || text[m.end()..].starts_with("://")
                 || text[m.start()..].contains("://") && text[m.start()..m.end()].ends_with(':')
+                || !looks_like_relative_path(lex, m.as_str())
             {
                 continue;
             }
@@ -243,5 +308,14 @@ mod tests {
     #[test]
     fn system_paths_untouched() {
         assert!(found("/etc/nginx/nginx.conf and /var/log").is_empty());
+    }
+
+    #[test]
+    fn russian_and_prose_slashes_are_not_projects() {
+        let f = found("Архитектура сервер/клиент и демон/клиент, а также ввод/вывод или daemon/client.");
+        assert!(
+            f.is_empty(),
+            "Prose slashes must not be detected as PROJ: {f:?}"
+        );
     }
 }

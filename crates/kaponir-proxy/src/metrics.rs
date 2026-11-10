@@ -61,6 +61,7 @@ pub(crate) async fn prometheus(
 ) -> Result<Response, ApiError> {
     authorized(&st, &headers, true)?;
     let s = st.engine().metrics().snapshot();
+    let t = st.traffic.snapshot();
     let mut out = String::new();
     operation(&mut out, "http", &st.requests.snapshot());
     operation(&mut out, "mask", &s.mask);
@@ -68,10 +69,14 @@ pub(crate) async fn prometheus(
     operation(&mut out, "s1", &s.s1);
     for (name, value) in [
         ("replacements_total", s.replacements),
+        ("cached_replacements_total", t.totals.cached_replacements),
         ("restored_total", s.restored),
         ("unknown_tokens_total", s.unknown_tokens),
         ("denied_tokens_total", s.denied_tokens),
         ("s1_candidates_total", s.s1_candidates),
+        ("prompt_tokens_total", t.totals.prompt_tokens),
+        ("completion_tokens_total", t.totals.completion_tokens),
+        ("total_tokens_total", t.totals.total_tokens),
         ("stream_errors_total", st.stream_errors.load(Relaxed)),
     ] {
         counter(&mut out, name, value);

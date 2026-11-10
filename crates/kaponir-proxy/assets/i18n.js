@@ -1,4 +1,12 @@
 'use strict';
+// Initialize theme synchronously before first paint (CSP-compliant, no inline script in index.html).
+(() => {
+  let m; try { m = localStorage.getItem('kaponir-theme'); } catch {}
+  if (m !== 'light' && m !== 'dark') m = 'auto';
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.themeMode = m;
+  document.documentElement.dataset.theme = m === 'auto' ? (dark ? 'dark' : 'light') : m;
+})();
 // Source-key dictionaries. Only explicitly marked interface strings are translated.
 // Document contents, tokens and rule values never pass through this translator.
 (async () => {

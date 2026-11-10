@@ -163,6 +163,8 @@ pub enum Format {
     Toml,
     Env,
     Ini,
+    Csv,
+    Tsv,
 }
 
 impl FromStr for Format {
@@ -170,12 +172,14 @@ impl FromStr for Format {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s.to_ascii_lowercase().as_str() {
             "auto" => Format::Auto,
-            "text" | "txt" => Format::Text,
+            "text" | "txt" | "md" => Format::Text,
             "yaml" | "yml" => Format::Yaml,
             "json" => Format::Json,
             "toml" => Format::Toml,
             "env" | "dotenv" => Format::Env,
             "ini" | "conf" | "cfg" => Format::Ini,
+            "csv" => Format::Csv,
+            "tsv" => Format::Tsv,
             other => return Err(format!("unknown format `{other}`")),
         })
     }

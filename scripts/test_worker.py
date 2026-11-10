@@ -9,7 +9,7 @@ from unittest.mock import patch
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from kaponir_worker import Worker, configuration, handler, Interrupted, grounded_candidates, text_pages
+from kaponir_worker import Worker, configuration, handler, Interrupted, grounded_candidates, text_pages, text_chunks
 
 
 class WorkerTests(unittest.TestCase):
@@ -22,13 +22,20 @@ class WorkerTests(unittest.TestCase):
     def test_source_boundary_and_symlinks(self):
         (self.root/'a.txt').write_text('hello')
         outside=self.home/'outside.txt';outside.write_text('outside')
-        (self.root/'link.txt').symlink_to(outside)
+        has_symlink = True
+        try:
+            (self.root/'link.txt').symlink_to(outside)
+        except OSError:
+            has_symlink = False
         with self.assertRaises(ValueError):self.worker.submit('scan','../outside.txt')
-        with self.assertRaises(ValueError):self.worker.submit('scan','link.txt')
+        if has_symlink:
+            with self.assertRaises(ValueError):self.worker.submit('scan','link.txt')
         with self.assertRaises(ValueError):self.worker.submit('scan',str(outside))
         job=self.worker.submit('scan')
         files,skipped=self.worker.scan(job['id'],'.')
-        self.assertEqual([f['path'] for f in files],['a.txt']);self.assertEqual(skipped,1)
+        self.assertEqual([f['path'] for f in files],['a.txt'])
+        if has_symlink:
+            self.assertEqual(skipped,1)
     def test_pause_resume_and_restart_preserve_checkpoint(self):
         for name in ['a','b']:(self.root/(name+'.txt')).write_text(name)
         job=self.worker.submit('scan');seen=[]
@@ -173,5 +180,21 @@ class WorkerTests(unittest.TestCase):
         self.assertTrue(all(covered))
         with self.assertRaises(ValueError): list(text_pages(text, 1))
         with self.assertRaises(ValueError): list(text_pages('hello', 1, edge=256))
+
+    def test_text_chunks_and_qwen_aliases_and_sessions(self):
+        text = '\n'.join(f'Строка {n}: внутренний проект Омега-Квант {n}.' for n in range(120))
+        chunks = list(text_chunks(text, 20, chunk_chars=600))
+        self.assertGreater(len(chunks), 1)
+        self.assertTrue(all(c in text for c in chunks))
+        j_qwen = self.worker.submit('scan', mode='qwen', model='qwen3-0.6b')
+        self.assertEqual(j_qwen['mode'], 'qwen')
+        self.assertEqual(j_qwen['model'], 'q4')
+        j_sess = self.worker.submit('scan', source='@sessions', mode='local', use_s1=True)
+        self.worker.cfg['api_url'] = 'http://localhost:1234'
+        with patch('kaponir_worker.http_json', return_value={'documents_analyzed': 2}) as req:
+            self.worker.process_one(j_sess['id'])
+            self.assertEqual(req.call_count, 1)
+            self.assertIn('/api/v1/ui/discover/sessions', req.call_args.args[0])
+        self.assertEqual(self.worker.get(j_sess['id'])['state'], 'succeeded')
 
 if __name__=='__main__':unittest.main()

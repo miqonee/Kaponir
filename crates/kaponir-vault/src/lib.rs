@@ -51,6 +51,12 @@ CREATE TABLE IF NOT EXISTS sessions (
     nonce BLOB NOT NULL,
     ct BLOB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS traffic_events (
+    id INTEGER PRIMARY KEY,
+    created INTEGER NOT NULL,
+    nonce BLOB NOT NULL,
+    ct BLOB NOT NULL
+);
 "#;
 
 fn now() -> i64 {
@@ -92,7 +98,12 @@ pub struct JournalRow {
     pub recognizer: String,
     pub shape: String,
     pub probability: f64,
+    /// Исходный вердикт детектора (`uncertain` — спорно).
+    pub verdict: String,
+    /// Действие, применённое по глобальной политике (`mask` или `keep`).
     pub applied: String,
+    /// Рекомендуемый контур сохранения правила (`global`, `team`, `personal`).
+    pub recommended_scope: String,
     pub count: i64,
     pub first_seen: i64,
     pub last_seen: i64,
@@ -336,15 +347,21 @@ impl SqliteVault {
             .map_err(db)?;
         let rows = stmt
             .query_map(params![status, limit as i64], |r| {
+                let kind: String = r.get(1)?;
+                let recommended_scope = kaponir_core::s1::default_scope_for_kind(&kind)
+                    .as_str()
+                    .to_string();
                 Ok((
                     JournalRow {
                         id: r.get(0)?,
-                        kind: r.get(1)?,
+                        kind,
                         category: r.get(2)?,
                         recognizer: r.get(3)?,
                         shape: r.get(4)?,
                         probability: r.get(5)?,
+                        verdict: "uncertain".into(),
                         applied: r.get(6)?,
+                        recommended_scope,
                         count: r.get(7)?,
                         first_seen: r.get(8)?,
                         last_seen: r.get(9)?,
@@ -435,6 +452,63 @@ impl SqliteVault {
                 params![now() - max_age_secs],
             )
             .map_err(db)
+    }
+
+    /// Сохраняет событие прокси (включая данные Request Inspector) в зашифрованную таблицу `traffic_events`
+    /// с автоматической ротацией последних `max_keep` записей.
+    pub fn save_traffic_event(
+        &self,
+        id: u64,
+        created: u64,
+        payload: &[u8],
+        max_keep: usize,
+    ) -> Result<(), VaultError> {
+        let aad = format!("traffic:{id}");
+        let (nonce, ct) = self.seal(payload, aad.as_bytes())?;
+        self.conn
+            .execute(
+                "INSERT OR REPLACE INTO traffic_events (id, created, nonce, ct) VALUES (?1, ?2, ?3, ?4)",
+                params![id as i64, created as i64, nonce, ct],
+            )
+            .map_err(db)?;
+        if max_keep > 0 {
+            self.conn
+                .execute(
+                    "DELETE FROM traffic_events WHERE id NOT IN (
+                        SELECT id FROM traffic_events ORDER BY id DESC LIMIT ?1
+                    )",
+                    params![max_keep as i64],
+                )
+                .map_err(db)?;
+        }
+        Ok(())
+    }
+
+    /// Загружает и расшифровывает последние `limit` событий трафика в хронологическом порядке (от старых к новым).
+    pub fn load_traffic_events(&self, limit: usize) -> Result<Vec<Vec<u8>>, VaultError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id, nonce, ct FROM traffic_events ORDER BY id DESC LIMIT ?1")
+            .map_err(db)?;
+        let rows = stmt
+            .query_map(params![limit as i64], |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, Vec<u8>>(1)?,
+                    r.get::<_, Vec<u8>>(2)?,
+                ))
+            })
+            .map_err(db)?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (id, nonce, ct) = row.map_err(db)?;
+            let aad = format!("traffic:{id}");
+            if let Ok(plain) = self.unseal(&nonce, &ct, aad.as_bytes()) {
+                out.push(plain);
+            }
+        }
+        out.reverse();
+        Ok(out)
     }
 }
 

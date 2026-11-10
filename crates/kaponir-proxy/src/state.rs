@@ -77,7 +77,7 @@ pub struct State {
     /// Управление правилами из Web UI; без него UI работает только на чтение.
     pub(crate) control: Option<Box<dyn Control>>,
     owner: String,
-    inner: Mutex<Inner>,
+    inner: Arc<Mutex<Inner>>,
 }
 
 impl State {
@@ -95,10 +95,39 @@ impl State {
             .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(Duration::from_secs(30))
             .build()?;
+        let traffic = Arc::new(Traffic::default());
+        if let Ok(raw_events) = vault.load_traffic_events(200) {
+            let events: Vec<crate::traffic::Event> = raw_events
+                .into_iter()
+                .filter_map(|b| serde_json::from_slice(&b).ok())
+                .collect();
+            if !events.is_empty() {
+                traffic.restore_events(events);
+            }
+        }
+        let inner = Arc::new(Mutex::new(Inner {
+            vault,
+            sessions: HashMap::new(),
+            last_evict: Instant::now(),
+        }));
+        let inner_weak = Arc::downgrade(&inner);
+        traffic.set_persister(Arc::new(move |event| {
+            let Some(inner_arc) = inner_weak.upgrade() else {
+                return;
+            };
+            let Ok(bytes) = serde_json::to_vec(event) else {
+                return;
+            };
+            if let Ok(guard) = inner_arc.try_lock() {
+                let _ = guard
+                    .vault
+                    .save_traffic_event(event.id, event.time_ms / 1000, &bytes, 200);
+            }
+        }));
         Ok(Self {
             provider_refresh: tokio::sync::Mutex::new(()),
             provider_affinity: Mutex::new(HashMap::new()),
-            traffic: Arc::new(Traffic::default()),
+            traffic,
             started: Instant::now(),
             requests: Default::default(),
             stream_errors: Default::default(),
@@ -108,11 +137,7 @@ impl State {
             http,
             control: None,
             owner,
-            inner: Mutex::new(Inner {
-                vault,
-                sessions: HashMap::new(),
-                last_evict: Instant::now(),
-            }),
+            inner,
         })
     }
 
@@ -258,7 +283,7 @@ impl Cx<'_> {
         }
         let key = *blake3::hash(text.as_bytes()).as_bytes();
         if let Some(m) = self.session.cache.get(&key) {
-            self.usage.add(&m.usage);
+            self.usage.add_cached(&m.usage);
             return Ok(m.text.clone());
         }
         let m = self.mask_full(&Input::text(text))?;
@@ -295,7 +320,10 @@ impl Cx<'_> {
         let mut r = self
             .engine
             .restore(text, self.principal, &*self.vault, escape)?;
-        self.usage.add(&Usage::restored(&r));
+        let mut u = Usage::restored(&r);
+        u.raw_response_buf = crate::traffic::cap_str(text, 32_768);
+        u.restored_response_buf = crate::traffic::cap_str(&r.text, 32_768);
+        self.usage.add(&u);
         self.session.learn(std::mem::take(&mut r.known));
         Ok(r)
     }
@@ -303,7 +331,10 @@ impl Cx<'_> {
     pub fn push(&mut self, r: &mut StreamRestorer, chunk: &str) -> anyhow::Result<String> {
         let out = r.push(self.engine, self.principal, &*self.vault, chunk)?;
         let stats = r.take_stats();
-        self.usage.add(&Usage::restored(&stats));
+        let mut u = Usage::restored(&stats);
+        u.raw_response_buf = crate::traffic::cap_str(chunk, 8192);
+        u.restored_response_buf = crate::traffic::cap_str(&out, 8192);
+        self.usage.add(&u);
         self.session.learn(stats.known);
         Ok(out)
     }
@@ -311,9 +342,39 @@ impl Cx<'_> {
     pub fn flush(&mut self, r: &mut StreamRestorer) -> anyhow::Result<String> {
         let out = r.flush(self.engine, self.principal, &*self.vault)?;
         let stats = r.take_stats();
-        self.usage.add(&Usage::restored(&stats));
+        let mut u = Usage::restored(&stats);
+        u.restored_response_buf = crate::traffic::cap_str(&out, 8192);
+        self.usage.add(&u);
         self.session.learn(stats.known);
         Ok(out)
+    }
+
+    /// Извлекает счётчики токенов LLM (`prompt_tokens`/`input_tokens`, `completion_tokens`/`output_tokens`)
+    /// из JSON-ответа или SSE-чанка OpenAI / Anthropic.
+    pub fn record_token_usage(&mut self, v: &serde_json::Value) {
+        let usage_obj = v
+            .get("usage")
+            .or_else(|| v.pointer("/message/usage"));
+        let Some(u) = usage_obj else {
+            return;
+        };
+        let prompt = u
+            .get("prompt_tokens")
+            .or_else(|| u.get("input_tokens"))
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
+        let completion = u
+            .get("completion_tokens")
+            .or_else(|| u.get("output_tokens"))
+            .and_then(|x| x.as_u64())
+            .unwrap_or(0);
+        let total = u
+            .get("total_tokens")
+            .and_then(|x| x.as_u64())
+            .unwrap_or(prompt + completion);
+        self.usage.prompt_tokens += prompt;
+        self.usage.completion_tokens += completion;
+        self.usage.total_tokens += total;
     }
 
     pub(crate) fn streams(&mut self) -> &mut HashMap<String, StreamRestorer> {

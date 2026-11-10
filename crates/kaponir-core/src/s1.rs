@@ -128,6 +128,71 @@ pub enum S1Error {
     Other(String),
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct RuleClassification {
+    pub action: crate::rules::RuleAction,
+    pub scope: crate::types::Scope,
+    pub kind: String,
+    pub confidence: f32,
+    pub source: String,
+}
+
+/// Маршрутизация контура правил по умолчанию на основе типа сущности (`kind`) и контекста.
+pub fn default_scope_for_kind(kind: &str) -> crate::types::Scope {
+    match kind.trim().to_ascii_uppercase().as_str() {
+        "DOM" | "ORG" | "CLIENT" => crate::types::Scope::Global,
+        "PROJ" | "SVC" | "HOST" | "MODULE" | "PATH" | "SUB" => crate::types::Scope::Team,
+        _ => crate::types::Scope::Personal,
+    }
+}
+
+/// Эвристическая классификация кандидата (для режима No-LLM и как базовая оценка).
+pub fn classify_from_score(
+    view: &CandidateView,
+    probability: f32,
+    source: impl Into<String>,
+) -> RuleClassification {
+    let p = probability.clamp(0.0, 1.0);
+    let action = if p >= 0.5 {
+        crate::rules::RuleAction::Mask
+    } else {
+        crate::rules::RuleAction::Keep
+    };
+    let confidence = if p >= 0.5 { p } else { 1.0 - p };
+    let mut kind = view.kind.trim().to_ascii_uppercase();
+    if kind.is_empty() {
+        kind = "CUSTOM".into();
+    }
+    let mut scope = default_scope_for_kind(&kind);
+    if let Some(ctx) = &view.context {
+        let low = ctx.to_lowercase();
+        if low.contains("корпоратив")
+            || low.contains("компани")
+            || low.contains("заказчик")
+            || low.contains("клиент")
+            || low.contains("домен")
+        {
+            scope = crate::types::Scope::Global;
+        } else if low.contains("команд")
+            || low.contains("сервис")
+            || low.contains("репозитор")
+            || low.contains("кластер")
+            || low.contains("деплой")
+        {
+            scope = crate::types::Scope::Team;
+        } else if low.contains("личн") || low.contains("мой ") || low.contains("пароль") {
+            scope = crate::types::Scope::Personal;
+        }
+    }
+    RuleClassification {
+        action,
+        scope,
+        kind,
+        confidence,
+        source: source.into(),
+    }
+}
+
 pub trait S1Provider: Send + Sync {
     fn id(&self) -> &str;
     fn max_disclosure(&self) -> Disclosure;
@@ -140,6 +205,19 @@ pub trait S1Provider: Send + Sync {
         _profile: &[ProfileValue],
     ) -> Result<Vec<f32>, S1Error> {
         self.score(batch)
+    }
+    /// Классификация правила (действие, контур `personal`/`team`/`global`, тип `kind`, уверенность).
+    fn classify(
+        &self,
+        batch: &[CandidateView],
+        profile: &[ProfileValue],
+    ) -> Result<Vec<RuleClassification>, S1Error> {
+        let scores = self.score_with_profile(batch, profile)?;
+        Ok(batch
+            .iter()
+            .zip(scores)
+            .map(|(v, p)| classify_from_score(v, p, self.id()))
+            .collect())
     }
 }
 

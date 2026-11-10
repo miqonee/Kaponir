@@ -93,6 +93,20 @@ enum Cmd {
         #[command(subcommand)]
         action: kaponir_cli::s1::Command,
     },
+    /// Управление локальными CPU-моделями (Qwen3 GGUF, S1 ngram): список, скачивание, статус.
+    Models {
+        #[command(subcommand)]
+        action: Option<ModelsCmd>,
+    },
+    /// Журнал прокси-событий и детальный Request Inspector (До -> В LLM -> Ответ).
+    Events {
+        #[command(subcommand)]
+        action: Option<EventsCmd>,
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+        #[arg(long)]
+        json: bool,
+    },
     /// Прозрачный прокси для агентов (Anthropic Messages, OpenAI Chat Completions), sidecar REST
     /// и Web UI на /ui/.
     Serve(ServeArgs),
@@ -103,6 +117,36 @@ enum Cmd {
         /// Не открывать браузер.
         #[arg(long)]
         no_open: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum ModelsCmd {
+    /// Показать доступные и установленные модели (Qwen3-0.6B, Qwen3.5-0.8B, S1 ngram).
+    List,
+    /// Скачать локальную CPU микро-LLM (qwen3-0.6b | qwen3.5-0.8b | q4 | q5).
+    Download {
+        #[arg(default_value = "qwen3-0.6b")]
+        model: String,
+    },
+    /// Проверить статус весов, рантайма llama-server и классификатора S1.
+    Status,
+}
+
+#[derive(Subcommand)]
+enum EventsCmd {
+    /// Список последних событий прокси из зашифрованного vault.
+    List {
+        #[arg(long, default_value_t = 20)]
+        limit: usize,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Детальный просмотр запроса (Request Inspector): исходный текст, обезличенный запрос в LLM, ответ и замены.
+    Show {
+        id: u64,
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -226,6 +270,12 @@ struct ReviewList {
     /// Сгруппировать по типу и форме значения (`x-x-dxdx`).
     #[arg(long)]
     group: bool,
+    /// Автоматически классифицировать открытые спорные записи.
+    #[arg(long)]
+    auto: bool,
+    /// Автоматически сохранить правила с высокой уверенностью (>= 85%).
+    #[arg(long)]
+    auto_save: bool,
     #[arg(long)]
     json: bool,
 }
@@ -241,6 +291,14 @@ struct Selection {
 
 #[derive(Subcommand)]
 enum ReviewCmd {
+    /// Автоматический разбор спорных записей классификатором.
+    Auto {
+        /// Автоматически сохранить правила с уверенностью >= threshold.
+        #[arg(long)]
+        save: bool,
+        #[arg(long, default_value_t = 0.85)]
+        threshold: f32,
+    },
     /// Всегда маскировать эти значения.
     Mask {
         #[command(flatten)]
@@ -426,6 +484,12 @@ fn run(cli: Cli) -> Result<ExitCode> {
             kaponir_cli::s1::run(&home, action)?;
             Ok(ExitCode::SUCCESS)
         }
+        Cmd::Models { action } => models_cmd(&home, action.unwrap_or(ModelsCmd::List)),
+        Cmd::Events {
+            action,
+            limit,
+            json,
+        } => events_cmd(&home, action, limit, json),
         Cmd::Serve(a) => serve(&home, a, false),
         Cmd::Ui { serve: a, no_open } => serve(&home, a, !no_open),
     }
@@ -786,10 +850,16 @@ fn dedup(v: &[String]) -> Vec<String> {
 
 fn review(home: &Home, action: Option<ReviewCmd>, list: ReviewList) -> Result<ExitCode> {
     let vault = open_vault(home)?;
+    if list.auto || list.auto_save {
+        return review_auto(home, &vault, list.auto_save, 0.85, list.json);
+    }
     let Some(action) = action else {
         return review_list(&vault, &list);
     };
     match action {
+        ReviewCmd::Auto { save, threshold } => {
+            return review_auto(home, &vault, save, threshold, list.json);
+        }
         ReviewCmd::Mask { sel, kind, scope } => {
             let rows = select(&vault, &sel)?;
             for r in &rows {
@@ -797,6 +867,7 @@ fn review(home: &Home, action: Option<ReviewCmd>, list: ReviewList) -> Result<Ex
                 vault.set_journal_status(r.id, "masked")?;
                 eprintln!("#{}: always mask `{}` → {}", r.id, r.value, p.display());
             }
+            let _ = kaponir_cli::s1::auto_train(home);
         }
         ReviewCmd::Keep { sel, scope } => {
             let rows = select(&vault, &sel)?;
@@ -805,6 +876,7 @@ fn review(home: &Home, action: Option<ReviewCmd>, list: ReviewList) -> Result<Ex
                 vault.set_journal_status(r.id, "kept")?;
                 eprintln!("#{}: never mask `{}` → {}", r.id, r.value, p.display());
             }
+            let _ = kaponir_cli::s1::auto_train(home);
         }
         ReviewCmd::Template { template, scope } => {
             let (re, _) = kaponir_recognizers::rules::compile_template(&template)
@@ -838,6 +910,131 @@ fn review(home: &Home, action: Option<ReviewCmd>, list: ReviewList) -> Result<Ex
                 eprintln!("#{}: dismissed", r.id);
             }
         }
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+fn review_auto(
+    home: &Home,
+    vault: &SqliteVault,
+    auto_save: bool,
+    threshold: f32,
+    as_json: bool,
+) -> Result<ExitCode> {
+    use kaponir_core::s1::{CandidateView, Disclosure, classify_from_score, features};
+    let rows = vault.journal(Some("open"), 500)?;
+    if rows.is_empty() {
+        if as_json {
+            println!("{{\"items\":[],\"auto_saved\":0,\"total\":0}}");
+        } else {
+            eprintln!("nothing to review");
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
+    let (_, eng) = engine(home)?;
+    let lex = eng.lexicon();
+    let classifications = if let Some(s1) = eng.s1_config() {
+        let disc = s1.provider.disclosure();
+        let views: Vec<CandidateView<'_>> = rows
+            .iter()
+            .map(|r| {
+                let cat = serde_json::from_value(serde_json::json!(r.category))
+                    .unwrap_or(Category::Custom);
+                let f = features(&r.value, lex.is_word(&r.value), &r.kind, cat, &r.recognizer);
+                CandidateView {
+                    features: f,
+                    kind: &r.kind,
+                    category: cat,
+                    recognizer: &r.recognizer,
+                    surface: matches!(disc, Disclosure::L1 | Disclosure::L2)
+                        .then_some(r.value.as_str()),
+                    left: matches!(disc, Disclosure::L2).then_some(r.context.as_str()),
+                    right: matches!(disc, Disclosure::L2).then_some(""),
+                    profile: Some(s1.profile.as_ref()),
+                }
+            })
+            .collect();
+        s1.provider
+            .classify(&views, std::time::Duration::from_secs(5))
+            .ok()
+            .filter(|c| c.len() == rows.len())
+            .unwrap_or_else(|| {
+                rows.iter()
+                    .map(|r| classify_from_score(r.probability, &r.kind))
+                    .collect()
+            })
+    } else {
+        rows.iter()
+            .map(|r| classify_from_score(r.probability, &r.kind))
+            .collect()
+    };
+
+    let mut auto_saved = 0usize;
+    let mut items = Vec::with_capacity(rows.len());
+    let mut seen = std::collections::HashSet::new();
+    let threshold = threshold.clamp(0.5, 0.99);
+    for (r, cls) in rows.iter().zip(classifications.into_iter()) {
+        let mut saved_this = false;
+        if auto_save && cls.confidence >= threshold {
+            if seen.insert((cls.scope, r.value.clone())) {
+                let rule = if cls.sensitive {
+                    r.mask_rule(Some(&cls.kind))
+                } else {
+                    r.keep_rule()
+                };
+                if home.add_rule(cls.scope, rule).is_ok() {
+                    saved_this = true;
+                }
+            } else {
+                saved_this = true;
+            }
+            if saved_this {
+                let status = if cls.sensitive { "masked" } else { "kept" };
+                vault.set_journal_status(r.id, status)?;
+                auto_saved += 1;
+            }
+        }
+        if !as_json {
+            println!(
+                "#{:<5} {:<6} -> {:<10} scope={:<8} conf={:.0}%{}  {}",
+                r.id,
+                if cls.sensitive { "MASK" } else { "KEEP" },
+                cls.kind,
+                cls.scope.as_str(),
+                cls.confidence * 100.0,
+                if saved_this { " [SAVED]" } else { "" },
+                ellipsize(&r.value, 50)
+            );
+        }
+        items.push(serde_json::json!({
+            "id": r.id,
+            "value": r.value,
+            "action": if cls.sensitive { "mask" } else { "keep" },
+            "kind": cls.kind,
+            "scope": cls.scope,
+            "confidence": cls.confidence,
+            "auto_saved": saved_this,
+        }));
+    }
+    if auto_saved > 0 {
+        let _ = kaponir_cli::s1::auto_train(home);
+    }
+    if as_json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "items": items,
+                "auto_saved": auto_saved,
+                "total": rows.len(),
+            }))?
+        );
+    } else {
+        eprintln!(
+            "\nКлассифицировано записей: {}, автоматически сохранено правил (>={:.0}%): {}",
+            rows.len(),
+            threshold * 100.0,
+            auto_saved
+        );
     }
     Ok(ExitCode::SUCCESS)
 }
@@ -905,20 +1102,25 @@ fn review_list(vault: &SqliteVault, list: &ReviewList) -> Result<ExitCode> {
         return Ok(ExitCode::SUCCESS);
     }
     for r in &rows {
+        let verdict_note = if r.verdict == "uncertain" {
+            format!("Спорно (p={:.2}, политика uncertain={})", r.probability, r.applied)
+        } else {
+            format!("{} (p={:.2})", r.applied, r.probability)
+        };
         println!(
-            "#{:<5} ×{:<4} {:<10} p={:.2} {:<4} {:<14} {}",
+            "#{:<5} ×{:<4} {:<10} {:<40} [scope: {}] {:<14} {}",
             r.id,
             r.count,
             r.kind,
-            r.probability,
-            r.applied,
+            verdict_note,
+            r.recommended_scope.as_str(),
             r.recognizer,
             ellipsize(&r.value, 60)
         );
         println!("        {}", ellipsize(&r.context, 110));
     }
     println!(
-        "\nkaponir review mask <id>… [--kind K] [--scope team] | keep <id>… | template '<tpl>' | dismiss <id>…  (--group to cluster)"
+        "\nkaponir review mask <id>… [--kind K] [--scope team] | keep <id>… | auto [--save] | template '<tpl>' | dismiss <id>…  (--group to cluster)"
     );
     Ok(ExitCode::SUCCESS)
 }
@@ -1336,4 +1538,276 @@ fn setup_wizard(home: &Home, language: &str) -> Result<()> {
         }
     );
     Ok(())
+}
+
+// ---------- models ----------
+
+fn models_cmd(home: &Home, action: ModelsCmd) -> Result<ExitCode> {
+    let cfg = home.load_config()?;
+    let model_dir = if cfg.worker.model_dir.is_absolute() {
+        cfg.worker.model_dir.clone()
+    } else {
+        home.dir.join(&cfg.worker.model_dir)
+    };
+    let s1_ngram_path = home.s1_dir().join(kaponir_s1::ngram::MODEL_FILE);
+    let runtime_path = cfg.worker.runtime.clone().unwrap_or_else(|| {
+        model_dir
+            .join("runtime")
+            .join("llama-b12038")
+            .join(if cfg!(windows) {
+                "llama-server.exe"
+            } else {
+                "llama-server"
+            })
+    });
+    let catalog = [
+        (
+            "qwen3-0.6b",
+            "q4",
+            "Qwen3-0.6B-Q4_K_M.gguf",
+            396_705_472u64,
+            "Локальная CPU микро-LLM (быстрая, ~397 МБ, рекомендуется)",
+        ),
+        (
+            "qwen3.5-0.8b",
+            "q5",
+            "Qwen3-0.6B-Q8_0.gguf",
+            639_446_688u64,
+            "Локальная CPU микро-LLM (повышенная точность Q8, ~639 МБ)",
+        ),
+    ];
+    match action {
+        ModelsCmd::List => {
+            println!("Локальные модели Kaponir ({}):", model_dir.display());
+            for (id, alias, file, size, desc) in catalog {
+                let p = model_dir.join(file);
+                let installed = p.is_file() && p.metadata().is_ok_and(|m| m.len() == size);
+                println!(
+                    "  {:<14} (алиас {:<2}) {:<12} {:>6.1} МБ  {}",
+                    id,
+                    alias,
+                    if installed {
+                        "УСТАНОВЛЕНА"
+                    } else {
+                        "не скачана"
+                    },
+                    size as f64 / (1024.0 * 1024.0),
+                    desc
+                );
+            }
+            println!(
+                "  {:<14}            {:<12}            Локальный классификатор правил ({})",
+                "s1:ngram",
+                if s1_ngram_path.is_file() {
+                    "ОБУЧЕНА"
+                } else {
+                    "не обучена"
+                },
+                s1_ngram_path.display()
+            );
+            println!(
+                "  {:<14}            {:<12}            {}",
+                "llama-server",
+                if runtime_path.is_file() {
+                    "ГОТОВ"
+                } else {
+                    "не установлен"
+                },
+                runtime_path.display()
+            );
+            println!("\nКоманды: kaponir models download qwen3-0.6b | kaponir models status | kaponir s1 train");
+            Ok(ExitCode::SUCCESS)
+        }
+        ModelsCmd::Status => {
+            let mut models = serde_json::Map::new();
+            for (id, alias, file, size, desc) in catalog {
+                let p = model_dir.join(file);
+                let installed = p.is_file() && p.metadata().is_ok_and(|m| m.len() == size);
+                models.insert(
+                    id.to_string(),
+                    serde_json::json!({
+                        "alias": alias,
+                        "file": file,
+                        "path": p,
+                        "bytes": size,
+                        "downloaded": installed,
+                        "description": desc,
+                    }),
+                );
+            }
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&serde_json::json!({
+                    "model_dir": model_dir,
+                    "runtime_ready": runtime_path.is_file(),
+                    "runtime_path": runtime_path,
+                    "s1_ngram_ready": s1_ngram_path.is_file(),
+                    "s1_provider": cfg.s1.provider,
+                    "models": models,
+                }))?
+            );
+            Ok(ExitCode::SUCCESS)
+        }
+        ModelsCmd::Download { model } => kaponir_cli::worker::run(
+            home,
+            &[
+                std::ffi::OsString::from("download"),
+                std::ffi::OsString::from(model),
+            ],
+        ),
+    }
+}
+
+// ---------- events & request inspector ----------
+
+fn events_cmd(
+    home: &Home,
+    action: Option<EventsCmd>,
+    default_limit: usize,
+    default_json: bool,
+) -> Result<ExitCode> {
+    let vault = open_vault(home)?;
+    match action.unwrap_or(EventsCmd::List {
+        limit: default_limit,
+        json: default_json,
+    }) {
+        EventsCmd::List { limit, json } => {
+            let raw_list = vault.load_traffic_events(limit)?;
+            let mut events: Vec<serde_json::Value> = raw_list
+                .into_iter()
+                .filter_map(|s| serde_json::from_str(&s).ok())
+                .collect();
+            events.reverse();
+            if json {
+                println!("{}", serde_json::to_string_pretty(&events)?);
+                return Ok(ExitCode::SUCCESS);
+            }
+            if events.is_empty() {
+                eprintln!("Журнал событий пуст.");
+                return Ok(ExitCode::SUCCESS);
+            }
+            println!(
+                "{:<6} {:<9} {:<6} {:<16} {:<12} {:<10} {:<12} {:<24}",
+                "ID", "API", "HTTP", "Модель", "Скрыто/Кэш", "Восст.", "Оверхед", "Диагностика"
+            );
+            for ev in &events {
+                let id = ev["id"].as_u64().unwrap_or(0);
+                let api = ev["api"].as_str().unwrap_or("-");
+                let status = ev["status"].as_u64().unwrap_or(0);
+                let model = ev["model"].as_str().unwrap_or("-");
+                let repl = ev["replacements"].as_u64().unwrap_or(0);
+                let cached = ev["cached_replacements"].as_u64().unwrap_or(0);
+                let rest = ev["restored"].as_u64().unwrap_or(0);
+                let mask_us = ev["timings"]["mask_us"].as_u64().unwrap_or(0);
+                let cls_us = ev["timings"]["classifier_us"].as_u64().unwrap_or(0);
+                let rest_us = ev["timings"]["restore_us"].as_u64().unwrap_or(0);
+                let overhead_ms = (mask_us + cls_us + rest_us) as f64 / 1000.0;
+                let diag = if let Some(err) = ev.get("error").filter(|v| !v.is_null()) {
+                    format!(
+                        "ОШИБКА: {} ({})",
+                        err["kind"].as_str().unwrap_or("upstream"),
+                        err["message"].as_str().unwrap_or("")
+                    )
+                } else if ev["unknown"].as_u64().unwrap_or(0) > 0 {
+                    format!("Неизв. токены: {}", ev["unknown"].as_u64().unwrap_or(0))
+                } else if ev["denied"].as_u64().unwrap_or(0) > 0 {
+                    format!("Отказ доступа: {}", ev["denied"].as_u64().unwrap_or(0))
+                } else if ev["uncertain"].as_u64().unwrap_or(0) > 0 {
+                    format!("Спорных: {}", ev["uncertain"].as_u64().unwrap_or(0))
+                } else {
+                    "ОК".to_string()
+                };
+                println!(
+                    "#{:<5} {:<9} {:<6} {:<16} {:<12} {:<10} {:>7.2} мс   {}",
+                    id,
+                    api,
+                    status,
+                    ellipsize(model, 16),
+                    format!("{repl}+{cached}"),
+                    rest,
+                    overhead_ms,
+                    ellipsize(&diag, 45)
+                );
+            }
+            println!("\nДетальный просмотр запроса (Request Inspector): kaponir events show <ID>");
+            Ok(ExitCode::SUCCESS)
+        }
+        EventsCmd::Show { id, json } => {
+            let raw_list = vault.load_traffic_events(200)?;
+            let ev: serde_json::Value = raw_list
+                .into_iter()
+                .filter_map(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .find(|v| v["id"].as_u64() == Some(id))
+                .ok_or_else(|| anyhow!("событие #{id} не найдено в vault"))?;
+            if json {
+                println!("{}", serde_json::to_string_pretty(&ev)?);
+                return Ok(ExitCode::SUCCESS);
+            }
+            println!("=== Событие #{} ({}) ===", id, ev["api"].as_str().unwrap_or("-"));
+            println!(
+                "Статус HTTP: {} | Модель: {} | Поток (SSE): {}",
+                ev["status"].as_u64().unwrap_or(0),
+                ev["model"].as_str().unwrap_or("-"),
+                ev["streaming"].as_bool().unwrap_or(false)
+            );
+            let t = &ev["timings"];
+            println!(
+                "Тайминги: Маскирование {:.2} мс | Классификатор {:.2} мс | Внешняя LLM {:.2} мс | Демаскировка {:.2} мс",
+                t["mask_us"].as_u64().unwrap_or(0) as f64 / 1000.0,
+                t["classifier_us"].as_u64().unwrap_or(0) as f64 / 1000.0,
+                t["upstream_us"].as_u64().unwrap_or(0) as f64 / 1000.0,
+                t["restore_us"].as_u64().unwrap_or(0) as f64 / 1000.0,
+            );
+            println!(
+                "Подстановки: {} новых + {} из кэша сессии | Восстановлено: {} | Токены LLM: {} (in={} / out={})",
+                ev["replacements"].as_u64().unwrap_or(0),
+                ev["cached_replacements"].as_u64().unwrap_or(0),
+                ev["restored"].as_u64().unwrap_or(0),
+                ev["total_tokens"].as_u64().unwrap_or(0),
+                ev["prompt_tokens"].as_u64().unwrap_or(0),
+                ev["completion_tokens"].as_u64().unwrap_or(0),
+            );
+            if let Some(err) = ev.get("error").filter(|v| !v.is_null()) {
+                println!(
+                    "\n[!] ОШИБКА ПРОВАЙДЕРА: {} (HTTP {:?}) URL: {}\n    {}",
+                    err["kind"].as_str().unwrap_or("error"),
+                    err["http_status"],
+                    err["upstream_url"].as_str().unwrap_or("-"),
+                    err["message"].as_str().unwrap_or("-")
+                );
+            }
+            if let Some(items) = ev["replacement_items"].as_array().filter(|a| !a.is_empty()) {
+                println!("\n--- Замаскированные сущности ({}) ---", items.len());
+                for item in items {
+                    println!(
+                        "  {}  <=  `{}`  (тип: {}, контур: {}, вердикт: {}, p={:.2})",
+                        item["token"].as_str().unwrap_or(""),
+                        item["original"].as_str().unwrap_or(""),
+                        item["kind"].as_str().unwrap_or(""),
+                        item["scope"].as_str().unwrap_or(""),
+                        item["verdict"].as_str().unwrap_or(""),
+                        item["probability"].as_f64().unwrap_or(0.0),
+                    );
+                }
+            }
+            if let Some(insp) = ev.get("inspector").filter(|v| !v.is_null()) {
+                println!(
+                    "\n--- 1. Исходный запрос пользователя ---\n{}",
+                    insp["original_request"].as_str().unwrap_or("")
+                );
+                println!(
+                    "\n--- 2. Реальный обезличенный запрос в LLM (Upstream) ---\n{}",
+                    insp["masked_request"].as_str().unwrap_or("")
+                );
+                if let Some(raw_resp) = insp["raw_response"].as_str().filter(|s| !s.is_empty()) {
+                    println!("\n--- 3. Сырой ответ LLM (до демаскировки) ---\n{raw_resp}");
+                }
+                if let Some(rest_resp) = insp["restored_response"].as_str().filter(|s| !s.is_empty())
+                {
+                    println!("\n--- 4. Восстановленный ответ пользователю ---\n{rest_resp}");
+                }
+            }
+            Ok(ExitCode::SUCCESS)
+        }
+    }
 }

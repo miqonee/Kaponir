@@ -329,9 +329,55 @@ async fn proxy(
         Relaxed,
     );
     if !span.streaming.load(Relaxed) {
-        span.complete.store(true, Relaxed);
+        span.finish();
     }
     result
+}
+
+fn extract_prompt_text(_api: Api, v: &Value) -> String {
+    let mut parts = Vec::new();
+    if let Some(sys) = v.get("system") {
+        if let Some(s) = sys.as_str() {
+            if !s.is_empty() {
+                parts.push(format!("[system]\n{s}"));
+            }
+        } else if let Some(arr) = sys.as_array() {
+            for block in arr {
+                if let Some(t) = block.get("text").and_then(Value::as_str) {
+                    parts.push(format!("[system]\n{t}"));
+                }
+            }
+        }
+    }
+    if let Some(msgs) = v.get("messages").and_then(Value::as_array) {
+        for m in msgs {
+            let role = m.get("role").and_then(Value::as_str).unwrap_or("message");
+            if let Some(c) = m.get("content") {
+                if let Some(s) = c.as_str() {
+                    parts.push(format!("[{role}]\n{s}"));
+                } else if let Some(arr) = c.as_array() {
+                    let mut blocks = Vec::new();
+                    for b in arr {
+                        if let Some(t) = b.get("text").and_then(Value::as_str) {
+                            blocks.push(t.to_string());
+                        } else if let Some(inp) = b.get("input") {
+                            blocks.push(inp.to_string());
+                        } else if let Some(c) = b.get("content").and_then(Value::as_str) {
+                            blocks.push(c.to_string());
+                        }
+                    }
+                    if !blocks.is_empty() {
+                        parts.push(format!("[{role}]\n{}", blocks.join("\n")));
+                    }
+                }
+            }
+        }
+    }
+    if parts.is_empty() {
+        serde_json::to_string_pretty(v).unwrap_or_default()
+    } else {
+        parts.join("\n\n")
+    }
 }
 
 async fn proxy_request(
@@ -344,27 +390,58 @@ async fn proxy_request(
 ) -> Result<Response, ApiError> {
     authorized(&st, &headers, false)?;
     let mut json: Value = serde_json::from_slice(&body).map_err(|e| {
+        span.set_error("", Some(400), "bad_request", format!("request body is not JSON: {e}"));
         error(
             StatusCode::BAD_REQUEST,
             format!("request body is not JSON: {e}"),
         )
     })?;
+    *span
+        .model
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = json
+        .get("model")
+        .and_then(Value::as_str)
+        .filter(|s| !s.is_empty())
+        .map(str::to_owned);
+    let original_request = extract_prompt_text(api, &json);
     let session = session_id(&headers, api, &json);
     let hint = st
         .cfg
         .system_hint
         .then(|| crate::system_hint(st.engine().codec().prefix()));
+    let s1_before = st.engine().metrics().s1.snapshot().duration_us;
+    let mask_started = std::time::Instant::now();
     let (_, usage) = st
         .with_usage(&session, true, |cx| match api {
             Api::Anthropic => anthropic::mask_request(&mut json, cx, hint.as_deref()),
             Api::OpenAi => openai::mask_request(&mut json, cx, hint.as_deref()),
         })
         .map_err(|e| {
+            span.set_error("", Some(500), "mask_failed", format!("{e:#}"));
             error(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("masking failed, request was not sent: {e:#}"),
             )
         })?;
+    let mask_total_us = mask_started.elapsed().as_micros() as u64;
+    let s1_after = st.engine().metrics().s1.snapshot().duration_us;
+    let classifier_us = s1_after.saturating_sub(s1_before).min(mask_total_us);
+    let mask_us = mask_total_us.saturating_sub(classifier_us);
+    span.mask_us.fetch_add(mask_us, Relaxed);
+    span.classifier_us.fetch_add(classifier_us, Relaxed);
+    {
+        let masked_request = extract_prompt_text(api, &json);
+        let masked_payload_json = serde_json::to_string_pretty(&json).unwrap_or_default();
+        let mut insp = span
+            .inspector
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let entry = insp.get_or_insert_with(Default::default);
+        entry.original_request = original_request;
+        entry.masked_request = masked_request;
+        entry.masked_payload_json = masked_payload_json;
+    }
     span.add(&usage);
     let body = serde_json::to_vec(&json).map_err(|e| internal(e.into()))?;
 
@@ -395,6 +472,7 @@ async fn proxy_request(
         let base = provider
             .as_ref()
             .map_or(base.as_str(), |p| p.base_url.as_str());
+        let target_url = upstream_url(base, &uri);
         let mut outgoing = forward_headers(&headers);
         strip_local_token(&st, &mut outgoing);
         if let Some(p) = &provider {
@@ -406,16 +484,33 @@ async fn proxy_request(
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             provider.as_ref().map(|p| p.id.clone());
+        *span
+            .upstream_url
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(target_url.clone());
         span.sent.store(true, Relaxed);
-        let resp = st
+        let up_started = std::time::Instant::now();
+        let send_res = st
             .http
-            .post(upstream_url(base, &uri))
+            .post(&target_url)
             .headers(outgoing)
             .header(header::CONTENT_TYPE, "application/json")
             .body(body.clone())
             .send()
-            .await
-            .map_err(|e| error(StatusCode::BAD_GATEWAY, format!("upstream: {e}")))?;
+            .await;
+        span.upstream_us
+            .fetch_add(up_started.elapsed().as_micros() as u64, Relaxed);
+        let resp = send_res.map_err(|e| {
+            let err_kind = if e.is_timeout() {
+                "timeout"
+            } else if e.is_connect() {
+                "connect_error"
+            } else {
+                "network_error"
+            };
+            span.set_error(target_url.clone(), None, err_kind, e.to_string());
+            error(StatusCode::BAD_GATEWAY, format!("upstream ({target_url}): {e}"))
+        })?;
         if resp.status() != StatusCode::TOO_MANY_REQUESTS
             || connection_id(&uri).is_some()
             || provider.as_ref().is_none_or(|p| !p.retry_on_429)
@@ -457,20 +552,70 @@ async fn proxy_request(
         return Ok(respond(status, out_headers, Body::from_stream(stream)));
     }
 
-    let bytes = resp
-        .bytes()
-        .await
-        .map_err(|e| error(StatusCode::BAD_GATEWAY, format!("upstream: {e}")))?;
+    let up_body_started = std::time::Instant::now();
+    let bytes = resp.bytes().await.map_err(|e| {
+        let target_url = span
+            .upstream_url
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .unwrap_or_default();
+        span.set_error(target_url.clone(), None, "body_read_error", e.to_string());
+        error(StatusCode::BAD_GATEWAY, format!("upstream: {e}"))
+    })?;
+    span.upstream_us
+        .fetch_add(up_body_started.elapsed().as_micros() as u64, Relaxed);
+    if !status.is_success() {
+        let target_url = span
+            .upstream_url
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .unwrap_or_default();
+        let detail = serde_json::from_slice::<Value>(&bytes)
+            .ok()
+            .and_then(|v| {
+                v.get("error")
+                    .and_then(|e| e.get("message").or(Some(e)))
+                    .and_then(|m| {
+                        m.as_str()
+                            .map(str::to_owned)
+                            .or_else(|| Some(m.to_string()))
+                    })
+                    .or_else(|| v.get("message").and_then(Value::as_str).map(str::to_owned))
+            })
+            .unwrap_or_else(|| String::from_utf8_lossy(&bytes).chars().take(300).collect());
+        let err_kind = match status.as_u16() {
+            401 | 403 => "auth_error",
+            404 => "not_found",
+            429 => "rate_limit",
+            500..=599 => "upstream_5xx",
+            _ => "upstream_4xx",
+        };
+        span.set_error(
+            target_url,
+            Some(status.as_u16()),
+            err_kind,
+            if detail.is_empty() {
+                status.to_string()
+            } else {
+                detail
+            },
+        );
+    }
     if !(status.is_success() && is_json) {
         return Ok(respond(status, out_headers, Body::from(bytes)));
     }
     let Ok(mut v) = serde_json::from_slice::<Value>(&bytes) else {
         return Ok(respond(status, out_headers, Body::from(bytes)));
     };
+    let restore_started = std::time::Instant::now();
     let restored = st.with_usage(&session, false, |cx| match api {
         Api::Anthropic => anthropic::restore_response(&mut v, cx),
         Api::OpenAi => openai::restore_response(&mut v, cx),
     });
+    span.restore_us
+        .fetch_add(restore_started.elapsed().as_micros() as u64, Relaxed);
     let body = match restored.and_then(|((), usage)| {
         span.add(&usage);
         Ok(serde_json::to_vec(&v)?)
@@ -502,6 +647,7 @@ impl StreamState {
         let raw: String = events.iter().map(|e| e.raw.as_str()).collect();
         let st = self.st.clone();
         let rw = &mut self.rw;
+        let restore_started = std::time::Instant::now();
         let r = st.with_usage(&self.session, false, |cx| {
             let mut out = String::new();
             for ev in events {
@@ -516,12 +662,15 @@ impl StreamState {
             }
             Ok(out)
         });
+        self.span
+            .restore_us
+            .fetch_add(restore_started.elapsed().as_micros() as u64, Relaxed);
         let r = r.map(|(out, usage)| {
             self.span.add(&usage);
             out
         });
         if end {
-            self.span.complete.store(true, Relaxed);
+            self.span.finish();
         }
         r.unwrap_or_else(|e| {
             self.span.restore_failed.store(true, Relaxed);
@@ -554,10 +703,23 @@ fn restore_stream(
             if s.done {
                 return None;
             }
-            let (events, end) = match s.up.next().await {
+            let up_wait = std::time::Instant::now();
+            let next_chunk = s.up.next().await;
+            s.span
+                .upstream_us
+                .fetch_add(up_wait.elapsed().as_micros() as u64, Relaxed);
+            let (events, end) = match next_chunk {
                 Some(Ok(b)) => (s.parser.push(&b), false),
                 Some(Err(e)) => {
-                    s.span.failed.store(true, Relaxed);
+                    let target_url = s
+                        .span
+                        .upstream_url
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .clone()
+                        .unwrap_or_default();
+                    s.span
+                        .set_error(target_url, None, "stream_error", e.to_string());
                     s.st.stream_errors
                         .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     s.done = true;

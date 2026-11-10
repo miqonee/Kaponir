@@ -43,7 +43,13 @@ pub fn run(
     home: &crate::Home,
     args: &[std::ffi::OsString],
 ) -> anyhow::Result<std::process::ExitCode> {
-    let python = std::env::var_os("KAPONIR_WORKER_PYTHON").unwrap_or_else(|| "python3".into());
+    let python = std::env::var_os("KAPONIR_WORKER_PYTHON").unwrap_or_else(|| {
+        if cfg!(windows) {
+            "python".into()
+        } else {
+            "python3".into()
+        }
+    });
     let mut command = std::process::Command::new(python);
     command
         .arg("-c")
@@ -69,8 +75,11 @@ pub fn run(
 impl Settings {
     pub fn validate(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
-            matches!(self.model.as_str(), "q4" | "q5"),
-            "worker model must be q4 or q5"
+            matches!(
+                self.model.as_str(),
+                "q4" | "q5" | "qwen3-0.6b" | "qwen3.5-0.8b"
+            ),
+            "worker model must be q4 (qwen3-0.6b) or q5 (qwen3.5-0.8b)"
         );
         for (name, value, maximum) in [
             ("threads", u64::from(self.threads), 32),

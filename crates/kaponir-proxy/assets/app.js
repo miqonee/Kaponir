@@ -61,6 +61,75 @@ const SCOPE_TITLES = { global: tr("Корпоративные правила"), 
 const VERDICTS = { mask: tr("маскировать"), keep: tr("оставить"), uncertain: tr("спорно") };
 const MIN_VALUE = 3; // как MIN_KNOWN_LEN в ядре
 
+const KIND_LABELS = {
+  PROJ: "Проект",
+  SVC: "Сервис",
+  HOST: "Сервер / Хост",
+  SECRET: "Секрет / Пароль",
+  DOM: "Домен",
+  SUB: "Поддомен",
+  CLIENT: "Клиент",
+  PERSON: "Сотрудник / ФИО",
+  ORG: "Организация",
+  USER: "Учётная запись",
+  MODULE: "Модуль",
+  EMAIL: "Email",
+  PHONE: "Телефон",
+  IP: "IP-адрес",
+  INN: "ИНН",
+  SNILS: "СНИЛС",
+  OGRN: "ОГРН",
+  BIK: "БИК",
+  ACCT: "Банковский счёт",
+  PASS: "Паспорт",
+  CUSTOM: "Своё правило",
+};
+
+const KIND_TOOLTIPS = {
+  PROJ: "Внутреннее кодовое название проекта или продукта (PROJ)",
+  SVC: "Внутренний микросервис, подсистема или API-компонент (SVC)",
+  HOST: "Имя сервера, узла инфраструктуры или кластера (HOST)",
+  SECRET: "Пароль, API-ключ, токен доступа или секретная строка (SECRET)",
+  DOM: "Корпоративный домен или внутренний адрес компании (DOM)",
+  SUB: "Поддомен внутри корпоративной доменной зоны (SUB)",
+  CLIENT: "Контрагент, заказчик или партнёр (CLIENT)",
+  PERSON: "Фамилия, имя или отчество физического лица (PERSON)",
+  ORG: "Название компании или юридического лица (ORG)",
+  USER: "Логин пользователя или системная учётная запись (USER)",
+  MODULE: "Внутренний пакет, библиотека или репозиторий (MODULE)",
+  CUSTOM: "Пользовательская категория чувствительных данных (CUSTOM)",
+};
+
+const STANDARD_KINDS = ['PROJ', 'SVC', 'HOST', 'SECRET', 'DOM', 'CLIENT', 'PERSON', 'ORG', 'USER', 'MODULE', 'CUSTOM'];
+
+function kindLabel(kind) {
+  const k = String(kind || 'CUSTOM').toUpperCase();
+  const human = KIND_LABELS[k];
+  return human ? `${tr(human)} (${k})` : k;
+}
+
+function kindBadge(kind) {
+  const k = String(kind || 'CUSTOM').toUpperCase();
+  const human = KIND_LABELS[k];
+  const tip = KIND_TOOLTIPS[k] ? tr(KIND_TOOLTIPS[k]) : k;
+  return h('span', { class: 'kind-badge', title: tip },
+    human ? tr(human) : k,
+    human ? h('code', { text: k }) : null
+  );
+}
+
+function defaultScopeForKind(kind) {
+  const k = String(kind || '').toUpperCase();
+  if (['SECRET', 'DOM', 'SUB', 'ORG', 'INN', 'OGRN', 'BIK', 'ACCT'].includes(k)) return 'global';
+  if (['PROJ', 'SVC', 'HOST', 'MODULE', 'CLIENT'].includes(k)) return 'team';
+  if (['PERSON', 'USER', 'EMAIL', 'PHONE', 'SNILS', 'PASS'].includes(k)) return 'personal';
+  return ($('#j-scope') && $('#j-scope').value) || 'team';
+}
+
+window.kindLabel = kindLabel;
+window.kindBadge = kindBadge;
+window.defaultScopeForKind = defaultScopeForKind;
+
 // ---------- API ----------
 
 let token = sessionStorage.getItem('kaponir-token') || '';
@@ -407,9 +476,13 @@ function renderExplain(res) {
     h('thead', {}, h('tr', {}, ...['', tr("Решение"), 'p', tr("Тип"), tr("Распознаватель"), tr("Значение"), tr("Свидетельства")].map((c) => h('th', { text: c })))),
     h('tbody', {}, rows.map((x) => h('tr', { class: x.applied ? 'applied' : '' },
       h('td', { text: x.applied ? '✓' : '' }),
-      h('td', {}, h('span', { class: 'verdict ' + x.verdict, text: VERDICTS[x.verdict] || x.verdict })),
+      h('td', {}, x.verdict === 'uncertain'
+        ? h('span', { class: 'verdict-uncertain-box', title: tr("Вероятность в спорном диапазоне: применена политика uncertain") },
+            h('strong', { text: `${tr("Спорно")} (p=${x.probability.toFixed(2)})` }),
+            h('small', { text: tr("по политике uncertain={{0}}", [info.uncertain_policy || 'mask']) }))
+        : h('span', { class: 'verdict ' + x.verdict, text: VERDICTS[x.verdict] || x.verdict })),
       h('td', { class: 'num', text: x.probability.toFixed(3) }),
-      h('td', { text: x.kind }),
+      h('td', {}, kindBadge(x.kind)),
       h('td', { text: x.recognizer }),
       h('td', { class: 'mono', text: x.surface }),
       h('td', {}, evidenceNodes(x.evidence)),
@@ -617,7 +690,7 @@ $('#r-copy').addEventListener('click', async () => {
 
 // ---------- Разбор ----------
 
-let jView = 'groups';
+let jView = 'list';
 
 for (const b of document.querySelectorAll('#j-view button')) {
   b.addEventListener('click', () => {
@@ -629,27 +702,115 @@ for (const b of document.querySelectorAll('#j-view button')) {
 $('#j-status').addEventListener('change', () => loadJournal().catch(fail));
 $('#j-refresh').addEventListener('click', () => Promise.all([loadJournal(), loadInfo()]).catch(fail));
 
-async function decide(body, label) {
-  try {
-    const r = await api('/api/v1/journal/decide', { method: 'POST', body: { scope: $('#j-scope').value, ...body } });
-    toast(tr("{{0}}: {{1}} зап.", [label, r.closed]));
-    await afterRulesChanged();
-  } catch (e) { fail(e); }
+try {
+  if ($('#j-auto-save')) {
+    $('#j-auto-save').checked = localStorage.getItem('kaponir-auto-save-review') === '1';
+    $('#j-auto-save').addEventListener('change', (e) => {
+      try { localStorage.setItem('kaponir-auto-save-review', e.target.checked ? '1' : '0'); } catch {}
+    });
+  }
+} catch {}
+
+if ($('#j-auto-review')) {
+  $('#j-auto-review').addEventListener('click', async () => {
+    const btn = $('#j-auto-review');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    const autoSave = $('#j-auto-save') ? $('#j-auto-save').checked : false;
+    try {
+      const res = await api('/api/v1/ui/journal/auto-review', {
+        method: 'POST',
+        body: { auto_save: autoSave, threshold: 0.85 },
+      });
+      toast(tr("Авторазбор: классифицировано {{0}}, автоматически сохранено правил: {{1}}", [res.reviewed || 0, res.auto_saved || 0]));
+      await afterRulesChanged();
+    } catch (e) { fail(e); }
+    finally { btn.disabled = false; }
+  });
 }
 
-function decisionButtons(sel, kindDefault, open) {
+async function decide(body, label, rowEl = null, highlightClass = '') {
+  try {
+    if (rowEl && highlightClass) rowEl.classList.add(highlightClass);
+    const scope = body.scope || $('#j-scope').value;
+    const r = await api('/api/v1/journal/decide', { method: 'POST', body: { scope, ...body } });
+    toast(tr("{{0}}: {{1}} зап.", [label, r.closed]));
+    if (rowEl && highlightClass) {
+      await new Promise((resolve) => setTimeout(resolve, 260));
+    }
+    await afterRulesChanged();
+  } catch (e) {
+    if (rowEl && highlightClass) rowEl.classList.remove(highlightClass);
+    fail(e);
+  }
+}
+
+function makeKindSelect(initialKind, disabled) {
+  const current = String(initialKind || 'CUSTOM').toUpperCase();
+  const options = STANDARD_KINDS.includes(current) ? STANDARD_KINDS : [current, ...STANDARD_KINDS];
+  return h('select', { class: 'review-select', disabled, title: tr("Тип сущности") },
+    ...options.map((k) => h('option', { value: k, selected: k === current, text: kindLabel(k) }))
+  );
+}
+
+function makeScopeSelect(initialScope, disabled) {
+  const scopes = [
+    ['global', tr("Корпоративные (global)")],
+    ['team', tr("Командные (team)")],
+    ['personal', tr("Личные (personal)")],
+  ];
+  return h('select', { class: 'review-select', disabled, title: tr("Куда сохранить правило") },
+    ...scopes.map(([val, label]) => h('option', { value: val, selected: val === initialScope, text: label }))
+  );
+}
+
+function decisionButtons(sel, kindDefault, open, recommendedScope) {
   if (!open) return [];
-  const kind = h('input', { value: kindDefault, list: 'kinds', spellcheck: 'false', title: tr("Тип токена"), 'aria-label': tr("Тип токена") });
   const ro = !info.editable;
+  const kindSel = makeKindSelect(kindDefault, ro);
+  const scopeSel = makeScopeSelect(recommendedScope || defaultScopeForKind(kindDefault), ro);
+  let userChangedScope = false;
+  scopeSel.addEventListener('change', () => { userChangedScope = true; });
+  kindSel.addEventListener('change', () => {
+    if (!userChangedScope) scopeSel.value = defaultScopeForKind(kindSel.value);
+  });
   return [
-    kind,
-    h('button', { class: 'small', disabled: ro, onclick: () => decide({ ...sel, action: 'mask', kind: normKind(kind.value) || null }, tr("Маскировать всегда")) }, tr("Маскировать всегда")),
-    h('button', { class: 'small', disabled: ro, onclick: () => decide({ ...sel, action: 'keep' }, tr("Никогда не маскировать")) }, tr("Никогда не маскировать")),
-    h('button', { class: 'small ghost', onclick: () => decide({ ...sel, action: 'dismiss' }, tr("Закрыто")) }, tr("Закрыть без правила")),
+    kindSel,
+    scopeSel,
+    h('button', {
+      class: 'btn-confirm',
+      disabled: ro,
+      onclick: (ev) => decide({ ...sel, action: 'mask', kind: normKind(kindSel.value) || null, scope: scopeSel.value }, tr("Подтверждено (маскировать)"), ev.currentTarget.closest('tr, .card'), 'row-confirmed')
+    }, tr("✓ Подтвердить")),
+    h('button', {
+      class: 'btn-reject',
+      disabled: ro,
+      onclick: (ev) => decide({ ...sel, action: 'keep', scope: scopeSel.value }, tr("Отклонено (не секрет)"), ev.currentTarget.closest('tr, .card'), 'row-rejected')
+    }, tr("✕ Отказать")),
+    h('button', {
+      class: 'small ghost',
+      onclick: (ev) => decide({ ...sel, action: 'dismiss', scope: scopeSel.value }, tr("Закрыто"), ev.currentTarget.closest('tr, .card'))
+    }, tr("Скрыть")),
   ];
 }
 
 const STATUS_NAMES = { open: tr("открыто"), masked: tr("маскируется правилом"), kept: tr("оставлено правилом"), dismissed: tr("закрыто") };
+
+function renderVerdictCell(r) {
+  const isUncertain = (r.verdict || 'uncertain') === 'uncertain';
+  const badge = isUncertain
+    ? h('div', {
+        class: 'verdict-uncertain-box',
+        title: tr("Детектор не уверен на 100% (вероятность p={{0}} попала в спорный коридор). Применена политика по умолчанию uncertain={{1}}.", [r.probability.toFixed(2), r.applied])
+      },
+      h('strong', { text: `${tr("Спорно")} (p=${r.probability.toFixed(2)})` }),
+      h('small', { text: r.applied === 'mask' ? tr("маскируется по политике uncertain=mask") : tr("оставляется по политике uncertain=keep") }))
+    : h('span', { class: 'verdict ' + r.applied, text: `${VERDICTS[r.applied] || r.applied} (p=${r.probability.toFixed(2)})` });
+  return h('div', {},
+    badge,
+    r.status !== 'open' ? h('div', { class: 'status-tag', text: STATUS_NAMES[r.status] || r.status }) : null
+  );
+}
 
 async function loadJournal() {
   const status = $('#j-status').value;
@@ -660,18 +821,49 @@ async function loadJournal() {
     return;
   }
   if (jView === 'list') {
-    list.replaceChildren(h('div', { class: 'table-wrap' }, h('table', {},
-      h('thead', {}, h('tr', {}, ...['#', '×', tr("Тип"), 'p', tr("Сейчас"), tr("Источник"), tr("Значение и контекст"), ''].map((c) => h('th', { text: c })))),
-      h('tbody', {}, rows.map((r) => h('tr', {},
-        h('td', { class: 'num', text: r.id }),
-        h('td', { class: 'num', text: r.count }),
-        h('td', { text: r.kind }),
-        h('td', { class: 'num', text: r.probability.toFixed(2) }),
-        h('td', {}, h('span', { class: 'verdict ' + r.applied, text: VERDICTS[r.applied] || r.applied }), r.status !== 'open' ? h('div', { class: 'status-tag', text: STATUS_NAMES[r.status] || r.status }) : null),
-        h('td', { text: r.recognizer }),
-        h('td', {}, h('div', { class: 'mono', text: r.value }), h('div', { class: 'context', text: r.context })),
-        h('td', {}, h('div', { class: 'actions' }, decisionButtons({ ids: [r.id] }, r.kind, r.status === 'open'))),
-      ))),
+    list.replaceChildren(h('div', { class: 'review-table-wrap' }, h('table', { class: 'review-table' },
+      h('thead', {}, h('tr', {}, ...[tr("Значение и контекст"), tr("Вердикт и политика"), tr("Источник"), tr("Тип сущности"), tr("Контур правил"), tr("Решение в 1 клик")].map((c) => h('th', { text: c })))),
+      h('tbody', {}, rows.map((r) => {
+        const ro = !info.editable;
+        const open = r.status === 'open';
+        const kindSel = open ? makeKindSelect(r.kind, ro) : kindBadge(r.kind);
+        const recScope = r.recommended_scope || defaultScopeForKind(r.kind);
+        const scopeSel = open ? makeScopeSelect(recScope, ro) : h('span', { class: 'tag', text: SCOPE_NAMES[recScope] || recScope });
+        if (open) {
+          let userChangedScope = false;
+          scopeSel.addEventListener('change', () => { userChangedScope = true; });
+          kindSel.addEventListener('change', () => {
+            if (!userChangedScope) scopeSel.value = defaultScopeForKind(kindSel.value);
+          });
+        }
+        const trRow = h('tr', {},
+          h('td', { class: 'review-value-cell' },
+            h('div', {}, h('span', { class: 'mono', text: r.value }), ' ', h('span', { class: 'tag', text: '×' + r.count })),
+            r.context ? h('div', { class: 'context', text: r.context }) : null
+          ),
+          h('td', {}, renderVerdictCell(r)),
+          h('td', {}, h('code', { text: r.recognizer })),
+          h('td', {}, kindSel),
+          h('td', {}, scopeSel),
+          h('td', {}, open ? h('div', { class: 'review-actions' },
+            h('button', {
+              class: 'btn-confirm',
+              disabled: ro,
+              onclick: () => decide({ ids: [r.id], action: 'mask', kind: normKind(kindSel.value) || null, scope: scopeSel.value }, tr("Подтверждено (маскировать)"), trRow, 'row-confirmed')
+            }, tr("✓ Подтвердить")),
+            h('button', {
+              class: 'btn-reject',
+              disabled: ro,
+              onclick: () => decide({ ids: [r.id], action: 'keep', scope: scopeSel.value }, tr("Отклонено (не секрет)"), trRow, 'row-rejected')
+            }, tr("✕ Отказать")),
+            h('button', {
+              class: 'small ghost',
+              onclick: () => decide({ ids: [r.id], action: 'dismiss', scope: scopeSel.value }, tr("Закрыто"), trRow)
+            }, tr("Скрыть"))
+          ) : h('span', { class: 'hint', text: STATUS_NAMES[r.status] || r.status })),
+        );
+        return trRow;
+      })),
     )));
     return;
   }
@@ -690,14 +882,14 @@ async function loadJournal() {
     const prange = Math.min(...ps) === Math.max(...ps) ? ps[0].toFixed(2) : `${Math.min(...ps).toFixed(2)}–${Math.max(...ps).toFixed(2)}`;
     return h('div', { class: 'card' },
       h('div', { class: 'group-head' },
-        h('span', { class: 'kind', text: r0.kind }),
+        kindBadge(r0.kind),
         h('span', { class: 'shape', text: tr("форма ") + r0.shape }),
         h('span', { class: 'count', text: tr("{{0}} знач. · встречено {{1}}× · p {{2}} · {{3}}", [g.length, total, prange, r0.recognizer]) }),
       ),
       h('div', { class: 'samples' }, g.slice(0, 14).map((r) => h('span', { class: 'chip', title: r.context }, h('span', {}, r.value), h('span', { class: 'k', text: '×' + r.count }))),
         g.length > 14 ? h('span', { class: 'hint', text: tr("и ещё {{0}}", [g.length - 14]) }) : null),
       h('p', { class: 'context', text: r0.context }),
-      h('div', { class: 'actions' }, decisionButtons(status === 'open' ? { shape: r0.shape, of_kind: r0.kind } : { ids: g.filter((r) => r.status === 'open').map((r) => r.id) }, r0.kind, open)),
+      h('div', { class: 'actions' }, decisionButtons(status === 'open' ? { shape: r0.shape, of_kind: r0.kind } : { ids: g.filter((r) => r.status === 'open').map((r) => r.id) }, r0.kind, open, r0.recommended_scope)),
     );
   }));
 }
@@ -772,7 +964,7 @@ function renderDiscover() {
       const scores=(s.examples||[]).map(e=>e.s1_score).filter(v=>v!=null);
       const scoreLabel=scores.length ? ' · S1: '+Math.min(...scores).toFixed(2)+'–'+Math.max(...scores).toFixed(2) : '';
       return h('tr', {},
-        h('td', {}, checkbox), h('td', { text: s.kind }), h('td', { class: 'mono', text: s.value }),
+        h('td', {}, checkbox), h('td', {}, kindBadge(s.kind)), h('td', { class: 'mono', text: s.value }),
         h('td', { class: 'num', text: s.count }), h('td', { class: 'num', text: s.documents }),
         h('td', { text: s.reason.split('; ').map(reason => reason.startsWith('кандидат детектора ') ? tr('Кандидат детектора {{0}}', [reason.slice('кандидат детектора '.length)]) : tr(reason)).join('; ') }), h('td', {}, h('details', {}, h('summary', {}, tr('Примеры: {{0}}', [(s.examples||[]).length])+scoreLabel),
           ...(s.examples||[]).map(e => h('div', {}, h('p', {class:'hint'}, e.document + ' · ' + e.start + '–' + e.end + ' · S1: ' + (e.s1_score == null ? '—' : e.s1_score.toFixed(2))), h('pre', {class:'mono'}, e.context))))));
@@ -826,6 +1018,29 @@ $('#d-saved').addEventListener('click', async () => {
   } catch(e) { fail(e); }
   finally { D.busy=false; renderDiscover(); }
 });
+
+async function analyzeProxySessions() {
+  if (D.busy) return;
+  showTab('discover');
+  D.busy = true;
+  renderDiscover();
+  $('#d-status').textContent = tr("Анализ завершённых сессий прокси из Vault…");
+  try {
+    const res = await api('/api/v1/ui/discover/sessions', {
+      method: 'POST',
+      body: { use_s1: $('#d-s1') ? $('#d-s1').checked : false, remember: true },
+    });
+    D.report = res.report;
+    D.saved = true;
+    D.selected.clear();
+    toast(tr("Разобрано сессий прокси: {{0}} · кандидатов: {{1}}", [res.sessions_analyzed || 0, (res.report && res.report.suggestions && res.report.suggestions.length) || 0]));
+    await loadInfo();
+  } catch (e) { fail(e); }
+  finally { D.busy = false; renderDiscover(); }
+}
+window.analyzeProxySessions = analyzeProxySessions;
+if ($('#d-sessions')) $('#d-sessions').addEventListener('click', analyzeProxySessions);
+if ($('#settings-scan-sessions')) $('#settings-scan-sessions').addEventListener('click', analyzeProxySessions);
 for (const id of ['d-files','d-text','d-format']) $('#'+id).addEventListener('change', () => {
   if (!D.saved && !D.busy) { D.report=null; D.selected.clear(); renderDiscover(); }
 });
@@ -896,6 +1111,20 @@ async function loadRules() {
       } catch (e) { fail(e); }
     };
     const dInput = h('input', { placeholder: tr("новый домен, напр. corp.local"), spellcheck: 'false', 'aria-label': tr("Корпоративный домен") });
+    const previewBox = h('div', { class: 'domain-preview' });
+    const updateDomainPreview = () => {
+      const sample = (dInput.value.trim() || domains[0] || 'company.com').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+      const parts = sample.split('.').filter(Boolean);
+      const tld = parts.length > 1 ? parts[parts.length - 1] : 'com';
+      previewBox.replaceChildren(
+        h('span', { text: tr("Пример маскирования (До → После):") }),
+        h('code', { text: `git.${sample}, ${sample}` }),
+        h('span', { text: '→' }),
+        h('code', { class: 'masked', text: `[SUB_1].[DOM_1].${tld}, [DOM_1].${tld}` }),
+      );
+    };
+    dInput.addEventListener('input', updateDomainPreview);
+    updateDomainPreview();
     const rules = set.file.rule || [];
     return h('div', { class: `card scope-card ${set.scope}` },
       h('h3', {}, SCOPE_TITLES[set.scope], h('span', { class: 'path', text: set.location })),
@@ -905,6 +1134,7 @@ async function loadRules() {
           h('button', { title: tr("Удалить"), 'aria-label': tr("Удалить ") + d, onclick: () => putDomains(domains.filter((x) => x !== d)) }, '×'))) : h('span', { class: 'hint', text: tr("нет") }),
         h('form', { onsubmit: (e) => { e.preventDefault(); if (dInput.value.trim()) putDomains([...domains, dInput.value.trim()]); } },
           dInput, h('button', { class: 'small', type: 'submit' }, tr("Добавить"))),
+        previewBox,
       ),
       rules.length
         ? h('div', { class: 'table-wrap' }, h('table', {},
@@ -914,7 +1144,7 @@ async function loadRules() {
             return h('tr', {},
               h('td', { class: 'num', text: r.id || i + 1 }),
               h('td', {}, h('span', { class: 'tag ' + (r.action || 'mask'), text: r.action === 'keep' ? tr("не маскировать") : tr("маскировать") })),
-              h('td', { text: r.action === 'keep' ? '' : r.kind }),
+              h('td', {}, r.action === 'keep' ? '' : kindBadge(r.kind)),
               h('td', {}, h('span', { class: 'hint', text: pt + ' ' }), h('span', { class: 'mono', text: pv })),
               h('td', {},
                 r.enforced ? h('span', { class: 'tag enf', text: 'enforced' }) : null, ' ',
@@ -968,9 +1198,17 @@ async function loadMetrics() {
   try {
     const m = await api('/api/v1/metrics');
     const e = m.engine;
-    const rows = [[tr("Операция"), tr("Вызовы"), tr("Ошибки"), tr("Среднее время, мс")]];
+    const rows = [[tr("Операция"), tr("Вызовы"), tr("Ошибки"), tr("Среднее время, мс"), "P50, мс", "P95, мс", "P99, мс"]];
     for (const [name, op] of [[tr("HTTP до заголовков ответа"), m.http], [tr("Маскирование"), e.mask], [tr("Восстановление фрагментов"), e.restore], [tr("Батчи S1"), e.s1]]) {
-      rows.push([name, op.calls, op.errors, op.calls ? (op.duration_us / op.calls / 1000).toFixed(2) : '—']);
+      rows.push([
+        name,
+        op.calls,
+        op.errors,
+        op.calls ? (op.duration_us / op.calls / 1000).toFixed(2) : '—',
+        op.calls && op.p50_us != null ? (op.p50_us / 1000).toFixed(2) : '—',
+        op.calls && op.p95_us != null ? (op.p95_us / 1000).toFixed(2) : '—',
+        op.calls && op.p99_us != null ? (op.p99_us / 1000).toFixed(2) : '—',
+      ]);
     }
     const table = (rows) => h('table', {}, ...rows.map((row, i) => h('tr', {}, ...row.map(v => h(i ? 'td' : 'th', {}, v)))));
     $('#metrics-content').replaceChildren(table(rows), table([
