@@ -204,6 +204,26 @@ impl kaponir_proxy::WorkerManager for ManagedWorker {
         *guard = Some(cmd.spawn()?);
         Ok(())
     }
+    fn stop(&self) -> anyhow::Result<()> {
+        let mut guard = self
+            .child
+            .lock()
+            .map_err(|_| anyhow::anyhow!("worker lock failed"))?;
+        if let Some(mut child) = guard.take() {
+            #[cfg(unix)]
+            {
+                let _ = std::process::Command::new("kill")
+                    .args(["-TERM", &child.id().to_string()])
+                    .status();
+                let _ = child.wait();
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = child.kill();
+            }
+        }
+        Ok(())
+    }
     fn running(&self) -> bool {
         self.child.lock().ok().is_some_and(|mut guard| {
             guard

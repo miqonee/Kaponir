@@ -73,10 +73,10 @@ function renderWorker() {
   renderWorkerSummary();
   $("#worker-controls").hidden =
     !data.configured || data.online === false || !data.enabled;
-  $("#worker-state").replaceChildren(
+  const stateNodes = [
     h("p", {}, h("strong", {}, workerStateLabel(data))),
-    data.state === "error"
-      ? h("p", { class: "err" }, tr(data.error || "Worker недоступен"))
+    data.state === "error" && data.error
+      ? h("p", { class: "err" }, tr(data.error))
       : null,
     !data.configured
       ? h(
@@ -94,7 +94,8 @@ function renderWorker() {
           tr("Для изображений нужны Pillow и Tesseract, для PDF — pypdfium2."),
         )
       : null,
-  );
+  ].filter(Boolean);
+  $("#worker-state").replaceChildren(...stateNodes);
   $("#worker-root").textContent = tr("Каталог на машине worker: {{0}}", [
     data.input_root || "—",
   ]);

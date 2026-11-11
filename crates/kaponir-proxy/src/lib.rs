@@ -35,6 +35,7 @@ pub type Shared = Arc<State>;
 pub trait WorkerManager: Send + Sync {
     fn endpoint(&self) -> String;
     fn start(&self) -> anyhow::Result<()>;
+    fn stop(&self) -> anyhow::Result<()>;
     fn running(&self) -> bool;
 }
 

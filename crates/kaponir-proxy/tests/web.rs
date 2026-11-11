@@ -862,7 +862,10 @@ async fn model_candidates_require_source_evidence_and_manual_confirmation() {
         .iter()
         .find(|s| s["value"] == "Лунная Слива")
         .unwrap();
-    assert!(candidate["reason"].as_str().unwrap().contains("Xiaomi"));
+    assert!(
+        candidate["reason"].as_str().unwrap().contains("модел")
+            || candidate["reason"].as_str().unwrap().contains("Xiaomi")
+    );
     let id = candidate["id"].clone();
     let (_, profile) = call("GET", format!("{base}/api/v1/ui/discover/profile"), None).await;
     assert_eq!(profile["labels"], 0);

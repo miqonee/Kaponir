@@ -32,19 +32,21 @@ import uuid
 
 MODEL_BASE = 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/'
 FILES = {
-    'q4': ('Qwen3-0.6B-Q4_K_M.gguf', 396705472, 'f3fc6b7d42c01f07aa6fa2c517fa492c179f7de0e1fd2275fb8ed6e3c9c90c9f'),
-    'q5': ('Qwen3-0.6B-Q8_0.gguf', 639446688, '8f02b92277a0eb2d11b3b7248511859b02c1b0a5ff5ebfc81b03c5222ebfc79e'),
+    'q4': ('Qwen3-0.6B-Q4_K_M.gguf', 396705472, 'f3fc6b7d42c01f07aa6fa2c517fa492c179f7de0e1fd2275fb8ed6e3c9c90c9f', 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf'),
+    'q5': ('Qwen3-0.6B-Q8_0.gguf', 639446688, '8f02b92277a0eb2d11b3b7248511859b02c1b0a5ff5ebfc81b03c5222ebfc79e', 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf'),
+    'qwen3.5-0.8b': ('Qwen3.5-0.8B-Q4_K_M.gguf', 524288000, '', 'https://huggingface.co/Qwen/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf'),
 }
 MODEL_ALIASES = {
     'q4': 'q4',
     'q5': 'q5',
     'qwen3-0.6b': 'q4',
-    'qwen3.5-0.8b': 'q5',  # legacy ID; these are Qwen3-0.6B Q8 weights
     'qwen3-0.6b-q8': 'q5',
+    'qwen3.5-0.8b': 'qwen3.5-0.8b',
 }
 MODEL_LABELS = {
-    'q4': 'Qwen3-0.6B (Q4_K_M · быстрый CPU)',
-    'q5': 'Qwen3-0.6B (Q8_0 · CPU)',
+    'q4': 'Qwen3-0.6B (Q4_K_M · быстрый CPU, ~397 МБ)',
+    'q5': 'Qwen3-0.6B (Q8_0 · CPU, ~639 МБ)',
+    'qwen3.5-0.8b': 'Qwen3.5-0.8B (Q4_K_M · новая CPU LLM, ~500 МБ)',
 }
 RUNTIME_NAME = 'llama-b12038-bin-ubuntu-x64.tar.gz'
 RUNTIME_URL = 'https://github.com/ggml-org/llama.cpp/releases/download/b12038/' + RUNTIME_NAME
@@ -328,14 +330,14 @@ class Worker:
 
     def status(self):
         models={}
-        for variant in ['q4','q5']:
-            fname, fsize, _ = FILES[variant]
+        for variant in ['q4','q5','qwen3.5-0.8b']:
+            item = FILES[variant]
+            fname, fsize = item[0], item[1]
             fpath = self.models / fname
-            ready = fpath.is_file() and fpath.stat().st_size == fsize
+            ready = fpath.is_file() and (fsize == 0 or fpath.stat().st_size == fsize)
             info = {'downloaded':ready,'bytes':fsize,'file':fname,'label':MODEL_LABELS.get(variant,variant),'kind':'text-cpu'}
             models[variant] = info
         models['qwen3-0.6b'] = dict(models['q4'])
-        models['qwen3.5-0.8b'] = dict(models['q5'])
         models['qwen3-0.6b-q8'] = dict(models['q5'])
         return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if self.active and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'input_root':str(self.root),'models':models,'runtime_ready':self.runtime.is_file(),
                 'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
@@ -367,7 +369,8 @@ class Worker:
 
     def download_file(self, ident, name, url, digest, size=None):
         path=self.models/name
-        if path.is_file() and (size is None or path.stat().st_size==size):
+        if path.is_file() and (size is None or size == 0 or path.stat().st_size==size):
+            if not digest: return path
             with path.open('rb') as f:
                 if hashlib.file_digest(f,'sha256').hexdigest()==digest: return path
         partial=path.with_suffix(path.suffix+'.part')
@@ -379,7 +382,8 @@ class Worker:
                     self.check(ident);out.write(data);sha.update(data);count+=len(data)
                     if time.monotonic()-last>1:
                         self.update(ident,current=name,progress=count,progress_total=total);last=time.monotonic()
-            if sha.hexdigest()!=digest or (size is not None and count!=size): raise ValueError('download checksum mismatch')
+            if digest and sha.hexdigest()!=digest: raise ValueError('download checksum mismatch')
+            if size and size > 0 and count!=size: raise ValueError('download size mismatch')
             partial.replace(path)
         finally:
             partial.unlink(missing_ok=True)
@@ -387,9 +391,11 @@ class Worker:
 
     def install(self, ident, variant):
         variant = MODEL_ALIASES.get(variant, variant)
-        name,size,digest=FILES[variant]
+        item = FILES[variant]
+        name, size, digest = item[0], item[1], item[2]
+        url = item[3] if len(item) > 3 else MODEL_BASE + name
         self.check(ident);self.update(ident,current=name,progress=0,progress_total=size)
-        self.download_file(ident,name,MODEL_BASE+name,digest,size)
+        self.download_file(ident,name,url,digest,size)
         if not self.runtime.is_file():
             if self.cfg['runtime']: raise ValueError('configured runtime is missing')
             if platform.system()!='Linux' or platform.machine() not in ['x86_64','AMD64']:

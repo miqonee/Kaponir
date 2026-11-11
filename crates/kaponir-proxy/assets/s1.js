@@ -2,18 +2,36 @@
 
 const S1 = { data: null, busy: false, dirty: false };
 const s1Levels = ['l0', 'l1', 'l2'];
-const selectedS1Level = () => s1Levels[Number($('#s1-disclosure').value)] || 'l0';
+const selectedS1Level = () => {
+  const el = $('#s1-disclosure');
+  if (!el) return 'l2';
+  return s1Levels[Number(el.value)] || 'l2';
+};
 const s1Modes = { off: 'Детекторы и правила', shadow: 'Теневой режим', active: 'Активный режим' };
 
 function syncS1Visibility() {
   for(const input of document.querySelectorAll('#s1-form input,#s1-form select'))input.disabled=S1.busy||!S1.data?.editable;
   $('#s1-clear-key').disabled=S1.busy||!S1.data?.editable||!S1.data?.key_saved;
   $('#s1-save').disabled=S1.busy||!S1.data?.editable;
+
+  // LLM Engine Section
+  const llmEngine = $('#analysis-llm-engine')?.value || 'none';
+  if ($('#analysis-llm-none-note')) $('#analysis-llm-none-note').hidden = llmEngine !== 'none';
+  if ($('#analysis-llm-local-section')) $('#analysis-llm-local-section').hidden = llmEngine !== 'local';
+  if ($('#analysis-llm-external-section')) $('#analysis-llm-external-section').hidden = llmEngine !== 'external';
+  if (llmEngine === 'local') {
+    const isOnline = Boolean(WORKER.data?.online);
+    if ($('#analysis-worker-offline-alert')) $('#analysis-worker-offline-alert').hidden = isOnline;
+    if ($('#analysis-worker-online-msg')) $('#analysis-worker-online-msg').hidden = !isOnline;
+  }
+
+  // S1 / Choice Section
   const provider = $('#s1-provider').value;
   const external = provider === 'http';
   const enabled = provider !== 'none';
   $('#s1-http-fields').hidden = !external;
   $('#s1-model-fields').hidden = !enabled;
+  if ($('#s1-test')) $('#s1-test').hidden = !external;
   $('#s1-url').required = external;
   const proto = $('#s1-protocol').value;
   const needsModel = proto === 'systemone' || proto === 'openai';
@@ -21,31 +39,8 @@ function syncS1Visibility() {
   $('#s1-model').required = external && needsModel;
   $('#s1-model').placeholder = proto === 'openai' ? 'deepseek-chat / qwen2.5-7b-instruct' : 'provider/model';
   $('#s1-url').placeholder = proto === 'openai' ? 'https://api.deepseek.com/v1/chat/completions' : 'https://s1.example/score';
-  $('#s1-disclosure-field').hidden = !external;
-  const disclosure = selectedS1Level();
-  $('#s1-context-field').hidden = !external || disclosure !== 'l2';
-  $('#s1-shadow-note').hidden = !external || $('#s1-mode').value !== 'shadow';
-  $('#s1-local-note').hidden = provider !== 'ngram';
-  const labels = {l0:'Признаки', l1:'Значение', l2:'С контекстом'};
-  const label = disclosure.toUpperCase() + ' · ' + tr(labels[disclosure]);
-  $('#s1-disclosure-value').textContent = label;
-  $('#s1-disclosure').setAttribute('aria-valuetext', label);
-  $('#s1-disclosure').disabled = S1.busy || !S1.data?.editable;
-  for (const button of document.querySelectorAll('[data-s1-level]')) {
-    button.setAttribute('aria-pressed', String(s1Levels[Number(button.dataset.s1Level)] === disclosure));
-    button.disabled = S1.busy || !S1.data?.editable;
-  }
-  $('#s1-disclosure-note').textContent = tr({
-    l0:'S1 оценивает форму и характеристики кандидата. Исходное значение и контекст не передаются.',
-    l1:'S1 видит значение кандидата и его признаки. Подходит для оценки самого значения без окружения.',
-    l2:'S1 видит значение и маскированное окно контекста. При маскировании также используется отфильтрованный профиль подтверждённых сущностей; discover оценивает свои примеры.',
-  }[disclosure]);
-  $('#s1-disclosure-trust').textContent = tr(disclosure === 'l2'
-    ? 'Максимум контекста: для локального или проверенного провайдера S1.'
-    : 'Уровень задаёт данные для оценки, а не гарантию обнаружения всех секретов.');
-  $('#s1-disclosure-risk').hidden = disclosure === 'l0';
-  $('#s1-context-zero').hidden = disclosure !== 'l2' || Number($('#s1-context').value) !== 0;
-
+  if ($('#s1-shadow-note')) $('#s1-shadow-note').hidden = !external || $('#s1-mode').value !== 'shadow';
+  if ($('#s1-local-note')) $('#s1-local-note').hidden = provider !== 'ngram';
 }
 
 function renderS1(preserveDraft=false) {
@@ -88,22 +83,28 @@ async function loadS1() {
   renderS1(S1.dirty);
 }
 
-for (const id of ['s1-provider', 's1-protocol', 's1-mode']) {
-  $('#' + id).addEventListener('change', syncS1Visibility);
+for (const id of ['s1-provider', 's1-protocol', 's1-mode', 'analysis-llm-engine']) {
+  $('#' + id)?.addEventListener('change', syncS1Visibility);
 }
-$('#s1-disclosure').addEventListener('input', syncS1Visibility);
-$('#s1-disclosure').addEventListener('change', syncS1Visibility);
-$('#s1-context').addEventListener('input', syncS1Visibility);
-for (const button of document.querySelectorAll('[data-s1-level]')) {
-  button.addEventListener('click', () => {
-    $('#s1-disclosure').value = button.dataset.s1Level;
+$('#analysis-worker-inline-start')?.addEventListener('click', async () => {
+  const btn = $('#analysis-worker-inline-start');
+  btn.disabled = true;
+  btn.textContent = tr('Запускается…');
+  try {
+    await api('/api/v1/ui/worker/start', { method: 'POST', body: {} });
+    await loadWorkerSummary();
     syncS1Visibility();
-  });
-}
-$('#s1-clear-key').addEventListener('change', event => {
+  } catch (err) {
+    fail(err);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = tr('Включить воркер');
+  }
+});
+$('#s1-clear-key')?.addEventListener('change', event => {
   if (event.target.checked) $('#s1-key').value = '';
 });
-$('#s1-key').addEventListener('input', () => {
+$('#s1-key')?.addEventListener('input', () => {
   if ($('#s1-key').value) $('#s1-clear-key').checked = false;
 });
 for (const button of document.querySelectorAll('#tab-s1 [data-go]')) {

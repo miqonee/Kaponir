@@ -30,12 +30,13 @@
 <symbol id="i-theme-auto" viewbox="0 0 24 24"><rect height="14" rx="2" width="18" x="3" y="4"></rect><path d="M8 21h8m-4-3v3M9 14l3-6 3 6m-5-2h4"></path></symbol>
 <symbol id="i-sun" viewbox="0 0 24 24"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.5 1.5m11 11L19 19M5 19l1.5-1.5m11-11L19 5"></path></symbol>
 <symbol id="i-moon" viewbox="0 0 24 24"><path d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z"></path></symbol>
+<symbol id="i-cpu" viewbox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="9" y="9" width="6" height="6"></rect><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"></path></symbol>
 </defs></svg>
 <aside class="sidebar" id="sidebar">
 <a class="brand" href="#overview"><span class="brand-mark">k<span>·</span></span><span>kaponir<span class="brand-caption">PRIVACY GATEWAY</span></span></a>
 <div class="workspace"><span class="workspace-avatar">L</span><div><strong data-i18n="Локальное пространство">Локальное пространство</strong><span data-i18n="Панель управления">Панель управления</span></div><span class="live-dot"></span></div>
 <span class="nav-label" data-i18n="РАБОЧЕЕ ПРОСТРАНСТВО">РАБОЧЕЕ ПРОСТРАНСТВО</span>
-<nav aria-label="Основная навигация" class="tabs" data-i18n-aria-label="Основная навигация"><button data-tab="overview"><svg><use href="#i-grid"></use></svg><span data-i18n="Дашборд">Дашборд</span></button><button data-tab="events"><svg><use href="#i-list"></use></svg><span data-i18n="События">События</span></button><button data-tab="rules"><svg><use href="#i-shield"></use></svg><span data-i18n="Правила">Правила</span></button><button data-tab="review"><svg><use href="#i-check"></use></svg><span data-i18n="Разбор решений">Разбор решений</span><span class="badge" hidden="" id="review-badge"></span></button><button data-tab="connect"><svg><use href="#i-plug"></use></svg><span data-i18n="Поставщики и API">Поставщики и API</span></button><span class="nav-label" data-i18n="ИНСТРУМЕНТЫ">ИНСТРУМЕНТЫ</span><button data-tab="analysis"><svg><use href="#i-settings"></use></svg><span data-i18n="Локальный анализ">Локальный анализ</span></button><button data-tab="discover"><svg><use href="#i-clock"></use></svg><span data-i18n="Правила из документов">Правила из документов</span></button><button data-tab="mask"><svg><use href="#i-flask"></use></svg><span data-i18n="Лаборатория">Лаборатория</span></button><button data-tab="settings"><svg><use href="#i-settings"></use></svg><span data-i18n="Настройки">Настройки</span></button></nav>
+<nav aria-label="Основная навигация" class="tabs" data-i18n-aria-label="Основная навигация"><button data-tab="overview"><svg><use href="#i-grid"></use></svg><span data-i18n="Дашборд">Дашборд</span></button><button data-tab="events"><svg><use href="#i-list"></use></svg><span data-i18n="События">События</span></button><button data-tab="rules"><svg><use href="#i-shield"></use></svg><span data-i18n="Правила">Правила</span></button><button data-tab="review"><svg><use href="#i-check"></use></svg><span data-i18n="Разбор решений">Разбор решений</span><span class="badge" hidden="" id="review-badge"></span></button><button data-tab="connect"><svg><use href="#i-plug"></use></svg><span data-i18n="Поставщики и API">Поставщики и API</span></button><span class="nav-label" data-i18n="ИНСТРУМЕНТЫ">ИНСТРУМЕНТЫ</span><button data-tab="analysis"><svg><use href="#i-cpu"></use></svg><span data-i18n="LLM и Анализ">LLM и Анализ</span></button><button data-tab="discover"><svg><use href="#i-clock"></use></svg><span data-i18n="Правила из документов">Правила из документов</span></button><button data-tab="mask"><svg><use href="#i-flask"></use></svg><span data-i18n="Лаборатория">Лаборатория</span></button><button data-tab="settings"><svg><use href="#i-settings"></use></svg><span data-i18n="Настройки">Настройки</span></button></nav>
 </aside>
 <div class="app-layout">
 <header class="topbar"><button aria-expanded="false" aria-label="Открыть меню" class="icon-button" data-i18n-aria-label="Открыть меню" id="menu-toggle"><svg><use href="#i-menu"></use></svg></button><div class="breadcrumb"><span>Kaponir</span><span class="slash">/</span><strong data-i18n="Обзор" id="breadcrumb">Обзор</strong></div><div class="topbar-actions"><span class="connection-state" id="connection-state"><i class="live-dot"></i><span data-i18n="Подключение…">Подключение…</span></span><button aria-label="Настроить доступ" class="icon-button" data-i18n-aria-label="Настроить доступ" data-i18n-title="Настроить доступ" id="access-settings" title="Настроить доступ"><svg><use href="#i-shield"></use></svg></button><fieldset class="choice-switch language-switch" id="language-switch"><legend class="sr-only" data-i18n="Язык интерфейса">Язык интерфейса</legend><label lang="ru" title="Русский"><input aria-label="Русский" class="sr-only" name="interface-language" type="radio" value="ru"/><span aria-hidden="true">RU</span></label><label lang="en" title="English"><input aria-label="English" class="sr-only" name="interface-language" type="radio" value="en"/><span aria-hidden="true">EN</span></label></fieldset><fieldset class="choice-switch theme-switch" id="theme-switch"><legend class="sr-only" data-i18n="Тема интерфейса">Тема интерфейса</legend><label data-i18n-title="Автоматическая тема" title="Автоматическая тема"><input aria-label="Автоматическая тема" class="sr-only" data-i18n-aria-label="Автоматическая тема" name="interface-theme" type="radio" value="auto"/><span aria-hidden="true"><svg><use href="#i-theme-auto"></use></svg></span></label><label data-i18n-title="Светлая тема" title="Светлая тема"><input aria-label="Светлая тема" class="sr-only" data-i18n-aria-label="Светлая тема" name="interface-theme" type="radio" value="light"/><span aria-hidden="true"><svg><use href="#i-sun"></use></svg></span></label><label data-i18n-title="Тёмная тема" title="Тёмная тема"><input aria-label="Тёмная тема" class="sr-only" data-i18n-aria-label="Тёмная тема" name="interface-theme" type="radio" value="dark"/><span aria-hidden="true"><svg><use href="#i-moon"></use></svg></span></label></fieldset></div></header>
@@ -54,41 +55,74 @@
 <section class="tab" hidden="" id="tab-analysis">
 <div class="s1-layout">
 <form class="panel s1-form" id="s1-form">
-<div class="s1-form-heading"><div><h2 data-i18n="Анализ запросов">Анализ запросов</h2><p data-i18n="Детекторы и правила работают всегда. Классификатор уточняет спорные находки.">Детекторы и правила работают всегда. Классификатор уточняет спорные находки.</p></div><span class="status-pill" id="s1-status"></span></div>
-<label class="field"><span data-i18n="Дополнительная оценка">Дополнительная оценка</span><select id="s1-provider"><option data-i18n="Детекторы и правила" value="none">Детекторы и правила</option><option data-i18n="Оценка через HTTP-сервис" value="http">Оценка через HTTP-сервис</option><option data-i18n="Локальная оценка n-gram" value="ngram">Локальная оценка n-gram</option></select></label>
-<p class="inline-notice" hidden="" id="s1-local-note"></p>
-<div class="form-section" id="s1-http-fields">
-<div class="form-grid two">
-<label class="field"><span data-i18n="Протокол">Протокол</span><select id="s1-protocol"><option value="openai">OpenAI-compatible (DeepSeek / Qwen / vLLM)</option><option value="systemone">SystemOne (SOS choice)</option><option value="probabilities">Probabilities</option></select></label>
-<label class="field"><span data-i18n="Тайм-аут, мс">Тайм-аут, мс</span><input id="s1-timeout" max="60000" min="1" required="" type="number"/></label>
-</div>
-<label class="field"><span>Endpoint URL</span><input autocomplete="off" id="s1-url" placeholder="https://s1.example/score" spellcheck="false" type="url"/></label>
-<label class="field" id="s1-model-field"><span data-i18n="Модель SystemOne">Модель SystemOne</span><input autocomplete="off" id="s1-model" placeholder="provider/model" spellcheck="false"/></label>
-<label class="field"><span data-i18n="API-ключ S1">API-ключ S1</span><input autocomplete="new-password" id="s1-key" spellcheck="false" type="password"/></label>
-<div class="key-note"><svg><use href="#i-lock"></use></svg><span id="s1-key-note"></span></div>
-<label class="check s1-clear-key"><input id="s1-clear-key" type="checkbox"/><span data-i18n="Удалить сохранённый ключ">Удалить сохранённый ключ</span></label>
-</div>
-<div class="form-section" id="s1-model-fields">
-<label class="field"><span data-i18n="Режим работы">Режим работы</span><select id="s1-mode"><option data-i18n="Теневой — оценивать, не менять решения" value="shadow">Теневой — оценивать, не менять решения</option><option data-i18n="Активный — учитывать оценки в решениях" value="active">Активный — учитывать оценки в решениях</option></select></label>
-<section aria-labelledby="s1-analysis-label" class="s1-analysis" id="s1-disclosure-field">
-<div class="s1-analysis-heading"><label data-i18n="Режим анализа S1" for="s1-disclosure" id="s1-analysis-label">Режим анализа S1</label><output for="s1-disclosure" id="s1-disclosure-value"></output></div>
-<div class="s1-analysis-scale"><span data-i18n="Меньше передачи данных">Меньше передачи данных</span><span data-i18n="Больше контекста для оценки">Больше контекста для оценки</span></div>
-<input aria-describedby="s1-disclosure-note s1-disclosure-risk" id="s1-disclosure" max="2" min="0" step="1" type="range" value="0"/>
-<div aria-label="Уровни анализа S1" class="s1-analysis-stops" data-i18n-aria-label="Уровни анализа S1" role="group">
-<button aria-pressed="true" data-s1-level="0" type="button"><strong>L0</strong><span data-i18n="Признаки">Признаки</span></button>
-<button aria-pressed="false" data-s1-level="1" type="button"><strong>L1</strong><span data-i18n="Значение">Значение</span></button>
-<button aria-pressed="false" data-s1-level="2" type="button"><strong>L2</strong><span data-i18n="С контекстом">С контекстом</span></button>
-</div>
-<p aria-live="polite" class="s1-analysis-description" id="s1-disclosure-note"></p>
-<p class="hint" id="s1-disclosure-trust"></p>
-<p class="hint" data-i18n="Риск L1/L2: пропущенные детекторами секреты могут попасть к S1. Выбирайте провайдера, которому доверяете эти данные." id="s1-disclosure-risk">Риск L1/L2: пропущенные детекторами секреты могут попасть к S1. Выбирайте провайдера, которому доверяете эти данные.</p>
-<p class="hint" data-i18n="Окно контекста сейчас 0 байт. Увеличьте его в дополнительных параметрах, чтобы S1 учитывал окружение значения." hidden="" id="s1-context-zero">Окно контекста сейчас 0 байт. Увеличьте его в дополнительных параметрах, чтобы S1 учитывал окружение значения.</p>
-</section>
-<details class="advanced-settings"><summary data-i18n="Дополнительные параметры">Дополнительные параметры</summary><div class="form-grid two"><label class="field"><span data-i18n="Вес S1 (0–4)">Вес S1 (0–4)</span><input id="s1-weight" max="4" min="0" step="any" type="number"/></label><label class="field"><span data-i18n="Порог keep_below (0–0.5)">Порог keep_below (0–0.5)</span><input id="s1-keep" max="0.5" min="0" step="any" type="number"/></label></div><label class="field" id="s1-context-field"><span data-i18n="Байты контекста на L2 (0–4096)">Байты контекста на L2 (0–4096)</span><input id="s1-context" max="4096" min="0" type="number"/></label></details>
-<p class="warning-note" data-i18n="Теневой режим использует выбранный уровень данных и показывает оценки без изменения решений маскирования." id="s1-shadow-note">Теневой режим использует выбранный уровень данных и показывает оценки без изменения решений маскирования.</p>
-</div>
-<p class="form-status" id="s1-result" role="status"></p>
-<div class="form-actions"><button class="primary" data-i18n="Сохранить и применить" id="s1-save" type="submit">Сохранить и применить</button></div>
+  <input id="s1-disclosure" type="hidden" value="2"/>
+
+  <div class="s1-form-heading">
+    <div>
+      <h2 data-i18n="Поиск и анализ сущностей (LLM)">Поиск и анализ сущностей (LLM)</h2>
+      <p data-i18n="Локальная или внешняя LLM глубоко анализирует контекст текста, находя скрытые пароли, токены и названия без явных ключевых слов.">Локальная или внешняя LLM глубоко анализирует контекст текста, находя скрытые пароли, токены и названия без явных ключевых слов.</p>
+    </div>
+  </div>
+  <label class="field">
+    <span data-i18n="Источник модели">Источник модели</span>
+    <select id="analysis-llm-engine">
+      <option data-i18n="Выключена (только быстрые детекторы)" value="none">Выключена (только быстрые детекторы)</option>
+      <option data-i18n="Локальная микро-LLM на CPU (Qwen3 / Qwen3.5 через воркер)" value="local">Локальная микро-LLM на CPU (Qwen3 / Qwen3.5 через воркер)</option>
+      <option data-i18n="Внешняя модель по API (OpenAI, DeepSeek, vLLM)" value="external">Внешняя модель по API (OpenAI, DeepSeek, vLLM)</option>
+    </select>
+  </label>
+  <p class="inline-notice" id="analysis-llm-none-note" data-i18n="Работают только встроенные быстрые детекторы и правила из .toml (задержка < 1 мс).">Работают только встроенные быстрые детекторы и правила из .toml (задержка &lt; 1 мс).</p>
+  <div class="form-section" hidden="" id="analysis-llm-local-section">
+    <div class="inline-notice warning" id="analysis-worker-offline-alert">
+      <span data-i18n="Локальная модель требует запущенного воркера. Воркер сейчас выключен.">Локальная модель требует запущенного воркера. Воркер сейчас выключен.</span>
+      <button class="primary small" id="analysis-worker-inline-start" type="button" data-i18n="Включить воркер">Включить воркер</button>
+    </div>
+    <div class="inline-notice" hidden="" id="analysis-worker-online-msg">
+      <span data-i18n="Воркер активен. Модель выполняется локально на CPU вашего сервера.">Воркер активен. Модель выполняется локально на CPU вашего сервера.</span>
+      <button class="secondary small" data-go="worker" type="button" data-i18n="Модели и очередь">Модели и очередь</button>
+    </div>
+  </div>
+  <div class="form-section" hidden="" id="analysis-llm-external-section">
+    <p class="inline-notice" data-i18n="Внешняя модель выполняет точно такой же анализ, как и локальная (промпты и логика идентичны), но не требует запуска локального воркера на CPU вашего сервера.">Внешняя модель выполняет точно такой же анализ, как и локальная (промпты и логика идентичны), но не требует запуска локального воркера на CPU вашего сервера.</p>
+  </div>
+
+  <div class="s1-form-heading" style="margin-top:24px;">
+    <div>
+      <h2 data-i18n="Классификация правил (S1 / Choice)">Классификация правил (S1 / Choice)</h2>
+      <p data-i18n="S1 / Choice распределяет найденные сущности по корзинам правил: личные (personal), команды (team), корпоративные (global) и типам (Проект, Сервер, Секрет). Автоматизирует разбор решений.">S1 / Choice распределяет найденные сущности по корзинам правил: личные (personal), команды (team), корпоративные (global) и типам (Проект, Сервер, Секрет). Автоматизирует разбор решений.</p>
+    </div>
+    <span class="status-pill" id="s1-status"></span>
+  </div>
+  <label class="field">
+    <span data-i18n="Способ классификации">Способ классификации</span>
+    <select id="s1-provider">
+      <option data-i18n="Выключена (правила сохраняются в контур по умолчанию)" value="none">Выключена (правила сохраняются в контур по умолчанию)</option>
+      <option data-i18n="Умная сортировка Choice (SOS SystemOne / OpenAI)" value="http">Умная сортировка Choice (SOS SystemOne / OpenAI)</option>
+      <option data-i18n="Локальная эвристика n-gram" value="ngram">Локальная эвристика n-gram</option>
+    </select>
+  </label>
+  <p class="inline-notice" hidden="" id="s1-local-note"></p>
+  <div class="form-section" id="s1-http-fields">
+    <div class="form-grid two">
+      <label class="field"><span data-i18n="Протокол">Протокол</span><select id="s1-protocol"><option value="openai">OpenAI-compatible (DeepSeek / Qwen / vLLM)</option><option value="systemone">SystemOne (SOS choice)</option><option value="probabilities">Probabilities</option></select></label>
+      <label class="field"><span data-i18n="Тайм-аут, мс">Тайм-аут, мс</span><input id="s1-timeout" max="60000" min="1" required="" type="number"/></label>
+    </div>
+    <label class="field"><span>Endpoint URL</span><input autocomplete="off" id="s1-url" placeholder="https://s1.example/score" spellcheck="false" type="url"/></label>
+    <label class="field" id="s1-model-field"><span data-i18n="Модель SystemOne">Модель SystemOne</span><input autocomplete="off" id="s1-model" placeholder="provider/model" spellcheck="false"/></label>
+    <label class="field"><span data-i18n="API-ключ S1">API-ключ S1</span><input autocomplete="new-password" id="s1-key" spellcheck="false" type="password"/></label>
+    <div class="key-note"><svg><use href="#i-lock"></use></svg><span id="s1-key-note"></span></div>
+    <label class="check s1-clear-key"><input id="s1-clear-key" type="checkbox"/><span data-i18n="Удалить сохранённый ключ">Удалить сохранённый ключ</span></label>
+  </div>
+  <div class="form-section" id="s1-model-fields">
+    <label class="field"><span data-i18n="Режим работы">Режим работы</span><select id="s1-mode"><option data-i18n="Теневой — оценивать, не менять решения" value="shadow">Теневой — оценивать, не менять решения</option><option data-i18n="Активный — учитывать оценки в решениях" value="active">Активный — учитывать оценки в решениях</option></select></label>
+    <details class="advanced-settings"><summary data-i18n="Дополнительные параметры">Дополнительные параметры</summary><div class="form-grid two"><label class="field"><span data-i18n="Вес S1 (0–4)">Вес S1 (0–4)</span><input id="s1-weight" max="4" min="0" step="any" type="number"/></label><label class="field"><span data-i18n="Порог keep_below (0–0.5)">Порог keep_below (0–0.5)</span><input id="s1-keep" max="0.5" min="0" step="any" type="number"/></label></div><label class="field" id="s1-context-field"><span data-i18n="Байты контекста на L2 (0–4096)">Байты контекста на L2 (0–4096)</span><input id="s1-context" max="4096" min="0" type="number"/></label></details>
+    <p class="warning-note" data-i18n="Теневой режим использует выбранный уровень данных и показывает оценки без изменения решений маскирования." id="s1-shadow-note">Теневой режим использует выбранный уровень данных и показывает оценки без изменения решений маскирования.</p>
+  </div>
+  <p class="form-status" id="s1-result" role="status"></p>
+  <div class="form-actions">
+    <button class="secondary" id="s1-test" type="button" data-i18n="Проверить подключение">Проверить подключение</button>
+    <button class="primary" data-i18n="Сохранить и применить" id="s1-save" type="submit">Сохранить и применить</button>
+  </div>
 </form>
 <aside class="analysis-side"><article class="panel settings-card"><div class="panel-title"><h2 data-i18n="Фоновый анализ">Фоновый анализ</h2><span class="status-pill" id="analysis-worker-state"></span></div><p class="hint" data-i18n="Документы и сессии обрабатываются отдельно от запросов к модели.">Документы и сессии обрабатываются отдельно от запросов к модели.</p><div id="analysis-worker-summary"></div><div class="form-actions"><button class="primary" data-i18n="Включить воркер" id="analysis-worker-toggle" type="button">Включить воркер</button><button class="secondary" data-go="worker" data-i18n="Модели и очередь" type="button">Модели и очередь</button></div></article><article class="panel settings-card"><h2 data-i18n="Качество распознавания">Качество распознавания</h2><p class="hint" data-i18n="Проверьте пример в лаборатории или пересмотрите накопленные правила.">Проверьте пример в лаборатории или пересмотрите накопленные правила.</p><div class="form-actions"><button class="secondary" data-go="mask" data-i18n="Лаборатория">Лаборатория</button><button class="ghost" data-go="rules" data-i18n="Аудит правил">Аудит правил</button></div></article></aside></div>
 </section>
@@ -217,7 +251,7 @@
 <section class="tab" hidden="" id="tab-worker">
 <article class="panel settings-card"><div class="toolbar"><h2 data-i18n="Состояние воркера">Состояние воркера</h2><span class="grow"></span><button class="secondary" data-i18n="Обновить" id="worker-refresh">Обновить</button></div><div id="worker-state" role="status"></div><div class="form-actions"><button class="primary" data-i18n="Включить воркер" id="worker-toggle" type="button">Включить воркер</button></div></article>
 <div class="settings-grid" hidden="" id="worker-controls">
-<article class="panel settings-card"><h2 data-i18n="Модель фонового анализа">Модель фонового анализа</h2><p data-i18n="Qwen3-0.6B анализирует текст на CPU. Модель загружается отдельно.">Qwen3-0.6B анализирует текст на CPU. Модель загружается отдельно.</p><label class="field"><span data-i18n="Вариант модели">Вариант модели</span><select id="worker-model"><option value="qwen3-0.6b">Qwen3-0.6B · Q4_K_M · 397 MB (CPU)</option><option data-i18n="Qwen3-0.6B · Q8_0 · 639 MB (CPU)" value="qwen3-0.6b-q8">Qwen3-0.6B · Q8_0 · 639 MB (CPU)</option></select></label><p class="hint" id="worker-model-status"></p><button class="secondary" data-i18n="Скачать модель" id="worker-download">Скачать модель</button><p class="hint" data-i18n="Веса GGUF скачиваются локально на машину worker. При необходимости автоматически устанавливается CPU runtime llama-server.">Веса GGUF скачиваются локально на машину worker. При необходимости автоматически устанавливается CPU runtime llama-server.</p></article>
+<article class="panel settings-card"><h2 data-i18n="Модель фонового анализа">Модель фонового анализа</h2><p data-i18n="Qwen анализирует текст на CPU. Модель загружается отдельно.">Qwen анализирует текст на CPU. Модель загружается отдельно.</p><label class="field"><span data-i18n="Вариант модели">Вариант модели</span><select id="worker-model"><option value="qwen3-0.6b">Qwen3-0.6B · Q4_K_M · 397 MB (CPU)</option><option value="qwen3.5-0.8b">Qwen3.5-0.8B · Q4_K_M · ~500 MB (CPU)</option><option data-i18n="Qwen3-0.6B · Q8_0 · 639 MB (CPU)" value="qwen3-0.6b-q8">Qwen3-0.6B · Q8_0 · 639 MB (CPU)</option></select></label><p class="hint" id="worker-model-status"></p><button class="secondary" data-i18n="Скачать модель" id="worker-download">Скачать модель</button><p class="hint" data-i18n="Веса GGUF скачиваются локально на машину worker. При необходимости автоматически устанавливается CPU runtime llama-server.">Веса GGUF скачиваются локально на машину worker. При необходимости автоматически устанавливается CPU runtime llama-server.</p></article>
 <article class="panel settings-card"><h2 data-i18n="Добавить задание">Добавить задание</h2><p class="hint" id="worker-root"></p><label class="field"><span data-i18n="Каталог или файл внутри input_root">Каталог или файл внутри input_root</span><input id="worker-source" placeholder="sessions/export.json или @sessions" spellcheck="false" value="."/></label><label class="field"><span data-i18n="Способ поиска">Способ поиска</span><select id="worker-mode"><option data-i18n="Локальный поиск · быстрые детекторы" value="local">Локальный поиск · быстрые детекторы</option><option data-i18n="Семантический поиск Qwen3 (CPU) + локальные детекторы" value="qwen">Семантический поиск Qwen3 (CPU) + локальные детекторы</option></select></label><p class="hint" data-i18n="Найденные моделью значения проверяются по исходному тексту и попадают в подборку.">Найденные моделью значения проверяются по исходному тексту и попадают в подборку.</p><label class="check"><input id="worker-s1" type="checkbox"/><span data-i18n="Дополнительно оценить кандидатов S1">Дополнительно оценить кандидатов S1</span></label><p class="hint" data-i18n="Дополнительная оценка использует настройки анализа запросов.">Дополнительная оценка использует настройки анализа запросов.</p><div class="form-actions"><button class="primary" data-i18n="Поставить в очередь" id="worker-submit">Поставить в очередь</button><button class="secondary" data-i18n="Разобрать сессии прокси" id="worker-scan-sessions" type="button">Разобрать сессии прокси</button><button class="ghost" data-go="discover" data-i18n="Открыть предложения">Открыть предложения</button></div></article>
 </div>
 <article class="panel settings-card"><h2 data-i18n="Задания">Задания</h2><div id="worker-jobs"></div><p class="hint" data-i18n="Пауза и отмена сохраняют уже собранных кандидатов. Отдельный процесс использует общие ресурсы машины; задайте лимиты или разместите worker на другом сервере.">Пауза и отмена сохраняют уже собранных кандидатов. Отдельный процесс использует общие ресурсы машины; задайте лимиты или разместите worker на другом сервере.</p></article>

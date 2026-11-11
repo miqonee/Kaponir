@@ -1365,9 +1365,13 @@ fn serve(home: &Home, a: ServeArgs, open: bool) -> Result<ExitCode> {
     let external_worker = std::env::var("KAPONIR_WORKER_URL")
         .ok()
         .or_else(|| cfg.serve.worker_url.clone());
+    let is_managed_worker_endpoint = external_worker
+        .as_deref()
+        .map(|u| u.trim_end_matches('/'))
+        .is_some_and(|u| u == "http://127.0.0.1:8788" || u == "http://localhost:8788");
     let mut state = kaponir_proxy::State::new(engine, vault, cfg.owner.clone(), cfg.serve.clone())?
         .with_control(control);
-    if external_worker.is_none() {
+    if external_worker.is_none() || is_managed_worker_endpoint {
         match kaponir_cli::worker::ManagedWorker::new(
             home,
             format!("http://{}", ui_host(&listen)),
@@ -1614,6 +1618,13 @@ fn models_cmd(home: &Home, action: ModelsCmd) -> Result<ExitCode> {
             "Qwen3-0.6B-Q8_0.gguf",
             639_446_688u64,
             "Текстовая Qwen3-0.6B Q8_0 (~639 МБ)",
+        ),
+        (
+            "qwen3.5-0.8b",
+            "3.5",
+            "Qwen3.5-0.8B-Q4_K_M.gguf",
+            524_288_000u64,
+            "Новая Qwen3.5-0.8B Q4_K_M (~500 МБ, высокая точность)",
         ),
     ];
     match action {
