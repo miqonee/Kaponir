@@ -18,6 +18,10 @@
 # action = "keep"                            # никогда не маскировать
 # value = "ingress-nginx"
 
+# Confirmed private company domain; unknown public domains are not private by default.
+[corp]
+domains = ["polar-ledger.example"]
+
 [[rule]]
 kind = "ORG"
 action = "mask"

@@ -1,11 +1,14 @@
 'use strict';
 
-const S1 = { data: null, busy: false };
+const S1 = { data: null, busy: false, dirty: false };
 const s1Levels = ['l0', 'l1', 'l2'];
 const selectedS1Level = () => s1Levels[Number($('#s1-disclosure').value)] || 'l0';
-const s1Modes = { off: 'Выключен', shadow: 'Теневой режим', active: 'Активный режим' };
+const s1Modes = { off: 'Детекторы и правила', shadow: 'Теневой режим', active: 'Активный режим' };
 
 function syncS1Visibility() {
+  for(const input of document.querySelectorAll('#s1-form input,#s1-form select'))input.disabled=S1.busy||!S1.data?.editable;
+  $('#s1-clear-key').disabled=S1.busy||!S1.data?.editable||!S1.data?.key_saved;
+  $('#s1-save').disabled=S1.busy||!S1.data?.editable;
   const provider = $('#s1-provider').value;
   const external = provider === 'http';
   const enabled = provider !== 'none';
@@ -45,14 +48,15 @@ function syncS1Visibility() {
 
 }
 
-function renderS1() {
+function renderS1(preserveDraft=false) {
+  const draft=preserveDraft?[...document.querySelectorAll('#s1-form input,#s1-form select')].map(el=>[el,el.value,el.checked]):null;
   const data = S1.data;
   if (!data) return;
   const s = data.settings;
   $('#s1-provider').value = s.provider;
   const local = $('#s1-provider option[value="ngram"]');
   local.disabled = !data.local_model_available;
-  local.textContent = tr(data.local_model_available ? 'Локальная n-граммная модель' : 'Локальная модель — нужно обучение');
+  local.textContent = tr(data.local_model_available ? 'Локальная оценка n-gram' : 'Локальная модель — нужно обучение');
   $('#s1-local-note').textContent = tr('Модель обучается локально командой `kaponir s1 train`. Данные наружу не отправляются.');
   $('#s1-protocol').value = s.http.protocol;
   $('#s1-timeout').value = s.http.timeout_ms;
@@ -75,12 +79,13 @@ function renderS1() {
   $('#s1-save').disabled = S1.busy || !data.editable;
   $('#s1-save').textContent = tr(S1.busy ? 'Применяем…' : 'Сохранить и применить');
   if (!data.editable) $('#s1-result').textContent = tr('Этот сервер работает в режиме только для чтения.');
+  if(draft)for(const [el,value,checked] of draft){el.value=value;el.checked=checked;}
   syncS1Visibility();
 }
 
 async function loadS1() {
   S1.data = await api('/api/v1/ui/s1');
-  renderS1();
+  renderS1(S1.dirty);
 }
 
 for (const id of ['s1-provider', 's1-protocol', 's1-mode']) {
@@ -105,12 +110,16 @@ for (const button of document.querySelectorAll('#tab-s1 [data-go]')) {
   button.addEventListener('click', () => showTab(button.dataset.go));
 }
 
+for(const event of ['input','change'])$('#s1-form').addEventListener(event,()=>{S1.dirty=true;$('#s1-result').textContent=tr('Есть несохранённые изменения');});
+$('#s1-form').addEventListener('click',e=>{if(e.target.closest('[data-s1-level]'))S1.dirty=true;});
+
 $('#s1-form').addEventListener('submit', async event => {
   event.preventDefault();
   if (S1.busy || !S1.data) return;
   S1.busy = true;
   syncS1Visibility();
   $('#s1-result').textContent = '';
+  $('#s1-result').classList.remove('err');
   $('#s1-save').disabled = true;
   $('#s1-save').textContent = tr('Применяем…');
   const current = S1.data.settings;
@@ -137,6 +146,7 @@ $('#s1-form').addEventListener('submit', async event => {
       body: { settings, ...(key ? { key } : {}), clear_key: $('#s1-clear-key').checked },
     });
     await loadInfo();
+    S1.dirty=false;
     renderS1();
     $('#s1-result').textContent = tr('Настройки сохранены и применены. Доступность внешнего S1 будет видна при реальных запросах.');
     toast(tr('Настройки S1 применены'));
@@ -146,9 +156,8 @@ $('#s1-form').addEventListener('submit', async event => {
     fail(error);
   } finally {
     S1.busy = false;
-    $('#s1-result').classList.remove('err');
-    renderS1();
+    renderS1(true);
   }
 });
 
-Object.assign(TABS, { s1: loadS1 });
+Object.assign(TABS, { analysis: loadAnalysis });

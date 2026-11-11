@@ -263,7 +263,7 @@ fn model_candidates_are_grounded_merged_and_scored_without_labels() {
         .find(|s| s.value == "Лунная Слива")
         .unwrap();
     assert_eq!(project.count, 2);
-    assert!(project.reason.contains("Xiaomi"));
+    assert!(project.reason.contains("модел"));
     assert!(project.examples.iter().all(|e| e.s1_score == Some(0.9)));
     for example in &project.examples {
         assert_eq!(&document.text[example.start..example.end], project.value);
@@ -310,7 +310,7 @@ fn model_and_local_duplicate_share_occurrences_and_provenance() {
         .unwrap();
     assert_eq!(candidate.count, 1);
     assert_eq!(candidate.kind, "PROJ");
-    assert!(candidate.reason.contains("Xiaomi"));
+    assert!(candidate.reason.contains("модел"));
     let mut profile = Profile::default();
     profile.merge(&local).unwrap();
     profile.merge(&both).unwrap();
@@ -321,6 +321,6 @@ fn model_and_local_duplicate_share_occurrences_and_provenance() {
             .find(|s| s.value == candidate.value)
             .unwrap()
             .reason
-            .contains("Xiaomi")
+            .contains("модел")
     );
 }

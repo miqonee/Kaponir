@@ -77,9 +77,9 @@ impl Settings {
         anyhow::ensure!(
             matches!(
                 self.model.as_str(),
-                "q4" | "q5" | "qwen3-0.6b" | "qwen3.5-0.8b"
+                "q4" | "q5" | "qwen3-0.6b" | "qwen3.5-0.8b" | "qwen3-0.6b-q8"
             ),
-            "worker model must be q4 (qwen3-0.6b) or q5 (qwen3.5-0.8b)"
+            "worker model must be q4 (qwen3-0.6b) or q5 (qwen3-0.6b-q8)"
         );
         for (name, value, maximum) in [
             ("threads", u64::from(self.threads), 32),
@@ -99,5 +99,137 @@ impl Settings {
             );
         }
         Ok(())
+    }
+}
+
+/// Owns the local worker child; the worker itself persists the activation state.
+pub struct ManagedWorker {
+    home: PathBuf,
+    endpoint: String,
+    executable: PathBuf,
+    api_url: String,
+    api_token: Option<String>,
+    child: std::sync::Mutex<Option<std::process::Child>>,
+}
+impl ManagedWorker {
+    pub fn new(
+        home: &crate::Home,
+        api_url: String,
+        api_token: Option<String>,
+    ) -> anyhow::Result<Self> {
+        let cfg = home.load_config()?;
+        let listen = std::env::var("KAPONIR_WORKER_LISTEN").unwrap_or(cfg.worker.listen);
+        let addr: std::net::SocketAddr = listen
+            .parse()
+            .map_err(|_| anyhow::anyhow!("local worker requires a loopback IP address"))?;
+        anyhow::ensure!(
+            addr.ip().is_loopback(),
+            "local worker must listen on loopback"
+        );
+        Ok(Self {
+            executable: std::env::current_exe()?,
+            home: home.dir.clone(),
+            endpoint: format!("http://{addr}"),
+            api_url,
+            api_token,
+            child: std::sync::Mutex::new(None),
+        })
+    }
+    pub fn activation_enabled(&self) -> bool {
+        let home = crate::Home::new(self.home.clone());
+        let Ok(cfg) = home.load_config() else {
+            return false;
+        };
+        let path = if cfg.worker.data_dir.is_absolute() {
+            cfg.worker.data_dir
+        } else {
+            self.home.join(cfg.worker.data_dir)
+        };
+        std::fs::read(path.join("activation.json"))
+            .ok()
+            .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
+            .is_some_and(|v| v["enabled"] == true)
+    }
+}
+impl kaponir_proxy::WorkerManager for ManagedWorker {
+    fn endpoint(&self) -> String {
+        self.endpoint.clone()
+    }
+    fn start(&self) -> anyhow::Result<()> {
+        let mut guard = self
+            .child
+            .lock()
+            .map_err(|_| anyhow::anyhow!("worker lock failed"))?;
+        if let Some(child) = guard.as_mut()
+            && child.try_wait()?.is_none()
+        {
+            return Ok(());
+        }
+        let addr = self.endpoint.trim_start_matches("http://");
+        let probe = std::net::TcpListener::bind(addr).map_err(|_| anyhow::anyhow!("worker port is already in use; configure the existing worker URL or choose a free port"))?;
+        drop(probe);
+        let home = crate::Home::new(self.home.clone());
+        let cfg = home.load_config()?;
+        let input_root = if cfg.worker.input_root.is_absolute() {
+            cfg.worker.input_root.clone()
+        } else {
+            self.home.join(&cfg.worker.input_root)
+        };
+        std::fs::create_dir_all(input_root)?;
+        let log_dir = if cfg.worker.data_dir.is_absolute() {
+            cfg.worker.data_dir
+        } else {
+            self.home.join(cfg.worker.data_dir)
+        };
+        std::fs::create_dir_all(&log_dir)?;
+        let mut options = std::fs::OpenOptions::new();
+        options.create(true).append(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let log = options.open(log_dir.join("process.log"))?;
+        let mut cmd = std::process::Command::new(&self.executable);
+        cmd.args(["--home"])
+            .arg(&self.home)
+            .args(["worker", "serve", "--idle"])
+            .env("KAPONIR_WORKER_API_URL", &self.api_url)
+            .stdin(std::process::Stdio::null())
+            .stdout(log.try_clone()?)
+            .stderr(log);
+        if let Some(token) = &self.api_token {
+            cmd.env("KAPONIR_API_TOKEN", token);
+        }
+        *guard = Some(cmd.spawn()?);
+        Ok(())
+    }
+    fn running(&self) -> bool {
+        self.child.lock().ok().is_some_and(|mut guard| {
+            guard
+                .as_mut()
+                .is_some_and(|c| c.try_wait().ok().is_some_and(|v| v.is_none()))
+        })
+    }
+}
+impl Drop for ManagedWorker {
+    fn drop(&mut self) {
+        if let Ok(guard) = self.child.get_mut()
+            && let Some(child) = guard.as_mut()
+            && child.try_wait().ok().is_some_and(|status| status.is_none())
+        {
+            // The worker handles SIGTERM and checkpoints its active job.
+            #[cfg(unix)]
+            {
+                let _ = std::process::Command::new("kill")
+                    .args(["-TERM", &child.id().to_string()])
+                    .status();
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = child.kill();
+            }
+            let _ = child.wait();
+        }
     }
 }

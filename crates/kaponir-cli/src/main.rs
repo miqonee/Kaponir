@@ -122,9 +122,9 @@ enum Cmd {
 
 #[derive(Subcommand)]
 enum ModelsCmd {
-    /// Показать доступные и установленные модели (Qwen3-0.6B, Qwen3.5-0.8B, S1 ngram).
+    /// Показать доступные и установленные модели (Qwen3-0.6B Q4/Q8, S1 ngram).
     List,
-    /// Скачать локальную CPU микро-LLM (qwen3-0.6b | qwen3.5-0.8b | q4 | q5).
+    /// Скачать текстовую CPU-модель (qwen3-0.6b | qwen3-0.6b-q8 | q4 | q5).
     Download {
         #[arg(default_value = "qwen3-0.6b")]
         model: String,
@@ -933,51 +933,58 @@ fn review_auto(
     }
     let (_, eng) = engine(home)?;
     let lex = eng.lexicon();
-    let classifications = if let Some(s1) = eng.s1_config() {
-        let disc = s1.provider.disclosure();
-        let views: Vec<CandidateView<'_>> = rows
-            .iter()
-            .map(|r| {
-                let cat = serde_json::from_value(serde_json::json!(r.category))
-                    .unwrap_or(Category::Custom);
-                let f = features(&r.value, lex.is_word(&r.value), &r.kind, cat, &r.recognizer);
-                CandidateView {
-                    features: f,
-                    kind: &r.kind,
-                    category: cat,
-                    recognizer: &r.recognizer,
-                    surface: matches!(disc, Disclosure::L1 | Disclosure::L2)
-                        .then_some(r.value.as_str()),
-                    left: matches!(disc, Disclosure::L2).then_some(r.context.as_str()),
-                    right: matches!(disc, Disclosure::L2).then_some(""),
-                    profile: Some(s1.profile.as_ref()),
-                }
-            })
-            .collect();
-        s1.provider
-            .classify(&views, std::time::Duration::from_secs(5))
-            .ok()
-            .filter(|c| c.len() == rows.len())
-            .unwrap_or_else(|| {
-                rows.iter()
-                    .map(|r| classify_from_score(r.probability, &r.kind))
-                    .collect()
-            })
-    } else {
+    let views: Vec<CandidateView> = rows
+        .iter()
+        .map(|r| {
+            let cat =
+                serde_json::from_value(serde_json::json!(r.category)).unwrap_or(Category::Custom);
+            let disc = eng
+                .s1_config()
+                .map_or(Disclosure::L0, |s| s.provider.max_disclosure());
+            let disc = if cat == Category::Credential {
+                Disclosure::L0
+            } else {
+                disc
+            };
+            CandidateView {
+                features: features(&r.value, lex.is_word(&r.value)),
+                kind: r.kind.clone(),
+                category: cat,
+                recognizer: r.recognizer.clone(),
+                surface: (disc >= Disclosure::L1).then(|| r.value.clone()),
+                context: (disc >= Disclosure::L2).then(|| r.context.clone()),
+            }
+        })
+        .collect();
+    let fallback = || {
         rows.iter()
-            .map(|r| classify_from_score(r.probability, &r.kind))
-            .collect()
+            .zip(&views)
+            .map(|(r, v)| classify_from_score(v, r.probability as f32, "heuristic"))
+            .collect::<Vec<_>>()
     };
+    let classifications = eng
+        .s1_config()
+        .and_then(|s| {
+            s.provider
+                .classify(&views, &kaponir_core::s1::disclosure_profile(&s.profile))
+                .ok()
+        })
+        .filter(|c| c.len() == rows.len())
+        .unwrap_or_else(fallback);
 
     let mut auto_saved = 0usize;
     let mut items = Vec::with_capacity(rows.len());
     let mut seen = std::collections::HashSet::new();
     let threshold = threshold.clamp(0.5, 0.99);
-    for (r, cls) in rows.iter().zip(classifications.into_iter()) {
+    for (r, cls) in rows.iter().zip(classifications) {
         let mut saved_this = false;
-        if auto_save && cls.confidence >= threshold {
+        if auto_save
+            && cls.source != "heuristic"
+            && cls.confidence.is_finite()
+            && cls.confidence >= threshold
+        {
             if seen.insert((cls.scope, r.value.clone())) {
-                let rule = if cls.sensitive {
+                let rule = if cls.action == kaponir_core::rules::RuleAction::Mask {
                     r.mask_rule(Some(&cls.kind))
                 } else {
                     r.keep_rule()
@@ -989,7 +996,11 @@ fn review_auto(
                 saved_this = true;
             }
             if saved_this {
-                let status = if cls.sensitive { "masked" } else { "kept" };
+                let status = if cls.action == kaponir_core::rules::RuleAction::Mask {
+                    "masked"
+                } else {
+                    "kept"
+                };
                 vault.set_journal_status(r.id, status)?;
                 auto_saved += 1;
             }
@@ -998,7 +1009,11 @@ fn review_auto(
             println!(
                 "#{:<5} {:<6} -> {:<10} scope={:<8} conf={:.0}%{}  {}",
                 r.id,
-                if cls.sensitive { "MASK" } else { "KEEP" },
+                if cls.action == kaponir_core::rules::RuleAction::Mask {
+                    "MASK"
+                } else {
+                    "KEEP"
+                },
                 cls.kind,
                 cls.scope.as_str(),
                 cls.confidence * 100.0,
@@ -1009,7 +1024,7 @@ fn review_auto(
         items.push(serde_json::json!({
             "id": r.id,
             "value": r.value,
-            "action": if cls.sensitive { "mask" } else { "keep" },
+            "action": if cls.action == kaponir_core::rules::RuleAction::Mask { "mask" } else { "keep" },
             "kind": cls.kind,
             "scope": cls.scope,
             "confidence": cls.confidence,
@@ -1103,7 +1118,10 @@ fn review_list(vault: &SqliteVault, list: &ReviewList) -> Result<ExitCode> {
     }
     for r in &rows {
         let verdict_note = if r.verdict == "uncertain" {
-            format!("Спорно (p={:.2}, политика uncertain={})", r.probability, r.applied)
+            format!(
+                "Спорно (p={:.2}, политика uncertain={})",
+                r.probability, r.applied
+            )
         } else {
             format!("{} (p={:.2})", r.applied, r.probability)
         };
@@ -1177,6 +1195,7 @@ fn rule(home: &Home, action: RuleCmd) -> Result<ExitCode> {
                 regex,
                 case_sensitive,
                 enforced,
+                disabled: false,
                 category,
                 strategy,
                 form: None,
@@ -1343,10 +1362,31 @@ fn serve(home: &Home, a: ServeArgs, open: bool) -> Result<ExitCode> {
     let control = Box::new(kaponir_cli::HomeControl {
         home: Home::new(home.dir.clone()),
     });
-    let state = std::sync::Arc::new(
-        kaponir_proxy::State::new(engine, vault, cfg.owner.clone(), cfg.serve)?
-            .with_control(control),
-    );
+    let external_worker = std::env::var("KAPONIR_WORKER_URL")
+        .ok()
+        .or_else(|| cfg.serve.worker_url.clone());
+    let mut state = kaponir_proxy::State::new(engine, vault, cfg.owner.clone(), cfg.serve.clone())?
+        .with_control(control);
+    if external_worker.is_none() {
+        match kaponir_cli::worker::ManagedWorker::new(
+            home,
+            format!("http://{}", ui_host(&listen)),
+            cfg.serve.api_token.clone(),
+        ) {
+            Ok(manager) => {
+                let manager = std::sync::Arc::new(manager);
+                if manager.activation_enabled() {
+                    use kaponir_proxy::WorkerManager;
+                    if let Err(e) = manager.start() {
+                        eprintln!("kaponir: worker autostart: {e}");
+                    }
+                }
+                state = state.with_worker_manager(manager);
+            }
+            Err(e) => eprintln!("kaponir: local worker: {e}"),
+        }
+    }
+    let state = std::sync::Arc::new(state);
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
@@ -1569,11 +1609,11 @@ fn models_cmd(home: &Home, action: ModelsCmd) -> Result<ExitCode> {
             "Локальная CPU микро-LLM (быстрая, ~397 МБ, рекомендуется)",
         ),
         (
-            "qwen3.5-0.8b",
+            "qwen3-0.6b-q8",
             "q5",
             "Qwen3-0.6B-Q8_0.gguf",
             639_446_688u64,
-            "Локальная CPU микро-LLM (повышенная точность Q8, ~639 МБ)",
+            "Текстовая Qwen3-0.6B Q8_0 (~639 МБ)",
         ),
     ];
     match action {
@@ -1615,7 +1655,9 @@ fn models_cmd(home: &Home, action: ModelsCmd) -> Result<ExitCode> {
                 },
                 runtime_path.display()
             );
-            println!("\nКоманды: kaponir models download qwen3-0.6b | kaponir models status | kaponir s1 train");
+            println!(
+                "\nКоманды: kaponir models download qwen3-0.6b | kaponir models status | kaponir s1 train"
+            );
             Ok(ExitCode::SUCCESS)
         }
         ModelsCmd::Status => {
@@ -1675,7 +1717,7 @@ fn events_cmd(
             let raw_list = vault.load_traffic_events(limit)?;
             let mut events: Vec<serde_json::Value> = raw_list
                 .into_iter()
-                .filter_map(|s| serde_json::from_str(&s).ok())
+                .filter_map(|s| serde_json::from_slice(&s).ok())
                 .collect();
             events.reverse();
             if json {
@@ -1736,14 +1778,18 @@ fn events_cmd(
             let raw_list = vault.load_traffic_events(200)?;
             let ev: serde_json::Value = raw_list
                 .into_iter()
-                .filter_map(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+                .filter_map(|s| serde_json::from_slice::<serde_json::Value>(&s).ok())
                 .find(|v| v["id"].as_u64() == Some(id))
                 .ok_or_else(|| anyhow!("событие #{id} не найдено в vault"))?;
             if json {
                 println!("{}", serde_json::to_string_pretty(&ev)?);
                 return Ok(ExitCode::SUCCESS);
             }
-            println!("=== Событие #{} ({}) ===", id, ev["api"].as_str().unwrap_or("-"));
+            println!(
+                "=== Событие #{} ({}) ===",
+                id,
+                ev["api"].as_str().unwrap_or("-")
+            );
             println!(
                 "Статус HTTP: {} | Модель: {} | Поток (SSE): {}",
                 ev["status"].as_u64().unwrap_or(0),
@@ -1802,7 +1848,8 @@ fn events_cmd(
                 if let Some(raw_resp) = insp["raw_response"].as_str().filter(|s| !s.is_empty()) {
                     println!("\n--- 3. Сырой ответ LLM (до демаскировки) ---\n{raw_resp}");
                 }
-                if let Some(rest_resp) = insp["restored_response"].as_str().filter(|s| !s.is_empty())
+                if let Some(rest_resp) =
+                    insp["restored_response"].as_str().filter(|s| !s.is_empty())
                 {
                     println!("\n--- 4. Восстановленный ответ пользователю ---\n{rest_resp}");
                 }

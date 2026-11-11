@@ -21,6 +21,7 @@ struct CachedMask {
 
 /// Сколько замаскированных блоков держать в кэше сессии.
 const CACHE_LIMIT: usize = 8192;
+pub(crate) const MEMORY_AUDIT_SETTING: &str = "audit:ignored-memory:v1";
 
 pub(crate) struct Session {
     known: Vec<Known>,
@@ -47,6 +48,17 @@ impl Session {
         }
     }
 
+    fn prune(&mut self, suppressed: &HashSet<(String, String)>) {
+        let n = self.known.len();
+        self.known
+            .retain(|k| !suppressed.contains(&(k.kind.to_uppercase(), k.text.to_lowercase())));
+        if n != self.known.len() {
+            self.seen = self.known.iter().cloned().collect();
+            self.cache.clear();
+            self.dirty = true;
+        }
+    }
+
     fn learn(&mut self, known: Vec<Known>) {
         for k in known {
             if self.seen.insert(k.clone()) {
@@ -61,10 +73,13 @@ struct Inner {
     vault: SqliteVault,
     sessions: HashMap<String, Session>,
     last_evict: Instant,
+    suppressed: HashSet<(String, String)>,
 }
 
 pub struct State {
     pub(crate) provider_refresh: tokio::sync::Mutex<()>,
+    pub(crate) rule_changes: tokio::sync::Mutex<()>,
+    pub(crate) worker_actions: tokio::sync::Mutex<()>,
     pub(crate) provider_affinity: Mutex<HashMap<[u8; 32], crate::providers::Binding>>,
     pub(crate) traffic: Arc<Traffic>,
     pub(crate) started: Instant,
@@ -76,6 +91,7 @@ pub struct State {
     pub(crate) http: reqwest::Client,
     /// Управление правилами из Web UI; без него UI работает только на чтение.
     pub(crate) control: Option<Box<dyn Control>>,
+    pub(crate) worker_manager: Option<Arc<dyn crate::WorkerManager>>,
     owner: String,
     inner: Arc<Mutex<Inner>>,
 }
@@ -105,27 +121,48 @@ impl State {
                 traffic.restore_events(events);
             }
         }
+        if let Some(bytes) = vault.private_setting("traffic:archive:v1")?
+            && let Ok(archive) = serde_json::from_slice(&bytes)
+        {
+            traffic.restore_archive(archive);
+        }
         let inner = Arc::new(Mutex::new(Inner {
             vault,
             sessions: HashMap::new(),
             last_evict: Instant::now(),
+            suppressed: HashSet::new(),
         }));
         let inner_weak = Arc::downgrade(&inner);
-        traffic.set_persister(Arc::new(move |event| {
+        traffic.set_persister(Arc::new(move |event, archive| {
             let Some(inner_arc) = inner_weak.upgrade() else {
                 return;
             };
             let Ok(bytes) = serde_json::to_vec(event) else {
                 return;
             };
-            if let Ok(guard) = inner_arc.try_lock() {
-                let _ = guard
-                    .vault
-                    .save_traffic_event(event.id, event.time_ms / 1000, &bytes, 200);
+            if let Ok(guard) = inner_arc.lock() {
+                let result = (|| -> anyhow::Result<()> {
+                    let aggregate = serde_json::to_vec(archive)?;
+                    guard.vault.begin()?;
+                    guard
+                        .vault
+                        .save_traffic_event(event.id, event.time_ms / 1000, &bytes, 200)?;
+                    guard
+                        .vault
+                        .set_private_setting("traffic:archive:v1", &aggregate)?;
+                    guard.vault.commit()?;
+                    Ok(())
+                })();
+                if let Err(e) = result {
+                    let _ = guard.vault.rollback();
+                    eprintln!("kaponir: traffic persistence: {e}");
+                }
             }
         }));
-        Ok(Self {
+        let state = Self {
             provider_refresh: tokio::sync::Mutex::new(()),
+            rule_changes: tokio::sync::Mutex::new(()),
+            worker_actions: tokio::sync::Mutex::new(()),
             provider_affinity: Mutex::new(HashMap::new()),
             traffic,
             started: Instant::now(),
@@ -136,14 +173,54 @@ impl State {
             cfg,
             http,
             control: None,
+            worker_manager: None,
             owner,
             inner,
-        })
+        };
+        state.refresh_suppressed();
+        Ok(state)
     }
 
     pub fn with_control(mut self, control: Box<dyn Control>) -> Self {
         self.control = Some(control);
+        self.refresh_suppressed();
         self
+    }
+
+    pub fn with_worker_manager(mut self, manager: Arc<dyn crate::WorkerManager>) -> Self {
+        self.worker_manager = Some(manager);
+        self
+    }
+
+    pub(crate) fn refresh_suppressed(&self) {
+        let sets = self
+            .control
+            .as_ref()
+            .and_then(|c| c.rules().ok())
+            .unwrap_or_default();
+        let mut suppressed: HashSet<(String, String)> = sets
+            .into_iter()
+            .flat_map(|s| s.file.rules)
+            .filter(|r| r.disabled)
+            .filter_map(|r| r.value.map(|v| (r.kind.to_uppercase(), v.to_lowercase())))
+            .collect();
+        let mut inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Ok(Some(bytes)) = inner.vault.private_setting(MEMORY_AUDIT_SETTING)
+            && let Ok(values) = serde_json::from_slice::<Vec<(String, String)>>(&bytes)
+        {
+            suppressed.extend(
+                values
+                    .into_iter()
+                    .map(|(k, v)| (k.to_uppercase(), v.to_lowercase())),
+            );
+        }
+        inner.suppressed = suppressed;
+        for session in inner.sessions.values_mut() {
+            session.cache.clear();
+        }
     }
 
     pub fn engine(&self) -> Arc<Engine> {
@@ -160,6 +237,7 @@ impl State {
     /// Новый движок (правила изменились). Кэши замаскированных блоков сбрасываются: история
     /// разговоров должна маскироваться по новым правилам, даже ценой одного промаха prompt cache.
     pub fn replace_engine(&self, engine: Engine) {
+        self.refresh_suppressed();
         let mut inner = self
             .inner
             .lock()
@@ -212,6 +290,7 @@ impl State {
             vault,
             sessions,
             last_evict,
+            suppressed,
         } = &mut *guard;
         if last_evict.elapsed() > Duration::from_secs(60) {
             let idle = Duration::from_secs(self.cfg.session_idle_hours * 3600);
@@ -222,6 +301,7 @@ impl State {
             Entry::Occupied(e) => e.into_mut(),
             Entry::Vacant(e) => e.insert(Session::new(vault.load_session(session)?)),
         };
+        sess.prune(suppressed);
         sess.last_used = Instant::now();
         if tx {
             vault.begin()?;
@@ -241,6 +321,7 @@ impl State {
             opts,
         })
         .and_then(|v| {
+            sess.prune(suppressed);
             if sess.dirty {
                 vault.save_session(session, &sess.known)?;
                 sess.dirty = false;
@@ -352,9 +433,7 @@ impl Cx<'_> {
     /// Извлекает счётчики токенов LLM (`prompt_tokens`/`input_tokens`, `completion_tokens`/`output_tokens`)
     /// из JSON-ответа или SSE-чанка OpenAI / Anthropic.
     pub fn record_token_usage(&mut self, v: &serde_json::Value) {
-        let usage_obj = v
-            .get("usage")
-            .or_else(|| v.pointer("/message/usage"));
+        let usage_obj = v.get("usage").or_else(|| v.pointer("/message/usage"));
         let Some(u) = usage_obj else {
             return;
         };
@@ -372,9 +451,13 @@ impl Cx<'_> {
             .get("total_tokens")
             .and_then(|x| x.as_u64())
             .unwrap_or(prompt + completion);
-        self.usage.prompt_tokens += prompt;
-        self.usage.completion_tokens += completion;
-        self.usage.total_tokens += total;
+        self.usage.prompt_tokens = self.usage.prompt_tokens.max(prompt);
+        self.usage.completion_tokens = self.usage.completion_tokens.max(completion);
+        self.usage.total_tokens = self
+            .usage
+            .total_tokens
+            .max(total)
+            .max(self.usage.prompt_tokens + self.usage.completion_tokens);
     }
 
     pub(crate) fn streams(&mut self) -> &mut HashMap<String, StreamRestorer> {

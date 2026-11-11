@@ -189,7 +189,12 @@ impl Secrets {
             return Some(win_e);
         }
         // 3 класса символов (включая хотя бы 2 спецсимвола или высокую энтропию) при длине >= 14
-        if classes >= 3 && s.len() >= 14 && (special >= 2 || digit >= 2) && transitions >= 5 && win_e >= 3.45 {
+        if classes >= 3
+            && s.len() >= 14
+            && (special >= 2 || digit >= 2)
+            && transitions >= 5
+            && win_e >= 3.45
+        {
             return Some(win_e);
         }
         None

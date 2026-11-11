@@ -39,11 +39,12 @@ MODEL_ALIASES = {
     'q4': 'q4',
     'q5': 'q5',
     'qwen3-0.6b': 'q4',
-    'qwen3.5-0.8b': 'q5',
+    'qwen3.5-0.8b': 'q5',  # legacy ID; these are Qwen3-0.6B Q8 weights
+    'qwen3-0.6b-q8': 'q5',
 }
 MODEL_LABELS = {
     'q4': 'Qwen3-0.6B (Q4_K_M · быстрый CPU)',
-    'q5': 'Qwen3.5-0.8B / Qwen3-Q8 (повышенная точность CPU)',
+    'q5': 'Qwen3-0.6B (Q8_0 · CPU)',
 }
 RUNTIME_NAME = 'llama-b12038-bin-ubuntu-x64.tar.gz'
 RUNTIME_URL = 'https://github.com/ggml-org/llama.cpp/releases/download/b12038/' + RUNTIME_NAME
@@ -188,7 +189,7 @@ def configuration(home, overrides=None):
                 'model':'q4', 'threads':2, 'max_files':1000, 'max_file_bytes':16777216, 'max_pages':100,
                 'max_edge':1024, 'ocr_timeout_seconds':300, 'runtime':None, 'api_url':None}
     defaults.update({k:v for k,v in raw.items() if v is not None})
-    for key, env in [('listen','KAPONIR_WORKER_LISTEN'),('input_root','KAPONIR_INPUT_ROOT'),('model_dir','KAPONIR_MODEL_DIR')]:
+    for key, env in [('listen','KAPONIR_WORKER_LISTEN'),('input_root','KAPONIR_INPUT_ROOT'),('model_dir','KAPONIR_MODEL_DIR'),('api_url','KAPONIR_WORKER_API_URL')]:
         if os.getenv(env): defaults[key] = os.environ[env]
     defaults.update({k:v for k,v in (overrides or {}).items() if v is not None})
     for key in ['input_root','data_dir','model_dir']:
@@ -210,7 +211,12 @@ class Worker:
         self.lock = threading.RLock()
         self.stop = threading.Event()
         self.process = None
+        self.ocr_process = None
         self.active = None
+        self.activation_file = self.data / 'activation.json'
+        self.enabled = not config.get('idle', False)
+        if self.activation_file.exists():
+            self.enabled = bool(json.loads(self.activation_file.read_text()).get('enabled', False))
         with self.connection() as db:
             db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, created REAL, updated REAL, body TEXT)')
         self.runtime = Path(config['runtime']) if config['runtime'] else self.models/'runtime/llama-b12038/llama-server'
@@ -290,7 +296,7 @@ class Worker:
 
     def check(self, ident):
         if self.stop.is_set(): raise Interrupted()
-        if self.get(ident)['control']: raise Interrupted()
+        if not self.enabled or self.get(ident)['control']: raise Interrupted()
 
     def recover(self):
         with self.connection() as db:
@@ -300,6 +306,25 @@ class Worker:
                 if job['state']=='running':
                     job['state']=job['control'] or 'queued'
                     db.execute('UPDATE jobs SET body=? WHERE id=?',(json.dumps(job),job['id']))
+
+    def activate(self, enabled):
+        if not isinstance(enabled, bool): raise ValueError('enabled must be a boolean')
+        with self.lock:
+            tmp = self.activation_file.with_suffix('.tmp')
+            tmp.write_text(json.dumps({'enabled': enabled}))
+            os.chmod(tmp, 0o600)
+            tmp.replace(self.activation_file)
+            self.enabled = enabled
+            if not enabled and self.active:
+                job = self.get(self.active)
+                if job['state'] not in TERMINAL:
+                    self.update(self.active, control='paused', activation_paused=True)
+                self.stop_runtime()
+            if enabled:
+                for job in self.jobs():
+                    if job.get('activation_paused') and job['state'] == 'paused':
+                        self.update(job['id'], state='queued', control=None, activation_paused=False)
+        return self.status()
 
     def status(self):
         models={}
@@ -311,8 +336,9 @@ class Worker:
             models[variant] = info
         models['qwen3-0.6b'] = dict(models['q4'])
         models['qwen3.5-0.8b'] = dict(models['q5'])
-        return {'configured':True,'online':True,'input_root':str(self.root),'models':models,'runtime_ready':self.runtime.is_file(),
-                'image_support':importlib.util.find_spec('PIL') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
+        models['qwen3-0.6b-q8'] = dict(models['q5'])
+        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if self.active and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'input_root':str(self.root),'models':models,'runtime_ready':self.runtime.is_file(),
+                'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
                 'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'jobs':self.jobs()}
 
     def scan(self, ident, source):
@@ -403,12 +429,12 @@ class Worker:
         raise TimeoutError('LLM runtime startup timeout')
 
     def stop_runtime(self):
-        process=self.process
-        if process and process.poll() is None:
-            process.terminate()
-            try:process.wait(timeout=5)
-            except subprocess.TimeoutExpired:process.kill();process.wait()
-        self.process=None;self.ocr_base=None
+        for process in [self.process, self.ocr_process]:
+            if process and process.poll() is None:
+                process.terminate()
+                try:process.wait(timeout=5)
+                except subprocess.TimeoutExpired:process.kill();process.wait()
+        self.process=None;self.ocr_base=None;self.ocr_process=None
 
     def ocr(self, ident, image, variant):
         """Extract text from image or scanned PDF page using local Tesseract OCR on CPU."""
@@ -419,17 +445,25 @@ class Worker:
                 img_path = Path(tmp) / 'page.png'
                 image.save(img_path, format='PNG')
                 lang = os.getenv('KAPONIR_OCR_LANG', 'rus+eng')
-                res = subprocess.run([tesseract_bin, str(img_path), 'stdout', '-l', lang],
-                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=self.cfg['ocr_timeout_seconds'])
+                with self.lock:
+                    self.check(ident)
+                    process = subprocess.Popen([tesseract_bin, str(img_path), 'stdout', '-l', lang], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    self.ocr_process = process
+                try:
+                    stdout, _ = process.communicate(timeout=self.cfg['ocr_timeout_seconds'])
+                except subprocess.TimeoutExpired:
+                    process.kill(); process.communicate(); raise
+                finally:
+                    self.ocr_process = None
                 self.check(ident)
-                if res.returncode == 0:
-                    text = res.stdout.decode('utf-8', errors='replace')
+                if process.returncode == 0:
+                    text = stdout.decode('utf-8', errors='replace')
                     if text.strip():
                         return text
         raise ValueError('Image/PDF scan OCR requires tesseract installed in PATH')
 
     def extract_text_candidates(self, ident, variant, source):
-        """Run compact CPU text LLM (Qwen3-0.6B / Qwen3.5-0.8B) directly on text chunk."""
+        """Run compact CPU text LLM (Qwen3-0.6B Q4 / Q8) directly on text chunk."""
         self.start_runtime(ident, variant)
         payload = {
             'model': 'qwen3-cpu',
@@ -512,16 +546,18 @@ class Worker:
     def process_sessions(self, job):
         ident = job['id']
         self.check(ident)
-        self.update(ident, current='@sessions', total=1, completed=0)
-        if self.cfg['api_url']:
-            http_json(
-                self.cfg['api_url'].rstrip('/') + '/api/v1/ui/discover/sessions',
-                {'use_s1': bool(job.get('use_s1', False)), 'remember': True},
-                os.getenv('KAPONIR_API_TOKEN', ''),
-                timeout=90,
-            )
+        if not self.cfg['api_url']:
+            raise ValueError('session analysis requires worker.api_url or KAPONIR_WORKER_API_URL')
+        payload = http_json(self.cfg['api_url'].rstrip('/') + '/api/v1/ui/sessions/export', token=os.getenv('KAPONIR_API_TOKEN', ''))
+        if payload.get('truncated'): raise ValueError('session export limit reached; analyze a smaller retained history')
+        documents = payload.get('documents', [])
+        self.update(ident, current='@sessions', total=len(documents), completed=0)
+        for index, doc in enumerate(documents):
+            self.check(ident)
+            self.import_text(ident, doc['name'], doc['text'], bool(job.get('use_s1', False)))
+            self.update(ident, completed=index+1)
         self.check(ident)
-        self.update(ident, completed=1, state='succeeded', current='')
+        self.update(ident, state='succeeded', current='')
 
     def process_scan(self, job):
         ident=job['id']
@@ -601,6 +637,9 @@ class Worker:
 
     def loop(self):
         while not self.stop.is_set():
+            if not self.enabled:
+                self.stop.wait(.5)
+                continue
             with self.connection() as db:
                 pending=next((j for row in db.execute('SELECT body FROM jobs ORDER BY created') if (j:=json.loads(row[0]))['state']=='queued'),None)
             if pending:self.process_one(pending['id'])
@@ -630,7 +669,9 @@ def handler(worker, token):
                 if not 0<=size<=16384:raise ValueError('request too large')
                 body=json.loads(self.rfile.read(size) or b'{}')
                 if not isinstance(body,dict):raise ValueError('expected JSON object')
-                if path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'))
+                if path=='/enable':result=worker.activate(True)
+                elif path=='/disable':result=worker.activate(False)
+                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'))
                 elif path=='/models/download':result=worker.submit('download',model=body.get('model'))
                 elif path.startswith('/jobs/'):
                     _,_,ident,action=path.split('/');result=worker.action(ident,action)
@@ -662,7 +703,7 @@ def main():
     parser.add_argument('--home',default=os.getenv('KAPONIR_HOME',str(Path.home()/'.config/kaponir')))
     for option in ['input-root','model-dir','data-dir','listen','runtime','api-url']:parser.add_argument('--'+option)
     sub=parser.add_subparsers(dest='command',required=True)
-    sub.add_parser('serve');sub.add_parser('status')
+    serve_parser=sub.add_parser('serve');serve_parser.add_argument('--idle',action='store_true');sub.add_parser('status')
     for mode in ['submit','run']:
         p=sub.add_parser(mode);p.add_argument('source',nargs='?',default='.');p.add_argument('--model',choices=sorted(MODEL_ALIASES));p.add_argument('--s1',action='store_true')
         p.add_argument('--mode', choices=sorted(MODES), default='local', help='local detection or CPU LLM (Qwen3) candidate extraction plus local detection')
@@ -681,11 +722,13 @@ def main():
         elif args.command=='submit':result=http_json(url+'/jobs',{'source':args.source,'model':args.model,'use_s1':args.s1,'mode':args.mode},token)
         else:result=http_json(url+'/jobs/'+args.id+'/'+args.command,{},token)
         print(json.dumps(result,ensure_ascii=False,indent=2));return
+    cfg['idle'] = bool(getattr(args, 'idle', False))
     worker=Worker(home,cfg,binary)
     with exclusive(worker):
         def shutdown(*_):worker.stop.set();worker.stop_runtime()
         signal.signal(signal.SIGTERM,shutdown);signal.signal(signal.SIGINT,shutdown)
         if args.command=='run':
+            worker.enabled = True
             job=worker.submit('scan',args.source,args.model,args.s1,args.mode);worker.process_one(job['id']);result=worker.get(job['id']);print(json.dumps(result,ensure_ascii=False,indent=2))
             if result['state']!='succeeded':sys.exit(1)
             return

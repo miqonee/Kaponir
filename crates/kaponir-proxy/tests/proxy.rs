@@ -461,7 +461,13 @@ async fn dashboard_counts_cached_proxy_traffic_and_excludes_manual_operations() 
             replacements = current;
             assert!(replacements > 0);
         }
-        assert_eq!(current, replacements * index);
+        assert_eq!(current, replacements);
+        assert_eq!(
+            m["traffic"]["total"]["usage"]["cached_replacements"]
+                .as_u64()
+                .unwrap(),
+            replacements * (index - 1)
+        );
         assert!(m["traffic"]["total"]["usage"]["restored"].as_u64().unwrap() > 0);
         let categories: u64 = m["traffic"]["total"]["usage"]["categories"]
             .as_array()
@@ -1558,4 +1564,43 @@ async fn system_hint_is_opt_in_for_both_apis() {
             .unwrap()
             .contains("placeholders")
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn session_metadata_groups_requests_and_sse_chunks_without_revealing_client_ids() {
+    let (proxy, _) = setup(None).await;
+    let first = json!({"model":"m","stream":true,"messages":[{"role":"user","content":"start a discussion"}]});
+    let next = json!({"model":"m","stream":false,"messages":[{"role":"user","content":"start a discussion"},{"role":"assistant","content":"reply"},{"role":"user","content":"next"}]});
+    for body in [&first, &next] {
+        let r = post_json(
+            format!("{proxy}/v1/chat/completions"),
+            body,
+            &[("x-kaponir-session", "private-client-id")],
+        )
+        .await;
+        assert_eq!(r.status(), 200);
+        r.bytes().await.unwrap();
+    }
+    for body in [&first, &next] {
+        let r = post_json(format!("{proxy}/v1/chat/completions"), body, &[]).await;
+        assert_eq!(r.status(), 200);
+        r.bytes().await.unwrap();
+    }
+    let snapshot = traffic_snapshot(&proxy, 4).await;
+    let events = snapshot["traffic"]["events"].as_array().unwrap();
+    assert_eq!(events.len(), 4);
+    assert_eq!(events[0]["session_source"], "inferred");
+    assert_eq!(events[0]["session_id"], events[1]["session_id"]);
+    assert_eq!(events[2]["session_source"], "explicit");
+    assert_eq!(events[2]["session_id"], events[3]["session_id"]);
+    assert_ne!(events[0]["session_id"], events[2]["session_id"]);
+    assert!(events[1]["streaming"].as_bool().unwrap());
+    assert!(!snapshot.to_string().contains("private-client-id"));
+    let exported = reqwest::get(format!("{proxy}/api/v1/ui/sessions/export"))
+        .await
+        .unwrap()
+        .json::<Value>()
+        .await
+        .unwrap();
+    assert_eq!(exported["documents"].as_array().unwrap().len(), 2);
 }

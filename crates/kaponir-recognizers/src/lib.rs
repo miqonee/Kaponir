@@ -121,7 +121,8 @@ pub(crate) fn push_slots(
 /// Значения, которые являются ссылками или заглушками, а не данными.
 pub(crate) fn is_placeholder(v: &str) -> bool {
     let t = v.trim();
-    if t.is_empty() || t.len() < 3 {
+    if t.is_empty() || t.len() < 3 || t.chars().all(|c| c.is_whitespace() || ".…*•".contains(c))
+    {
         return true;
     }
     let l = t.to_lowercase();

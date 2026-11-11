@@ -223,6 +223,7 @@ def reviewed():
     save('review-probe.after.json',json.loads(cli(home,['mask','--json'],(OUT/'review-probe.original.txt').read_text())))
     # Human supplies only these business terms once; these are NOT discovered by the app.
     added=[]
+    api(base,'/api/v1/rules/team/domains',{'domains':['polar-ledger.example']},method='PUT')
     for value,kind in [('ООО «Полярный Контур»','ORG'),('АО «Янтарный Маяк»','CLIENT'),('Ласточка-Резерв','PROJECT')]:
         _,_,raw=api(base,'/api/v1/rules',{'scope':'team','rule':{'value':value,'kind':kind}},method='POST')
         added.append({'value':value,'kind':kind,'response':json.loads(raw)})

@@ -95,8 +95,8 @@ impl Recognizer for Network {
         for m in self.v6.find_iter(text) {
             let before = char_before(text, m.start());
             let after = char_after(text, m.end());
-            if before.is_some_and(|c| c.is_ascii_hexdigit() || c == ':' || c == '.')
-                || after.is_some_and(|c| c.is_ascii_hexdigit() || c == ':' || c == '.')
+            if before.is_some_and(|c| c.is_alphanumeric() || matches!(c, ':' | '.' | '_'))
+                || after.is_some_and(|c| c.is_alphanumeric() || matches!(c, ':' | '.' | '_'))
             {
                 continue;
             }
@@ -110,6 +110,18 @@ impl Recognizer for Network {
             // `12:30:45` и подобное не парсится как IPv6, но `::1`-подобные короткие формы — да.
             if !addr.contains("::") && addr.split(':').count() < 8 {
                 continue;
+            }
+            if addr.split(':').filter(|p| !p.is_empty()).count() <= 1 {
+                let prefix = text[..m.start()].trim_end().to_lowercase();
+                let address_context = before == Some('[')
+                    || prefix.ends_with("ip=")
+                    || prefix.ends_with("ip:")
+                    || ["ip", "ipv6", "address", "адрес"]
+                        .iter()
+                        .any(|word| prefix.ends_with(word));
+                if !address_context {
+                    continue;
+                }
             }
             out.push(Candidate::new(
                 m.start(),
@@ -169,6 +181,17 @@ mod tests {
         );
         let ips: Vec<&str> = f.iter().map(|(_, v)| v.as_str()).collect();
         assert_eq!(ips, vec!["10.50.12.15", "fe80::1", "2001:db8:0:0:0:0:0:1"]);
+    }
+
+    #[test]
+    fn ipv6_does_not_match_inside_code_identifiers() {
+        let f = found("Type::Call Some::from_value module::f ::fmt e:: namespace::C");
+        assert!(f.is_empty(), "{f:?}");
+        let f = found("ip=::c; [::f] fe80::abcd%eth0");
+        assert_eq!(
+            f.iter().map(|(_, v)| v.as_str()).collect::<Vec<_>>(),
+            ["::c", "::f", "fe80::abcd"]
+        );
     }
 
     #[test]

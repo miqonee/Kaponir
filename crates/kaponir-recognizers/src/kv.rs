@@ -269,6 +269,15 @@ mod tests {
     }
 
     #[test]
+    fn ellipses_are_not_passwords_but_actual_values_remain_protected() {
+        assert!(found("password: ...\ntoken: …\nsecret: ******").is_empty());
+        assert_eq!(
+            found("password: genuine-short-value"),
+            [("SECRET".into(), "genuine-short-value".into())]
+        );
+    }
+
+    #[test]
     fn name_value_pairs() {
         let text = "env:\n  - name: DB_PASSWORD\n    value: \"hunter2\"\n  - name: LOG_LEVEL\n    value: debug\n\
                     [{\"name\": \"API_TOKEN\", \"value\": \"t0ps3cret\"}]\n";

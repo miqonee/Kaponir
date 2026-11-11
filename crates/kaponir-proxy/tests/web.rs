@@ -85,6 +85,26 @@ impl Control for MemControl {
         .ok_or_else(|| anyhow::anyhow!("no rule #{index}"))
     }
 
+    fn set_rule_disabled(
+        &self,
+        scope: Scope,
+        index: usize,
+        revision: &str,
+        disabled: bool,
+    ) -> anyhow::Result<()> {
+        self.file(scope, |file| {
+            anyhow::ensure!(
+                blake3::hash(&serde_json::to_vec(file)?).to_hex().as_str() == revision,
+                "rules changed"
+            );
+            file.rules
+                .get_mut(index)
+                .ok_or_else(|| anyhow::anyhow!("rule missing"))?
+                .disabled = disabled;
+            Ok(())
+        })
+    }
+
     fn set_corp_domains(&self, scope: Scope, domains: &[String]) -> anyhow::Result<()> {
         self.file(scope, |f| f.corp.domains = domains.to_vec());
         Ok(())
@@ -866,4 +886,193 @@ async fn model_candidates_require_source_evidence_and_manual_confirmation() {
     assert_eq!(status, 200, "{result}");
     let (_, profile) = call("GET", format!("{base}/api/v1/ui/discover/profile"), None).await;
     assert_eq!(profile["labels"], 1);
+}
+
+#[tokio::test]
+async fn audit_disables_only_selected_rule_preserving_restore_and_rejects_stale_revision() {
+    let base = spawn(None).await;
+    let added = call("POST", format!("{base}/api/v1/rules"), Some(json!({"scope":"personal","rule":{"kind":"PROJ","value":"questions","note":"kaponir discover"}}))).await;
+    assert_eq!(added.0, 200);
+    let before = mask(&base, "questions", json!({"commit":true})).await;
+    assert_ne!(before["text"], "questions");
+    let (_, memory) = call(
+        "POST",
+        format!("{base}/api/v1/anonymize"),
+        Some(json!({"text":"questions","session":"audit-chat"})),
+    )
+    .await;
+    assert_ne!(memory["text"], "questions");
+    let audit = call("GET", format!("{base}/api/v1/ui/rules/audit"), None)
+        .await
+        .1;
+    let item = &audit["items"][0];
+    let change = json!({"scope":item["scope"],"index":item["index"],"revision":item["revision"],"disabled":true});
+    assert_eq!(
+        call(
+            "PUT",
+            format!("{base}/api/v1/ui/rules/audit"),
+            Some(change.clone())
+        )
+        .await
+        .0,
+        200
+    );
+    assert_eq!(
+        mask(&base, "questions", json!({"commit":true})).await["text"],
+        "questions"
+    );
+    assert_eq!(
+        call(
+            "POST",
+            format!("{base}/api/v1/anonymize"),
+            Some(json!({"text":"questions","session":"audit-chat"}))
+        )
+        .await
+        .1["text"],
+        "questions"
+    );
+    assert_eq!(
+        call(
+            "POST",
+            format!("{base}/api/v1/deanonymize"),
+            Some(json!({"text":memory["text"],"session":"audit-chat"}))
+        )
+        .await
+        .1["text"],
+        "questions"
+    );
+    assert_eq!(
+        call(
+            "POST",
+            format!("{base}/api/v1/anonymize"),
+            Some(json!({"text":"questions","session":"audit-chat"}))
+        )
+        .await
+        .1["text"],
+        "questions"
+    );
+    assert_eq!(
+        call("PUT", format!("{base}/api/v1/ui/rules/audit"), Some(change))
+            .await
+            .0,
+        409
+    );
+    let (status, restored) = call(
+        "POST",
+        format!("{base}/api/v1/ui/restore"),
+        Some(json!({"text":before["text"]})),
+    )
+    .await;
+    assert_eq!(status, 200);
+    assert_eq!(restored["text"], "questions");
+    let audit = call("GET", format!("{base}/api/v1/ui/rules/audit"), None)
+        .await
+        .1;
+    let item = &audit["items"][0];
+    assert_eq!(call("PUT",format!("{base}/api/v1/ui/rules/audit"),Some(json!({"scope":item["scope"],"index":item["index"],"revision":item["revision"],"disabled":false}))).await.0,200);
+    assert_ne!(
+        mask(&base, "questions", json!({})).await["text"],
+        "questions"
+    );
+}
+
+#[tokio::test]
+async fn low_evidence_words_stay_readable_but_exact_rules_still_apply() {
+    let base = spawn(None).await;
+    let prose = "password: ...\nType::Call namespace::f e:: ::C ::f\nproject character\nproject questions\nпроект или\nmodel gemini-3.8-flash\nSee s1.md\n/tmp/randomunknownword/file.txt";
+    assert_eq!(mask(&base, prose, json!({})).await["text"], prose);
+    let secret = "password: Cedar-47!Plum";
+    assert!(
+        !mask(&base, secret, json!({})).await["text"]
+            .as_str()
+            .unwrap()
+            .contains("Cedar-47!Plum")
+    );
+}
+
+#[tokio::test]
+async fn legacy_session_memory_can_be_excluded_without_rules_or_deleting_tokens() {
+    let base = spawn(None).await;
+    assert_eq!(
+        call(
+            "POST",
+            format!("{base}/api/v1/rules"),
+            Some(json!({"scope":"personal","rule":{"kind":"PROJ","value":"questions"}}))
+        )
+        .await
+        .0,
+        200
+    );
+    let original = call(
+        "POST",
+        format!("{base}/api/v1/anonymize"),
+        Some(json!({"text":"questions","session":"legacy-memory"})),
+    )
+    .await
+    .1;
+    assert_eq!(
+        call("DELETE", format!("{base}/api/v1/rules/personal/0"), None)
+            .await
+            .0,
+        200
+    );
+    assert_ne!(
+        call(
+            "POST",
+            format!("{base}/api/v1/anonymize"),
+            Some(json!({"text":"questions","session":"legacy-memory"}))
+        )
+        .await
+        .1["text"],
+        "questions"
+    );
+    let audit = call("GET", format!("{base}/api/v1/ui/rules/audit"), None)
+        .await
+        .1;
+    let memory = audit["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["scope"] == "memory")
+        .unwrap();
+    assert_eq!(
+        call(
+            "PUT",
+            format!("{base}/api/v1/ui/rules/audit/memory"),
+            Some(json!({"ids":[memory["index"]],"revision":memory["revision"],"disabled":true}))
+        )
+        .await
+        .0,
+        200
+    );
+    assert_eq!(
+        call(
+            "POST",
+            format!("{base}/api/v1/anonymize"),
+            Some(json!({"text":"questions","session":"legacy-memory"}))
+        )
+        .await
+        .1["text"],
+        "questions"
+    );
+    assert_eq!(
+        call(
+            "POST",
+            format!("{base}/api/v1/deanonymize"),
+            Some(json!({"text":original["text"],"session":"legacy-memory"}))
+        )
+        .await
+        .1["text"],
+        "questions"
+    );
+    assert_eq!(
+        call(
+            "POST",
+            format!("{base}/api/v1/anonymize"),
+            Some(json!({"text":"questions","session":"legacy-memory"}))
+        )
+        .await
+        .1["text"],
+        "questions"
+    );
 }

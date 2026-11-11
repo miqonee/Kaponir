@@ -626,6 +626,49 @@ impl kaponir_proxy::Control for HomeControl {
         self.home.remove_rule(scope, index)
     }
 
+    fn set_rule_disabled(
+        &self,
+        scope: Scope,
+        index: usize,
+        revision: &str,
+        disabled: bool,
+    ) -> Result<()> {
+        self.set_rules_disabled(scope, &[index], revision, disabled)
+    }
+
+    fn set_rules_disabled(
+        &self,
+        scope: Scope,
+        indices: &[usize],
+        revision: &str,
+        disabled: bool,
+    ) -> Result<()> {
+        let path = self.home.rules_path(scope);
+        let original = std::fs::read_to_string(&path)?;
+        let file = RuleFile::parse(&original).map_err(|e| anyhow!("{e}"))?;
+        let current = blake3::hash(&serde_json::to_vec(&file)?)
+            .to_hex()
+            .to_string();
+        anyhow::ensure!(current == revision, "rules changed; refresh the audit");
+        let mut doc = original.parse::<toml_edit::DocumentMut>()?;
+        let tables = doc
+            .get_mut("rule")
+            .and_then(|r| r.as_array_of_tables_mut())
+            .ok_or_else(|| anyhow!("rules not found"))?;
+        for &index in indices {
+            let table = tables
+                .get_mut(index)
+                .ok_or_else(|| anyhow!("rule not found"))?;
+            table.insert("disabled", toml_edit::value(disabled));
+        }
+        let updated = doc.to_string();
+        RuleFile::parse(&updated).map_err(|e| anyhow!("{e}"))?;
+        let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
+        std::fs::write(&tmp, updated)?;
+        std::fs::rename(tmp, path)?;
+        Ok(())
+    }
+
     fn set_corp_domains(&self, scope: Scope, domains: &[String]) -> Result<()> {
         self.home.set_corp_domains(scope, domains).map(|_| ())
     }

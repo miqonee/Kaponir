@@ -420,6 +420,40 @@ impl SqliteVault {
         serde_json::from_slice(&plain).map_err(|e| VaultError::Other(e.to_string()))
     }
 
+    /// Bounded, deduplicated values for the authenticated session-memory audit.
+    pub fn session_values(&self, limit: usize) -> Result<Vec<Known>, VaultError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT blind, nonce, ct FROM sessions ORDER BY updated DESC LIMIT 8192")
+            .map_err(db)?;
+        let rows = statement
+            .query_map([], |row| {
+                Ok((
+                    row.get::<_, Vec<u8>>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, Vec<u8>>(2)?,
+                ))
+            })
+            .map_err(db)?;
+        let mut values = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        for row in rows {
+            let (blind, nonce, ct) = row.map_err(db)?;
+            let bytes = self.unseal(&nonce, &ct, &blind)?;
+            let known: Vec<Known> =
+                serde_json::from_slice(&bytes).map_err(|e| VaultError::Other(e.to_string()))?;
+            for value in known {
+                if seen.insert(value.clone()) {
+                    values.push(value);
+                }
+                if values.len() >= limit {
+                    return Ok(values);
+                }
+            }
+        }
+        Ok(values)
+    }
+
     pub fn save_session(&self, id: &str, known: &[Known]) -> Result<(), VaultError> {
         let blind = self.blind(&["session", id]);
         let payload = serde_json::to_vec(known).map_err(|e| VaultError::Other(e.to_string()))?;

@@ -390,7 +390,12 @@ async fn proxy_request(
 ) -> Result<Response, ApiError> {
     authorized(&st, &headers, false)?;
     let mut json: Value = serde_json::from_slice(&body).map_err(|e| {
-        span.set_error("", Some(400), "bad_request", format!("request body is not JSON: {e}"));
+        span.set_error(
+            "",
+            Some(400),
+            "bad_request",
+            format!("request body is not JSON: {e}"),
+        );
         error(
             StatusCode::BAD_REQUEST,
             format!("request body is not JSON: {e}"),
@@ -406,11 +411,44 @@ async fn proxy_request(
         .map(str::to_owned);
     let original_request = extract_prompt_text(api, &json);
     let session = session_id(&headers, api, &json);
+    let explicit = headers
+        .get("x-kaponir-session")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| !v.is_empty());
+    let has_start = json
+        .get("messages")
+        .and_then(Value::as_array)
+        .is_some_and(|ms| {
+            ms.iter().any(|m| {
+                !matches!(
+                    m.get("role").and_then(Value::as_str),
+                    Some("system" | "developer")
+                )
+            })
+        });
+    if explicit || has_start {
+        *span
+            .session
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((
+            blake3::hash(session.as_bytes()).to_hex()[..24].to_string(),
+            if explicit { "explicit" } else { "inferred" }.into(),
+        ));
+    }
+    *span
+        .request_kind
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) =
+        if uri.path().ends_with("count_tokens") {
+            "count_tokens"
+        } else {
+            "completion"
+        }
+        .into();
     let hint = st
         .cfg
         .system_hint
         .then(|| crate::system_hint(st.engine().codec().prefix()));
-    let s1_before = st.engine().metrics().s1.snapshot().duration_us;
     let mask_started = std::time::Instant::now();
     let (_, usage) = st
         .with_usage(&session, true, |cx| match api {
@@ -425,8 +463,7 @@ async fn proxy_request(
             )
         })?;
     let mask_total_us = mask_started.elapsed().as_micros() as u64;
-    let s1_after = st.engine().metrics().s1.snapshot().duration_us;
-    let classifier_us = s1_after.saturating_sub(s1_before).min(mask_total_us);
+    let classifier_us = usage.classifier_us.min(mask_total_us);
     let mask_us = mask_total_us.saturating_sub(classifier_us);
     span.mask_us.fetch_add(mask_us, Relaxed);
     span.classifier_us.fetch_add(classifier_us, Relaxed);
@@ -438,9 +475,14 @@ async fn proxy_request(
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let entry = insp.get_or_insert_with(Default::default);
-        entry.original_request = original_request;
-        entry.masked_request = masked_request;
-        entry.masked_payload_json = masked_payload_json;
+        entry.model = json
+            .get("model")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .into();
+        entry.original_request = crate::traffic::cap_str(&original_request, 32_768);
+        entry.masked_request = crate::traffic::cap_str(&masked_request, 32_768);
+        entry.masked_payload_json = crate::traffic::cap_str(&masked_payload_json, 32_768);
     }
     span.add(&usage);
     let body = serde_json::to_vec(&json).map_err(|e| internal(e.into()))?;
@@ -488,6 +530,14 @@ async fn proxy_request(
             .upstream_url
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(target_url.clone());
+        span.attempts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(
+                provider
+                    .as_ref()
+                    .map_or_else(|| kind.to_string(), |p| p.id.clone()),
+            );
         span.sent.store(true, Relaxed);
         let up_started = std::time::Instant::now();
         let send_res = st
@@ -509,7 +559,10 @@ async fn proxy_request(
                 "network_error"
             };
             span.set_error(target_url.clone(), None, err_kind, e.to_string());
-            error(StatusCode::BAD_GATEWAY, format!("upstream ({target_url}): {e}"))
+            error(
+                StatusCode::BAD_GATEWAY,
+                format!("upstream ({target_url}): {e}"),
+            )
         })?;
         if resp.status() != StatusCode::TOO_MANY_REQUESTS
             || connection_id(&uri).is_some()
@@ -669,14 +722,15 @@ impl StreamState {
             self.span.add(&usage);
             out
         });
-        if end {
-            self.span.finish();
-        }
-        r.unwrap_or_else(|e| {
+        let out = r.unwrap_or_else(|e| {
             self.span.restore_failed.store(true, Relaxed);
             eprintln!("kaponir: stream restore failed, events passed with placeholders: {e:#}");
             raw
-        })
+        });
+        if end {
+            self.span.finish();
+        }
+        out
     }
 }
 

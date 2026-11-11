@@ -219,7 +219,7 @@ pub fn samples(
         );
     }
     for set in rules {
-        for rule in &set.file.rules {
+        for rule in set.file.rules.iter().filter(|r| !r.disabled) {
             if let Some(value) = &rule.value {
                 add(
                     value,

@@ -94,11 +94,13 @@ impl HttpProvider {
                 "[s1.http] timeout_ms must be between 1 and 60000".into(),
             ));
         }
-        if matches!(settings.protocol, HttpProtocol::Systemone | HttpProtocol::Openai)
-            && settings
-                .model
-                .as_ref()
-                .is_none_or(|model| model.trim().is_empty())
+        if matches!(
+            settings.protocol,
+            HttpProtocol::Systemone | HttpProtocol::Openai
+        ) && settings
+            .model
+            .as_ref()
+            .is_none_or(|model| model.trim().is_empty())
         {
             return Err(Error::Msg(
                 "[s1.http] model is required for SystemOne and OpenAI-compatible protocol".into(),
@@ -169,13 +171,13 @@ impl HttpProvider {
                                     remaining,
                                     request(
                                         &client,
-                                    url.clone(),
-                                    token.as_ref(),
-                                    protocol,
-                                    model.as_deref(),
-                                    &job.candidates,
-                                    &job.profile,
-                                ),
+                                        url.clone(),
+                                        token.as_ref(),
+                                        protocol,
+                                        model.as_deref(),
+                                        &job.candidates,
+                                        &job.profile,
+                                    ),
                                 )
                                 .await
                                 .unwrap_or(Err(S1Error::Timeout))
@@ -448,7 +450,12 @@ const CHOICE_OPTIONS: &[&str] = &[
     "keep:personal:KEEP",
 ];
 
-fn parse_choice_label(label: &str, fallback_kind: &str, confidence: f32, source: &str) -> RuleClassification {
+fn parse_choice_label(
+    label: &str,
+    fallback_kind: &str,
+    confidence: f32,
+    source: &str,
+) -> RuleClassification {
     let parts: Vec<&str> = label.split(':').collect();
     if parts.len() == 3 {
         let action = if parts[0].eq_ignore_ascii_case("keep") {
@@ -456,7 +463,9 @@ fn parse_choice_label(label: &str, fallback_kind: &str, confidence: f32, source:
         } else {
             RuleAction::Mask
         };
-        let scope = parts[1].parse::<Scope>().unwrap_or_else(|_| default_scope_for_kind(parts[2]));
+        let scope = parts[1]
+            .parse::<Scope>()
+            .unwrap_or_else(|_| default_scope_for_kind(parts[2]));
         let kind = if action == RuleAction::Keep {
             fallback_kind.to_string()
         } else {
@@ -490,7 +499,8 @@ async fn request_classify(
 ) -> Result<Vec<RuleClassification>, S1Error> {
     match protocol {
         HttpProtocol::Probabilities => {
-            let scores = request(client, url, token, protocol, model, batch, profile).await?;
+            let scores =
+                Box::pin(request(client, url, token, protocol, model, batch, profile)).await?;
             Ok(batch
                 .iter()
                 .zip(scores)
@@ -562,9 +572,7 @@ fn systemone_classifications(
     bytes: &[u8],
     batch: &[CandidateView],
 ) -> Result<Vec<RuleClassification>, S1Error> {
-    let invalid = || {
-        S1Error::Other("invalid SystemOne classification answers".into())
-    };
+    let invalid = || S1Error::Other("invalid SystemOne classification answers".into());
     let response: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| invalid())?;
     let answers = response
         .get("answers")

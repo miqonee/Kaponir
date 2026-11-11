@@ -19,6 +19,44 @@ class WorkerTests(unittest.TestCase):
         self.worker=Worker(self.home,configuration(self.home),'unused-binary')
     def tearDown(self):
         self.worker.stop.set();self.worker.stop_runtime();self.temp.cleanup()
+    def test_activation_persists_without_downloading_or_losing_jobs(self):
+        (self.root/'a.txt').write_text('project: Amber Pine')
+        job = self.worker.submit('scan')
+        self.worker.activate(False)
+        self.assertFalse(self.worker.status()['enabled'])
+        with self.assertRaises(Interrupted): self.worker.check(job['id'])
+        recovered = Worker(self.home, configuration(self.home), 'unused-binary')
+        self.assertFalse(recovered.enabled)
+        self.assertEqual(recovered.get(job['id'])['state'], 'queued')
+        self.assertFalse(any(m['downloaded'] for m in recovered.status()['models'].values()))
+        recovered.activate(True)
+        self.assertTrue(Worker(self.home, configuration(self.home), 'unused-binary').enabled)
+
+    def test_disable_checkpoints_active_job_and_resumes_only_activation_pause(self):
+        job = self.worker.submit('scan')
+        manual = self.worker.submit('scan')
+        self.worker.action(manual['id'], 'pause')
+        self.worker.active = job['id']
+        self.worker.update(job['id'], state='running')
+        self.worker.activate(False)
+        self.assertEqual(self.worker.get(job['id'])['control'], 'paused')
+        self.worker.update(job['id'], state='paused')
+        self.worker.active = None
+        self.worker.activate(True)
+        self.assertEqual(self.worker.get(job['id'])['state'], 'queued')
+        self.assertEqual(self.worker.get(manual['id'])['state'], 'paused')
+
+    def test_session_scan_uses_model_pipeline_and_requires_proxy(self):
+        job = self.worker.submit('scan', '@sessions', mode='qwen')
+        with self.assertRaises(ValueError): self.worker.process_sessions(job)
+        self.worker.cfg['api_url'] = 'http://127.0.0.1:1'
+        with patch('kaponir_worker.http_json', return_value={'documents':[{'name':'session-a','text':'project: Amber Pine'}]}) as request:
+            with patch.object(self.worker, 'import_text') as process:
+                self.worker.process_sessions(job)
+                process.assert_called_once_with(job['id'], 'session-a', 'project: Amber Pine', False)
+            self.assertTrue(request.call_args.args[0].endswith('/api/v1/ui/sessions/export'))
+        self.assertEqual(self.worker.get(job['id'])['state'], 'succeeded')
+
     def test_source_boundary_and_symlinks(self):
         (self.root/'a.txt').write_text('hello')
         outside=self.home/'outside.txt';outside.write_text('outside')
@@ -194,7 +232,7 @@ class WorkerTests(unittest.TestCase):
         with patch('kaponir_worker.http_json', return_value={'documents_analyzed': 2}) as req:
             self.worker.process_one(j_sess['id'])
             self.assertEqual(req.call_count, 1)
-            self.assertIn('/api/v1/ui/discover/sessions', req.call_args.args[0])
+            self.assertIn('/api/v1/ui/sessions/export', req.call_args.args[0])
         self.assertEqual(self.worker.get(j_sess['id'])['state'], 'succeeded')
 
 if __name__=='__main__':unittest.main()

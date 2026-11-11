@@ -187,6 +187,8 @@ pub struct Replacement {
     pub recognizer: String,
     pub probability: f32,
     pub verdict: Verdict,
+    pub origin: Origin,
+    pub evidence: Vec<Evidence>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -207,6 +209,8 @@ pub struct Masked {
     pub text: String,
     pub replacements: Vec<Replacement>,
     pub uncertain: usize,
+    /// Time spent in this invocation's classifier (never a global metrics delta).
+    pub classifier_us: u64,
     /// Строки вида токена во входе, которых нет в vault (зарезервированы как литералы).
     pub literals: usize,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -287,6 +291,9 @@ impl Engine {
                 && c.end <= text.len()
                 && text.is_char_boundary(c.start)
                 && text.is_char_boundary(c.end)
+                && !(c.origin == Origin::Builtin
+                    && c.kind == "PROJ"
+                    && crate::discover::weak_business_value(&c.kind, &text[c.start..c.end]))
         });
         for c in out.iter_mut() {
             self.boost_context(text, c);
@@ -398,7 +405,9 @@ impl Engine {
             })
             .collect();
         if use_s1 && let Some(s1) = &self.s1 {
+            let started = Instant::now();
             self.apply_s1(text, s1, &mut scored);
+            result.classifier_us = started.elapsed().as_micros() as u64;
         }
         // Кандидат внутри «никогда не маскировать» решён правилом: не маскируется и не спорный
         // (иначе решение пользователя снова попадало бы в журнал разбора).
@@ -545,6 +554,8 @@ impl Engine {
                 recognizer: c.recognizer.clone(),
                 probability: c.probability(),
                 verdict: s.verdict,
+                origin: c.origin.clone(),
+                evidence: c.evidence.clone(),
             });
         }
         out.push_str(&text[pos..]);
@@ -623,7 +634,23 @@ impl Engine {
         if c.hard || matches!(c.origin, Origin::Rule { .. }) {
             return Verdict::Mask;
         }
-        self.policy.thresholds(c.category).verdict(c.probability())
+        let verdict = self.policy.thresholds(c.category).verdict(c.probability());
+        // Being an unknown structural word or an unknown public domain alone is
+        // not evidence of confidentiality. Keep strong contextual detections.
+        if verdict == Verdict::Uncertain
+            && c.origin == Origin::Builtin
+            && c.evidence
+                .iter()
+                .any(|e| matches!(e.source.as_str(), "unknown-part" | "unknown-domain"))
+            && !c
+                .evidence
+                .iter()
+                .any(|e| e.logit > 0.0 && !e.source.starts_with("prior:"))
+        {
+            Verdict::Keep
+        } else {
+            verdict
+        }
     }
 
     fn boost_context(&self, text: &str, c: &mut Candidate) {

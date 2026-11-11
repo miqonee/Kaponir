@@ -28,7 +28,12 @@ struct ColumnSpec {
 /// Разбивает одну строку CSV/TSV на байтовые диапазоны значений ячеек `(start, end)` внутри `text`.
 /// Кавычки снаружи ячейки остаются за пределами диапазона, чтобы при подстановке `ANON_...`
 /// синтаксис CSV оставался валидным.
-fn parse_row_spans(text: &str, line_start: usize, line_end: usize, delim: char) -> Vec<(usize, usize)> {
+fn parse_row_spans(
+    text: &str,
+    line_start: usize,
+    line_end: usize,
+    delim: char,
+) -> Vec<(usize, usize)> {
     let line = &text[line_start..line_end];
     let bytes = line.as_bytes();
     let d_byte = delim as u8;
@@ -110,7 +115,9 @@ fn classify_header(lex: &Lexicon, raw_header: &str) -> Option<ColumnSpec> {
     // Если заголовок выглядит как данные (число, email с @, URL), это не строка заголовков.
     if header.contains('@')
         || header.contains("://")
-        || header.chars().all(|c| c.is_ascii_digit() || ".,+- ".contains(c))
+        || header
+            .chars()
+            .all(|c| c.is_ascii_digit() || ".,+- ".contains(c))
     {
         return None;
     }
@@ -125,57 +132,155 @@ fn classify_header(lex: &Lexicon, raw_header: &str) -> Option<ColumnSpec> {
     }
 
     let matched: Option<(&str, Category, bool, f32)> = match norm.as_str() {
-        "password" | "passwd" | "userpassword" | "dbpassword" | "secret" | "secretkey"
-        | "apikey" | "apitoken" | "accesstoken" | "refreshtoken" | "privatekey" | "token"
-        | "пароль" | "секрет" | "токен" | "ключдоступа" | "приватныйключ" => {
-            Some(("SECRET", Category::Credential, true, 0.97))
-        }
-        "name" | "fullname" | "firstname" | "lastname" | "middlename" | "surname"
-        | "person" | "employee" | "employeename" | "author" | "owner" | "manager"
-        | "contactname" | "fio" | "фио" | "сотрудник" | "имя" | "фамилия"
-        | "отчество" | "полноеимя" | "владелец" | "руководитель"
+        "password"
+        | "passwd"
+        | "userpassword"
+        | "dbpassword"
+        | "secret"
+        | "secretkey"
+        | "apikey"
+        | "apitoken"
+        | "accesstoken"
+        | "refreshtoken"
+        | "privatekey"
+        | "token"
+        | "пароль"
+        | "секрет"
+        | "токен"
+        | "ключдоступа"
+        | "приватныйключ" => Some(("SECRET", Category::Credential, true, 0.97)),
+        "name"
+        | "fullname"
+        | "firstname"
+        | "lastname"
+        | "middlename"
+        | "surname"
+        | "person"
+        | "employee"
+        | "employeename"
+        | "author"
+        | "owner"
+        | "manager"
+        | "contactname"
+        | "fio"
+        | "фио"
+        | "сотрудник"
+        | "имя"
+        | "фамилия"
+        | "отчество"
+        | "полноеимя"
+        | "владелец"
+        | "руководитель"
         | "ответственный" => Some(("PERSON", Category::Identity, false, 0.90)),
-        "user" | "username" | "userid" | "login" | "account" | "accountname" | "логин"
-        | "пользователь" | "учетнаязапись" | "аккаунт" => {
-            Some(("USER", Category::Identity, false, 0.90))
-        }
-        "email" | "useremail" | "workemail" | "contactemail" | "mail" | "emailaddress"
-        | "почта" | "элпочта" | "электроннаяпочта" => {
-            Some(("EMAIL", Category::Contact, false, 0.92))
-        }
-        "phone" | "phonenumber" | "mobile" | "mobilephone" | "telephone" | "tel"
-        | "телефон" | "номертелефона" | "мобильный" => {
-            Some(("PHONE", Category::Contact, false, 0.92))
-        }
-        "salary" | "wage" | "income" | "compensation" | "bonus" | "budget" | "balance"
-        | "amount" | "totalamount" | "payment" | "зарплата" | "оклад" | "доход"
-        | "премия" | "вознаграждение" | "бюджет" | "сумма" | "баланс"
+        "user"
+        | "username"
+        | "userid"
+        | "login"
+        | "account"
+        | "accountname"
+        | "логин"
+        | "пользователь"
+        | "учетнаязапись"
+        | "аккаунт" => Some(("USER", Category::Identity, false, 0.90)),
+        "email"
+        | "useremail"
+        | "workemail"
+        | "contactemail"
+        | "mail"
+        | "emailaddress"
+        | "почта"
+        | "элпочта"
+        | "электроннаяпочта" => Some(("EMAIL", Category::Contact, false, 0.92)),
+        "phone"
+        | "phonenumber"
+        | "mobile"
+        | "mobilephone"
+        | "telephone"
+        | "tel"
+        | "телефон"
+        | "номертелефона"
+        | "мобильный" => Some(("PHONE", Category::Contact, false, 0.92)),
+        "salary"
+        | "wage"
+        | "income"
+        | "compensation"
+        | "bonus"
+        | "budget"
+        | "balance"
+        | "amount"
+        | "totalamount"
+        | "payment"
+        | "зарплата"
+        | "оклад"
+        | "доход"
+        | "премия"
+        | "вознаграждение"
+        | "бюджет"
+        | "сумма"
+        | "баланс"
         | "выплата" => Some(("AMOUNT", Category::Financial, false, 0.92)),
-        "host" | "hostname" | "internalhost" | "server" | "servername" | "node" | "nodename"
-        | "instance" | "ip" | "ipaddress" | "internalip" | "хост" | "сервер"
-        | "узел" | "имясервера" | "ipадрес" => {
-            Some(("HOST", Category::Infra, false, 0.90))
-        }
-        "project" | "projectname" | "repo" | "repository" | "проект"
-        | "названиепроекта" | "репозиторий" => {
-            Some(("PROJ", Category::Infra, false, 0.88))
-        }
+        "host"
+        | "hostname"
+        | "internalhost"
+        | "server"
+        | "servername"
+        | "node"
+        | "nodename"
+        | "instance"
+        | "ip"
+        | "ipaddress"
+        | "internalip"
+        | "хост"
+        | "сервер"
+        | "узел"
+        | "имясервера"
+        | "ipадрес" => Some(("HOST", Category::Infra, false, 0.90)),
+        "project"
+        | "projectname"
+        | "repo"
+        | "repository"
+        | "проект"
+        | "названиепроекта"
+        | "репозиторий" => Some(("PROJ", Category::Infra, false, 0.88)),
         "service" | "servicename" | "microservice" | "сервис" | "микросервис" => {
             Some(("SVC", Category::Infra, false, 0.88))
         }
-        "client" | "clientname" | "customer" | "customername" | "counterparty" | "клиент"
-        | "заказчик" | "контрагент" => {
-            Some(("CLIENT", Category::Custom, false, 0.90))
-        }
-        "company" | "companyname" | "organization" | "org" | "orgname" | "vendor"
-        | "employer" | "компания" | "организация" | "юрлицо"
+        "client"
+        | "clientname"
+        | "customer"
+        | "customername"
+        | "counterparty"
+        | "клиент"
+        | "заказчик"
+        | "контрагент" => Some(("CLIENT", Category::Custom, false, 0.90)),
+        "company"
+        | "companyname"
+        | "organization"
+        | "org"
+        | "orgname"
+        | "vendor"
+        | "employer"
+        | "компания"
+        | "организация"
+        | "юрлицо"
         | "работодатель" => Some(("ORG", Category::Custom, false, 0.90)),
         "domain" | "corpdomain" | "домен" => Some(("DOM", Category::Infra, false, 0.90)),
-        "inn" | "snils" | "passport" | "passportnumber" | "taxid" | "ssn" | "card"
-        | "cardnumber" | "iban" | "accountnumber" | "инн" | "снилс" | "паспорт"
-        | "номерпаспорта" | "номеркарты" | "расчетныйсчет" => {
-            Some(("ID", Category::Identity, false, 0.92))
-        }
+        "inn"
+        | "snils"
+        | "passport"
+        | "passportnumber"
+        | "taxid"
+        | "ssn"
+        | "card"
+        | "cardnumber"
+        | "iban"
+        | "accountnumber"
+        | "инн"
+        | "снилс"
+        | "паспорт"
+        | "номерпаспорта"
+        | "номеркарты"
+        | "расчетныйсчет" => Some(("ID", Category::Identity, false, 0.92)),
         _ => None,
     };
 
@@ -298,15 +403,9 @@ impl Recognizer for Tabular {
                 if cs >= ce || is_trivial_cell(&text[cs..ce], spec.category) {
                     continue;
                 }
-                let mut cand = Candidate::new(
-                    cs,
-                    ce,
-                    spec.kind.clone(),
-                    spec.category,
-                    ID,
-                    spec.prior,
-                )
-                .with_evidence(format!("column:{}", spec.header), 1.1);
+                let mut cand =
+                    Candidate::new(cs, ce, spec.kind.clone(), spec.category, ID, spec.prior)
+                        .with_evidence(format!("column:{}", spec.header), 1.1);
                 if spec.hard {
                     cand = cand.hard();
                 }
@@ -339,19 +438,34 @@ mod tests {
             .iter()
             .map(|c| (c.kind.clone(), csv[c.start..c.end].to_string()))
             .collect();
-        assert!(found.contains(&("EMAIL".into(), "alice@corp.ru".into())), "{found:?}");
+        assert!(
+            found.contains(&("EMAIL".into(), "alice@corp.ru".into())),
+            "{found:?}"
+        );
         assert!(
             found.contains(&("PERSON".into(), "Иванова Алиса Сергеевна".into())),
             "{found:?}"
         );
-        assert!(found.contains(&("AMOUNT".into(), "285 000".into())), "{found:?}");
+        assert!(
+            found.contains(&("AMOUNT".into(), "285 000".into())),
+            "{found:?}"
+        );
         assert!(
             found.contains(&("HOST".into(), "db-prod-01.internal".into())),
             "{found:?}"
         );
-        assert!(found.contains(&("PERSON".into(), "Бобров Борис".into())), "{found:?}");
-        assert!(found.contains(&("AMOUNT".into(), "190000".into())), "{found:?}");
-        assert!(found.contains(&("HOST".into(), "cache-node-02".into())), "{found:?}");
+        assert!(
+            found.contains(&("PERSON".into(), "Бобров Борис".into())),
+            "{found:?}"
+        );
+        assert!(
+            found.contains(&("AMOUNT".into(), "190000".into())),
+            "{found:?}"
+        );
+        assert!(
+            found.contains(&("HOST".into(), "cache-node-02".into())),
+            "{found:?}"
+        );
         assert!(!found.iter().any(|(_, v)| v == "active" || v == "pending"));
     }
 
@@ -365,8 +479,17 @@ mod tests {
             .iter()
             .map(|c| (c.kind.clone(), tsv[c.start..c.end].to_string()))
             .collect();
-        assert!(found.contains(&("PERSON".into(), "Петров Пётр".into())), "{found:?}");
-        assert!(found.contains(&("SECRET".into(), "sup3rSecretPass".into())), "{found:?}");
-        assert!(found.contains(&("PROJ".into(), "Аврора-Пэй".into())), "{found:?}");
+        assert!(
+            found.contains(&("PERSON".into(), "Петров Пётр".into())),
+            "{found:?}"
+        );
+        assert!(
+            found.contains(&("SECRET".into(), "sup3rSecretPass".into())),
+            "{found:?}"
+        );
+        assert!(
+            found.contains(&("PROJ".into(), "Аврора-Пэй".into())),
+            "{found:?}"
+        );
     }
 }

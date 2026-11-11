@@ -9,8 +9,8 @@ The overview diagrams are editable SVGs, not application screenshots:
 | `kaponir-masking.jpg` | Russian | Existing masking laboratory capture |
 | `kaponir-worker.jpg` | Russian | Existing document worker capture |
 
-English UI captures are still pending. Do not reuse the Russian captures in the English
-README or translate text over a screenshot. Keep the real application state visible.
+The `console-dashboard-*-en.png` assets are real English UI captures. Do not translate text
+over screenshots or reuse Russian captures in the English README.
 
 ## Capturing replacement screenshots
 
@@ -35,3 +35,10 @@ When screenshot capture is available:
 
 Do not create screenshots by compositing, image generation, or replacing UI labels in an
 image. Update the workflow SVGs directly when the documented flow changes.
+
+## Консоль после переработки
+
+`console-dashboard-dark.png`, `console-dashboard-light.png`, их варианты `-en.png` и `console-documents-dark.png`
+сняты `scripts/validate_console.py` на синтетическом трафике локального fixture-поставщика.
+Скрипт также проверяет 390/768/1440 px, RU/EN, потоковые ответы, аудит и запуск воркера.
+Полные снимки и журнал сохраняются в `artifacts/console` (также доступны как артефакт CI).

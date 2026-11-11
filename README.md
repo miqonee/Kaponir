@@ -38,7 +38,7 @@ Detection depends on your policy and data; review representative examples before
 | **Set your own policy** | Exact values, regex, Composite DSL templates, MASK/KEEP, per-kind strategies, and Personal/Team/Global scopes with enforced global rules. Language/domain packs and custom dictionaries extend detection. |
 | **Connect an AI agent** | OpenAI Chat Completions and Anthropic Messages; supported message text, tool results and arguments, buffered responses, SSE, and session memory. |
 | **Manage provider connections** | Up to 64 connections with encrypted keys, custom compatible endpoints, model pools, session affinity, and opt-in HTTP 429 retry. |
-| **Build rules from documents** | Local discovery plus optional Xiaomi model-based candidates; text, images, PDF, and exported sessions; persistent worker queue, review, and explicit rule confirmation. |
+| **Build rules from documents** | Local discovery plus optional local Qwen candidates; text, images, PDF, and exported sessions; persistent worker queue, review, and explicit rule confirmation. |
 | **Operate and integrate** | English/Russian Web UI, sidecar REST, Docker Compose, settings transfer, sanitized events, JSON metrics, and Prometheus. |
 
 Optional **S1** scores already detected uncertain candidates using a local model or HTTP service.
@@ -85,7 +85,7 @@ and verify the route with synthetic data first.
 
 For file processing, `--dry-run`, proxy client setup, OCR, and Docker, see the examples below
 and the [CLI reference](docs/COMMANDS.md). Every native worker needs Python 3.12+, including
-for text files. Images/PDF and Xiaomi mode need additional dependencies; the regular
+for text files. Images/PDF and Qwen mode need additional dependencies; the regular
 mask/restore CLI and proxy do not require Python.
 
 ### Proxy for an existing client
@@ -108,11 +108,21 @@ verified the address, route, and rules with synthetic data.
 
 ## Web UI
 
-The built-in panel includes a masking laboratory, rules and decision review, provider
-connections, traffic metrics, document discovery, and worker controls. Switch to **EN**
-in the header for English labels. [Panel guide](docs/CONTROL_PANEL.md).
+The dashboard shows proxy statistics and grouped sessions. **Local analysis** contains S1
+settings and worker activation; document analysis and its collection remain separate tools.
+Screenshots use synthetic traffic against a local fixture provider.
 
-<!-- Add only genuine English-interface captures here. See docs/images/README.md. -->
+![Dashboard in dark mode](docs/images/console-dashboard-dark-en.png)
+
+<details>
+<summary>Light mode</summary>
+
+![Dashboard in light mode](docs/images/console-dashboard-light-en.png)
+
+
+</details>
+
+[Control panel guide](docs/CONTROL_PANEL.md) · [Worker guide](docs/WORKER.md)
 
 <a id="kaponir-and-microsoft-presidio"></a>
 
@@ -134,7 +144,7 @@ additional data-processing modules, and gateway integrations.
 | **LLM requests and responses** | Built-in Chat Completions/Anthropic proxy, SSE restoration, and supported tool arguments/results. | Documented gateway integrations, including LiteLLM; protocol handling, streaming, and restoration depend on the chosen integration. |
 | **Gateway integration and routing** | Sidecar REST with per-session streaming restoration, up to 64 provider connections, model pools, session affinity, and opt-in HTTP 429 retry. | Analyzer/anonymizer HTTP services; provider routing, keys, and session handling are supplied by the gateway or application integration. |
 | **Files and structured data** | CLI pipelines, configuration formats, and REST; discovery over text and extracted document content. | Python/REST, batch processing, and a dedicated structured/semi-structured data package. |
-| **Images and PDF** | Worker extracts text for discovery and review; optional Xiaomi candidate discovery. Does not redact source pixels. | Image-redactor uses OCR and detection to redact image pixels. |
+| **Images and PDF** | Worker extracts text for discovery and review; optional Qwen candidate discovery. Does not redact source pixels. | Image-redactor uses OCR and detection to redact image pixels. |
 | **Review and adaptation** | Web laboratory, decision review, saved suggestions → confirmed rules; optional S1 scoring and local training on confirmed decisions. | Analyzer decision explanations and configurable recognizers/models; a review and rule-approval workflow can be built around the APIs. |
 | **Running the workflow** | CLI + bilingual Web UI + proxy in one Rust binary; optional Python worker and Compose; provider pools and metrics. | Python packages, HTTP services, Docker/Kubernetes deployment examples, and ecosystem integrations. |
 
@@ -196,10 +206,10 @@ For a persistent queue, run `kaponir worker serve` alongside `kaponir serve`. Th
 text, passes it to discover, and stores suggestions; OCR model output does not become rules.
 Q4/Q5 downloads, job management, and Compose are described in the [worker guide](docs/WORKER.md).
 
-For model-based candidate discovery, select **Xiaomi candidates + local discovery** in the UI.
+For model-based candidate discovery, select **Qwen3 semantic search (CPU) + local detectors** in the UI.
 Findings are checked against source text and require confirmation before becoming rules.
-Saved TXT/Markdown/JSON/JSONL session exports can be submitted as files; automatic session
-capture and directory watching are not implemented. [Worker setup and modes](docs/WORKER.md).
+Retained sessions appear in Events and can be analyzed through `@sessions`.
+TXT/Markdown/JSON/JSONL exports can also be submitted as files; directory watching is not implemented. [Worker setup and modes](docs/WORKER.md).
 
 ### 5. Integrate processing into a custom gateway
 
@@ -225,7 +235,7 @@ cp deploy/compose.env.example .env
 mkdir -p documents
 
 docker compose up -d --build kaponir                 # proxy only
-docker compose --profile analysis up -d --build      # proxy + worker
+docker compose up -d --build                         # proxy + worker management service
 ```
 
 Compose stores the vault, keys, queue, and models in volumes; the document directory is mounted
@@ -308,7 +318,7 @@ Understand these boundaries before using Kaponir with real data:
 - **The proxy does not support the OpenAI Responses API.** Supported interfaces are Chat Completions, Anthropic Messages, and sidecar REST.
 - **Not every model will preserve meaning.** Substitutions change the text visible to the model; exact restoration is possible only for tokens returned without distortion.
 - **In-memory traffic is not an audit log.** The overview and events are bounded and lost on restart.
-- **Xiaomi findings need review.** The model can miss values or propose unnecessary ones; it does not automatically make mask/keep decisions.
+- **Qwen findings need review.** The model can miss values or propose unnecessary ones; it does not automatically make mask/keep decisions.
 - **Team/Global are not RBAC.** Separate user roles and a shared multi-server vault are not implemented.
 - **The server trusts the workspace owner.** Kaponir does not protect data from a host administrator who controls the process, memory, keys, and vault.
 - **Synthetic regressions are not a production evaluation.** Saved corpora verify known scenarios, not universal completeness and accuracy.

@@ -36,6 +36,9 @@ pub struct Rule {
     /// Только для Global: правило нельзя перекрыть правилами других контуров.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub enforced: bool,
+    /// Disabled rules are retained for audit/undo but never applied or trained on.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub disabled: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<Category>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -77,7 +80,7 @@ impl RuleFile {
             lex.corp_domains
                 .insert(d.trim().trim_start_matches('.').to_lowercase());
         }
-        for r in &self.rules {
+        for r in self.rules.iter().filter(|r| !r.disabled) {
             if r.action == RuleAction::Keep
                 && let Some(v) = &r.value
                 && !v.is_empty()

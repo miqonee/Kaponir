@@ -10,21 +10,22 @@ services:
     environment:
       KAPONIR_API_TOKEN: ${KAPONIR_API_TOKEN:?Set KAPONIR_API_TOKEN}
       KAPONIR_WORKER_URL: http://worker:8788
-      KAPONIR_WORKER_TOKEN: ${KAPONIR_WORKER_TOKEN:-}
+      KAPONIR_WORKER_TOKEN: ${KAPONIR_WORKER_TOKEN:-${KAPONIR_API_TOKEN}}
     volumes:
       - kaponir-data:/data
     restart: unless-stopped
     mem_limit: 1g
   worker:
-    profiles: [analysis]
+    command: ["serve", "--idle"]
     build:
       context: .
       target: worker
       args:
         KAPONIR_BUILD: ${KAPONIR_BUILD:-source}
     environment:
-      KAPONIR_WORKER_TOKEN: ${KAPONIR_WORKER_TOKEN:-}
+      KAPONIR_WORKER_TOKEN: ${KAPONIR_WORKER_TOKEN:-${KAPONIR_API_TOKEN}}
       KAPONIR_API_TOKEN: ${KAPONIR_API_TOKEN:?Set KAPONIR_API_TOKEN}
+      KAPONIR_WORKER_API_URL: http://kaponir:8787
     volumes:
       - kaponir-data:/data
       - kaponir-models:/models

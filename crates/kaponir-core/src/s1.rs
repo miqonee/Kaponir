@@ -72,6 +72,7 @@ pub fn confirmed_profile(rules: &[ScopedRules]) -> Vec<ProfileValue> {
     let excluded: Vec<_> = rules
         .iter()
         .flat_map(|s| &s.file.rules)
+        .filter(|r| !r.disabled)
         .filter(|r| r.category == Some(Category::Credential) || !profile_kind_allowed(&r.kind))
         .filter_map(|r| r.value.as_ref())
         .map(|v| v.trim().to_lowercase())
@@ -79,7 +80,7 @@ pub fn confirmed_profile(rules: &[ScopedRules]) -> Vec<ProfileValue> {
         .collect();
     let mut values = std::collections::BTreeMap::new();
     for set in rules {
-        for rule in &set.file.rules {
+        for rule in set.file.rules.iter().filter(|r| !r.disabled) {
             if rule.action != crate::rules::RuleAction::Mask
                 || rule.category == Some(Category::Credential)
                 || !profile_kind_allowed(&rule.kind)
@@ -180,7 +181,8 @@ pub fn classify_from_score(
             || low.contains("деплой")
         {
             scope = crate::types::Scope::Team;
-        } else if low.contains("личн") || low.contains("мой ") || low.contains("пароль") {
+        } else if low.contains("личн") || low.contains("мой ") || low.contains("пароль")
+        {
             scope = crate::types::Scope::Personal;
         }
     }

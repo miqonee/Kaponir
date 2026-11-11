@@ -219,23 +219,24 @@ async function loadInfo() {
   badge.textContent = s.journal_open || '';
   badge.hidden = !s.journal_open;
   document.body.classList.toggle('readonly', !info.editable);
-  $('#rf').hidden = !info.editable;
+  $('#rf').hidden = !info.editable || (typeof rulesView !== 'undefined' && rulesView === 'audit');
   renderPacks();
   if (typeof setConnected === 'function') setConnected(true);
 }
 
 const TABS = { mask: () => {}, restore: () => {}, review: () => Promise.all([loadJournal(), loadInfo()]), rules: () => loadRules(), discover: () => renderDiscover(), metrics: () => loadMetrics() };
 
-function showTab(name) {
+function showTab(name, push = true) {
+  if (name === 's1') name = 'analysis';
   if (!TABS[name]) name = 'overview';
-  const nav = name === 'restore' ? 'mask' : ['setup','discover','metrics','worker'].includes(name) ? 'settings' : name;
+  const nav = name === 'restore' ? 'mask' : name === 'worker' ? 'analysis' : ['setup','metrics'].includes(name) ? 'settings' : name;
   for (const b of document.querySelectorAll('.tabs button')) {
     b.setAttribute('aria-selected', String(b.dataset.tab === nav));
     if (b.dataset.tab === nav) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   for (const s of document.querySelectorAll('.tab')) s.hidden = s.id !== 'tab-' + name;
   hidePop();
-  history.replaceState(null, '', '#' + name);
+  if (location.hash !== '#' + name) history[push ? 'pushState' : 'replaceState'](null, '', '#' + name);
   if (typeof panelHeading === 'function') panelHeading(name);
   Promise.resolve(TABS[name]()).catch(fail);
 }
@@ -691,6 +692,7 @@ $('#r-copy').addEventListener('click', async () => {
 // ---------- Разбор ----------
 
 let jView = 'list';
+const reviewRecommendations = new Map();
 
 for (const b of document.querySelectorAll('#j-view button')) {
   b.addEventListener('click', () => {
@@ -702,28 +704,22 @@ for (const b of document.querySelectorAll('#j-view button')) {
 $('#j-status').addEventListener('change', () => loadJournal().catch(fail));
 $('#j-refresh').addEventListener('click', () => Promise.all([loadJournal(), loadInfo()]).catch(fail));
 
-try {
-  if ($('#j-auto-save')) {
-    $('#j-auto-save').checked = localStorage.getItem('kaponir-auto-save-review') === '1';
-    $('#j-auto-save').addEventListener('change', (e) => {
-      try { localStorage.setItem('kaponir-auto-save-review', e.target.checked ? '1' : '0'); } catch {}
-    });
-  }
-} catch {}
+if ($('#j-auto-save')) { $('#j-auto-save').checked=false; $('#j-auto-save').closest('label').hidden=true; }
 
 if ($('#j-auto-review')) {
   $('#j-auto-review').addEventListener('click', async () => {
     const btn = $('#j-auto-review');
     if (btn.disabled) return;
     btn.disabled = true;
-    const autoSave = $('#j-auto-save') ? $('#j-auto-save').checked : false;
+    const autoSave = false;
     try {
       const res = await api('/api/v1/ui/journal/auto-review', {
         method: 'POST',
-        body: { auto_save: autoSave, threshold: 0.85 },
+        body: { auto_save: autoSave, auto_save_threshold: 0.85 },
       });
       toast(tr("Авторазбор: классифицировано {{0}}, автоматически сохранено правил: {{1}}", [res.reviewed || 0, res.auto_saved || 0]));
-      await afterRulesChanged();
+      for(const item of res.items||[])reviewRecommendations.set(item.id,item);
+      await loadJournal();
     } catch (e) { fail(e); }
     finally { btn.disabled = false; }
   });
@@ -826,8 +822,8 @@ async function loadJournal() {
       h('tbody', {}, rows.map((r) => {
         const ro = !info.editable;
         const open = r.status === 'open';
-        const kindSel = open ? makeKindSelect(r.kind, ro) : kindBadge(r.kind);
-        const recScope = r.recommended_scope || defaultScopeForKind(r.kind);
+        const kindSel = open ? makeKindSelect(reviewRecommendations.get(r.id)?.kind||r.kind, ro) : kindBadge(r.kind);
+        const recScope = reviewRecommendations.get(r.id)?.scope || r.recommended_scope || defaultScopeForKind(r.kind);
         const scopeSel = open ? makeScopeSelect(recScope, ro) : h('span', { class: 'tag', text: SCOPE_NAMES[recScope] || recScope });
         if (open) {
           let userChangedScope = false;
@@ -841,7 +837,7 @@ async function loadJournal() {
             h('div', {}, h('span', { class: 'mono', text: r.value }), ' ', h('span', { class: 'tag', text: '×' + r.count })),
             r.context ? h('div', { class: 'context', text: r.context }) : null
           ),
-          h('td', {}, renderVerdictCell(r)),
+          h('td', {}, renderVerdictCell(r), reviewRecommendations.has(r.id)?h('p',{class:'hint'},tr('Рекомендация: {{0}}',[tr(reviewRecommendations.get(r.id).action==='mask'?'маскировать':'не маскировать')])):null),
           h('td', {}, h('code', { text: r.recognizer })),
           h('td', {}, kindSel),
           h('td', {}, scopeSel),
@@ -908,7 +904,25 @@ $('#j-template').addEventListener('submit', async (e) => {
 
 // ---------- Первоначальная настройка ----------
 
-const D = { documents: [], report: null, selected: new Set(), saved:false, busy:false };
+const D = { documents: [], report: null, selected: new Set(), saved:false, busy:false, view:'input', views:{} };
+
+function syncDiscoveryActions() {
+  for (const id of ['d-apply','d-reject','d-none']) $('#'+id).hidden=!D.selected.size;
+  $('#d-scope').closest('label').hidden=!D.selected.size;
+  document.querySelector('#discover-result-pane .selection-help').hidden=!D.selected.size;
+}
+async function showDiscoverView(view, skipLoad=false) {
+  if(D.busy)return;
+  D.views[D.view]={report:D.report,selected:new Set(D.selected),saved:D.saved,documents:D.documents};
+  D.view=view;
+  const previous=D.views[view];
+  D.report=previous?.report||null;D.selected=previous?.selected||new Set();D.saved=view==='saved';D.documents=previous?.documents||[];
+  $('#discover-input-pane').hidden=view!=='input';
+  $('#d-input-view').setAttribute('aria-pressed',String(view==='input'));$('#d-saved').setAttribute('aria-pressed',String(view==='saved'));
+  if(view==='saved'&&!skipLoad){D.busy=true;renderDiscover();try{const r=await api('/api/v1/ui/discover/profile');D.report=r.report;D.selected.clear();}catch(e){fail(e);}finally{D.busy=false;}}
+  renderDiscover();
+}
+$('#d-input-view').addEventListener('click',()=>showDiscoverView('input'));
 
 async function discoverDocuments() {
   const files = [...$('#d-files').files];
@@ -924,6 +938,7 @@ async function discoverDocuments() {
 }
 
 function updateDiscoverStatus() {
+  syncDiscoveryActions();
   if (!D.report) return;
   const r = D.report;
   const mode = {not_requested:'S1 не запрашивался',off:'S1 выключен: показаны локальные предложения',scored:'Оценки S1 получены',partial:'S1: оценена только часть примеров',unavailable:'S1 недоступен: предложения сохранены без оценок',no_candidates:'Нет кандидатов для S1',stored:'Сохранённая подборка'};
@@ -931,6 +946,7 @@ function updateDiscoverStatus() {
 }
 
 function renderDiscover() {
+  syncDiscoveryActions();
   const list = $('#d-list');
   const report = D.report;
   $('#d-apply').disabled = D.busy || !info.editable || !D.selected.size;
@@ -1009,19 +1025,12 @@ async function decideDiscover(action) {
 }
 $('#d-apply').addEventListener('click', () => decideDiscover('mask'));
 $('#d-reject').addEventListener('click', () => decideDiscover('not_sensitive'));
-$('#d-saved').addEventListener('click', async () => {
-  if (D.busy) return;
-  D.busy=true;
-  try {
-    const result=await api('/api/v1/ui/discover/profile');
-    D.report=result.report; D.saved=true; D.selected.clear();
-  } catch(e) { fail(e); }
-  finally { D.busy=false; renderDiscover(); }
-});
+$('#d-saved').addEventListener('click',()=>showDiscoverView('saved'));
 
 async function analyzeProxySessions() {
   if (D.busy) return;
   showTab('discover');
+  await showDiscoverView('saved',true);
   D.busy = true;
   renderDiscover();
   $('#d-status').textContent = tr("Анализ завершённых сессий прокси из Vault…");
@@ -1141,9 +1150,9 @@ async function loadRules() {
           h('thead', {}, h('tr', {}, ...['№', tr("Действие"), tr("Тип"), tr("Что ищем"), '', tr("Заметка"), ''].map((c) => h('th', { text: c })))),
           h('tbody', {}, rules.map((r, i) => {
             const [pt, pv] = rulePattern(r);
-            return h('tr', {},
+            return h('tr', {class:r.disabled?'disabled-rule':''},
               h('td', { class: 'num', text: r.id || i + 1 }),
-              h('td', {}, h('span', { class: 'tag ' + (r.action || 'mask'), text: r.action === 'keep' ? tr("не маскировать") : tr("маскировать") })),
+              h('td', {}, h('span', { class: 'tag ' + (r.action || 'mask'), text: r.disabled ? tr('Отключено') : r.action === 'keep' ? tr("не маскировать") : tr("маскировать") })),
               h('td', {}, r.action === 'keep' ? '' : kindBadge(r.kind)),
               h('td', {}, h('span', { class: 'hint', text: pt + ' ' }), h('span', { class: 'mono', text: pv })),
               h('td', {},
@@ -1185,7 +1194,7 @@ async function startApp() {
     await loadInfo();
   } catch (e) { fail(e); }
   const tab = location.hash.slice(1);
-  showTab(TABS[tab] ? tab : 'overview');
+  showTab(tab === 's1' ? 'analysis' : TABS[tab] ? tab : 'overview', false);
   renderAdhoc();
   renderMask();
 }

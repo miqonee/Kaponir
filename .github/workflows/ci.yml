@@ -11,7 +11,7 @@ concurrency:
 jobs:
   quality:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - name: Rust toolchain
@@ -23,10 +23,22 @@ jobs:
       - run: python3 scripts/check_docs.py
       - name: JavaScript syntax
         run: |
-          node --check crates/kaponir-proxy/assets/app.js
-          node --check crates/kaponir-proxy/assets/panel.js
-          node --check crates/kaponir-proxy/assets/i18n.js
+          for script in crates/kaponir-proxy/assets/*.js; do
+            node --check "$script"
+          done
       - run: cargo build --locked --release -p kaponir-cli
+      - name: Browser console regression
+        run: |
+          python3 -m venv .venv-browser
+          .venv-browser/bin/python -m pip install playwright
+          .venv-browser/bin/python -m playwright install --with-deps chromium
+          .venv-browser/bin/python scripts/validate_console.py target/release/kaponir --output artifacts/console
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: console-${{ github.sha }}
+          path: artifacts/console
+          if-no-files-found: ignore
       - run: python3 scripts/release_check.py target/release/kaponir --output dist
       - uses: actions/upload-artifact@v4
         with:

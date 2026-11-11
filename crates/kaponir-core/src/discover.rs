@@ -192,7 +192,7 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
         // All occurrences are rediscovered locally, retaining UTF-8 byte offsets.
         let mut model_occurrences = 0;
         'model: for hint in doc.model_candidates.iter().take(MAX_SUGGESTIONS) {
-            if !hint.valid_for(&doc.text) {
+            if !hint.valid_for(&doc.text) || weak_business_value(&hint.kind, &hint.value) {
                 continue;
             }
             for (start, value) in doc.text.match_indices(&hint.value) {
@@ -208,8 +208,8 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
                         existing.kind = hint.kind.clone();
                         existing.category = Category::Credential;
                     }
-                    if !existing.reason.contains("Xiaomi") {
-                        existing.reason.push_str("; также предложено Xiaomi");
+                    if !model_proposed(&existing.reason) {
+                        existing.reason.push_str("; также предложено моделью");
                     }
                 } else {
                     spans.push(Span {
@@ -217,8 +217,8 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
                         end,
                         kind: hint.kind.clone(),
                         category: profile_categories()[hint.kind.as_str()],
-                        reason: "кандидат Xiaomi, значение проверено по источнику".into(),
-                        recognizer: "xiaomi".into(),
+                        reason: "кандидат модели, значение проверено по источнику".into(),
+                        recognizer: "model".into(),
                     });
                 }
             }
@@ -444,12 +444,59 @@ struct Span {
     recognizer: String,
 }
 
+fn model_proposed(reason: &str) -> bool {
+    reason.contains("Xiaomi")
+        || reason.contains("кандидат модели")
+        || reason.contains("предложено моделью")
+}
+
+/// Values which provide no evidence of a private business entity. Exact user rules
+/// may still intentionally protect these values; this only filters suggestions.
+pub fn weak_business_value(kind: &str, value: &str) -> bool {
+    let v = value.trim().to_lowercase();
+    if v.is_empty() || v.chars().all(|c| !c.is_alphanumeric()) {
+        return true;
+    }
+    if !matches!(kind, "PROJ" | "ORG" | "CLIENT" | "CUSTOM") {
+        return false;
+    }
+    matches!(
+        v.as_str(),
+        "или"
+            | "и"
+            | "как"
+            | "это"
+            | "для"
+            | "the"
+            | "and"
+            | "or"
+            | "project"
+            | "character"
+            | "questions"
+            | "name"
+            | "value"
+            | "example"
+            | "null"
+            | "none"
+    ) || [
+        "gemini-",
+        "gpt-",
+        "claude-",
+        "qwen3-",
+        "qwen3.5-",
+        "llama-",
+        "deepseek-",
+    ]
+    .iter()
+    .any(|p| v.starts_with(p))
+}
+
 fn business_spans(text: &str) -> Vec<Span> {
     let mut spans = Vec::new();
     for (re, kind, category, reason) in business_patterns() {
         for caps in re.captures_iter(text) {
             let m = caps.name("value").unwrap();
-            if m.as_str().chars().count() > 240 {
+            if m.as_str().chars().count() > 240 || weak_business_value(kind, m.as_str()) {
                 continue;
             }
             if *kind == "ID" && !m.as_str().chars().any(|c| c.is_ascii_digit()) {
@@ -712,8 +759,8 @@ impl Profile {
                 continue;
             }
             if let Some(current) = merged.suggestions.iter_mut().find(|s| s.id == incoming.id) {
-                if incoming.reason.contains("Xiaomi") && !current.reason.contains("Xiaomi") {
-                    current.reason.push_str("; также предложено Xiaomi");
+                if model_proposed(&incoming.reason) && !model_proposed(&current.reason) {
+                    current.reason.push_str("; также предложено моделью");
                 }
                 for (document, count) in &incoming.occurrences {
                     current
@@ -795,4 +842,21 @@ pub fn selected_suggestions<'a>(
                 .ok_or_else(|| format!("unknown suggestion id `{id}`"))
         })
         .collect()
+}
+
+#[cfg(test)]
+mod precision_regressions {
+    use super::*;
+
+    #[test]
+    fn ordinary_words_and_public_model_ids_are_not_business_suggestions() {
+        let engine = Engine::builder([0; 32]).build().unwrap();
+        let report = analyze(&engine, &[Document {
+            name: "prose".into(),
+            text: "project character\nproject questions\nпроект или\nproject gemini-3.8-flash\npassword: ...\nПроект: Лунная Слива".into(),
+            format: crate::Format::Text, model_candidates: Vec::new(),
+        }]);
+        assert_eq!(report.suggestions.len(), 1, "{report:?}");
+        assert_eq!(report.suggestions[0].value, "Лунная Слива");
+    }
 }

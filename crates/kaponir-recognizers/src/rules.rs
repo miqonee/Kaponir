@@ -107,6 +107,9 @@ impl RulesRecognizer {
         let mut patterns = Vec::new();
         for set in sets {
             for (n, r) in set.file.rules.iter().enumerate() {
+                if r.disabled {
+                    continue;
+                }
                 let id = if r.id.is_empty() {
                     format!("{}#{}", set.scope, n + 1)
                 } else {

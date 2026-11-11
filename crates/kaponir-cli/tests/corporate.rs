@@ -149,7 +149,32 @@ fn ocr_regression_covers_contracts_passwords_and_public_paths() {
         })
         .map(|s| s.id.clone())
         .collect();
-    assert_eq!(ids.len(), 2, "не найдены оба закрытых значения: {report:?}");
+    // Values already protected by built-in detectors are intentionally omitted
+    // from discovery. Check confidentiality, rather than requiring duplicate rules.
+    assert!(
+        report
+            .suggestions
+            .iter()
+            .any(|s| s.kind == "ID" && s.value == "CN-48291")
+    );
+    let baseline = engine
+        .mask(
+            &Input::text(text),
+            &MaskOptions::default(),
+            &mut kaponir_core::MemoryVault::new(),
+        )
+        .unwrap();
+    assert!(
+        report
+            .suggestions
+            .iter()
+            .any(|s| s.kind == "SECRET" && s.value == "Cedar-47!Plum")
+            || baseline
+                .replacements
+                .iter()
+                .any(|r| r.kind == "SECRET" && r.original == "Cedar-47!Plum"),
+        "password must be protected or suggested"
+    );
     assert!(
         !report.suggestions.iter().any(|s| s.value == "pricing"),
         "публичный путь не должен становиться кандидатом"

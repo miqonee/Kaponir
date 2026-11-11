@@ -186,7 +186,7 @@ pub fn prepare_import(v: &SqliteVault, mut incoming: Registry) -> anyhow::Result
     Ok(serde_json::to_vec(&incoming)?)
 }
 
-fn registry(st: &Shared) -> Result<Registry, ApiError> {
+pub(crate) fn registry(st: &Shared) -> Result<Registry, ApiError> {
     st.with_vault(|_, v| load(v)).map_err(internal)
 }
 pub(crate) fn saved(st: &Shared, kind: &str) -> Result<Option<Provider>, ApiError> {

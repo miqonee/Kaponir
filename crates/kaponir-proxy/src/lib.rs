@@ -31,6 +31,13 @@ pub use state::{Cx, State};
 
 pub type Shared = Arc<State>;
 
+/// Host integration for launching one managed local worker. External workers use HTTP.
+pub trait WorkerManager: Send + Sync {
+    fn endpoint(&self) -> String;
+    fn start(&self) -> anyhow::Result<()>;
+    fn running(&self) -> bool;
+}
+
 /// Правила одного контура, как они лежат в хранилище правил.
 #[derive(Clone, Debug, Serialize)]
 pub struct RuleSet {
@@ -58,6 +65,25 @@ pub trait Control: Send + Sync {
     fn add_rule(&self, scope: Scope, rule: Rule) -> anyhow::Result<()>;
     /// Удаляет правило по номеру в контуре (как в `rules()`), возвращает удалённое.
     fn remove_rule(&self, scope: Scope, index: usize) -> anyhow::Result<Rule>;
+    fn set_rule_disabled(
+        &self,
+        _scope: Scope,
+        _index: usize,
+        _revision: &str,
+        _disabled: bool,
+    ) -> anyhow::Result<()> {
+        anyhow::bail!("rule audit is unavailable")
+    }
+    fn set_rules_disabled(
+        &self,
+        scope: Scope,
+        indices: &[usize],
+        revision: &str,
+        disabled: bool,
+    ) -> anyhow::Result<()> {
+        anyhow::ensure!(indices.len() == 1, "bulk rule audit is unavailable");
+        self.set_rule_disabled(scope, indices[0], revision, disabled)
+    }
     /// Заменяет список корпоративных доменов контура.
     fn set_corp_domains(&self, scope: Scope, domains: &[String]) -> anyhow::Result<()>;
     fn build_engine(&self) -> anyhow::Result<Engine>;
@@ -124,7 +150,20 @@ pub async fn serve(state: Shared, listen: &str) -> anyhow::Result<()> {
 pub async fn serve_on(state: Shared, listener: tokio::net::TcpListener) -> anyhow::Result<()> {
     axum::serve(listener, router(state))
         .with_graceful_shutdown(async {
-            let _ = tokio::signal::ctrl_c().await;
+            #[cfg(unix)]
+            {
+                if let Ok(mut terminate) =
+                    tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                {
+                    tokio::select! { _ = tokio::signal::ctrl_c() => {}, _ = terminate.recv() => {} }
+                } else {
+                    let _ = tokio::signal::ctrl_c().await;
+                }
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = tokio::signal::ctrl_c().await;
+            }
         })
         .await?;
     Ok(())

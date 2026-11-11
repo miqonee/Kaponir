@@ -107,6 +107,11 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/info", get(info))
         .route("/api/v1/ui/events", get(ui_events))
         .route("/api/v1/ui/events/{id}", get(ui_event_by_id))
+        .route(
+            "/api/v1/ui/rules/audit",
+            get(audit_rules).put(update_audit_rule),
+        )
+        .route("/api/v1/ui/rules/audit/memory", put(update_memory_audit))
         .route("/api/v1/ui/config/export", post(export_settings))
         .route("/api/v1/ui/config/import", post(import_settings))
         .route("/api/v1/ui/s1", get(get_s1).put(put_s1))
@@ -115,6 +120,7 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/restore", post(restore))
         .route("/api/v1/ui/discover", post(discover))
         .route("/api/v1/ui/discover/sessions", post(discover_sessions))
+        .route("/api/v1/ui/sessions/export", get(export_sessions))
         .route("/api/v1/ui/discover/profile", get(discovery_profile))
         .route("/api/v1/ui/discover/apply", post(apply_discover))
         .route("/api/v1/journal", get(journal))
@@ -200,6 +206,7 @@ async fn import_settings(
     Json(bundle): Json<serde_json::Value>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     // Serialize against model refresh and provider writes while replacing the registry.
     let _refresh = st.provider_refresh.lock().await;
     st.with_vault(|_, _| {
@@ -223,12 +230,26 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     let engine = st.engine();
     let openai = crate::providers::saved(&st, "openai")?;
     let anthropic = crate::providers::saved(&st, "anthropic")?;
+    let registry = crate::providers::registry(&st)?;
+    let provider_configured = registry.connections.iter().any(|p| p.enabled)
+        || (registry.managed.is_empty()
+            && (st.cfg.openai_upstream != crate::ProxyConfig::default().openai_upstream
+                || st.cfg.anthropic_upstream != crate::ProxyConfig::default().anthropic_upstream
+                || st
+                    .traffic
+                    .summary_snapshot()
+                    .events
+                    .iter()
+                    .any(|e| e.sent && e.status < 400 && e.status >= 200)));
     let stats = st.with_vault(|_, v| Ok(v.stats()?)).map_err(internal)?;
     let (rules_count, corp_domains_count) = control(&st)
         .ok()
         .and_then(|ctl| ctl.rules().ok())
         .map_or((0usize, 0usize), |sets| {
-            let r = sets.iter().map(|s| s.file.rules.len()).sum();
+            let r = sets
+                .iter()
+                .map(|s| s.file.rules.iter().filter(|r| !r.disabled).count())
+                .sum();
             let d = sets.iter().map(|s| s.file.corp.domains.len()).sum();
             (r, d)
         });
@@ -254,6 +275,7 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
         "s1_mode": engine.s1_mode(),
         "uncertain_policy": uncertain_policy,
         "rules_count": rules_count,
+        "provider_configured": provider_configured,
         "corp_domains_count": corp_domains_count,
         "unique_entities": stats.entries,
         "api_token_required": st.cfg.api_token.is_some(),
@@ -276,7 +298,7 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
 
 async fn ui_events(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     authorized(&st, &headers, true)?;
-    Ok(Json(st.traffic.snapshot()).into_response())
+    Ok(Json(st.traffic.summary_snapshot()).into_response())
 }
 
 async fn ui_event_by_id(
@@ -291,7 +313,7 @@ async fn ui_event_by_id(
     let from_vault: Option<crate::traffic::Event> = st
         .with_vault(|_, v| {
             for raw in v.load_traffic_events(200)? {
-                if let Ok(ev) = serde_json::from_str::<crate::traffic::Event>(&raw)
+                if let Ok(ev) = serde_json::from_slice::<crate::traffic::Event>(&raw)
                     && ev.id == id
                 {
                     return Ok(Some(ev));
@@ -302,7 +324,10 @@ async fn ui_event_by_id(
         .map_err(internal)?;
     match from_vault {
         Some(ev) => Ok(Json(ev).into_response()),
-        None => Err(error(StatusCode::NOT_FOUND, format!("event #{id} not found"))),
+        None => Err(error(
+            StatusCode::NOT_FOUND,
+            format!("event #{id} not found"),
+        )),
     }
 }
 
@@ -662,42 +687,72 @@ fn default_true() -> bool {
     true
 }
 
+/// Export each retained session once, omitting histories already present in a
+/// later request. Legacy events without correlation remain separate documents.
+fn session_documents(st: &Shared) -> (Vec<kaponir_core::discover::Document>, bool) {
+    let mut groups = std::collections::BTreeMap::<String, Vec<String>>::new();
+    for ev in st.traffic.snapshot().events {
+        if let Some(insp) = ev.inspector {
+            let key = ev
+                .session_id
+                .unwrap_or_else(|| format!("request-{}", ev.id));
+            let parts = groups.entry(key).or_default();
+            for text in [insp.original_request, insp.restored_response] {
+                if text.trim().is_empty() || parts.iter().any(|p| p.contains(&text)) {
+                    continue;
+                }
+                parts.retain(|p| !text.contains(p.as_str()));
+                parts.push(text);
+            }
+        }
+    }
+    let mut documents = Vec::new();
+    let mut bytes = 0;
+    let mut truncated = false;
+    for (key, parts) in groups {
+        let text = parts.join("\n\n");
+        if documents.len() >= kaponir_core::discover::MAX_DOCUMENTS
+            || bytes + text.len() > kaponir_core::discover::MAX_BYTES
+        {
+            truncated = true;
+            continue;
+        }
+        bytes += text.len();
+        documents.push(kaponir_core::discover::Document {
+            name: format!("session-{key}"),
+            text,
+            format: Format::Auto,
+            model_candidates: Vec::new(),
+        });
+    }
+    (documents, truncated)
+}
+async fn export_sessions(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let (documents, truncated) = session_documents(&st);
+    Ok((
+        [(header::CACHE_CONTROL, "no-store")],
+        Json(json!({"documents":documents,"truncated":truncated})),
+    )
+        .into_response())
+}
+
 async fn discover_sessions(
     State(st): State<Shared>,
     headers: HeaderMap,
     Json(req): Json<DiscoverSessionsReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
-    let snap = st.traffic.snapshot();
-    let mut documents = Vec::new();
-    for ev in snap.events {
-        if let Some(insp) = ev.inspector {
-            let mut text = String::new();
-            if !insp.original_request.trim().is_empty() {
-                text.push_str(&insp.original_request);
-            }
-            if !insp.restored_response.trim().is_empty() {
-                if !text.is_empty() {
-                    text.push_str("\n\n");
-                }
-                text.push_str(&insp.restored_response);
-            }
-            if !text.trim().is_empty() {
-                documents.push(kaponir_core::discover::Document {
-                    name: format!("session-event-{}", ev.id),
-                    text,
-                    format: Format::Auto,
-                    model_candidates: Vec::new(),
-                });
-            }
-        }
-    }
+    let (documents, truncated) = session_documents(&st);
     let docs_count = documents.len();
     if documents.is_empty() {
         let report = st
             .with_vault(|_, v| Ok(crate::discovery::load(v)?.report()))
             .map_err(internal)?;
-        return Ok(Json(json!({"documents_analyzed": 0, "report": report})).into_response());
+        return Ok(
+            Json(json!({"documents_analyzed": 0, "sessions_analyzed":0,"report": report}))
+                .into_response(),
+        );
     }
     let engine = st.engine();
     let use_s1 = req.use_s1;
@@ -710,6 +765,7 @@ async fn discover_sessions(
     })
     .await
     .map_err(|e| internal(e.into()))?;
+    report.truncated |= truncated;
     if req.remember {
         report = st
             .with_vault(|_, v| {
@@ -724,7 +780,10 @@ async fn discover_sessions(
             })
             .map_err(bad)?;
     }
-    Ok(Json(json!({"documents_analyzed": docs_count, "report": report})).into_response())
+    Ok(Json(
+        json!({"documents_analyzed": docs_count, "sessions_analyzed":docs_count,"report": report}),
+    )
+    .into_response())
 }
 
 // ---------- journal ----------
@@ -789,6 +848,7 @@ async fn decide(
     Json(req): Json<DecideReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     if req.ids.is_empty() && req.shape.is_none() {
         return Err(bad("specify journal ids or shape"));
     }
@@ -861,13 +921,16 @@ async fn auto_review(
     Json(req): Json<AutoReviewReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     let rows = st
         .with_vault(|_, v| Ok(v.journal(Some("open"), 500)?))
         .map_err(internal)?;
     let rows: Vec<JournalRow> = if req.ids.is_empty() {
         rows
     } else {
-        rows.into_iter().filter(|r| req.ids.contains(&r.id)).collect()
+        rows.into_iter()
+            .filter(|r| req.ids.contains(&r.id))
+            .collect()
     };
     if rows.is_empty() {
         return Ok(Json(json!({"items": [], "auto_saved": 0, "total": 0})).into_response());
@@ -877,38 +940,41 @@ async fn auto_review(
     let classifications = tokio::task::spawn_blocking(move || {
         use kaponir_core::s1::{CandidateView, Disclosure, classify_from_score, features};
         let lex = engine.lexicon();
-        if let Some(s1) = engine.s1_config() {
-            let disc = s1.provider.disclosure();
-            let views: Vec<CandidateView<'_>> = rows_for_cls
-                .iter()
-                .map(|r| {
-                    let cat = serde_json::from_value(json!(r.category))
-                        .unwrap_or(kaponir_core::Category::Custom);
-                    let f = features(&r.value, lex.is_word(&r.value), &r.kind, cat, &r.recognizer);
-                    CandidateView {
-                        features: f,
-                        kind: &r.kind,
-                        category: cat,
-                        recognizer: &r.recognizer,
-                        surface: matches!(disc, Disclosure::L1 | Disclosure::L2)
-                            .then_some(r.value.as_str()),
-                        left: matches!(disc, Disclosure::L2).then_some(r.context.as_str()),
-                        right: matches!(disc, Disclosure::L2).then_some(""),
-                        profile: Some(s1.profile.as_ref()),
-                    }
-                })
-                .collect();
-            if let Ok(cls) = s1
+        let views: Vec<CandidateView> = rows_for_cls
+            .iter()
+            .map(|r| {
+                let cat = serde_json::from_value(json!(r.category))
+                    .unwrap_or(kaponir_core::Category::Custom);
+                let disc = engine
+                    .s1_config()
+                    .map_or(Disclosure::L0, |s| s.provider.max_disclosure());
+                let disc = if cat == kaponir_core::Category::Credential {
+                    Disclosure::L0
+                } else {
+                    disc
+                };
+                CandidateView {
+                    features: features(&r.value, lex.is_word(&r.value)),
+                    kind: r.kind.clone(),
+                    category: cat,
+                    recognizer: r.recognizer.clone(),
+                    surface: (disc >= Disclosure::L1).then(|| r.value.clone()),
+                    context: (disc >= Disclosure::L2).then(|| r.context.clone()),
+                }
+            })
+            .collect();
+        if let Some(s1) = engine.s1_config()
+            && let Ok(cls) = s1
                 .provider
-                .classify(&views, std::time::Duration::from_secs(5))
-                && cls.len() == rows_for_cls.len()
-            {
-                return cls;
-            }
+                .classify(&views, &kaponir_core::s1::disclosure_profile(&s1.profile))
+            && cls.len() == rows_for_cls.len()
+        {
+            return cls;
         }
         rows_for_cls
             .iter()
-            .map(|r| classify_from_score(r.probability, &r.kind))
+            .zip(&views)
+            .map(|(r, v)| classify_from_score(v, r.probability as f32, "heuristic"))
             .collect::<Vec<_>>()
     })
     .await
@@ -920,14 +986,16 @@ async fn auto_review(
     let threshold = req.auto_save_threshold.clamp(0.5, 0.99);
     let ctl = control(&st).ok();
 
-    for (r, cls) in rows.iter().zip(classifications.into_iter()) {
+    for (r, cls) in rows.iter().zip(classifications) {
         let mut saved_this = false;
         if req.auto_save
+            && cls.source != "heuristic"
+            && cls.confidence.is_finite()
             && cls.confidence >= threshold
             && let Some(ctl) = ctl
         {
             if seen_values.insert((cls.scope, r.value.clone())) {
-                let rule = if cls.sensitive {
+                let rule = if cls.action == RuleAction::Mask {
                     r.mask_rule(Some(&cls.kind))
                 } else {
                     r.keep_rule()
@@ -939,7 +1007,11 @@ async fn auto_review(
                 saved_this = true;
             }
             if saved_this {
-                let status = if cls.sensitive { "masked" } else { "kept" };
+                let status = if cls.action == RuleAction::Mask {
+                    "masked"
+                } else {
+                    "kept"
+                };
                 let _ = st.with_vault(|_, v| Ok(v.set_journal_status(r.id, status)?));
                 auto_saved += 1;
             }
@@ -947,8 +1019,8 @@ async fn auto_review(
         items.push(json!({
             "id": r.id,
             "value": r.value,
-            "sensitive": cls.sensitive,
-            "action": if cls.sensitive { "mask" } else { "keep" },
+            "sensitive": (cls.action == RuleAction::Mask),
+            "action": if cls.action == RuleAction::Mask { "mask" } else { "keep" },
             "kind": cls.kind,
             "scope": cls.scope,
             "confidence": cls.confidence,
@@ -965,6 +1037,7 @@ async fn auto_review(
         "items": items,
         "auto_saved": auto_saved,
         "total": rows.len(),
+        "reviewed": rows.len(),
     }))
     .into_response())
 }
@@ -982,6 +1055,7 @@ async fn template(
     Json(req): Json<TemplateReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     let ctl = control(&st)?;
     let (re, _) = kaponir_recognizers::rules::compile_template(&req.template)
         .map_err(|e| bad(format!("template: {e}")))?;
@@ -1013,6 +1087,165 @@ async fn template(
 
 // ---------- rules ----------
 
+fn memory_audit_items(st: &Shared) -> anyhow::Result<(Vec<serde_json::Value>, String)> {
+    let (values, ignored) = st.with_vault(|_, v| {
+        let ignored: Vec<(String, String)> = v
+            .private_setting(crate::state::MEMORY_AUDIT_SETTING)?
+            .map(|b| serde_json::from_slice(&b))
+            .transpose()?
+            .unwrap_or_default();
+        Ok((v.session_values(10_000)?, ignored))
+    })?;
+    let mut candidates = std::collections::BTreeMap::new();
+    for value in values {
+        if kaponir_core::discover::weak_business_value(&value.kind, &value.text)
+            || (value.kind == "DOM" && value.text.chars().count() <= 3)
+            || (value.kind == "IP"
+                && (value.text.parse::<std::net::IpAddr>().is_err()
+                    || value.text.replace(':', "").len() < 2))
+        {
+            candidates.insert((value.kind, value.text.to_lowercase()), (value.text, false));
+        }
+    }
+    for (kind, value) in ignored {
+        candidates.insert((kind, value.to_lowercase()), (value, true));
+    }
+    let mut items: Vec<serde_json::Value> = candidates.into_iter().map(|((kind,_),(value,disabled))| {
+        let id = blake3::hash(format!("{kind}\0{}", value.to_lowercase()).as_bytes()).to_hex().to_string();
+        json!({"scope":"memory","index":id,"rule":{"kind":kind,"value":value,"disabled":disabled,"note":"Память сессии · источник не сохранён"},"reason":"session_memory"})
+    }).collect();
+    let revision = blake3::hash(&serde_json::to_vec(&items)?)
+        .to_hex()
+        .to_string();
+    for item in &mut items {
+        item["revision"] = json!(revision);
+    }
+    Ok((items, revision))
+}
+#[derive(Deserialize)]
+struct MemoryAuditReq {
+    ids: Vec<String>,
+    revision: String,
+    disabled: bool,
+}
+async fn update_memory_audit(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<MemoryAuditReq>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    control(&st)?;
+    let _rules = st.rule_changes.lock().await;
+    let (items, revision) = memory_audit_items(&st).map_err(internal)?;
+    if req.ids.is_empty() || req.ids.len() > 10_000 {
+        return Err(bad("select at least one memory value"));
+    }
+    if req.revision != revision
+        || req
+            .ids
+            .iter()
+            .any(|id| !items.iter().any(|i| i["index"] == *id))
+    {
+        return Err(error(
+            StatusCode::CONFLICT,
+            "memory changed; refresh the audit",
+        ));
+    }
+    st.with_vault(|_, v| {
+        let mut ignored: Vec<(String, String)> = v
+            .private_setting(crate::state::MEMORY_AUDIT_SETTING)?
+            .map(|b| serde_json::from_slice(&b))
+            .transpose()?
+            .unwrap_or_default();
+        for item in items
+            .iter()
+            .filter(|i| req.ids.iter().any(|id| i["index"] == *id))
+        {
+            let kind = item["rule"]["kind"].as_str().unwrap_or_default();
+            let value = item["rule"]["value"].as_str().unwrap_or_default();
+            ignored.retain(|(k, x)| k != kind || !x.eq_ignore_ascii_case(value));
+            if req.disabled {
+                ignored.push((kind.to_string(), value.to_string()));
+            }
+        }
+        v.set_private_setting(
+            crate::state::MEMORY_AUDIT_SETTING,
+            &serde_json::to_vec(&ignored)?,
+        )?;
+        Ok(())
+    })
+    .map_err(internal)?;
+    st.refresh_suppressed();
+    drop(_rules);
+    audit_rules(State(st), headers).await
+}
+
+async fn audit_rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let mut items = Vec::new();
+    for set in control(&st)?.rules().map_err(internal)? {
+        let revision =
+            blake3::hash(&serde_json::to_vec(&set.file).map_err(|e| internal(e.into()))?)
+                .to_hex()
+                .to_string();
+        for (index, rule) in set.file.rules.iter().enumerate() {
+            let value = rule.value.as_deref().unwrap_or_default();
+            let reason = if rule.disabled {
+                "disabled"
+            } else if kaponir_core::discover::weak_business_value(&rule.kind, value)
+                && rule.value.is_some()
+            {
+                "weak_value"
+            } else if rule.kind == "IP"
+                && (value.parse::<std::net::IpAddr>().is_err() || value.replace(':', "").len() < 2)
+                && rule.value.is_some()
+            {
+                "invalid_ip"
+            } else if rule.note.contains("auto") || rule.note.contains("discover") {
+                "generated_rule"
+            } else {
+                ""
+            };
+            if !reason.is_empty() {
+                items.push(json!({"scope":set.scope,"index":index,"revision":revision,"rule":rule,"reason":reason}));
+            }
+        }
+    }
+    items.extend(memory_audit_items(&st).map_err(internal)?.0);
+    Ok(Json(json!({"items":items})).into_response())
+}
+#[derive(Deserialize)]
+struct AuditRuleReq {
+    scope: Scope,
+    index: Option<usize>,
+    #[serde(default)]
+    indices: Vec<usize>,
+    revision: String,
+    disabled: bool,
+}
+async fn update_audit_rule(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<AuditRuleReq>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
+    let indices = if req.indices.is_empty() {
+        vec![req.index.ok_or_else(|| bad("select at least one rule"))?]
+    } else {
+        req.indices
+    };
+    if indices.len() > 10_000 {
+        return Err(bad("too many selected rules"));
+    }
+    control(&st)?
+        .set_rules_disabled(req.scope, &indices, &req.revision, req.disabled)
+        .map_err(|e| error(StatusCode::CONFLICT, e.to_string()))?;
+    reload(&st)?;
+    drop(_rules);
+    audit_rules(State(st), headers).await
+}
+
 async fn rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     authorized(&st, &headers, true)?;
     let sets = control(&st)?.rules().map_err(internal)?;
@@ -1031,6 +1264,7 @@ async fn add_rule(
     Json(req): Json<AddRuleReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     let mut rule = req.rule;
     let patterns = [&rule.value, &rule.template, &rule.regex]
         .iter()
@@ -1061,6 +1295,7 @@ async fn remove_rule(
     Path((scope, index)): Path<(Scope, usize)>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     let removed = control(&st)?.remove_rule(scope, index).map_err(bad)?;
     reload(&st)?;
     Ok(Json(json!({"removed": removed})).into_response())
@@ -1078,6 +1313,7 @@ async fn set_domains(
     Json(req): Json<DomainsReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     control(&st)?
         .set_corp_domains(scope, &req.domains)
         .map_err(bad)?;
@@ -1099,6 +1335,7 @@ async fn setup(
     Json(req): Json<SetupReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     let plan = kaponir_core::onboarding::plan(&req.answers).map_err(bad)?;
     if req.apply {
         let ctl = control(&st)?;
