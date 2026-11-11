@@ -229,7 +229,7 @@ const TABS = { mask: () => {}, restore: () => {}, review: () => Promise.all([loa
 function showTab(name, push = true) {
   if (name === 's1') name = 'analysis';
   if (!TABS[name]) name = 'overview';
-  const nav = name === 'restore' ? 'mask' : name === 'worker' ? 'analysis' : ['setup','metrics'].includes(name) ? 'settings' : name;
+  const nav = name === 'restore' ? 'mask' : ['worker','categorization'].includes(name) ? 'analysis' : ['setup','metrics'].includes(name) ? 'settings' : name;
   for (const b of document.querySelectorAll('.tabs button')) {
     b.setAttribute('aria-selected', String(b.dataset.tab === nav));
     if (b.dataset.tab === nav) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -999,9 +999,16 @@ $('#d-analyze').addEventListener('click', async () => {
     D.selected.clear();
     renderDiscover();
     $('#d-status').textContent = tr($('#d-s1').checked ? 'Анализ и оценка S1…' : 'Локальный анализ…');
+    if ($('#d-mode').value === 'background') {
+      const queued=await api('/api/v1/ui/analysis/documents',{method:'POST',body:{documents:D.documents}});
+      D.busy=false;renderDiscover();
+      $('#d-status').textContent=queued.queued?tr('Поставлено в очередь: {{0}}',[queued.queued]):tr('Документы уже обработаны или находятся в очереди');
+      toast(tr('Результаты появятся в разделе «Разбор решений»'));
+      return;
+    }
     D.report = await api('/api/v1/ui/discover', { method: 'POST', body: { documents: D.documents, use_s1:$('#d-s1').checked, remember:D.saved } });
     renderDiscover();
-  } catch (e) { fail(e); } finally { D.busy=false; button.disabled = false; renderDiscover(); }
+  } catch (e) { if($('#d-mode').value==='background')e.message=learningError(e.message); fail(e); } finally { D.busy=false; button.disabled = false; if($('#d-mode').value!=='background')renderDiscover(); }
 });
 
 $('#d-all').addEventListener('click', () => {

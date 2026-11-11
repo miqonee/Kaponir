@@ -173,8 +173,8 @@ def main():
 
 
                 page.locator('[data-tab="analysis"]').click()
-                page.locator('#s1-provider').select_option('http')
-                page.locator('#s1-url').fill('http://127.0.0.1:9999/v1/chat/completions')
+                page.locator('#analysis-provider').select_option('api')
+                page.locator('#analysis-url').fill('http://127.0.0.1:9999/v1/chat/completions')
                 page.locator('#analysis-worker-toggle').click()
                 page.wait_for_function("() => document.querySelector('#analysis-worker-state').textContent==='Готов'", timeout=20000)
                 assert api('/api/v1/ui/worker')['enabled']
@@ -201,7 +201,7 @@ def main():
                 page.wait_for_function("() => document.documentElement.lang==='en'")
                 assert page.locator('#d-text').input_value() == 'Проект: Лунная Слива'
                 assert page.locator('#page-title').inner_text() == 'Rules from documents'
-                assert page.locator('#s1-url').input_value() == 'http://127.0.0.1:9999/v1/chat/completions'
+                assert page.locator('#analysis-url').input_value() == 'http://127.0.0.1:9999/v1/chat/completions'
                 page.evaluate("showTab('overview')")
                 for theme in ['dark', 'light']:
                     page.locator(f'#theme-switch label:has(input[value={theme}])').click()
@@ -214,7 +214,7 @@ def main():
                     page.set_viewport_size({'width': width, 'height': 1000})
                     for theme in ['dark', 'light']:
                         page.locator(f'#theme-switch label:has(input[value={theme}])').click()
-                        for tab in ['overview', 'events', 'analysis', 'worker', 'discover', 'mask', 'rules', 'settings']:
+                        for tab in ['overview', 'events', 'analysis', 'categorization', 'worker', 'discover', 'mask', 'rules', 'settings']:
                             page.evaluate('(tab)=>showTab(tab)', tab)
                             page.wait_for_timeout(120)
                             assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), (width, theme, tab)
@@ -234,7 +234,7 @@ def main():
             assert api('/api/v1/anonymize', {'text':'character','session':'legacy-chat'})['text'] == 'character'
             assert api('/api/v1/deanonymize', {'text':legacy['text'],'session':'legacy-chat'})['text'] == 'character'
             api('/api/v1/ui/worker/stop', {})
-            print('Console checks passed: sessions, SSE, privacy, rule audit, worker, restart, documents, RU/EN, 50 screenshots, including English dashboard captures.')
+            print('Console checks passed: sessions, SSE, privacy, rule audit, worker, restart, documents, RU/EN, 56 screenshots, including English dashboard captures.')
         finally:
             stop()
             log.close()

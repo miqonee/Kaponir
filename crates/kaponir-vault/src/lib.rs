@@ -57,6 +57,13 @@ CREATE TABLE IF NOT EXISTS traffic_events (
     nonce BLOB NOT NULL,
     ct BLOB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS app_records (
+    id TEXT PRIMARY KEY,
+    kind TEXT NOT NULL,
+    nonce BLOB NOT NULL,
+    ct BLOB NOT NULL
+);
+CREATE INDEX IF NOT EXISTS app_records_kind ON app_records(kind);
 "#;
 
 fn now() -> i64 {
@@ -251,6 +258,101 @@ impl SqliteVault {
     }
 
     /// Encrypted application settings, separated from token mappings by AAD.
+    pub fn put_app_record(&self, id: &str, kind: &str, data: &[u8]) -> Result<(), VaultError> {
+        let aad = format!("app:{kind}:{id}");
+        let (nonce, ct) = self.seal(data, aad.as_bytes())?;
+        self.conn.execute("INSERT INTO app_records(id,kind,nonce,ct) VALUES(?1,?2,?3,?4) ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,nonce=excluded.nonce,ct=excluded.ct", params![id,kind,nonce,ct]).map_err(db)?;
+        Ok(())
+    }
+
+    pub fn app_record(&self, id: &str) -> Result<Option<Vec<u8>>, VaultError> {
+        let row: Option<(String, Vec<u8>, Vec<u8>)> = self
+            .conn
+            .query_row(
+                "SELECT kind,nonce,ct FROM app_records WHERE id=?1",
+                [id],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .optional()
+            .map_err(db)?;
+        row.map(|(kind, nonce, ct)| self.unseal(&nonce, &ct, format!("app:{kind}:{id}").as_bytes()))
+            .transpose()
+    }
+
+    pub fn app_records(
+        &self,
+        kind: &str,
+        limit: usize,
+    ) -> Result<Vec<(String, Vec<u8>)>, VaultError> {
+        self.app_record_list(kind, limit, false)
+    }
+
+    pub fn app_records_recent(
+        &self,
+        kind: &str,
+        limit: usize,
+    ) -> Result<Vec<(String, Vec<u8>)>, VaultError> {
+        self.app_record_list(kind, limit, true)
+    }
+
+    fn app_record_list(
+        &self,
+        kind: &str,
+        limit: usize,
+        recent: bool,
+    ) -> Result<Vec<(String, Vec<u8>)>, VaultError> {
+        let sql = if recent {
+            "SELECT id,nonce,ct FROM app_records WHERE kind=?1 ORDER BY rowid DESC LIMIT ?2"
+        } else {
+            "SELECT id,nonce,ct FROM app_records WHERE kind=?1 ORDER BY rowid LIMIT ?2"
+        };
+        let mut stmt = self.conn.prepare(sql).map_err(db)?;
+        let rows = stmt
+            .query_map(params![kind, limit as i64], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, Vec<u8>>(1)?,
+                    r.get::<_, Vec<u8>>(2)?,
+                ))
+            })
+            .map_err(db)?;
+        rows.map(|row| {
+            let (id, nonce, ct) = row.map_err(db)?;
+            let data = self.unseal(&nonce, &ct, format!("app:{kind}:{id}").as_bytes())?;
+            Ok((id, data))
+        })
+        .collect()
+    }
+
+    pub fn app_record_count(&self, kind: &str) -> Result<usize, VaultError> {
+        self.conn
+            .query_row(
+                "SELECT count(*) FROM app_records WHERE kind=?1",
+                [kind],
+                |r| r.get::<_, i64>(0),
+            )
+            .map(|n| n as usize)
+            .map_err(db)
+    }
+
+    pub fn app_record_bytes(&self, kind: &str) -> Result<usize, VaultError> {
+        self.conn
+            .query_row(
+                "SELECT coalesce(sum(length(ct)+length(nonce)),0) FROM app_records WHERE kind=?1",
+                [kind],
+                |r| r.get::<_, i64>(0),
+            )
+            .map(|n| n as usize)
+            .map_err(db)
+    }
+
+    pub fn delete_app_record(&self, id: &str) -> Result<(), VaultError> {
+        self.conn
+            .execute("DELETE FROM app_records WHERE id=?1", [id])
+            .map_err(db)?;
+        Ok(())
+    }
+
     pub fn set_private_setting(&self, name: &str, value: &[u8]) -> Result<(), VaultError> {
         let key = format!("private:{name}");
         let (nonce, ct) = self.seal(value, key.as_bytes())?;
@@ -722,6 +824,30 @@ pub fn key_from_hex(s: &str) -> Result<[u8; 32], VaultError> {
 mod tests {
     use super::*;
     use kaponir_core::Strategy;
+
+    #[test]
+    fn background_records_are_encrypted_and_bound_to_id_and_state() {
+        let v = SqliteVault::open_in_memory(&[71; 32]).unwrap();
+        let text = b"BackgroundPrivateSource_482";
+        v.put_app_record("job-a", "queued", text).unwrap();
+        assert_eq!(v.app_record("job-a").unwrap().unwrap(), text);
+        let raw: Vec<u8> = v
+            .conn
+            .query_row("SELECT ct FROM app_records WHERE id='job-a'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert!(!raw.windows(text.len()).any(|w| w == text));
+        v.conn
+            .execute("UPDATE app_records SET kind='running' WHERE id='job-a'", [])
+            .unwrap();
+        assert!(v.app_record("job-a").is_err());
+        v.put_app_record("job-a", "running", text).unwrap();
+        v.conn
+            .execute("UPDATE app_records SET id='job-b' WHERE id='job-a'", [])
+            .unwrap();
+        assert!(v.app_record("job-b").is_err());
+    }
 
     fn req<'a>(canonical: &'a str, strategy: Strategy, hash: &'a str) -> AllocRequest<'a> {
         AllocRequest {

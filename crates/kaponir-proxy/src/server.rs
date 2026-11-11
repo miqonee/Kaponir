@@ -28,6 +28,7 @@ enum Api {
 }
 
 pub fn router(state: Shared) -> Router {
+    crate::learning::start(&state);
     Router::new()
         .route("/v1/messages", post(anthropic_messages))
         .route("/v1/messages/count_tokens", post(anthropic_messages))
@@ -45,6 +46,7 @@ pub fn router(state: Shared) -> Router {
         .route("/healthz", get(|| async { "ok" }))
         .merge(crate::web::routes())
         .merge(crate::worker::routes())
+        .merge(crate::learning::routes())
         .merge(crate::providers::routes())
         .layer(DefaultBodyLimit::max(64 << 20))
         .layer(middleware::from_fn_with_state(state.clone(), guard_host))
@@ -410,6 +412,15 @@ async fn proxy_request(
         .filter(|s| !s.is_empty())
         .map(str::to_owned);
     let original_request = extract_prompt_text(api, &json);
+    if st.learning.enabled()
+        && let Some(messages) = json.get("messages")
+    {
+        *span
+            .learning_input
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some(crate::learning::capture_messages(messages));
+    }
     let session = session_id(&headers, api, &json);
     let explicit = headers
         .get("x-kaponir-session")

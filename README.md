@@ -108,8 +108,8 @@ verified the address, route, and rules with synthetic data.
 
 ## Web UI
 
-The dashboard shows proxy statistics and grouped sessions. **Local analysis** contains S1
-settings and worker activation; document analysis and its collection remain separate tools.
+The dashboard shows proxy statistics and grouped sessions. **LLM & analysis** contains background
+discovery, separate categorization and worker controls. Completed turns are analyzed in the background; verified scores above 85% can create reversible rules. See [background learning](docs/LEARNING.md).
 Screenshots use synthetic traffic against a local fixture provider.
 
 ![Dashboard in dark mode](docs/images/console-dashboard-dark-en.png)
@@ -317,8 +317,8 @@ Understand these boundaries before using Kaponir with real data:
   `--irreversible` does not save new mappings. Losing the vault or its key prevents restoration.
 - **The proxy does not support the OpenAI Responses API.** Supported interfaces are Chat Completions, Anthropic Messages, and sidecar REST.
 - **Not every model will preserve meaning.** Substitutions change the text visible to the model; exact restoration is possible only for tokens returned without distortion.
-- **In-memory traffic is not an audit log.** The overview and events are bounded and lost on restart.
-- **Qwen findings need review.** The model can miss values or propose unnecessary ones; it does not automatically make mask/keep decisions.
+- **Traffic inspection is bounded.** The latest 200 inspectors and persistent counters are separate from the learning history.
+- **Model confidence is not measured accuracy.** Background learning can auto-apply verified findings above the configured threshold; review its journal and use rollback.
 - **Team/Global are not RBAC.** Separate user roles and a shared multi-server vault are not implemented.
 - **The server trusts the workspace owner.** Kaponir does not protect data from a host administrator who controls the process, memory, keys, and vault.
 - **Synthetic regressions are not a production evaluation.** Saved corpora verify known scenarios, not universal completeness and accuracy.

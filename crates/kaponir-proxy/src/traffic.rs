@@ -282,7 +282,7 @@ pub struct Archive {
     pub total: Bucket,
 }
 
-type EventPersister = Arc<dyn Fn(&Event, &Archive) + Send + Sync>;
+type EventPersister = Arc<dyn Fn(&Event, &Archive, Option<&serde_json::Value>) + Send + Sync>;
 
 #[derive(Default)]
 struct History {
@@ -371,7 +371,7 @@ impl Traffic {
             .archive = archive;
     }
 
-    fn record(&self, event: Event) {
+    fn record(&self, event: Event, messages: Option<serde_json::Value>) {
         // Serialize persistence with recording so concurrent completions cannot
         // overwrite a newer aggregate with an older snapshot.
         let persister = self
@@ -392,7 +392,7 @@ impl Traffic {
             h.archive.clone()
         };
         if let Some(p) = &*persister {
-            p(&event, &archive);
+            p(&event, &archive, messages.as_ref());
         }
     }
 
@@ -463,6 +463,7 @@ pub struct Span {
     pub restore_us: AtomicU64,
     pub error: Mutex<Option<EventError>>,
     pub inspector: Mutex<Option<EventInspector>>,
+    pub learning_input: Mutex<Option<serde_json::Value>>,
     pub status: AtomicU16,
     pub sent: AtomicBool,
     pub streaming: AtomicBool,
@@ -498,6 +499,7 @@ impl Span {
             restore_us: AtomicU64::new(0),
             error: Default::default(),
             inspector: Default::default(),
+            learning_input: Default::default(),
             status: AtomicU16::new(0),
             sent: AtomicBool::new(false),
             streaming: AtomicBool::new(false),
@@ -641,7 +643,13 @@ impl Span {
 }
 impl Drop for Span {
     fn drop(&mut self) {
-        self.history.record(self.event(true));
+        self.history.record(
+            self.event(true),
+            self.learning_input
+                .get_mut()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take(),
+        );
         self.history.in_flight.fetch_sub(1, Relaxed);
     }
 }

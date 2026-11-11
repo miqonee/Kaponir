@@ -210,16 +210,27 @@ impl kaponir_proxy::WorkerManager for ManagedWorker {
             .lock()
             .map_err(|_| anyhow::anyhow!("worker lock failed"))?;
         if let Some(mut child) = guard.take() {
+            if child.try_wait()?.is_some() {
+                return Ok(());
+            }
             #[cfg(unix)]
             {
                 let _ = std::process::Command::new("kill")
                     .args(["-TERM", &child.id().to_string()])
                     .status();
-                let _ = child.wait();
+                let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);
+                while child.try_wait()?.is_none() && std::time::Instant::now() < deadline {
+                    std::thread::sleep(std::time::Duration::from_millis(50));
+                }
+                if child.try_wait()?.is_none() {
+                    child.kill()?;
+                }
+                child.wait()?;
             }
             #[cfg(not(unix))]
             {
-                let _ = child.kill();
+                child.kill()?;
+                child.wait()?;
             }
         }
         Ok(())

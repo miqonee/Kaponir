@@ -18,6 +18,7 @@ const PAGE_META = {
   ],
   analysis: ["", "LLM и Анализ", "Анализ запросов, модели и распределение правил."],
   worker: ["", "LLM и Анализ", "Фоновый воркер и очередь."],
+  categorization: ["", "LLM и Анализ", "Категоризация найденных данных."],
   rules: ["", "Правила", ""],
   review: ["", "Разбор решений", "Спорные находки и подтверждённые решения."],
   discover: ["", "Правила из документов", ""],
@@ -39,7 +40,8 @@ function panelHeading(name) {
   $("#page-description").hidden = !description;
   $("#page-actions").hidden = !["overview", "events"].includes(name);
   $("#lab-navigation").hidden = !["mask", "restore"].includes(name);
-  $("#analysis-navigation").hidden = !["analysis", "worker"].includes(name);
+  $("#learning-widget").hidden = !["analysis", "categorization", "worker"].includes(name);
+  $("#analysis-navigation").hidden = !["analysis", "categorization", "worker"].includes(name);
   for (const b of document.querySelectorAll(
     "#lab-navigation [data-go],#analysis-navigation [data-go]",
   ))
@@ -1061,7 +1063,7 @@ function renderSettings() {
   );
 }
 async function loadAnalysis() {
-  await Promise.all([loadS1(), loadWorkerSummary()]);
+  await Promise.all([loadLearningSettings(), loadWorkerSummary(), loadLearningHistory()]);
 }
 let rulesView = "list";
 function showRulesView(view) {
@@ -1485,7 +1487,9 @@ $("#language-switch").addEventListener("change", async (e) => {
   renderMask();
   renderDiscover();
   syncRuleForm();
-  if (S1.data) renderS1(true);
+  if (LearningUI.analysis) renderLearningForms();
+  renderLearningWidget();
+  renderLearningHistory(true);
   if (WORKER.data) renderWorker();
   await loadInfo().catch(fail);
   showTab(location.hash.slice(1) || "overview", false);

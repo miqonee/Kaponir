@@ -32,6 +32,7 @@ function renderWorkerModel() {
 function renderWorkerSummary() {
   const data = WORKER.data || {};
   $("#analysis-worker-state").textContent = workerStateLabel(data);
+  if(typeof renderLearningWidget === "function")renderLearningWidget();
   const downloaded = Object.values(data.models || {}).some((m) => m.downloaded);
   $("#analysis-worker-summary").replaceChildren(
     ...[
@@ -313,6 +314,6 @@ document.addEventListener("visibilitychange", () => {
 });
 
 setInterval(() => {
-  if (!document.hidden && location.hash === "#analysis" && !WORKER.busy)
+  if (!document.hidden && ["#analysis","#categorization"].includes(location.hash) && !WORKER.busy)
     loadWorkerSummary();
 }, 5000);

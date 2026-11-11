@@ -34,7 +34,7 @@ MODEL_BASE = 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/'
 FILES = {
     'q4': ('Qwen3-0.6B-Q4_K_M.gguf', 396705472, 'f3fc6b7d42c01f07aa6fa2c517fa492c179f7de0e1fd2275fb8ed6e3c9c90c9f', 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf'),
     'q5': ('Qwen3-0.6B-Q8_0.gguf', 639446688, '8f02b92277a0eb2d11b3b7248511859b02c1b0a5ff5ebfc81b03c5222ebfc79e', 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf'),
-    'qwen3.5-0.8b': ('Qwen3.5-0.8B-Q4_K_M.gguf', 524288000, '', 'https://huggingface.co/Qwen/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q4_K_M.gguf'),
+    'qwen3.5-0.8b': ('Qwen3.5-0.8B-Q4_K_M.gguf', 532517120, 'bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517', 'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf'),
 }
 MODEL_ALIASES = {
     'q4': 'q4',
@@ -46,7 +46,7 @@ MODEL_ALIASES = {
 MODEL_LABELS = {
     'q4': 'Qwen3-0.6B (Q4_K_M · быстрый CPU, ~397 МБ)',
     'q5': 'Qwen3-0.6B (Q8_0 · CPU, ~639 МБ)',
-    'qwen3.5-0.8b': 'Qwen3.5-0.8B (Q4_K_M · новая CPU LLM, ~500 МБ)',
+    'qwen3.5-0.8b': 'Qwen3.5-0.8B (Q4_K_M · новая CPU LLM, ~533 МБ)',
 }
 RUNTIME_NAME = 'llama-b12038-bin-ubuntu-x64.tar.gz'
 RUNTIME_URL = 'https://github.com/ggml-org/llama.cpp/releases/download/b12038/' + RUNTIME_NAME
@@ -54,7 +54,7 @@ RUNTIME_SHA = '46b89b9a84c7a0fa46e89911034c4f6d3024150cb5d477e1426b921f81f4ddab'
 TEXT = {'.txt', '.md', '.json', '.jsonl', '.log', '.yaml', '.yml', '.toml', '.ini', '.env', '.csv', '.tsv'}
 IMAGES = {'.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'}
 TERMINAL = {'succeeded', 'failed', 'cancelled'}
-MODES = {'local', 'qwen', 'xiaomi'}
+MODES = {'local', 'qwen', 'xiaomi', 'configured'}
 CANDIDATE_SCHEMA = {
     'type': 'object',
     'properties': {key: {'type': 'array', 'items': {'type': 'string', 'maxLength': 160},
@@ -214,6 +214,15 @@ class Worker:
         self.stop = threading.Event()
         self.process = None
         self.ocr_process = None
+        self.process_variant = None
+        self.inference_lock = threading.RLock()
+        self.runtime_lock = threading.RLock()
+        self.evaluation_condition = threading.Condition(self.lock)
+        self.evaluations = {}
+        self.evaluation_limit = 1
+        self.process_slots = 1
+        self.last_inference_at = None
+        self.last_runtime_use = 0
         self.active = None
         self.activation_file = self.data / 'activation.json'
         self.enabled = not config.get('idle', False)
@@ -253,7 +262,7 @@ class Worker:
         return job
 
     def submit(self, kind, source='.', model=None, use_s1=False, mode='local'):
-        if kind not in ['scan','download']: raise ValueError('invalid job kind')
+        if kind not in ['scan','download','evaluate']: raise ValueError('invalid job kind')
         if not isinstance(use_s1,bool): raise ValueError('use_s1 must be a boolean')
         if not isinstance(mode, str) or mode not in MODES: raise ValueError('unsupported analysis mode')
         model=model or self.cfg['model']
@@ -306,6 +315,7 @@ class Worker:
             for row in rows:
                 job=json.loads(row[0])
                 if job['state']=='running':
+                    if job['kind'] == 'evaluate': job['control'] = 'cancelled'
                     job['state']=job['control'] or 'queued'
                     db.execute('UPDATE jobs SET body=? WHERE id=?',(json.dumps(job),job['id']))
 
@@ -317,11 +327,16 @@ class Worker:
             os.chmod(tmp, 0o600)
             tmp.replace(self.activation_file)
             self.enabled = enabled
+            if not enabled:
+                for ident in list(self.evaluations):
+                    self.update(ident, control='cancelled')
+                self.stop_runtime()
             if not enabled and self.active:
                 job = self.get(self.active)
                 if job['state'] not in TERMINAL:
                     self.update(self.active, control='paused', activation_paused=True)
                 self.stop_runtime()
+            self.evaluation_condition.notify_all()
             if enabled:
                 for job in self.jobs():
                     if job.get('activation_paused') and job['state'] == 'paused':
@@ -339,9 +354,9 @@ class Worker:
             models[variant] = info
         models['qwen3-0.6b'] = dict(models['q4'])
         models['qwen3-0.6b-q8'] = dict(models['q5'])
-        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if self.active and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'input_root':str(self.root),'models':models,'runtime_ready':self.runtime.is_file(),
+        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'input_root':str(self.root),'models':models,'runtime_ready':self.runtime.is_file(),
                 'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
-                'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'jobs':self.jobs()}
+                'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'evaluations':len(self.evaluations),'jobs':[j for j in self.jobs() if j['kind'] != 'evaluate']}
 
     def scan(self, ident, source):
         path=self.resolve(source)
@@ -412,19 +427,22 @@ class Worker:
             finally: shutil.rmtree(stage,ignore_errors=True)
         if not self.runtime.is_file(): raise ValueError('runtime installation incomplete')
 
-    def start_runtime(self, ident, variant):
+    def start_runtime(self, ident, variant, slots=1):
         variant = MODEL_ALIASES.get(variant, variant)
-        if self.process and self.process.poll() is None: return
+        if self.process and self.process.poll() is None and self.process_variant == variant and self.process_slots == slots: return
+        self.stop_runtime()
         if not self.runtime.is_file() or not self.status()['models'][variant]['downloaded']:
             raise ValueError('CPU LLM model/runtime missing; download the model first')
         with socket.socket() as sock:
             sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         self.ocr_base=f'http://127.0.0.1:{port}'
         cmd=[str(self.runtime),'-m',str(self.models/FILES[variant][0]),
-             '--host','127.0.0.1','--port',str(port),'-c','4096','-np','1','-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
+             '--host','127.0.0.1','--port',str(port),'-c',str(4096*slots),'-np',str(slots),'-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
              '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning','off']
         # Runtime output may contain source text; do not persist it as a log.
         self.process=subprocess.Popen(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        self.process_variant = variant
+        self.process_slots = slots
         deadline=time.monotonic()+120
         while time.monotonic()<deadline:
             self.check(ident)
@@ -440,7 +458,7 @@ class Worker:
                 process.terminate()
                 try:process.wait(timeout=5)
                 except subprocess.TimeoutExpired:process.kill();process.wait()
-        self.process=None;self.ocr_base=None;self.ocr_process=None
+        self.process=None;self.ocr_base=None;self.ocr_process=None;self.process_variant=None
 
     def ocr(self, ident, image, variant):
         """Extract text from image or scanned PDF page using local Tesseract OCR on CPU."""
@@ -467,6 +485,68 @@ class Worker:
                     if text.strip():
                         return text
         raise ValueError('Image/PDF scan OCR requires tesseract installed in PATH')
+
+    def resources(self):
+        def rss(pid):
+            if platform.system() != 'Linux': return None
+            try: return int(Path('/proc', str(pid), 'statm').read_text().split()[1]) * os.sysconf('SC_PAGE_SIZE')
+            except (OSError, ValueError, IndexError): return 0
+        own = rss(os.getpid())
+        model_process, ocr_process = self.process, self.ocr_process
+        model = rss(model_process.pid) if model_process and model_process.poll() is None else 0
+        ocr = rss(ocr_process.pid) if ocr_process and ocr_process.poll() is None else 0
+        return {'worker_rss_bytes':own, 'model_rss_bytes':model, 'ocr_rss_bytes':ocr,
+                'total_rss_bytes':None if own is None or model is None or ocr is None else own+model+ocr}
+
+    def evaluate(self, body):
+        if not self.enabled: raise ValueError('worker is disabled')
+        model = MODEL_ALIASES.get(body.get('model', self.cfg['model']))
+        if model is None: raise ValueError('unsupported model')
+        slots = body.get('parallelism', 1)
+        if type(slots) is not int or not 1 <= slots <= 10: raise ValueError('invalid parallelism')
+        prompt, schema, source = body.get('prompt'), body.get('schema'), body.get('input')
+        if not isinstance(prompt, str) or not 1 <= len(prompt) <= 8192: raise ValueError('invalid evaluation prompt')
+        if not isinstance(schema, dict) or not isinstance(source, dict): raise ValueError('invalid evaluation input')
+        if len(json.dumps(source)) > 2*1024*1024: raise ValueError('evaluation input too large')
+        with self.evaluation_condition:
+            while self.active is not None or (self.evaluations and
+                  (len(self.evaluations) >= slots or model not in self.evaluations.values() or self.evaluation_limit != slots)):
+                if not self.enabled or self.stop.is_set(): raise ValueError('worker is disabled')
+                self.evaluation_condition.wait(.2)
+            if not self.enabled or self.stop.is_set(): raise ValueError('worker is disabled')
+            job = self.submit('evaluate', model=model)
+            ident = job['id']
+            self.evaluations[ident] = model
+            self.evaluation_limit = slots
+            self.update(ident, state='running')
+        try:
+            with self.runtime_lock:
+                self.check(ident)
+                self.start_runtime(ident, model, slots)
+                base = self.ocr_base
+            reply = http_json(base+'/v1/chat/completions', {
+                'model':'qwen-cpu', 'messages':[{'role':'system','content':prompt},
+                    {'role':'user','content':json.dumps(source, ensure_ascii=False)}],
+                'temperature':0, 'max_tokens':1600, 'stream':False, 'cache_prompt':False,
+                'chat_template_kwargs':{'enable_thinking':False},
+                'response_format':{'type':'json_schema','json_schema':{'name':'learning','strict':True,'schema':schema}},
+            }, timeout=self.cfg['ocr_timeout_seconds'])
+            self.check(ident)
+            choice = reply['choices'][0]
+            if choice.get('finish_reason') != 'stop': raise ValueError('model response truncated')
+            value = json.loads(choice['message']['content'])
+            if not isinstance(value, dict): raise ValueError('invalid model response')
+            self.last_inference_at = time.time()
+            self.update(ident, state='succeeded')
+            return value
+        except Exception:
+            self.update(ident, state=self.get(ident).get('control') or 'failed')
+            raise
+        finally:
+            with self.evaluation_condition:
+                self.last_runtime_use = time.monotonic()
+                self.evaluations.pop(ident, None)
+                self.evaluation_condition.notify_all()
 
     def extract_text_candidates(self, ident, variant, source):
         """Run compact CPU text LLM (Qwen3-0.6B Q4 / Q8) directly on text chunk."""
@@ -520,6 +600,10 @@ class Worker:
 
     def import_text(self, ident, name, text, use_s1):
         self.check(ident)
+        if self.get(ident).get('mode') == 'configured':
+            if not self.cfg['api_url']: raise ValueError('configured analysis requires worker.api_url')
+            http_json(self.cfg['api_url'].rstrip('/')+'/api/v1/ui/analysis/documents', {'documents':[{'name':name,'text':text,'format':'auto'}]}, os.getenv('KAPONIR_API_TOKEN',''), timeout=30)
+            return
         if len(text.encode())>2*1024*1024: raise ValueError('extracted text exceeds discover limit')
         docs=[{'name':name,'text':text,'format':'auto'}]
         model_error = None
@@ -626,6 +710,21 @@ class Worker:
         self.update(ident,state='failed' if errors else 'succeeded',current='',errors=errors[-100:])
 
     def process_one(self, ident):
+        with self.inference_lock:
+            with self.evaluation_condition:
+                while self.evaluations:
+                    if not self.enabled or self.stop.is_set(): return
+                    self.evaluation_condition.wait(.2)
+                if not self.enabled: return
+                self.active = ident
+            try:
+                self._process_one(ident)
+            finally:
+                with self.evaluation_condition:
+                    self.active = None
+                    self.evaluation_condition.notify_all()
+
+    def _process_one(self, ident):
         with self.lock:
             job=self.get(ident)
             if job['state']!='queued':return
@@ -649,7 +748,11 @@ class Worker:
             with self.connection() as db:
                 pending=next((j for row in db.execute('SELECT body FROM jobs ORDER BY created') if (j:=json.loads(row[0]))['state']=='queued'),None)
             if pending:self.process_one(pending['id'])
-            else:self.stop.wait(.5)
+            else:
+                if time.monotonic() - self.last_runtime_use > 30:
+                    with self.inference_lock, self.evaluation_condition:
+                        if self.active is None and not self.evaluations: self.stop_runtime()
+                self.stop.wait(.5)
 
 
 def handler(worker, token):
@@ -672,11 +775,12 @@ def handler(worker, token):
                 if self.command!='POST':raise ValueError('unknown route')
                 if self.headers.get('Content-Type','').split(';')[0]!='application/json':raise ValueError('application/json required')
                 size=int(self.headers.get('Content-Length','0'))
-                if not 0<=size<=16384:raise ValueError('request too large')
+                if not 0<=size<=3*1024*1024:raise ValueError('request too large')
                 body=json.loads(self.rfile.read(size) or b'{}')
                 if not isinstance(body,dict):raise ValueError('expected JSON object')
                 if path=='/enable':result=worker.activate(True)
                 elif path=='/disable':result=worker.activate(False)
+                elif path=='/evaluate':result=worker.evaluate(body)
                 elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'))
                 elif path=='/models/download':result=worker.submit('download',model=body.get('model'))
                 elif path.startswith('/jobs/'):

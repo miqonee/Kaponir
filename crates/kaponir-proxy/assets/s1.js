@@ -1,164 +1,556 @@
-'use strict';
+"use strict";
 
-const S1 = { data: null, busy: false, dirty: false };
-const s1Levels = ['l0', 'l1', 'l2'];
-const selectedS1Level = () => {
-  const el = $('#s1-disclosure');
-  if (!el) return 'l2';
-  return s1Levels[Number(el.value)] || 'l2';
+const LearningUI = {
+  analysis: null,
+  categorization: null,
+  history: null,
+  dirty: new Set(),
+  busy: new Set(),
+  view: "pending",
+  timer: null,
 };
-const s1Modes = { off: 'Детекторы и правила', shadow: 'Теневой режим', active: 'Активный режим' };
+const learningStates = {
+  queued: "В очереди",
+  running: "Выполняется",
+  succeeded: "Обработано",
+  failed: "Ошибка",
+  evicted: "Вытеснено",
+  expired: "Истёк срок",
+  pending: "На подтверждение",
+  active: "Правило действует",
+  rejected: "Отклонено",
+  rolled_back: "Отменено",
+  rolling_back: "Отменяется",
+  applying: "Применяется",
+  conflict: "Есть правило",
+};
+const learningErrors = {
+  learning_queue_full: "Очередь заполнена. Повторите после освобождения места.",
+  interrupted_application:
+    "Применение было прервано. Требуется подтверждение или повтор задания.",
+  analysis_provider_required: "Выберите и сохраните источник модели",
+  analysis_disabled: "Включите фоновое обнаружение в настройках",
+  read_only: "Этот сервер работает в режиме только для чтения.",
+  model_timeout: "Модель не ответила вовремя",
+  model_connection_failed: "Не удалось подключиться к модели",
+  model_http_error: "Модель вернула ошибку HTTP",
+  local_model_unavailable:
+    "Локальная модель недоступна. Проверьте веса и воркер.",
+  categorization_disabled: "Категоризация выключена",
+  categorization_failed: "Не удалось категоризировать находку",
+  choice_protocol_required:
+    "Для категоризации нужен OpenAI или SystemOne Choice",
+  classifier_keep: "Классификатор считает значение публичным",
+  previously_rejected: "Ранее отклонено пользователем",
+  existing_rule: "Для значения уже есть правило",
+  configuration_changed: "Подключение изменилось. Повторите задание.",
+  invalid_model_json: "Модель вернула некорректный JSON",
+  invalid_classification_response: "Некорректный ответ категоризации",
+  model_response_truncated: "Ответ модели обрезан",
+  analysis_failed: "Анализ не завершён. Проверьте настройки модели.",
+  source_too_large: "Документ слишком большой",
+  document_chunk_limit: "Разделите документ на меньшие части",
+  candidate_limit: "Слишком много находок. Разделите документ.",
+  job_not_retryable: "Исходник недоступен для повтора",
+  rule_was_edited: "Правило изменено вручную. Проверьте его в разделе правил.",
+};
+const learningError = (code) => tr(learningErrors[code] || code || "—");
+const bytesMiB = (bytes) =>
+  bytes == null ? "—" : `${(bytes / 1048576).toFixed(1)} ${tr("МБ")}`;
 
-function syncS1Visibility() {
-  for(const input of document.querySelectorAll('#s1-form input,#s1-form select'))input.disabled=S1.busy||!S1.data?.editable;
-  $('#s1-clear-key').disabled=S1.busy||!S1.data?.editable||!S1.data?.key_saved;
-  $('#s1-save').disabled=S1.busy||!S1.data?.editable;
-
-  // LLM Engine Section
-  const llmEngine = $('#analysis-llm-engine')?.value || 'none';
-  if ($('#analysis-llm-none-note')) $('#analysis-llm-none-note').hidden = llmEngine !== 'none';
-  if ($('#analysis-llm-local-section')) $('#analysis-llm-local-section').hidden = llmEngine !== 'local';
-  if ($('#analysis-llm-external-section')) $('#analysis-llm-external-section').hidden = llmEngine !== 'external';
-  if (llmEngine === 'local') {
-    const isOnline = Boolean(WORKER.data?.online);
-    if ($('#analysis-worker-offline-alert')) $('#analysis-worker-offline-alert').hidden = isOnline;
-    if ($('#analysis-worker-online-msg')) $('#analysis-worker-online-msg').hidden = !isOnline;
+function learningFormVisibility() {
+  const a = $("#analysis-provider").value,
+    c = $("#categorization-provider").value;
+  $("#analysis-local-fields").hidden = a !== "local";
+  $("#analysis-api-fields").hidden = a !== "api";
+  $("#categorization-local-fields").hidden = c !== "local";
+  $("#categorization-api-fields").hidden = c !== "s1";
+  $("#categorization-none-note").hidden = c !== "none";
+  $("#analysis-url").required = a === "api";
+  $("#analysis-api-model").required = a === "api";
+  $("#categorization-url").required = c === "s1";
+  $("#categorization-api-model").required = c === "s1";
+  for (const role of ["analysis", "categorization"]) {
+    const data = LearningUI[role],
+      busy = LearningUI.busy.has(role),
+      form = $(`#${role}-form`);
+    for (const input of form.querySelectorAll("input,select,button"))
+      input.disabled = busy || !data?.editable;
+    $(`#${role}-clear-key`).disabled =
+      busy || !data?.editable || !data?.key_saved;
+    $(`#${role}-test`).hidden = (role === "analysis" ? a : c) === "none";
   }
-
-  // S1 / Choice Section
-  const provider = $('#s1-provider').value;
-  const external = provider === 'http';
-  const enabled = provider !== 'none';
-  $('#s1-http-fields').hidden = !external;
-  $('#s1-model-fields').hidden = !enabled;
-  if ($('#s1-test')) $('#s1-test').hidden = !external;
-  $('#s1-url').required = external;
-  const proto = $('#s1-protocol').value;
-  const needsModel = proto === 'systemone' || proto === 'openai';
-  $('#s1-model-field').hidden = !needsModel;
-  $('#s1-model').required = external && needsModel;
-  $('#s1-model').placeholder = proto === 'openai' ? 'deepseek-chat / qwen2.5-7b-instruct' : 'provider/model';
-  $('#s1-url').placeholder = proto === 'openai' ? 'https://api.deepseek.com/v1/chat/completions' : 'https://s1.example/score';
-  if ($('#s1-shadow-note')) $('#s1-shadow-note').hidden = !external || $('#s1-mode').value !== 'shadow';
-  if ($('#s1-local-note')) $('#s1-local-note').hidden = provider !== 'ngram';
 }
-
-function renderS1(preserveDraft=false) {
-  const draft=preserveDraft?[...document.querySelectorAll('#s1-form input,#s1-form select')].map(el=>[el,el.value,el.checked]):null;
-  const data = S1.data;
-  if (!data) return;
-  const s = data.settings;
-  $('#s1-provider').value = s.provider;
-  const local = $('#s1-provider option[value="ngram"]');
-  local.disabled = !data.local_model_available;
-  local.textContent = tr(data.local_model_available ? 'Локальная оценка n-gram' : 'Локальная модель — нужно обучение');
-  $('#s1-local-note').textContent = tr('Модель обучается локально командой `kaponir s1 train`. Данные наружу не отправляются.');
-  $('#s1-protocol').value = s.http.protocol;
-  $('#s1-timeout').value = s.http.timeout_ms;
-  $('#s1-url').value = s.http.url || '';
-  $('#s1-model').value = s.http.model || '';
-  $('#s1-key').value = '';
-  $('#s1-key').placeholder = tr(data.key_saved ? 'Сохранённый ключ останется без изменений' : 'Введите ключ, если он требуется');
-  $('#s1-key-note').textContent = tr(data.key_saved
-    ? 'Ключ сохранён в зашифрованном vault. Он не возвращается в браузер и не записывается в config.toml. Пустое поле сохранит его.'
-    : 'Ключ хранится в зашифрованном vault, не возвращается в браузер и не записывается в config.toml.');
-  $('#s1-clear-key').checked = false;
-  $('#s1-clear-key').disabled = !data.key_saved;
-  $('#s1-mode').value = s.shadow ? 'shadow' : 'active';
-  $('#s1-disclosure').value = Math.max(0, s1Levels.indexOf(s.http.disclosure));
-  $('#s1-weight').value = s.weight;
-  $('#s1-keep').value = s.keep_below;
-  $('#s1-context').value = s.context_bytes;
-  $('#s1-status').textContent = tr(s1Modes[data.mode] || s1Modes.off);
-  $('#s1-status').dataset.mode = data.mode;
-  $('#s1-save').disabled = S1.busy || !data.editable;
-  $('#s1-save').textContent = tr(S1.busy ? 'Применяем…' : 'Сохранить и применить');
-  if (!data.editable) $('#s1-result').textContent = tr('Этот сервер работает в режиме только для чтения.');
-  if(draft)for(const [el,value,checked] of draft){el.value=value;el.checked=checked;}
-  syncS1Visibility();
-}
-
-async function loadS1() {
-  S1.data = await api('/api/v1/ui/s1');
-  renderS1(S1.dirty);
-}
-
-for (const id of ['s1-provider', 's1-protocol', 's1-mode', 'analysis-llm-engine']) {
-  $('#' + id)?.addEventListener('change', syncS1Visibility);
-}
-$('#analysis-worker-inline-start')?.addEventListener('click', async () => {
-  const btn = $('#analysis-worker-inline-start');
-  btn.disabled = true;
-  btn.textContent = tr('Запускается…');
-  try {
-    await api('/api/v1/ui/worker/start', { method: 'POST', body: {} });
-    await loadWorkerSummary();
-    syncS1Visibility();
-  } catch (err) {
-    fail(err);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = tr('Включить воркер');
+function renderLearningForms() {
+  for (const role of ["analysis", "categorization"]) {
+    const data = LearningUI[role];
+    if (!data || LearningUI.dirty.has(role)) continue;
+    const s = data.settings;
+    $(`#${role}-provider`).value = s.provider;
+    if (role === "analysis") {
+      $("#analysis-enabled").checked = s.enabled;
+      $("#analysis-local-model").value =
+        s.provider === "local" ? s.model : "qwen3-0.6b";
+      $("#analysis-api-model").value = s.provider === "api" ? s.model : "";
+      $("#analysis-url").value = s.url;
+      $("#analysis-background").checked = s.background;
+      $("#analysis-auto").checked = s.auto_apply;
+      $("#analysis-threshold").value = Math.round(s.threshold * 100);
+      $("#analysis-timeout").value = s.timeout_seconds;
+      $("#analysis-parallelism").value = s.parallelism;
+    } else {
+      $("#categorization-local-model").value = s.model;
+      $("#categorization-protocol").value = s.http.protocol;
+      $("#categorization-api-model").value = s.http.model || "";
+      $("#categorization-url").value = s.http.url;
+      $("#categorization-timeout").value = s.http.timeout_ms;
+    }
+    $(`#${role}-key`).value = "";
+    $(`#${role}-clear-key`).checked = false;
+    $(`#${role}-key`).placeholder = tr(
+      data.key_saved
+        ? "Сохранённый ключ останется без изменений"
+        : "Введите ключ, если он требуется",
+    );
   }
-});
-$('#s1-clear-key')?.addEventListener('change', event => {
-  if (event.target.checked) $('#s1-key').value = '';
-});
-$('#s1-key')?.addEventListener('input', () => {
-  if ($('#s1-key').value) $('#s1-clear-key').checked = false;
-});
-for (const button of document.querySelectorAll('#tab-s1 [data-go]')) {
-  button.addEventListener('click', () => showTab(button.dataset.go));
+  learningFormVisibility();
 }
-
-for(const event of ['input','change'])$('#s1-form').addEventListener(event,()=>{S1.dirty=true;$('#s1-result').textContent=tr('Есть несохранённые изменения');});
-$('#s1-form').addEventListener('click',e=>{if(e.target.closest('[data-s1-level]'))S1.dirty=true;});
-
-$('#s1-form').addEventListener('submit', async event => {
-  event.preventDefault();
-  if (S1.busy || !S1.data) return;
-  S1.busy = true;
-  syncS1Visibility();
-  $('#s1-result').textContent = '';
-  $('#s1-result').classList.remove('err');
-  $('#s1-save').disabled = true;
-  $('#s1-save').textContent = tr('Применяем…');
-  const current = S1.data.settings;
-  const settings = {
-    ...current,
-    provider: $('#s1-provider').value,
-    shadow: $('#s1-mode').value === 'shadow',
-    weight: Number($('#s1-weight').value),
-    keep_below: Number($('#s1-keep').value),
-    context_bytes: Number($('#s1-context').value),
-    http: {
-      ...current.http,
-      url: $('#s1-url').value.trim(),
-      protocol: $('#s1-protocol').value,
-      model: $('#s1-model').value.trim() || null,
-      timeout_ms: Number($('#s1-timeout').value),
-      disclosure: selectedS1Level(),
-    },
+function readLearningForm(role) {
+  const saved = LearningUI[role]?.settings || {};
+  let settings;
+  if (role === "analysis") {
+    const provider = $("#analysis-provider").value;
+    settings = {
+      ...saved,
+      enabled: $("#analysis-enabled").checked,
+      provider,
+      model:
+        provider === "api"
+          ? $("#analysis-api-model").value.trim()
+          : $("#analysis-local-model").value,
+      url: $("#analysis-url").value.trim(),
+      background: $("#analysis-background").checked,
+      auto_apply: $("#analysis-auto").checked,
+      threshold: Number($("#analysis-threshold").value) / 100,
+      timeout_seconds: Number($("#analysis-timeout").value),
+      parallelism: Number($("#analysis-parallelism").value),
+    };
+  } else {
+    settings = {
+      ...saved,
+      provider: $("#categorization-provider").value,
+      model: $("#categorization-local-model").value,
+      http: {
+        ...saved.http,
+        url: $("#categorization-url").value.trim(),
+        protocol: $("#categorization-protocol").value,
+        model: $("#categorization-api-model").value.trim() || null,
+        timeout_ms: Number($("#categorization-timeout").value),
+        disclosure: "l2",
+      },
+    };
+  }
+  const key = $(`#${role}-key`).value.trim();
+  return {
+    settings,
+    ...(key ? { key } : {}),
+    clear_key: $(`#${role}-clear-key`).checked,
   };
-  const key = $('#s1-key').value.trim();
-  try {
-    S1.data = await api('/api/v1/ui/s1', {
-      method: 'PUT',
-      body: { settings, ...(key ? { key } : {}), clear_key: $('#s1-clear-key').checked },
+}
+async function loadLearningSettings() {
+  const [analysis, categorization] = await Promise.all([
+    api("/api/v1/ui/analysis"),
+    api("/api/v1/ui/categorization"),
+  ]);
+  LearningUI.analysis = analysis;
+  LearningUI.categorization = categorization;
+  renderLearningForms();
+}
+for (const role of ["analysis", "categorization"]) {
+  for (const event of ["input", "change"])
+    $(`#${role}-form`).addEventListener(event, () => {
+      LearningUI.dirty.add(role);
+      $(`#${role}-result`).textContent = tr("Есть несохранённые изменения");
+      learningFormVisibility();
     });
-    await loadInfo();
-    S1.dirty=false;
-    renderS1();
-    $('#s1-result').textContent = tr('Настройки сохранены и применены. Доступность внешнего S1 будет видна при реальных запросах.');
-    toast(tr('Настройки S1 применены'));
-  } catch (error) {
-    $('#s1-result').textContent = error.message;
-    $('#s1-result').classList.add('err');
-    fail(error);
+  $(`#${role}-form`).addEventListener("submit", (event) => {
+    event.preventDefault();
+    saveLearningForm(role);
+  });
+  $(`#${role}-test`).addEventListener("click", () =>
+    saveLearningForm(role, true),
+  );
+}
+async function saveLearningForm(role, test = false) {
+  if (LearningUI.busy.has(role) || !LearningUI[role]) return;
+  const body = readLearningForm(role),
+    output = $(`#${role}-result`),
+    previous = LearningUI[role].settings;
+  LearningUI.busy.add(role);
+  learningFormVisibility();
+  output.classList.remove("err");
+  output.textContent = tr(test ? "Проверяем…" : "Применяем…");
+  try {
+    const result = await api(`/api/v1/ui/${role}${test ? "/test" : ""}`, {
+      method: test ? "POST" : "PUT",
+      body,
+    });
+    if (!test) {
+      LearningUI[role] = result;
+      LearningUI.dirty.delete(role);
+      renderLearningForms();
+      if (role === "analysis" && previous.enabled !== result.settings.enabled)
+        await workerAction(result.settings.enabled ? "/start" : "/stop", {});
+    }
+    output.textContent = tr(
+      test ? "Подключение проверено" : "Настройки сохранены и применены.",
+    );
+    await loadLearningHistory();
+  } catch (e) {
+    output.textContent = learningError(e.message);
+    output.classList.add("err");
   } finally {
-    S1.busy = false;
-    renderS1(true);
+    LearningUI.busy.delete(role);
+    learningFormVisibility();
+  }
+}
+
+function renderLearningWidget() {
+  const history = LearningUI.history,
+    settings = LearningUI.analysis?.settings,
+    worker = WORKER.data || {};
+  if (!history || !settings) return;
+  const summary = history.summary,
+    totals = summary.totals;
+  let state =
+    !settings.enabled || settings.provider === "none"
+      ? "Обучение приостановлено"
+      : summary.running
+        ? "Идёт анализ"
+        : !worker.enabled
+          ? "Ожидает включения воркера"
+          : summary.queued
+            ? "Ожидает обработки"
+            : "Ожидает новых данных";
+  if (
+    settings.enabled &&
+    settings.provider === "local" &&
+    worker.enabled &&
+    !worker.models?.[settings.model]?.downloaded
+  )
+    state = "Ожидает загрузки модели";
+  const category = LearningUI.categorization?.settings;
+  if (
+    settings.enabled &&
+    category?.provider === "local" &&
+    worker.enabled &&
+    !worker.models?.[category.model]?.downloaded
+  )
+    state = "Ожидает модели категоризации";
+  $("#learning-state").textContent = tr(state);
+  const toggle = $("#learning-toggle");
+  toggle.textContent = tr(
+    settings.enabled ? "Пауза обучения" : "Возобновить обучение",
+  );
+  toggle.disabled =
+    LearningUI.busy.has("toggle") || !LearningUI.analysis?.editable;
+  $("#learning-metrics").replaceChildren(
+    ...[
+      ["В очереди", summary.queued],
+      ["В работе", summary.running],
+      ["Обработано", totals.processed],
+      ["Извлечено", totals.extracted],
+      ["Применено правил", totals.applied],
+      ["На подтверждение", summary.pending],
+      ["Ошибок обработки", totals.failed],
+      ["Пропущено знакомых", totals.skipped_known],
+      ["Вытеснено", totals.evicted],
+    ].map(([label, value]) =>
+      h(
+        "div",
+        { class: "learning-metric" },
+        h("span", {}, tr(label)),
+        h("strong", {}, number(value || 0)),
+      ),
+    ),
+  );
+  $("#learning-storage").textContent =
+    tr("Очередь на диске: {{0}} из {{1}}", [
+      bytesMiB(summary.queue_bytes),
+      bytesMiB(summary.queue_limit_bytes),
+    ]) +
+    " · " +
+    tr("Истёк срок: {{0}} · Не помещено: {{1}}", [
+      number(totals.expired || 0),
+      number(totals.skipped || 0),
+    ]);
+  $("#learning-memory").textContent =
+    tr("ОЗУ воркера: {{0}} · модели: {{1}}", [
+      bytesMiB(worker.resources?.worker_rss_bytes),
+      bytesMiB(worker.resources?.model_rss_bytes),
+    ]) +
+    " · " +
+    tr("Параллельность: {{0}}", [settings.parallelism]);
+}
+$("#learning-toggle").addEventListener("click", async () => {
+  const settings = LearningUI.analysis?.settings;
+  if (!settings || LearningUI.busy.has("toggle")) return;
+  if (settings.provider === "none") {
+    showTab("analysis");
+    $("#analysis-provider").focus();
+    toast(tr("Выберите и сохраните источник модели"));
+    return;
+  }
+  LearningUI.busy.add("toggle");
+  renderLearningWidget();
+  try {
+    LearningUI.analysis = await api("/api/v1/ui/analysis", {
+      method: "PUT",
+      body: { settings: { ...settings, enabled: !settings.enabled } },
+    });
+    await workerAction(
+      LearningUI.analysis.settings.enabled ? "/start" : "/stop",
+      {},
+    );
+    if (!LearningUI.dirty.has("analysis")) renderLearningForms();
+    await loadLearningHistory();
+  } catch (e) {
+    fail(e);
+  } finally {
+    LearningUI.busy.delete("toggle");
+    renderLearningWidget();
   }
 });
-
-Object.assign(TABS, { analysis: loadAnalysis });
+function learningEntry(entry, showActions) {
+  const kind = h(
+    "select",
+    { "aria-label": tr("Тип") },
+    ...STANDARD_KINDS.map((k) => h("option", { value: k }, kindLabel(k))),
+  );
+  if (!STANDARD_KINDS.includes(entry.kind))
+    kind.append(h("option", { value: entry.kind }, kindLabel(entry.kind)));
+  kind.value = entry.kind;
+  const scope = h(
+    "select",
+    { "aria-label": tr("Контур") },
+    ...["personal", "team", "global"].map((k) =>
+      h(
+        "option",
+        { value: k },
+        tr({ personal: "Личные", team: "Команда", global: "Корпоративные" }[k]),
+      ),
+    ),
+  );
+  scope.value = entry.scope;
+  const controls = h("div", { class: "learning-entry-actions" });
+  if (showActions) {
+    controls.append(
+      kind,
+      scope,
+      h(
+        "button",
+        {
+          class: "primary",
+          onclick: () =>
+            learningAction(entry.id, "approve", {
+              kind: kind.value,
+              scope: scope.value,
+            }),
+        },
+        tr("Подтвердить"),
+      ),
+      h(
+        "button",
+        { class: "ghost", onclick: () => learningAction(entry.id, "reject") },
+        tr("Отклонить"),
+      ),
+    );
+  } else if (entry.state === "active")
+    controls.append(
+      h(
+        "button",
+        {
+          class: "secondary",
+          onclick: () => learningAction(entry.id, "rollback"),
+        },
+        tr("Отменить правило"),
+      ),
+    );
+  const confidence =
+    entry.confidence == null
+      ? tr("Нет общей оценки")
+      : `${(entry.confidence * 100).toFixed(1)}%`;
+  const details = h(
+    "details",
+    { class: "learning-evidence" },
+    h("summary", {}, tr("Источник и оценки")),
+    h("p", { class: "hint" }, entry.source),
+    h("blockquote", {}, entry.quote),
+    h(
+      "p",
+      { class: "hint" },
+      tr("Обнаружение: {{0}} · категоризация: {{1}}", [
+        entry.extraction_confidence == null
+          ? "—"
+          : `${(entry.extraction_confidence * 100).toFixed(1)}%`,
+        entry.classification_confidence == null
+          ? "—"
+          : `${(entry.classification_confidence * 100).toFixed(1)}%`,
+      ]),
+    ),
+    h("p", { class: "hint" }, `${entry.model} · ${entry.classifier || "—"}`),
+  );
+  return h(
+    "article",
+    { class: "learning-entry", "data-learning-id": entry.id },
+    h(
+      "div",
+      { class: "learning-entry-heading" },
+      h("code", { class: "learning-value" }, entry.value),
+      kindBadge(entry.kind),
+      h(
+        "span",
+        { class: "status-pill" },
+        tr(learningStates[entry.state] || entry.state),
+      ),
+      h("strong", {}, confidence),
+    ),
+    entry.reason
+      ? h("p", { class: "hint" }, learningError(entry.reason))
+      : null,
+    details,
+    controls,
+  );
+}
+function renderLearningHistory(force = false) {
+  const data = LearningUI.history;
+  if (!data) return;
+  if (
+    !force &&
+    (document.activeElement?.closest("#learning-pending,#learning-history") ||
+      document.querySelector(
+        "#learning-pending details[open],#learning-history details[open]",
+      ))
+  )
+    return;
+  const pending = data.entries.filter((e) => e.state === "pending");
+  $("#learning-pending").replaceChildren(
+    ...(pending.length
+      ? pending.map((e) => learningEntry(e, true))
+      : [h("div", { class: "empty" }, tr("Нет находок для подтверждения"))]),
+  );
+  const history = data.entries.filter((e) => e.state !== "pending");
+  $("#learning-history").replaceChildren(
+    ...(history.length
+      ? history.map((e) => learningEntry(e, false))
+      : [h("div", { class: "empty" }, tr("Журнал обучения пока пуст"))]),
+  );
+  $("#learning-jobs").replaceChildren(
+    h(
+      "div",
+      { class: "panel-heading" },
+      h("h2", {}, tr("Задания обучения")),
+      h(
+        "button",
+        { class: "ghost", onclick: () => loadLearningHistory(true) },
+        tr("Обновить"),
+      ),
+    ),
+    ...data.jobs.map((job) =>
+      h(
+        "div",
+        { class: "learning-job" },
+        h(
+          "div",
+          {},
+          h("strong", {}, job.name),
+          h(
+            "p",
+            { class: "hint" },
+            tr(learningStates[job.state] || job.state) +
+              (job.error ? " · " + learningError(job.error) : ""),
+          ),
+        ),
+        job.retryable
+          ? h(
+              "button",
+              {
+                class: "secondary",
+                onclick: () => learningAction(job.id, "retry"),
+              },
+              tr("Повторить"),
+            )
+          : null,
+        job.state === "succeeded" &&
+          data.entries.some((e) => e.job_id === job.id && e.state === "active")
+          ? h(
+              "button",
+              {
+                class: "ghost",
+                onclick: () => learningAction(job.id, "rollback-job"),
+              },
+              tr("Отменить изменения задания"),
+            )
+          : null,
+      ),
+    ),
+  );
+}
+async function learningAction(id, action, body = {}) {
+  if (LearningUI.busy.has("action")) return;
+  LearningUI.busy.add("action");
+  try {
+    await api(`/api/v1/ui/learning/${encodeURIComponent(id)}/${action}`, {
+      method: "POST",
+      body,
+    });
+    await loadLearningHistory(true);
+    await loadInfo();
+  } catch (e) {
+    fail(e);
+  } finally {
+    LearningUI.busy.delete("action");
+  }
+}
+async function loadLearningHistory(force = false) {
+  LearningUI.history = await api("/api/v1/ui/learning");
+  renderLearningWidget();
+  renderLearningHistory(force);
+}
+for (const button of document.querySelectorAll("[data-learning-view]"))
+  button.addEventListener("click", () => {
+    LearningUI.view = button.dataset.learningView;
+    for (const b of document.querySelectorAll("[data-learning-view]"))
+      b.setAttribute("aria-pressed", String(b === button));
+    $("#learning-pending").hidden = LearningUI.view !== "pending";
+    $("#learning-history").hidden = LearningUI.view !== "history";
+    $("#learning-jobs").hidden = LearningUI.view !== "history";
+    $(".detector-decisions").hidden = LearningUI.view !== "pending";
+    loadLearningHistory(true).catch(fail);
+  });
+$("#learning-open-history").addEventListener("click", () => {
+  showTab("review");
+  document.querySelector('[data-learning-view="history"]').click();
+});
+async function loadCategorization() {
+  await Promise.all([
+    loadLearningSettings(),
+    loadWorkerSummary(),
+    loadLearningHistory(),
+  ]);
+}
+Object.assign(TABS, {
+  categorization: loadCategorization,
+  review: async () => {
+    await Promise.all([loadJournal(), loadLearningHistory()]);
+  },
+});
+setInterval(() => {
+  if (
+    !document.hidden &&
+    ["#analysis", "#categorization", "#worker", "#review"].includes(
+      location.hash,
+    )
+  )
+    loadLearningHistory().catch(() => {});
+}, 2500);

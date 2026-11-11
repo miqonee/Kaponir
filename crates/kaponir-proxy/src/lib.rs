@@ -10,6 +10,7 @@
 
 pub mod anthropic;
 pub mod discovery;
+mod learning;
 mod metrics;
 pub mod openai;
 pub mod providers;

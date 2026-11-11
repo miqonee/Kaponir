@@ -42,3 +42,7 @@ image. Update the workflow SVGs directly when the documented flow changes.
 сняты `scripts/validate_console.py` на синтетическом трафике локального fixture-поставщика.
 Скрипт также проверяет 390/768/1440 px, RU/EN, потоковые ответы, аудит и запуск воркера.
 Полные снимки и журнал сохраняются в `artifacts/console` (также доступны как артефакт CI).
+
+`console-learning-dark.png` и `console-learning-history-dark.png` сняты
+`scripts/validate_local_learning.py --screenshots` при настоящей обработке Qwen3.5-0.8B
+на CPU в изолированном пространстве, с синтетическими названиями и двумя заданиями.

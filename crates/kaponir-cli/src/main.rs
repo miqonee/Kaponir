@@ -1623,8 +1623,8 @@ fn models_cmd(home: &Home, action: ModelsCmd) -> Result<ExitCode> {
             "qwen3.5-0.8b",
             "3.5",
             "Qwen3.5-0.8B-Q4_K_M.gguf",
-            524_288_000u64,
-            "Новая Qwen3.5-0.8B Q4_K_M (~500 МБ, высокая точность)",
+            532_517_120u64,
+            "Qwen3.5-0.8B Q4_K_M (~533 МБ, CPU)",
         ),
     ];
     match action {

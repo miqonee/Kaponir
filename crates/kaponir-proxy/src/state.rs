@@ -77,6 +77,8 @@ struct Inner {
 }
 
 pub struct State {
+    pub(crate) learning: Arc<crate::learning::Learning>,
+    pub(crate) learning_changes: tokio::sync::Mutex<()>,
     pub(crate) provider_refresh: tokio::sync::Mutex<()>,
     pub(crate) rule_changes: tokio::sync::Mutex<()>,
     pub(crate) worker_actions: tokio::sync::Mutex<()>,
@@ -126,6 +128,7 @@ impl State {
         {
             traffic.restore_archive(archive);
         }
+        let learning = crate::learning::Learning::load(&vault)?;
         let inner = Arc::new(Mutex::new(Inner {
             vault,
             sessions: HashMap::new(),
@@ -133,7 +136,8 @@ impl State {
             suppressed: HashSet::new(),
         }));
         let inner_weak = Arc::downgrade(&inner);
-        traffic.set_persister(Arc::new(move |event, archive| {
+        let learning_sink = learning.clone();
+        traffic.set_persister(Arc::new(move |event, archive, messages| {
             let Some(inner_arc) = inner_weak.upgrade() else {
                 return;
             };
@@ -150,6 +154,7 @@ impl State {
                     guard
                         .vault
                         .set_private_setting("traffic:archive:v1", &aggregate)?;
+                    crate::learning::enqueue_event(&guard.vault, &learning_sink, event, messages)?;
                     guard.vault.commit()?;
                     Ok(())
                 })();
@@ -160,6 +165,8 @@ impl State {
             }
         }));
         let state = Self {
+            learning,
+            learning_changes: tokio::sync::Mutex::new(()),
             provider_refresh: tokio::sync::Mutex::new(()),
             rule_changes: tokio::sync::Mutex::new(()),
             worker_actions: tokio::sync::Mutex::new(()),
@@ -183,6 +190,9 @@ impl State {
 
     pub fn with_control(mut self, control: Box<dyn Control>) -> Self {
         self.control = Some(control);
+        if let Err(e) = self.learning.migrate(&self) {
+            eprintln!("kaponir: learning settings migration: {e}");
+        }
         self.refresh_suppressed();
         self
     }
@@ -385,7 +395,9 @@ impl Cx<'_> {
     /// теми же токенами.
     pub fn mask_full(&mut self, input: &Input<'_>) -> anyhow::Result<Masked> {
         self.opts.known = std::mem::take(&mut self.session.known);
-        let r = self.engine.mask(input, &self.opts, &mut *self.vault);
+        let r = self
+            .engine
+            .mask_without_s1(input, &self.opts, &mut *self.vault);
         self.session.known = std::mem::take(&mut self.opts.known);
         let mut m = r?;
         self.usage.add(&Usage::masked(&m));

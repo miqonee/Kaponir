@@ -21,7 +21,11 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/worker/models/download", post(download))
         .route("/api/v1/ui/worker/jobs/{id}/{action}", post(action))
 }
-async fn forward(st: &Shared, path: &str, body: Option<Value>) -> Result<Json<Value>, ApiError> {
+pub(crate) async fn forward(
+    st: &Shared,
+    path: &str,
+    body: Option<Value>,
+) -> Result<Json<Value>, ApiError> {
     let configured = std::env::var("KAPONIR_WORKER_URL")
         .ok()
         .or_else(|| st.cfg.worker_url.clone());
@@ -52,7 +56,13 @@ async fn forward(st: &Shared, path: &str, body: Option<Value>) -> Result<Json<Va
         request = request.bearer_auth(token);
     }
     let response = request
-        .timeout(Duration::from_secs(if path == "/status" { 1 } else { 10 }))
+        .timeout(Duration::from_secs(if path == "/status" {
+            1
+        } else if path == "/evaluate" {
+            300
+        } else {
+            10
+        }))
         .send()
         .await
         .map_err(|_| error(StatusCode::BAD_GATEWAY, "worker unavailable"))?;
@@ -79,77 +89,11 @@ async fn forward(st: &Shared, path: &str, body: Option<Value>) -> Result<Json<Va
 }
 async fn status(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
     authorized(&st, &headers, true)?;
-    if let Some(m) = &st.worker_manager {
-        if !m.running() {
-            return Ok(Json(json!({
-                "configured": true,
-                "online": false,
-                "state": "disabled",
-                "enabled": false,
-                "can_manage": true,
-            })));
-        }
-    }
-    match forward(&st, "/status", None).await {
-        Ok(mut value) => {
-            if let Some(obj) = value.as_object_mut() {
-                if st.worker_manager.is_some() {
-                    obj.insert("can_manage".into(), json!(true));
-                }
-            }
-            Ok(value)
-        }
-        Err(_) => Ok(Json(json!({
-            "configured": true,
-            "online": false,
-            "state": if st.worker_manager.is_some() { "disabled" } else { "error" },
-            "enabled": false,
-            "can_manage": st.worker_manager.is_some(),
-            "error": if st.worker_manager.is_some() { "" } else { "Worker is unavailable. Check its process and connection settings." },
-        }))),
-    }
-}
-async fn start(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
-    authorized(&st, &headers, true)?;
-    let _action = st.worker_actions.lock().await;
-    let external_online = forward(&st, "/status", None).await.is_ok();
-    if !external_online {
-        if let Some(manager) = st.worker_manager.clone() {
-            tokio::task::spawn_blocking(move || manager.start())
-                .await
-                .map_err(|e| internal(e.into()))?
-                .map_err(internal)?;
-            let mut ready = false;
-            let deadline = tokio::time::Instant::now() + Duration::from_secs(8);
-            while tokio::time::Instant::now() < deadline {
-                if forward(&st, "/status", None).await.is_ok() {
-                    ready = true;
-                    break;
-                }
-                if st.worker_manager.as_ref().is_none_or(|m| !m.running()) {
-                    return Err(error(
-                        StatusCode::SERVICE_UNAVAILABLE,
-                        "Worker exited during startup. Check Python 3.12+ and the worker process log.",
-                    ));
-                }
-                tokio::time::sleep(Duration::from_millis(100)).await;
-            }
-            if !ready {
-                return Err(error(
-                    StatusCode::GATEWAY_TIMEOUT,
-                    "Worker did not become ready",
-                ));
-            }
-        }
-    }
-    forward(&st, "/enable", Some(json!({}))).await
-}
-async fn stop(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
-    authorized(&st, &headers, true)?;
-    let _action = st.worker_actions.lock().await;
-    let _ = forward(&st, "/disable", Some(json!({}))).await;
-    if let Some(manager) = st.worker_manager.clone() {
-        let _ = tokio::task::spawn_blocking(move || manager.stop()).await;
+    if let Some(m) = &st.worker_manager
+        && !m.running()
+        && std::env::var("KAPONIR_WORKER_URL").is_err()
+        && st.cfg.worker_url.is_none()
+    {
         return Ok(Json(json!({
             "configured": true,
             "online": false,
@@ -158,6 +102,87 @@ async fn stop(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Value
             "can_manage": true,
         })));
     }
+    match forward(&st, "/status", None).await {
+        Ok(mut value) => {
+            if let Some(obj) = value.as_object_mut()
+                && st.worker_manager.is_some()
+            {
+                obj.insert("can_manage".into(), json!(true));
+            }
+            Ok(value)
+        }
+        Err(_) => Ok(Json(json!({
+            "configured": true,
+            "online": false,
+            "state": "error",
+            "enabled": false,
+            "can_manage": st.worker_manager.is_some(),
+            "error": "Worker is unavailable. Check its process and connection settings.",
+        }))),
+    }
+}
+async fn start(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    let _action = st.worker_actions.lock().await;
+    let external_online = forward(&st, "/status", None)
+        .await
+        .is_ok_and(|v| v["online"] == true);
+    if !external_online && let Some(manager) = st.worker_manager.clone() {
+        tokio::task::spawn_blocking(move || manager.start())
+            .await
+            .map_err(|e| internal(e.into()))?
+            .map_err(internal)?;
+        let mut ready = false;
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(8);
+        while tokio::time::Instant::now() < deadline {
+            if forward(&st, "/status", None)
+                .await
+                .is_ok_and(|v| v["online"] == true)
+            {
+                ready = true;
+                break;
+            }
+            if st.worker_manager.as_ref().is_none_or(|m| !m.running()) {
+                return Err(error(
+                    StatusCode::SERVICE_UNAVAILABLE,
+                    "Worker exited during startup. Check Python 3.12+ and the worker process log.",
+                ));
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        if !ready {
+            return Err(error(
+                StatusCode::GATEWAY_TIMEOUT,
+                "Worker did not become ready",
+            ));
+        }
+    }
+    forward(&st, "/enable", Some(json!({}))).await
+}
+async fn stop(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    let _action = st.worker_actions.lock().await;
+    if st.worker_manager.as_ref().is_some_and(|m| !m.running())
+        && std::env::var("KAPONIR_WORKER_URL").is_err()
+        && st.cfg.worker_url.is_none()
+    {
+        return status(State(st.clone()), headers).await;
+    }
+    let disabled = forward(&st, "/disable", Some(json!({}))).await;
+    if let Some(manager) = st.worker_manager.clone().filter(|m| m.running()) {
+        tokio::task::spawn_blocking(move || manager.stop())
+            .await
+            .map_err(|e| internal(e.into()))?
+            .map_err(internal)?;
+        return Ok(Json(json!({
+            "configured": true,
+            "online": false,
+            "state": "disabled",
+            "enabled": false,
+            "can_manage": true,
+        })));
+    }
+    let _ = disabled?;
     drop(_action);
     status(State(st), headers).await
 }

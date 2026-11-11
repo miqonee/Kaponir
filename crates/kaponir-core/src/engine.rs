@@ -333,8 +333,18 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
     ) -> Result<Masked, EngineError> {
+        self.mask_measured(input, opts, vault, true)
+    }
+
+    fn mask_measured(
+        &self,
+        input: &Input<'_>,
+        opts: &MaskOptions,
+        vault: &mut dyn Vault,
+        use_s1: bool,
+    ) -> Result<Masked, EngineError> {
         let started = Instant::now();
-        let result = self.mask_impl(input, opts, vault, true);
+        let result = self.mask_impl(input, opts, vault, use_s1);
         self.metrics
             .mask
             .observe(started.elapsed(), result.is_err());
@@ -354,7 +364,7 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
     ) -> Result<Masked, EngineError> {
-        self.mask_impl(input, opts, vault, false)
+        self.mask_measured(input, opts, vault, false)
     }
 
     fn mask_impl(

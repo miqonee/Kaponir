@@ -57,6 +57,44 @@ class WorkerTests(unittest.TestCase):
             self.assertTrue(request.call_args.args[0].endswith('/api/v1/ui/sessions/export'))
         self.assertEqual(self.worker.get(job['id'])['state'], 'succeeded')
 
+    def test_parallel_evaluations_are_bounded_and_support_ten_slots(self):
+        import time
+        active = 0
+        peak = 0
+        lock = threading.Lock()
+        def response(*args, **kwargs):
+            nonlocal active, peak
+            with lock:
+                active += 1
+                peak = max(peak, active)
+            time.sleep(.05)
+            with lock: active -= 1
+            return {'choices':[{'finish_reason':'stop','message':{'content':'{"candidates":[]}'}}]}
+        self.worker.ocr_base='http://fixture'
+        results=[]
+        body={'model':'qwen3-0.6b','parallelism':3,'prompt':'fixture','schema':{},'input':{}}
+        with patch.object(self.worker,'start_runtime') as runtime, patch('kaponir_worker.http_json',side_effect=response):
+            threads=[threading.Thread(target=lambda:results.append(self.worker.evaluate(body))) for _ in range(7)]
+            for thread in threads:thread.start()
+            for thread in threads:thread.join(timeout=5)
+            self.assertEqual(len(results),7)
+            self.assertGreater(peak,1)
+            self.assertLessEqual(peak,3)
+            self.worker.evaluate({**body,'parallelism':10})
+            self.assertEqual(runtime.call_args.args[2],10)
+        self.assertFalse(self.worker.evaluations)
+        for invalid in [0,11,True]:
+            with self.assertRaises(ValueError): self.worker.evaluate({**body,'parallelism':invalid})
+
+    def test_configured_document_analysis_uses_background_queue(self):
+        self.worker.cfg['api_url']='http://fixture'
+        job=self.worker.submit('scan',mode='configured')
+        with patch('kaponir_worker.http_json',return_value={'queued':1}) as request:
+            self.worker.import_text(job['id'],'fixture.txt','private text',False)
+            self.assertTrue(request.call_args.args[0].endswith('/api/v1/ui/analysis/documents'))
+        memory=self.worker.resources()
+        if memory['worker_rss_bytes'] is not None: self.assertGreater(memory['worker_rss_bytes'],0)
+
     def test_source_boundary_and_symlinks(self):
         (self.root/'a.txt').write_text('hello')
         outside=self.home/'outside.txt';outside.write_text('outside')
