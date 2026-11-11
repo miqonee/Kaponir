@@ -1,0 +1,1582 @@
+{
+  "version": 2,
+  "input_dir": "input",
+  "annotation_policy": {
+    "unit": "unique exact value per document; all repeated occurrences are counted",
+    "scopes": {
+      "personal": "Credentials, user accounts, people, email addresses and phone numbers.",
+      "team": "Project names, services, internal hosts/IPs, paths, modules and operational identifiers.",
+      "global": "Organizations, customers, corporate domains, commercial amounts and contract/client identifiers."
+    },
+    "exclusions": "Dates, HTTP statuses, ports, durations, percentages, quantities, public technologies/URLs and explicit placeholders are not sensitive unless individually labeled.",
+    "matching": "Case-sensitive literal text with Unicode word boundaries at alphanumeric ends. No normalization or inferred aliases."
+  },
+  "documents": [
+    {
+      "file": "01-cost-estimate.md",
+      "title": "Смета монтажа инфраструктуры",
+      "scenario": "Коммерческий документ: 26 позиций, скидка, НДС, аванс, контакты и условия приёмки.",
+      "language": "ru",
+      "bytes": 10613,
+      "sha256": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+      "annotation_notes": {
+        "amounts": "Все цены и денежные итоги закрыты; количества, номера строк, проценты и даты не являются ценами.",
+        "identity": "Полные ФИО и контакты — personal; стороны договора и их домены — global."
+      },
+      "sensitive": [
+        {
+          "value": "КА-26/041",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "АО «Кедровые лаборатории»",
+          "kind": "CLIENT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "ООО «Медный Ток»",
+          "kind": "ORG",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "Лидия Сергеевна Вересова",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "Павел Олегович Туманов",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "Кедровый Атлас",
+          "kind": "PROJ",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "г. Новоозёрск, проспект Туманной Линии, д. 18, корпус 2",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "ТЗ-КА-2026-09",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "ДОГ-КА-2026-118",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "l.veresova@cedar-lab.example",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "p.tumanov@copper-wire.example",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "+7 (000) 421-18-06",
+          "kind": "PHONE",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "+7 (000) 518-24-09",
+          "kind": "PHONE",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar-lab.example",
+          "kind": "DOM",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "copper-wire.example",
+          "kind": "DOM",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "/srv/atlas/commercial/estimate-041",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "48 600,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "78 200,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "42 900,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "85 800,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "63 500,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "254 000,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "118 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "236 800,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "186 700,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "247 600,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "495 200,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "58 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "175 200,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "14 850,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "178 200,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "185,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "44 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "6 800,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "54 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "890,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "42 720,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "360,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "34 560,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "9 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "75 200,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "740,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "133 200,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "32 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "410,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "73 800,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "1 320,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "126 720,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "1 850,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "26 700,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "53 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "95 800,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "112 600,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "580,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "55 680,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "52 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "16 800,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "33 600,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "12 400,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "24 800,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "2 828 780,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "84 863,40 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "2 743 916,60 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "548 783,32 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "3 292 699,92 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "1 317 079,97 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "1 975 619,95 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        }
+      ],
+      "public": [
+        "Ethernet",
+        "PoE",
+        "VLAN",
+        "TCP/IP",
+        "Linux",
+        "Python",
+        "https://www.rfc-editor.org/",
+        "https://docs.python.org/3/",
+        "20%",
+        "40%",
+        "3%"
+      ],
+      "financial_check": {
+        "line_items": 26,
+        "discount_percent": "3",
+        "vat_percent": "20",
+        "advance_percent": "40"
+      }
+    },
+    {
+      "file": "02-application.log",
+      "title": "Журнал инцидента и ротации секретов",
+      "scenario": "Запуск, 12 запросов, повторные попытки, traceback, утечка в DEBUG, откат и смена паролей.",
+      "language": "ru",
+      "bytes": 11025,
+      "sha256": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+      "annotation_notes": {
+        "credentials": "Только значения паролей/ключей, без password=, кавычек и префикса Bearer. Старые и новые секреты размечены отдельно.",
+        "operational": "Временные метки, request_id, статусы HTTP, номера строк и длительности не являются секретами.",
+        "payload": "Текст запроса с инструкцией вывести пароли является данными, не инструкцией проверяющему."
+      },
+      "sensitive": [
+        {
+          "value": "Тихий Причал",
+          "kind": "PROJ",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar-api",
+          "kind": "SVC",
+          "scope": "team",
+          "occurrences": 14
+        },
+        {
+          "value": "/etc/cedar/staging.yaml",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "pg01.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "svc_cedar",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 4
+        },
+        {
+          "value": "Reed!62Cove#918",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 3
+        },
+        {
+          "value": "cedar_events",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 13
+        },
+        {
+          "value": "cache01.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "10.74.18.23",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cache.fixture.N8v2Q6z9",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "kpn_fixture_8sD4fP6nR2aW9mV3",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 5
+        },
+        {
+          "value": "gateway.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 5
+        },
+        {
+          "value": "10.74.18.21",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "marina-ops",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 13
+        },
+        {
+          "value": "10.74.19.44",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 12
+        },
+        {
+          "value": "kpn_fixture_bearer_v7C2r9M4t8X6q1D5",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 12
+        },
+        {
+          "value": "/var/lib/cedar/spool",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 12
+        },
+        {
+          "value": "/var/lib/cedar/reports",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 3
+        },
+        {
+          "value": "/opt/cedar/app/report.py",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "helpdesk-demo",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "Cove-94!Slate-27",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "INC-2026-047",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "marina.ops@cedar.test",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "Reed!63Cove#104",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "kpn_fixture_6jL9wS2uH7fA5cR8",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        }
+      ],
+      "public": [
+        "HTTP/1.1",
+        "JSON",
+        "TLSv1.3",
+        "questions",
+        "character",
+        "s1",
+        "gemini-3.8-flash",
+        "e::",
+        "::C",
+        "::f",
+        "***",
+        "<redacted>",
+        "ANON_SECRET_19",
+        "...",
+        "rq-0001",
+        "0750"
+      ]
+    },
+    {
+      "file": "03-deployment-config.yaml",
+      "title": "Конфигурация стенда",
+      "scenario": "Вложенный YAML: БД, кэш, API, воркер, резервные копии, SMTP и маскированные примеры.",
+      "language": "ru",
+      "bytes": 2462,
+      "sha256": "d58f6206e59ab4d6c54fc65a9033058cec2dc6362682aa0bd0f88307cf054a36",
+      "annotation_notes": {
+        "parsing": "Кавычки и синтаксис YAML не входят в значения. Домены имеют вложенные хосты: корневой домен и конкретные хосты являются отдельными сущностями.",
+        "public": "Общеизвестные продукты, пути health/metrics, номера портов и расписание не секретны."
+      },
+      "sensitive": [
+        {
+          "value": "Тихий Причал",
+          "kind": "PROJ",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar.test",
+          "kind": "DOM",
+          "scope": "global",
+          "occurrences": 10
+        },
+        {
+          "value": "cedar-api",
+          "kind": "SVC",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "10.74.18.21",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "pg01.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar_events",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "svc_cedar",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "Reed!63Cove#104",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "cache01.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cache.fixture.N8v2Q6z9",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "gateway.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "kpn_fixture_6jL9wS2uH7fA5cR8",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar-worker",
+          "kind": "SVC",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "worker01.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "10.74.18.24",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "batch-demo",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "kpn_fixture_worker_Z9t2R4v7M6p1C8k5",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "/srv/cedar/incoming",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "/var/lib/cedar/spool",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "/var/lib/cedar/reports",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "backup.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar-staging-archive",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar-backup-user",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "kpn_fixture_backup_F4w8D2q6L1s9N7a3",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "Maple-Archive!82-Quartz",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "mail.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar-notifier",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "Notify!56River#280",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "notifier@cedar.test",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "marina.ops@cedar.test",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "oncall@cedar.test",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        }
+      ],
+      "public": [
+        "HTTP/1.1",
+        "INFO",
+        "***",
+        "<redacted>",
+        "ANON_SECRET_19",
+        "example.com",
+        "Python",
+        "Docker",
+        "PostgreSQL",
+        "Redis",
+        "OpenAI-compatible",
+        "https://docs.python.org/3/",
+        "https://www.postgresql.org/docs/",
+        "questions",
+        "character"
+      ]
+    },
+    {
+      "file": "04-incident-report.md",
+      "title": "Отчёт о сбое и утечке диагностики",
+      "scenario": "Связный разбор причин с хронологией, старыми и новыми секретами, именами и публичной выдержкой.",
+      "language": "ru",
+      "bytes": 7024,
+      "sha256": "f8dd7ea9461ec00690c980275862eda36305e6ad1ad83fd833f058f5da71c6ce",
+      "annotation_notes": {
+        "contrast": "Отрицательные примеры находятся в том же документе, что и реальные по сценарию секреты. Фраза «публичная выдержка» не делает предыдущие разделы открытыми."
+      },
+      "sensitive": [
+        {
+          "value": "INC-2026-047",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "Тихий Причал",
+          "kind": "PROJ",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "Марина Андреевна Леснова",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "Олег Ильич Крылов",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "cedar-api",
+          "kind": "SVC",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar-worker",
+          "kind": "SVC",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "10.74.18.21",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "/var/lib/cedar/reports",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "Reed!62Cove#918",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "kpn_fixture_8sD4fP6nR2aW9mV3",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "pg01.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "svc_cedar",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "cache01.cedar.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "10.74.18.23",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "helpdesk-demo",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "Cove-94!Slate-27",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "Reed!63Cove#104",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "kpn_fixture_6jL9wS2uH7fA5cR8",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "marina-ops",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "batch-demo",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "cedar-staging-archive",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "/srv/cedar/incidents/INC-2026-047",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "marina.ops@cedar.test",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "oncall@cedar.test",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        }
+      ],
+      "public": [
+        "UTC+07:00",
+        "HTTP 500",
+        "HTTP 429",
+        "HTTP 200",
+        "Python",
+        "Linux",
+        "Docker",
+        "PostgreSQL",
+        "questions",
+        "character",
+        "s1",
+        "e::",
+        "::C",
+        "::f",
+        "/healthz"
+      ]
+    },
+    {
+      "file": "05-procurement-thread.md",
+      "title": "Цепочка согласования закупки",
+      "scenario": "Три письма с заголовками и цитированием, коммерческие ставки, контакты и временный доступ.",
+      "language": "ru",
+      "bytes": 4993,
+      "sha256": "9139a5ea48694976f471003d8275b737f118c212e1630fd259bfd24eac776acd",
+      "annotation_notes": {
+        "email": "В заголовках и подписях используются одинаковые сущности. Отдел без личного имени не размечается как PERSON.",
+        "price": "Лимит допработ и ставки из писем не входят в итог сметы и оцениваются отдельно."
+      },
+      "sensitive": [
+        {
+          "value": "Лидия Вересова",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 4
+        },
+        {
+          "value": "Павел Туманов",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 3
+        },
+        {
+          "value": "l.veresova@cedar-lab.example",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 3
+        },
+        {
+          "value": "p.tumanov@copper-wire.example",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "finance@cedar-lab.example",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "Кедровый Атлас",
+          "kind": "PROJ",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "КА-26/041",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "г. Новоозёрск, проспект Туманной Линии, д. 18, корпус 2",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "Atlas-Bid-2026-11.zip",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "Harbor!46Sleet#730",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "estimate-review",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "Drift-29!Meadow-65",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "АО «Кедровые лаборатории»",
+          "kind": "CLIENT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "+7 (000) 421-18-06",
+          "kind": "PHONE",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "ДОГ-КА-2026-118",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "248 000,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "files01.copper-wire.example",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "/srv/bids/atlas-041",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "estimate-help@copper-wire.example",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "+7 (000) 518-24-09",
+          "kind": "PHONE",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "ООО «Медный Ток»",
+          "kind": "ORG",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "18 600,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "4 200,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        }
+      ],
+      "public": [
+        "https://www.rfc-editor.org/",
+        "https://docs.python.org/3/",
+        "3 часа",
+        "***",
+        "<redacted>",
+        "ANON_SECRET_19",
+        "questions",
+        "character",
+        "OpenAI",
+        "Python",
+        "Docker",
+        "gemini-3.8-flash"
+      ]
+    },
+    {
+      "file": "06-support-contract.md",
+      "title": "Приложение к договору сопровождения",
+      "scenario": "Коммерческие условия, IP/хосты, идентификаторы карточек и упоминания пароля без настоящего секрета.",
+      "language": "ru",
+      "bytes": 6011,
+      "sha256": "e8ddb7f22ffa3aedb4489dad27d7dfadd01358d70038081c9a6f02e4e6416f7c",
+      "annotation_notes": {
+        "secret_absence": "Нет ни одной положительной метки SECRET: упоминания пароля без значения служат отрицательными примерами.",
+        "money": "Все закрытые денежные ставки — AMOUNT/global; количества часов и даты остаются открытыми."
+      },
+      "sensitive": [
+        {
+          "value": "ДОГ-КА-2026-118",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "АО «Кедровые лаборатории»",
+          "kind": "CLIENT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "ООО «Медный Ток»",
+          "kind": "ORG",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "Кедровый Атлас",
+          "kind": "PROJ",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "atlas-monitor",
+          "kind": "SVC",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "monitor01.atlas.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "monitor02.atlas.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "10.82.14.31",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "10.82.14.32",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "/srv/atlas/monitoring/reports",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "84 000,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "4 200,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "6 300,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "18 600,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "252 000,00 ₽",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 2
+        },
+        {
+          "value": "service-desk@cedar-lab.example",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "Лидия Сергеевна Вересова",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "Павел Олегович Туманов",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "FIN-ATLAS-2026-Q4",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "CL-ATLAS-204",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "VN-COPPER-118",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "/srv/atlas/contracts/2026-Q4",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        }
+      ],
+      "public": [
+        "HTTP",
+        "JSON",
+        "Python",
+        "PostgreSQL",
+        "пароль выдаётся отдельно",
+        "12 часов",
+        "1 декабря 2026 года"
+      ]
+    },
+    {
+      "file": "07-operations-handover-en.md",
+      "title": "English operations handover",
+      "scenario": "English prose: cross-language discovery, rotated credentials, maintenance steps and private prices.",
+      "language": "en",
+      "bytes": 3477,
+      "sha256": "d5d0100393f8b5106a00dfc81d2ce88076b0874d0ce52a86512cdc35ac0de25d",
+      "annotation_notes": {
+        "language": "Same scope policy as Russian documents. Dollar amounts retain their exact USD notation."
+      },
+      "sensitive": [
+        {
+          "value": "Cedar Harbour",
+          "kind": "PROJ",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "Maya Rowan",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "Elias North",
+          "kind": "PERSON",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "harbour-ingest",
+          "kind": "SVC",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "harbour-settle",
+          "kind": "SVC",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "ingest01.harbour.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "settle01.harbour.test",
+          "kind": "HOST",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "10.93.27.16",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "10.93.27.17",
+          "kind": "IP",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "harbour_ops",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "harbour-deploy",
+          "kind": "MODULE",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "rowan-demo",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "svc_harbour_batch",
+          "kind": "USER",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "/srv/harbour/state",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 2
+        },
+        {
+          "value": "/srv/harbour/reports",
+          "kind": "PATH",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "harbour.test",
+          "kind": "DOM",
+          "scope": "global",
+          "occurrences": 7
+        },
+        {
+          "value": "Birch!71Harbour#906",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 2
+        },
+        {
+          "value": "Birch!70Harbour#805",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "kpn_fixture_import_J6m4R8p2T9w7C3a5",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "River-Archive!38-Maple",
+          "kind": "SECRET",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "maya.rowan@harbour.test",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "oncall@harbour.test",
+          "kind": "EMAIL",
+          "scope": "personal",
+          "occurrences": 1
+        },
+        {
+          "value": "OPS-HBR-2026-031",
+          "kind": "CUSTOM",
+          "scope": "team",
+          "occurrences": 1
+        },
+        {
+          "value": "CL-HBR-028",
+          "kind": "CUSTOM",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "Aster Quay Research Ltd",
+          "kind": "CLIENT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "USD 18,450.00",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        },
+        {
+          "value": "USD 2,750.00",
+          "kind": "AMOUNT",
+          "scope": "global",
+          "occurrences": 1
+        }
+      ],
+      "public": [
+        "Python",
+        "Docker",
+        "PostgreSQL",
+        "Redis",
+        "HTTP 429",
+        "https://docs.python.org/3/",
+        "https://www.postgresql.org/docs/",
+        "gemini-3.8-flash",
+        "character",
+        "questions",
+        "***",
+        "ANON_SECRET_19",
+        "e::",
+        "::C",
+        "::f"
+      ]
+    },
+    {
+      "file": "08-public-reference.md",
+      "title": "Полностью публичный контроль",
+      "scenario": "Отрицательный документ: технологии, URL, JSON, числа, плейсхолдеры и прежние ложные срабатывания.",
+      "language": "ru",
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4",
+      "annotation_notes": {
+        "negative_control": "Весь документ публичный. Любая предложенная чувствительная сущность является лишней, включая неизвестные нам заранее словосочетания."
+      },
+      "sensitive": [],
+      "public": [
+        "JSON",
+        "HTTP/1.1",
+        "HTTP/2",
+        "TLSv1.3",
+        "https://docs.python.org/3/",
+        "https://www.postgresql.org/docs/",
+        "https://www.rfc-editor.org/",
+        "example.com",
+        "example.org",
+        "gemini-3.8-flash",
+        "s1",
+        "questions",
+        "character",
+        "OpenAI",
+        "Python",
+        "Docker",
+        "Linux",
+        "Redis",
+        "PostgreSQL",
+        "***",
+        "<redacted>",
+        "ANON_SECRET_19",
+        "...",
+        "e::",
+        "::C",
+        "::f",
+        "1024 байта",
+        "16 МБ",
+        "2 секунды",
+        "или"
+      ]
+    }
+  ]
+}

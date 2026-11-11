@@ -1,0 +1,93 @@
+# Private deployment configuration; access limited to the project team.
+project: "Тихий Причал"
+environment: staging
+release: "2.8.4"
+private_domain: cedar.test
+
+server:
+  service_name: cedar-api
+  listen: 10.74.18.21
+  port: 8787
+  public_protocol: HTTP/1.1
+  workers: 4
+  request_timeout_seconds: 30
+  health_path: /healthz
+  metrics_path: /metrics
+
+storage:
+  postgres:
+    host: pg01.cedar.test
+    port: 5432
+    database: cedar_events
+    username: svc_cedar
+    password: "Reed!63Cove#104"
+    connect_timeout_seconds: 5
+    pool_min: 2
+    pool_max: 10
+    tls: true
+  redis:
+    host: cache01.cedar.test
+    port: 6379
+    database: 2
+    password: "cache.fixture.N8v2Q6z9"
+    connect_timeout_ms: 1500
+
+upstream:
+  base_url: https://gateway.cedar.test/v1
+  api_key: kpn_fixture_6jL9wS2uH7fA5cR8
+  retry:
+    attempts: 3
+    min_delay_ms: 250
+    max_delay_ms: 2000
+    statuses: [429, 502, 503]
+
+worker:
+  service_name: cedar-worker
+  host: worker01.cedar.test
+  listen: 10.74.18.24
+  username: batch-demo
+  access_token: kpn_fixture_worker_Z9t2R4v7M6p1C8k5
+  concurrency: 2
+  input_root: /srv/cedar/incoming
+  work_root: /var/lib/cedar/spool
+  report_root: /var/lib/cedar/reports
+  allowed_extensions: [txt, md, json, csv]
+  max_file_bytes: 16777216
+
+backup:
+  schedule: "0 2 * * *"
+  endpoint: https://backup.cedar.test
+  bucket: cedar-staging-archive
+  access_key: cedar-backup-user
+  secret_key: kpn_fixture_backup_F4w8D2q6L1s9N7a3
+  encryption_passphrase: "Maple-Archive!82-Quartz"
+  retention_days: 14
+  include_database: true
+  exclude_patterns: ["*.tmp", "*.part"]
+
+notification:
+  smtp_host: mail.cedar.test
+  smtp_port: 587
+  smtp_user: cedar-notifier
+  smtp_password: "Notify!56River#280"
+  from: notifier@cedar.test
+  recipients:
+    - marina.ops@cedar.test
+    - oncall@cedar.test
+
+logging:
+  level: INFO
+  redact_authorization: true
+  rotate_megabytes: 50
+  keep_files: 7
+  # These are documentation placeholders, not usable credentials.
+  sample_password: "***"
+  sample_token: "<redacted>"
+  already_masked: "ANON_SECRET_19"
+  sample_domain: "example.com"
+
+# Public dependencies and documentation; these names must remain readable.
+# Python 3.13, Docker, PostgreSQL 17, Redis 7, OpenAI-compatible API.
+# https://docs.python.org/3/ and https://www.postgresql.org/docs/
+# Generic field names: password, secret_key, token, questions, character.
+# A filename glob, a cron expression and a port number are not access credentials.
