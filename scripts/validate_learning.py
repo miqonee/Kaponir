@@ -25,12 +25,23 @@ def check_browser(base, api, output):
         page.goto(base+'/ui/#analysis')
         page.wait_for_function("() => document.querySelector('#analysis-provider')?.value==='api'")
         page.locator('#analysis-parallelism').fill('10')
+        page.locator('#analysis-form details.advanced-settings').evaluate('(node)=>node.open=true')
+        page.locator('#analysis-context-tokens').fill('8192')
+        page.locator('#analysis-output-tokens').fill('2048')
+        page.locator('#analysis-target-input').fill('2048')
         page.locator('#analysis-save').click()
         page.wait_for_function("() => document.querySelector('#analysis-result').textContent.includes('Настройки сохранены')")
         page.locator('#analysis-test').click()
         page.wait_for_function("() => document.querySelector('#analysis-result').textContent==='Подключение проверено'")
         assert api('/api/v1/ui/analysis')['settings']['parallelism']==10
+        assert api('/api/v1/ui/analysis')['settings']['inference']['max_output_tokens']==2048
+        assert api('/api/v1/ui/analysis')['settings']['chunking']['target_input_tokens']==2048
         page.reload();page.wait_for_function("() => document.querySelector('#analysis-parallelism').value==='10'")
+        assert page.locator('#analysis-context-tokens').input_value()=='8192'
+        page.locator('#analysis-form details.advanced-settings').evaluate('(node)=>node.open=true')
+        page.locator('#analysis-context-tokens').locator('xpath=../..').get_by_role('button',name='Пояснение настройки').click()
+        assert page.locator('#setting-help-popup').is_visible()
+        page.keyboard.press('Escape')
         page.locator('#analysis-navigation [data-go=categorization]').click()
         page.locator('#categorization-test').click()
         page.wait_for_function("() => document.querySelector('#categorization-result').textContent==='Подключение проверено'")
@@ -63,6 +74,8 @@ def check_browser(base, api, output):
                 page.locator('#theme-switch label:has(input[value='+theme+'])').click()
                 for tab in ['analysis','categorization','review']:
                     page.evaluate('(tab)=>showTab(tab)',tab);page.wait_for_timeout(200)
+                    if tab=='review':
+                        page.locator('.inference-details').first.evaluate('(node)=>node.open=true')
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,tab)
                     page.screenshot(path=str(output/f'learning-{tab}-{theme}-{width}.png'),full_page=True)
         page.set_viewport_size({'width':1440,'height':1000})
@@ -97,6 +110,13 @@ def main():
                 source=json.loads(body['messages'][1]['content'])['source']
                 with lock: model_calls.append(source);active+=1;peak=max(peak,active)
                 started.set();allow.wait(timeout=15);time.sleep(.15)
+                if ('CedarBudgetA' in source and 'CedarBudgetB' in source) or ('CedarPartialGood' in source and 'MODEL_FAIL_MARKER' in source):
+                    with lock:active-=1
+                    self.reply({'choices':[{'finish_reason':'length','message':{'content':'{"candidates":['}}],
+                        'usage':{'prompt_tokens':1000,'completion_tokens':1600,'total_tokens':2600}});return
+                if 'MODEL_FAIL_MARKER' in source:
+                    with lock:active-=1
+                    self.reply({'error':{'code':'service_unavailable'}},503);return
                 candidates=[]
                 for value in dict.fromkeys(re.findall(r'Cedar[A-Za-z0-9]+',source)):
                     confidence=.84 if 'Low84' in value else .85 if 'Edge85' in value else .99 if 'Cat85' in value else .96
@@ -104,11 +124,15 @@ def main():
                 for value in ['questions','gemini-3.8-flash','...']:
                     if value in source:candidates.append({'value':value,'kind':'PROJ','confidence':.99})
                 candidates.append({'value':'InventedWithoutEvidence','kind':'PROJ','confidence':1.0})
+                if 'CedarSaturate' in source:
+                    candidates=candidates[:body['response_format']['json_schema']['schema']['properties']['candidates']['maxItems']]
+                if 'CedarRepeatOne' in source:
+                    candidates=[{'value':'CedarRepeatOne','kind':'PROJ','confidence':.96}]*24
                 with lock:active-=1
                 self.reply({'choices':[{'finish_reason':'stop','message':{'content':json.dumps({'candidates':candidates})}}]});return
             if self.path=='/categorize':
                 payload=json.loads(body['messages'][1]['content'])
-                decisions=[{'kind':'PROJ','scope':'team','action':'mask','confidence':.85 if 'Cat85' in c.get('surface','') else .99} for c in payload['candidates']]
+                decisions=[{'kind':'PROJ','scope':'team','action':'mask','confidence':.85 if 'Cat85' in c.get('value',c.get('surface','')) else .99} for c in payload['candidates']]
                 self.reply({'choices':[{'finish_reason':'stop','message':{'content':json.dumps({'decisions':decisions})}}]});return
             upstream.append(body)
             text=body['messages'][-1]['content']
@@ -201,6 +225,38 @@ def main():
             stop();start();assert api('/api/v1/ui/learning')['summary']['queued']==1
             configure('analysis',enabled=True);api('/api/v1/ui/worker/start',{})
             result=wait_for(completed);assert any(e['value']=='CedarRestart86' and e['state']=='active' for e in result['entries'])
+            # Truncated output is retried by structural boundary, preserving all child results.
+            api('/api/v1/ui/analysis/documents',{'documents':[{'name':'retry-split','text':'CedarBudgetA\n\nCedarBudgetB\n\nCedarBudgetC'}]})
+            result=wait_for(completed)
+            assert {'CedarBudgetA','CedarBudgetB','CedarBudgetC'} <= {e['value'] for e in result['entries']}
+            retry_job=next(j for j in result['jobs'] if j['name']=='retry-split')
+            assert retry_job['state']=='succeeded' and any(t.get('finish_reason')=='length' and t.get('completion_tokens')==1600 for t in retry_job['inference']),retry_job
+            # A full list of distinct quoted values triggers subdivision; duplicates do not.
+            chunking=api('/api/v1/ui/analysis')['settings']['chunking'];configure('analysis',chunking={**chunking,'max_candidates':2})
+            api('/api/v1/ui/analysis/documents',{'documents':[{'name':'saturated','text':'CedarSaturateA\n\nCedarSaturateB\n\nCedarSaturateC\n\nCedarSaturateD'}]})
+            result=wait_for(completed)
+            assert {'CedarSaturateA','CedarSaturateB','CedarSaturateC','CedarSaturateD'} <= {e['value'] for e in result['entries']}
+            configure('analysis',chunking=chunking)
+            before_calls=len(model_calls)
+            api('/api/v1/ui/analysis/documents',{'documents':[{'name':'duplicate-array','text':'Internal project CedarRepeatOne'}]})
+            result=wait_for(completed);assert len(model_calls)==before_calls+1
+            # Re-uploading with a different inference profile must not reuse a completed search.
+            neutral='NEUTRAL_PROFILE_DOCUMENT alpha beta gamma'
+            api('/api/v1/ui/analysis/documents',{'documents':[{'name':'profile-cache','text':neutral}]});wait_for(completed)
+            assert api('/api/v1/ui/analysis/documents',{'documents':[{'name':'profile-cache','text':neutral}]})['queued']==0
+            inference=api('/api/v1/ui/analysis')['settings']['inference']
+            configure('analysis',inference={**inference,'max_output_tokens':inference['max_output_tokens']+1})
+            before_calls=len(model_calls)
+            assert api('/api/v1/ui/analysis/documents',{'documents':[{'name':'profile-cache','text':neutral}]})['queued']==1
+            wait_for(completed);assert len(model_calls)==before_calls+1
+            configure('analysis',inference=inference)
+            # One failed fragment must not erase completed fragments or autoactivate partial findings.
+            api('/api/v1/ui/analysis/documents',{'documents':[{'name':'partial','text':'CedarPartialGood\n\nMODEL_FAIL_MARKER'}]})
+            result=wait_for(completed)
+            partial=next(e for e in result['entries'] if e['value']=='CedarPartialGood')
+            assert partial['state']=='pending' and partial['reason']=='analysis_partial',partial
+            partial_job=next(j for j in result['jobs'] if j['name']=='partial')
+            assert partial_job['state']=='failed' and partial_job['extracted']==1 and partial_job['retryable'],partial_job
             check_browser(base,api,args.output)
             result=wait_for(completed)
             report={'passed':True,'nonblocking_request_seconds':round(elapsed,3),'model_peak_concurrency':peak,'summary':result['summary'],'checks':['SSE completion','no LLM wait','history deduplication','strict 85%','grounding','manual approval','rollback','revocation','parallelism','pause','encrypted queue','restart','source deletion']}

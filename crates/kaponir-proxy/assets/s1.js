@@ -45,13 +45,22 @@ const learningErrors = {
   existing_rule: "Для значения уже есть правило",
   configuration_changed: "Подключение изменилось. Повторите задание.",
   invalid_model_json: "Модель вернула некорректный JSON",
+  invalid_candidate_response: "Модель нарушила формат находок или допустимые типы. Попробуйте режим «Только значения» в дополнительных параметрах.",
   invalid_classification_response: "Некорректный ответ категоризации",
   model_response_truncated: "Ответ модели обрезан",
+  model_context_budget_exceeded: "Вход и лимит ответа превышают контекст модели. Уменьшите вход или увеличьте контекст в дополнительных параметрах.",
+  model_input_budget_too_small: "В целевой вход не помещается инструкция модели. Увеличьте целевой вход или уменьшите контекст фрагмента в дополнительных параметрах.",
+  invalid_inference_settings: "Лимит ответа и резерв должны помещаться в контекст модели.",
+  invalid_chunk_settings: "Проверьте пределы разбиения в дополнительных параметрах.",
+  document_fragment_limit: "Достигнут предел обращений на документ. Найденное сохранено на подтверждение. Увеличьте предел или разделите документ.",
+  model_fragment_cannot_split: "Фрагмент уже нельзя уменьшить. Проверьте контекст, лимит ответа и совместимость модели с JSON.",
+  analysis_partial: "Находка из незавершённого анализа. Требуется подтверждение.",
   model_context_or_schema_error: "Среда модели отклонила запрос: проверьте объём контекста и совместимость формата ответа.",
   model_runtime_http_error: "Среда локальной модели вернула ошибку HTTP.",
   model_runtime_start_failed: "Среда не смогла запустить модель. Проверьте совместимость GGUF с этой версией llama.cpp и доступную память.",
   analysis_failed: "Анализ не завершён. Проверьте настройки модели.",
   source_too_large: "Документ слишком большой",
+  evaluation_input_too_large: "Исходник вместе с контекстом превышает допустимый размер запроса к локальной модели.",
   document_chunk_limit: "Разделите документ на меньшие части",
   candidate_limit: "Слишком много находок. Разделите документ.",
   job_not_retryable: "Исходник недоступен для повтора",
@@ -69,6 +78,8 @@ function learningFormVisibility() {
   $("#categorization-local-fields").hidden = c !== "local";
   $("#categorization-api-fields").hidden = c !== "s1";
   $("#categorization-none-note").hidden = c !== "none";
+  $("#categorization-inference-settings").hidden = c === "none" || (c === "s1" && $("#categorization-protocol").value !== "openai");
+  $("#categorization-timeout").max = $("#categorization-protocol").value === "openai" ? "300000" : "60000";
   $("#analysis-url").required = a === "api";
   $("#analysis-api-model").required = a === "api";
   $("#categorization-url").required = c === "s1";
@@ -95,6 +106,8 @@ function renderLearningForms() {
     const data = LearningUI[role];
     if (!data || LearningUI.dirty.has(role)) continue;
     const s = data.settings;
+    for (const [key, field] of Object.entries({context_tokens:"context-tokens", max_output_tokens:"output-tokens", reserve_tokens:"reserve-tokens", batch_size:"batch-size"}))
+      $(`#${role}-${field}`).value = s.inference?.[key] ?? ({context_tokens:4096,max_output_tokens:1600,reserve_tokens:64,batch_size:2})[key];
     ensureModelChoice(canonicalModel(s.model));
     $(`#${role}-provider`).value = s.provider;
     if (role === "analysis") {
@@ -108,6 +121,10 @@ function renderLearningForms() {
       $("#analysis-threshold").value = Math.round(s.threshold * 100);
       $("#analysis-timeout").value = s.timeout_seconds;
       $("#analysis-parallelism").value = s.parallelism;
+      $("#analysis-chunk-strategy").value = s.chunking?.strategy || "auto";
+      $("#analysis-discovery-mode").value = s.chunking?.discovery_mode || "typed";
+      for (const [key, field] of Object.entries({target_input_tokens:"target-input", context_hint_tokens:"hint-tokens", max_candidates:"max-candidates", max_fragments:"max-fragments"}))
+        $(`#analysis-${field}`).value = s.chunking?.[key] ?? ({target_input_tokens:0,context_hint_tokens:0,max_candidates:24,max_fragments:256})[key];
     } else {
       $("#categorization-local-model").value = canonicalModel(s.model);
       $("#categorization-protocol").value = s.http.protocol;
@@ -161,6 +178,12 @@ function readLearningForm(role) {
     };
   }
   const key = $(`#${role}-key`).value.trim();
+  settings.inference = Object.fromEntries(Object.entries({context_tokens:"context-tokens", max_output_tokens:"output-tokens", reserve_tokens:"reserve-tokens", batch_size:"batch-size"}).map(([key,field]) => [key,Number($(`#${role}-${field}`).value)]));
+  if (role === "analysis") settings.chunking = {
+    discovery_mode: $("#analysis-discovery-mode").value,
+    strategy: $("#analysis-chunk-strategy").value,
+    ...Object.fromEntries(Object.entries({target_input_tokens:"target-input", context_hint_tokens:"hint-tokens", max_candidates:"max-candidates", max_fragments:"max-fragments"}).map(([key,field]) => [key,Number($(`#analysis-${field}`).value)])),
+  };
   return {
     settings,
     ...(key ? { key } : {}),

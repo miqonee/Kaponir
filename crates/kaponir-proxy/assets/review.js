@@ -128,6 +128,15 @@ function reviewCard(item) {
   article.append(controls); return article;
 }
 function scopeLabel(scope) { return tr({ personal: "Личные", team: "Команда", global: "Корпоративные" }[scope] || scope); }
+function inferenceDetails(job) {
+  if (!job.inference?.length) return null;
+  return h("details",{class:"inference-details"},h("summary",{},tr("Диагностика модели"),` · ${job.inference.length}`),
+    h("p",{class:"hint"},tr("Расход токенов и причины завершения обращений. Обрывы, после которых фрагмент проверен частями, остаются в журнале.")),
+    h("div",{class:"table-wrap"},h("table",{},h("thead",{},h("tr",{},...["Обращение","Вход","Ответ","Бюджет контекста","Завершение"].map(key=>h("th",{},tr(key))))),
+      h("tbody",{},...job.inference.map((trace,index)=>h("tr",{},h("td",{},String(index+1)),h("td",{},trace.prompt_tokens??"—"),
+        h("td",{},`${trace.completion_tokens??"—"} / ${trace.max_output_tokens??"—"}`),h("td",{},trace.context_tokens??"—"),
+        h("td",{},trace.finish_reason||"—",trace.finish_reason==="length"?" · "+tr(trace.token_count_method==="runtime_tokenizer"&&(trace.total_tokens??0)>=(trace.context_tokens??Infinity)?"Исчерпан контекст":(trace.completion_tokens??0)>=(trace.max_output_tokens??Infinity)?"Достигнут лимит ответа":"Провайдер остановил ответ по лимиту"):"",trace.http_status>=400?` · HTTP ${trace.http_status}`:"",trace.runtime_exit_code!=null?` · exit ${trace.runtime_exit_code}`:"",trace.error?" · "+learningError(trace.error):"")))))));
+}
 function renderReview(force = false) {
   const data = ReviewUI.data;
   if (!data) return;
@@ -145,7 +154,7 @@ function renderReview(force = false) {
       h("summary", {}, `${kindLabel(members[0].kind)} · ${members.length}`, " · ", key), ...members.map(reviewCard)));
   } else nodes.push(...data.items.map(reviewCard));
   if (ReviewUI.view === "history" && ReviewUI.learning?.jobs?.length) nodes.push(h("section",{class:"panel review-card"},h("h2",{},tr("Задания анализа")),
-    ...ReviewUI.learning.jobs.map((job)=>h("article",{class:"learning-job"},h("div",{},h("strong",{},job.name),h("p",{class:"hint"},tr(learningStates[job.state]||job.state),job.error?" · "+reviewError(job.error):"")),
+    ...ReviewUI.learning.jobs.map((job)=>h("article",{class:"learning-job"},h("div",{},h("strong",{},job.name),h("p",{class:"hint"},tr(learningStates[job.state]||job.state),job.model?" · "+job.model:"",job.error?" · "+reviewError(job.error):""),inferenceDetails(job)),
       job.retryable?h("button",{class:"secondary",disabled:ReviewUI.busy||!data.editable,onclick:async()=>{await learningAction(job.id,"retry");await loadReview(true);}},tr("Повторить")):null,
       job.state === "succeeded" && ReviewUI.learning.entries.some((entry)=>entry.job_id===job.id&&entry.state==="active")?h("button",{class:"ghost",disabled:ReviewUI.busy||!data.editable,onclick:async()=>{await learningAction(job.id,"rollback-job");await loadReview(true);}},tr("Отменить изменения задания")):null))));
   $("#review-list").replaceChildren(...nodes);

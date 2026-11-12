@@ -31,6 +31,28 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
+from collections import OrderedDict
+try:
+    plan_text
+except NameError:
+    from kaponir_inference import plan_text, document_hint
+
+
+def inference_settings(value):
+    defaults={'context_tokens':4096,'max_output_tokens':1600,'reserve_tokens':64,'batch_size':2}
+    if not isinstance(value,dict):raise ValueError('invalid_inference_settings')
+    result={**defaults,**value}
+    for name,maximum in [('context_tokens',262144),('max_output_tokens',131072),('reserve_tokens',8192),('batch_size',64)]:
+        minimum=0 if name=='reserve_tokens' else 1
+        if type(result[name]) is not int or not minimum<=result[name]<=maximum:raise ValueError('invalid_inference_settings')
+    if result['max_output_tokens']+result['reserve_tokens']>=result['context_tokens']:raise ValueError('invalid_inference_settings')
+    return result
+
+
+class InferenceError(ValueError):
+    def __init__(self,code,telemetry):
+        super().__init__(code)
+        self.telemetry=telemetry
 
 MODEL_BASE = 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/'
 FILES = {
@@ -324,6 +346,10 @@ class Worker:
         self.evaluations = {}
         self.evaluation_limit = 1
         self.process_slots = 1
+        self.process_context_tokens = 0
+        self.evaluation_profile = None
+        self.token_counts = OrderedDict()
+        self.token_lock = threading.Lock()
         self.last_inference_at = None
         self.last_runtime_use = 0
         self.active = None
@@ -576,7 +602,7 @@ class Worker:
         models['qwen3-0.6b'] = dict(models['q4'])
         models['qwen3-0.6b-q8'] = dict(models['q5'])
         runtime = self.runtime_info()
-        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],'catalog':catalog,'hf_import':True,
+        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'token_planning':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],'catalog':catalog,'hf_import':True,
                 'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
                 'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'evaluations':len(self.evaluations),'jobs':[j for j in self.jobs() if j['kind'] != 'evaluate']}
 
@@ -670,9 +696,9 @@ class Worker:
         if not os.access(self.runtime, os.X_OK): raise InstallationError('runtime_not_executable')
         self.update(ident, stage='ready')
 
-    def start_runtime(self, ident, variant, slots=1):
+    def start_runtime(self, ident, variant, slots=1, context_tokens=4096):
         variant = self.canonical_model(variant)
-        if self.process and self.process.poll() is None and self.process_variant == variant and self.process_slots == slots: return
+        if self.process and self.process.poll() is None and self.process_variant == variant and self.process_slots == slots and self.process_context_tokens==context_tokens: return
         self.stop_runtime()
         if not self.runtime.is_file() or not self.status()['models'][variant]['downloaded']:
             raise ValueError('CPU LLM model/runtime missing; download the model first')
@@ -680,12 +706,14 @@ class Worker:
             sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         self.ocr_base=f'http://127.0.0.1:{port}'
         cmd=[str(self.runtime),'-m',str(self.models/self.model_files()[variant][0]),
-             '--host','127.0.0.1','--port',str(port),'-c',str(4096*slots),'-np',str(slots),'-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
+             '--host','127.0.0.1','--port',str(port),'-c',str(context_tokens*slots),'-np',str(slots),'-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
              '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning','off','--no-mmproj']
         # Runtime output may contain source text; do not persist it as a log.
         self.process=subprocess.Popen(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         self.process_variant = variant
         self.process_slots = slots
+        self.process_context_tokens = context_tokens
+        with self.token_lock:self.token_counts.clear()
         deadline=time.monotonic()+120
         while time.monotonic()<deadline:
             self.check(ident)
@@ -694,6 +722,24 @@ class Worker:
                 http_json(self.ocr_base+'/health',timeout=1);return
             except (OSError,ValueError):time.sleep(.25)
         raise TimeoutError('LLM runtime startup timeout')
+
+    def count_text_tokens(self, text):
+        key=hashlib.sha256(text.encode()).digest()
+        with self.token_lock:
+            if key in self.token_counts:
+                self.token_counts.move_to_end(key)
+                return self.token_counts[key]
+        value=http_json(self.ocr_base+'/tokenize',{'content':text,'add_special':False,'parse_special':True})
+        count=len(value['tokens'])
+        with self.token_lock:
+            self.token_counts[key]=count
+            if len(self.token_counts)>256:self.token_counts.popitem(last=False)
+        return count
+
+    def prompt_token_count(self, prompt, source):
+        messages=[{'role':'system','content':prompt},{'role':'user','content':json.dumps(source,ensure_ascii=False)}]
+        formatted=http_json(self.ocr_base+'/apply-template',{'messages':messages,'chat_template_kwargs':{'enable_thinking':False},'add_generation_prompt':True})
+        return self.count_text_tokens(formatted['prompt'])
 
     def stop_runtime(self):
         for process in [self.process, self.ocr_process]:
@@ -746,13 +792,16 @@ class Worker:
         model = self.canonical_model(body.get('model', self.cfg['model']))
         slots = body.get('parallelism', 1)
         if type(slots) is not int or not 1 <= slots <= 10: raise ValueError('invalid parallelism')
+        settings=inference_settings(body.get('inference',{}))
+        context_tokens=settings['context_tokens']
+        profile=(model,slots,context_tokens)
         prompt, schema, source = body.get('prompt'), body.get('schema'), body.get('input')
         if not isinstance(prompt, str) or not 1 <= len(prompt) <= 8192: raise ValueError('invalid evaluation prompt')
         if not isinstance(schema, dict) or not isinstance(source, dict): raise ValueError('invalid evaluation input')
-        if len(json.dumps(source)) > 2*1024*1024: raise ValueError('evaluation input too large')
+        if len(json.dumps(source,ensure_ascii=False).encode()) > 2*1024*1024: raise ValueError('evaluation_input_too_large')
         with self.evaluation_condition:
             while self.active is not None or (self.evaluations and
-                  (len(self.evaluations) >= slots or model not in self.evaluations.values() or self.evaluation_limit != slots)):
+                  (len(self.evaluations) >= slots or self.evaluation_profile != profile)):
                 if not self.enabled or self.stop.is_set(): raise ValueError('worker is disabled')
                 self.evaluation_condition.wait(.2)
             if not self.enabled or self.stop.is_set(): raise ValueError('worker is disabled')
@@ -760,36 +809,73 @@ class Worker:
             ident = job['id']
             self.evaluations[ident] = model
             self.evaluation_limit = slots
+            self.evaluation_profile = profile
             self.update(ident, state='running')
+        started=time.monotonic()
+        telemetry={'context_tokens':context_tokens,'max_output_tokens':settings['max_output_tokens'],'reserve_tokens':settings['reserve_tokens'],'token_count_method':'runtime_tokenizer'}
         try:
             with self.runtime_lock:
                 self.check(ident)
-                self.start_runtime(ident, model, slots)
+                self.start_runtime(ident, model, slots, context_tokens=context_tokens)
                 base = self.ocr_base
+            if body.get('operation')=='plan':
+                chunking=body.get('chunking',{})
+                text=source.get('source')
+                if not isinstance(text,str):raise ValueError('invalid_evaluation_input')
+                limit=chunking.get('target_input_tokens',0)
+                hints=chunking.get('context_hint_tokens',0)
+                maximum=chunking.get('max_fragments',256)
+                if type(limit) is not int or not 0<=limit<context_tokens or type(hints) is not int or not 0<=hints<context_tokens or type(maximum) is not int or not 1<=maximum<=1000:raise ValueError('invalid_chunk_settings')
+                def context(offset):
+                    return '\n'.join(x for x in [source.get('context',''),document_hint(text,offset,hints,self.count_text_tokens)] if x)
+                def fits(fragment,hint):
+                    tokens=self.prompt_token_count(prompt,{'source':fragment,'context':hint})
+                    return tokens+settings['max_output_tokens']+settings['reserve_tokens']<=context_tokens and (not limit or tokens<=limit)
+                spans=plan_text(text,fits,context,strategy=chunking.get('strategy','auto'),max_fragments=maximum)
+                self.update(ident,state='succeeded')
+                return {'fragments':[{'source':text[s['start']:s['end']],'context':s['context']} for s in spans],'token_count_method':'runtime_tokenizer'}
+            telemetry['prompt_tokens']=self.prompt_token_count(prompt,source)
+            if telemetry['prompt_tokens']+settings['max_output_tokens']+settings['reserve_tokens']>context_tokens:
+                raise ValueError('model_context_budget_exceeded')
             reply = http_json(base+'/v1/chat/completions', {
                 'model':'qwen-cpu', 'messages':[{'role':'system','content':prompt},
                     {'role':'user','content':json.dumps(source, ensure_ascii=False)}],
-                'temperature':0, 'max_tokens':1600, 'stream':False, 'cache_prompt':False,
+                'temperature':0, 'max_tokens':settings['max_output_tokens'], 'stream':False, 'cache_prompt':False,
                 'chat_template_kwargs':{'enable_thinking':False},
                 'response_format':{'type':'json_schema','json_schema':{'name':'learning','strict':True,'schema':schema}},
             }, timeout=self.cfg['ocr_timeout_seconds'])
             self.check(ident)
             choice = reply['choices'][0]
-            if choice.get('finish_reason') != 'stop': raise ValueError('model response truncated')
+            telemetry['finish_reason']=choice.get('finish_reason') if choice.get('finish_reason') in ['stop','length','content_filter','error'] else 'other'
+            usage=reply.get('usage',{})
+            for name in ['prompt_tokens','completion_tokens','total_tokens']:
+                if type(usage.get(name)) is int:telemetry[name]=usage[name]
+            if choice.get('finish_reason') != 'stop': raise ValueError('model_response_truncated')
             value = json.loads(choice['message']['content'])
-            if not isinstance(value, dict): raise ValueError('invalid model response')
+            if not isinstance(value, dict): raise ValueError('invalid_model_response')
             self.last_inference_at = time.time()
             self.update(ident, state='succeeded')
-            return value
+            telemetry['seconds']=round(time.monotonic()-started,3)
+            return {'result':value,'telemetry':telemetry} if body.get('telemetry') else value
         except urllib.error.HTTPError as exc:
             self.update(ident, state='failed')
-            raise ValueError('model_context_or_schema_error' if exc.code == 400 else 'model_runtime_http_error') from None
-        except TimeoutError:
-            self.update(ident, state='failed')
-            raise ValueError('model_timeout') from None
-        except Exception:
+            code='model_context_or_schema_error' if exc.code == 400 else 'model_runtime_http_error'
+            telemetry.update(http_status=exc.code,seconds=round(time.monotonic()-started,3))
+            raise InferenceError(code,telemetry) from None
+        except Exception as exc:
             self.update(ident, state=self.get(ident).get('control') or 'failed')
-            raise
+            if isinstance(exc,(TimeoutError,)):
+                code='model_timeout'
+            elif isinstance(exc,json.JSONDecodeError):code='invalid_model_json'
+            elif isinstance(exc,urllib.error.URLError):code='model_connection_failed'
+            elif str(exc)=='model_fragment_cannot_split' and body.get('operation')=='plan':
+                code='model_input_budget_too_small' if body.get('chunking',{}).get('target_input_tokens') else 'model_context_budget_exceeded'
+            elif str(exc) in ['model_context_budget_exceeded','model_response_truncated','model_runtime_start_failed','model_fragment_cannot_split','document_fragment_limit','invalid_chunk_strategy','invalid_chunk_settings','invalid_evaluation_input','invalid_model_response']:
+                code=str(exc)
+            else:code='local_model_unavailable'
+            telemetry['seconds']=round(time.monotonic()-started,3)
+            if self.process and self.process.poll() is not None:telemetry['runtime_exit_code']=self.process.returncode
+            raise InferenceError(code,telemetry) from None
         finally:
             with self.evaluation_condition:
                 self.last_runtime_use = time.monotonic()
@@ -1042,6 +1128,8 @@ def handler(worker, token):
                     _,_,ident,action=path.split('/');result=worker.action(ident,action)
                 else:raise ValueError('unknown route')
                 self.respond(200,result)
+            except InferenceError as exc:
+                self.respond(200 if body.get('telemetry') else 400,{'error':str(exc),'telemetry':exc.telemetry})
             except (ValueError,TypeError,KeyError,OSError) as exc:self.respond(400,{'error':str(exc)[:200]})
         do_GET=dispatch
         do_POST=dispatch

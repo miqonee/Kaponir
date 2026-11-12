@@ -527,10 +527,11 @@ async fn run(st: Shared, mut job: Value) {
 }
 async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
     let targets: Vec<Target> = serde_json::from_value(job["targets"].clone())?;
-    let batch_size = if job["source"]["provider"] == "local" {
-        2
+    let settings = st.learning.snapshot();
+    let batch_size = if job["source"]["role"] == "analysis" {
+        settings.analysis.inference.batch_size
     } else {
-        4
+        settings.categorization.inference.batch_size
     };
     for batch in targets.chunks(batch_size) {
         anyhow::ensure!(

@@ -31,7 +31,7 @@ def request(base, path, body=None, method=None):
         return json.load(response)
 
 
-def review_cases(worker, model):
+def review_cases(worker, model, include_kind=False):
     cases = json.loads((ROOT/'tests/fixtures/local-model-review.json').read_text())
     kinds = re.findall(r'"([A-Z_]+)"', (ROOT/'crates/kaponir-core/src/kinds.rs').read_text().split('pub const STANDARD:')[1].split('];')[0])
     prompt = re.search(r'const PROMPT: &str = "([^"]+)";', (ROOT/'crates/kaponir-proxy/src/learning.rs').read_text()).group(1)
@@ -50,7 +50,7 @@ def review_cases(worker, model):
         try:
             reply = worker.evaluate({'model':model,'parallelism':1,'prompt':prompt,
                 'schema':json.loads(json.dumps(schema,sort_keys=True)),
-                'input':{'items':[{k:c[k] for k in ['id','value','kind','context']} for c in batch]}})
+                'input':{'items':[{k:c[k] for k in ['id','value','context']+(['kind'] if include_kind else [])} for c in batch]}})
             decisions = reply.get('decisions', [])
             valid = isinstance(decisions,list) and len(decisions)==len(batch)
             for case in batch:

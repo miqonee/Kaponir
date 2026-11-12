@@ -42,7 +42,13 @@ document.addEventListener("keydown", (event) => {
   if (event.key === "Escape" && helpOwner) { const button = helpOwner; button.focus(); closeSettingHelp(); }
 });
 window.addEventListener("resize", closeSettingHelp);
-document.addEventListener("scroll", (event) => { if (!settingHelp.contains(event.target)) closeSettingHelp(); }, true);
+document.addEventListener("scroll", (event) => {
+  if (settingHelp.contains(event.target) || !helpOwner) return;
+  const rect = helpOwner.getBoundingClientRect();
+  if (!helpOwner.isConnected || rect.bottom <= 0 || rect.top >= innerHeight) closeSettingHelp();
+  else if (document.activeElement === helpOwner || settingHelp.dataset.clicked === "true") showSettingHelp(helpOwner);
+  else closeSettingHelp();
+}, true);
 function installSettingHelp() {
   for (const input of document.querySelectorAll("input[aria-describedby],select[aria-describedby]")) {
     if (input.dataset.helpInstalled) continue;

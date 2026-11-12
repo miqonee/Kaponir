@@ -1,0 +1,784 @@
+{
+  "date": "2026-11-12",
+  "corpus_sha256": "1815af85ae5198240fac4d9aaff659d33e35779f5bc1ae621699afafc370ce92",
+  "corpus_documents": 8,
+  "corpus_unique_values": 219,
+  "runtime": "llama.cpp b12038",
+  "runtime_executable_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+  "scope_policy": "Closed commercial money is global; historical answers rescored against the canonical fixture.",
+  "timing_limitation": "Local CPU quota is two cores; some runs overlapped builds/browser verification. No speed ranking is inferred.",
+  "runs": {
+    "huihui_auto_typed": {
+      "artifact": "artifacts/inference-lab/huihui-auto-grounded/result.json",
+      "layer": "grounded_model_proposals",
+      "status": "completed",
+      "settings": {
+        "model": "huihui-qwen3.5-2b-abliterated",
+        "url": null,
+        "timeout": 300,
+        "context_tokens": 4096,
+        "output_tokens": 1600,
+        "target_input_tokens": 0,
+        "reserve_tokens": 64,
+        "hint_tokens": 256,
+        "max_candidates": 24,
+        "max_fragments": 1000,
+        "fixed_bytes": 6000,
+        "fixed_overlap_bytes": 256,
+        "strategy": "auto",
+        "candidate_mode": "typed",
+        "blind_review": true,
+        "review_only": false,
+        "skip_review": false,
+        "review_batch": 2,
+        "documents": [
+          "01-cost-estimate.md",
+          "02-application.log",
+          "08-public-reference.md"
+        ]
+      },
+      "documents": {
+        "01-cost-estimate.md": {
+          "matched": 6,
+          "expected": 67,
+          "proposed": 9,
+          "outside_expected": 3,
+          "errors": 0,
+          "calls": 2,
+          "planned_fragments": 2
+        },
+        "02-application.log": {
+          "matched": 10,
+          "expected": 25,
+          "proposed": 34,
+          "outside_expected": 24,
+          "errors": 0,
+          "calls": 4,
+          "planned_fragments": 4
+        },
+        "08-public-reference.md": {
+          "matched": 0,
+          "expected": 0,
+          "proposed": 13,
+          "outside_expected": 13,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        }
+      },
+      "discovery": {
+        "matched": 16,
+        "expected": 92,
+        "proposed": 56,
+        "outside_expected": 40,
+        "errors": 0,
+        "public_document_findings": 13
+      },
+      "review": {
+        "cases": 12,
+        "valid": 12,
+        "action_correct": 10,
+        "kind_correct": 5,
+        "scope_correct": 5,
+        "private_cases": 5,
+        "ids": "semantic_calibration",
+        "application_valid": 12,
+        "batch_accepted": 12
+      },
+      "recorded_calls": 13,
+      "finish_reasons": {
+        "stop": 13
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 3207168000
+    },
+    "huihui_original_prompt_without_kind": {
+      "artifact": "artifacts/inference-lab/huihui-independent-review/result.json",
+      "layer": "review_only",
+      "status": "completed",
+      "settings": {
+        "model": "huihui-qwen3.5-2b-abliterated",
+        "url": null,
+        "timeout": 300,
+        "transport_retries": 0,
+        "context_tokens": 4096,
+        "output_tokens": 1600,
+        "target_input_tokens": 0,
+        "reserve_tokens": 64,
+        "hint_tokens": 0,
+        "max_candidates": 24,
+        "max_fragments": 1000,
+        "fixed_bytes": 6000,
+        "fixed_overlap_bytes": 256,
+        "strategy": "auto",
+        "candidate_mode": "typed",
+        "blind_review": true,
+        "review_only": true,
+        "skip_review": false,
+        "review_batch": 2,
+        "documents": [
+          "01-cost-estimate.md",
+          "02-application.log",
+          "08-public-reference.md"
+        ]
+      },
+      "documents": {},
+      "review": {
+        "cases": 12,
+        "valid": 12,
+        "action_correct": 6,
+        "kind_correct": 3,
+        "scope_correct": 4,
+        "private_cases": 5,
+        "ids": "semantic_calibration",
+        "application_valid": 12,
+        "batch_accepted": 12
+      },
+      "recorded_calls": 6,
+      "finish_reasons": {
+        "stop": 6
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 2493841408
+    },
+    "qwen_context_diagnostic": {
+      "artifact": "artifacts/inference-lab/qwen2-fixed-diagnostic/result.json",
+      "layer": "grounded_model_proposals_partial",
+      "status": "completed",
+      "settings": {
+        "model": "qwen3.5-2b",
+        "url": null,
+        "timeout": 300,
+        "transport_retries": 0,
+        "context_tokens": 4096,
+        "output_tokens": 1600,
+        "target_input_tokens": 0,
+        "reserve_tokens": 64,
+        "hint_tokens": 0,
+        "max_candidates": 24,
+        "max_fragments": 1000,
+        "fixed_bytes": 6000,
+        "fixed_overlap_bytes": 256,
+        "strategy": "fixed",
+        "candidate_mode": "typed",
+        "blind_review": false,
+        "review_only": false,
+        "skip_review": true,
+        "review_batch": 2,
+        "documents": [
+          "02-application.log"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "matched": 12,
+          "expected": 25,
+          "proposed": 14,
+          "outside_expected": 2,
+          "errors": 1,
+          "calls": 2,
+          "planned_fragments": 2
+        }
+      },
+      "discovery": {
+        "matched": 12,
+        "expected": 25,
+        "proposed": 14,
+        "outside_expected": 2,
+        "errors": 1,
+        "public_document_findings": 0
+      },
+      "recorded_calls": 2,
+      "finish_reasons": {
+        "length": 1,
+        "stop": 1
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 2228035584
+    },
+    "qwen_focused_values": {
+      "artifact": "artifacts/inference-lab/qwen2-focused-lean/result.json",
+      "layer": "grounded_model_proposals",
+      "status": "completed",
+      "settings": {
+        "model": "qwen3.5-2b",
+        "url": null,
+        "timeout": 300,
+        "transport_retries": 0,
+        "context_tokens": 4096,
+        "output_tokens": 1600,
+        "target_input_tokens": 1024,
+        "reserve_tokens": 64,
+        "hint_tokens": 256,
+        "max_candidates": 24,
+        "max_fragments": 1000,
+        "fixed_bytes": 6000,
+        "fixed_overlap_bytes": 256,
+        "strategy": "auto",
+        "candidate_mode": "lean",
+        "blind_review": true,
+        "review_only": false,
+        "skip_review": false,
+        "review_batch": 2,
+        "documents": [
+          "01-cost-estimate.md",
+          "02-application.log",
+          "08-public-reference.md"
+        ]
+      },
+      "documents": {
+        "01-cost-estimate.md": {
+          "matched": 32,
+          "expected": 67,
+          "proposed": 57,
+          "outside_expected": 25,
+          "errors": 0,
+          "calls": 5,
+          "planned_fragments": 5
+        },
+        "02-application.log": {
+          "matched": 16,
+          "expected": 25,
+          "proposed": 39,
+          "outside_expected": 23,
+          "errors": 0,
+          "calls": 15,
+          "planned_fragments": 15
+        },
+        "08-public-reference.md": {
+          "matched": 0,
+          "expected": 0,
+          "proposed": 8,
+          "outside_expected": 8,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        }
+      },
+      "discovery": {
+        "matched": 48,
+        "expected": 92,
+        "proposed": 104,
+        "outside_expected": 56,
+        "errors": 0,
+        "public_document_findings": 8
+      },
+      "review": {
+        "cases": 12,
+        "valid": 12,
+        "action_correct": 10,
+        "kind_correct": 5,
+        "scope_correct": 5,
+        "private_cases": 5,
+        "ids": "semantic_calibration",
+        "application_valid": 12,
+        "batch_accepted": 12
+      },
+      "recorded_calls": 27,
+      "finish_reasons": {
+        "stop": 27
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 4369989632
+    },
+    "minicpm_focused_values": {
+      "artifact": "artifacts/inference-lab/minicpm-focused-lean/result.json",
+      "layer": "grounded_model_proposals",
+      "status": "completed",
+      "settings": {
+        "model": "minicpm5-2b",
+        "url": null,
+        "timeout": 300,
+        "transport_retries": 0,
+        "context_tokens": 4096,
+        "output_tokens": 1600,
+        "target_input_tokens": 1024,
+        "reserve_tokens": 64,
+        "hint_tokens": 256,
+        "max_candidates": 24,
+        "max_fragments": 1000,
+        "fixed_bytes": 6000,
+        "fixed_overlap_bytes": 256,
+        "strategy": "auto",
+        "candidate_mode": "lean",
+        "blind_review": true,
+        "review_only": false,
+        "skip_review": false,
+        "review_batch": 2,
+        "opaque_review_ids": true,
+        "documents": [
+          "01-cost-estimate.md",
+          "02-application.log",
+          "08-public-reference.md"
+        ]
+      },
+      "documents": {
+        "01-cost-estimate.md": {
+          "matched": 31,
+          "expected": 67,
+          "proposed": 48,
+          "outside_expected": 17,
+          "errors": 0,
+          "calls": 5,
+          "planned_fragments": 5
+        },
+        "02-application.log": {
+          "matched": 10,
+          "expected": 25,
+          "proposed": 12,
+          "outside_expected": 2,
+          "errors": 0,
+          "calls": 8,
+          "planned_fragments": 8
+        },
+        "08-public-reference.md": {
+          "matched": 0,
+          "expected": 0,
+          "proposed": 1,
+          "outside_expected": 1,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        }
+      },
+      "discovery": {
+        "matched": 41,
+        "expected": 92,
+        "proposed": 61,
+        "outside_expected": 20,
+        "errors": 0,
+        "public_document_findings": 1
+      },
+      "review": {
+        "cases": 12,
+        "valid": 12,
+        "action_correct": 10,
+        "kind_correct": 4,
+        "scope_correct": 4,
+        "private_cases": 5,
+        "ids": "opaque",
+        "application_valid": 12,
+        "batch_accepted": 12
+      },
+      "recorded_calls": 20,
+      "finish_reasons": {
+        "stop": 20
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 3521748992
+    },
+    "external_schema_before_exhaustive": {
+      "artifact": "artifacts/inference-lab/external-explicit-schema-lean/result.json",
+      "layer": "grounded_model_proposals",
+      "status": "completed",
+      "settings": {
+        "model": "ag/gemini-3.8-flash",
+        "url": "https://route.fn.x3dev.ru/v1",
+        "timeout": 300,
+        "transport_retries": 2,
+        "context_tokens": 32768,
+        "output_tokens": 4096,
+        "target_input_tokens": 0,
+        "reserve_tokens": 64,
+        "hint_tokens": 256,
+        "max_candidates": 128,
+        "max_fragments": 1000,
+        "fixed_bytes": 6000,
+        "fixed_overlap_bytes": 256,
+        "strategy": "auto",
+        "candidate_mode": "lean",
+        "blind_review": true,
+        "review_only": false,
+        "skip_review": false,
+        "review_batch": 2,
+        "documents": [
+          "01-cost-estimate.md",
+          "02-application.log",
+          "08-public-reference.md",
+          "03-deployment-config.yaml",
+          "04-incident-report.md",
+          "05-procurement-thread.md",
+          "06-support-contract.md",
+          "07-operations-handover-en.md"
+        ]
+      },
+      "documents": {
+        "01-cost-estimate.md": {
+          "matched": 19,
+          "expected": 67,
+          "proposed": 19,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        },
+        "02-application.log": {
+          "matched": 12,
+          "expected": 25,
+          "proposed": 12,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        },
+        "08-public-reference.md": {
+          "matched": 0,
+          "expected": 0,
+          "proposed": 0,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        },
+        "03-deployment-config.yaml": {
+          "matched": 19,
+          "expected": 31,
+          "proposed": 19,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        },
+        "04-incident-report.md": {
+          "matched": 19,
+          "expected": 24,
+          "proposed": 19,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        },
+        "05-procurement-thread.md": {
+          "matched": 10,
+          "expected": 23,
+          "proposed": 10,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        },
+        "06-support-contract.md": {
+          "matched": 19,
+          "expected": 22,
+          "proposed": 19,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        },
+        "07-operations-handover-en.md": {
+          "matched": 27,
+          "expected": 27,
+          "proposed": 27,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        }
+      },
+      "discovery": {
+        "matched": 125,
+        "expected": 219,
+        "proposed": 125,
+        "outside_expected": 0,
+        "errors": 0,
+        "public_document_findings": 0
+      },
+      "review": {
+        "cases": 12,
+        "valid": 12,
+        "action_correct": 12,
+        "kind_correct": 5,
+        "scope_correct": 4,
+        "private_cases": 5,
+        "ids": "semantic_calibration",
+        "application_valid": 12,
+        "batch_accepted": 12
+      },
+      "recorded_calls": 14,
+      "finish_reasons": {
+        "stop": 14
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 0
+    },
+    "external_exhaustive_whole": {
+      "artifact": "artifacts/inference-lab/external-exhaustive-whole/result.json",
+      "layer": "grounded_model_proposals",
+      "status": "completed",
+      "settings": {
+        "model": "ag/gemini-3.8-flash",
+        "url": "https://route.fn.x3dev.ru/v1",
+        "timeout": 300,
+        "transport_retries": 2,
+        "context_tokens": 32768,
+        "output_tokens": 4096,
+        "target_input_tokens": 0,
+        "reserve_tokens": 64,
+        "hint_tokens": 256,
+        "max_candidates": 128,
+        "max_fragments": 1000,
+        "fixed_bytes": 6000,
+        "fixed_overlap_bytes": 256,
+        "strategy": "auto",
+        "candidate_mode": "lean",
+        "blind_review": false,
+        "review_only": false,
+        "skip_review": true,
+        "review_batch": 2,
+        "documents": [
+          "01-cost-estimate.md"
+        ]
+      },
+      "documents": {
+        "01-cost-estimate.md": {
+          "matched": 67,
+          "expected": 67,
+          "proposed": 67,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 1,
+          "planned_fragments": 1
+        }
+      },
+      "discovery": {
+        "matched": 67,
+        "expected": 67,
+        "proposed": 67,
+        "outside_expected": 0,
+        "errors": 0,
+        "public_document_findings": 0
+      },
+      "recorded_calls": 1,
+      "finish_reasons": {
+        "stop": 1
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 0
+    },
+    "external_exhaustive_focused": {
+      "artifact": "artifacts/inference-lab/external-exhaustive-focused/result.json",
+      "layer": "grounded_model_proposals",
+      "status": "completed",
+      "settings": {
+        "model": "ag/gemini-3.8-flash",
+        "url": "https://route.fn.x3dev.ru/v1",
+        "timeout": 300,
+        "transport_retries": 2,
+        "context_tokens": 32768,
+        "output_tokens": 4096,
+        "target_input_tokens": 4096,
+        "reserve_tokens": 64,
+        "hint_tokens": 256,
+        "max_candidates": 128,
+        "max_fragments": 1000,
+        "fixed_bytes": 6000,
+        "fixed_overlap_bytes": 256,
+        "strategy": "auto",
+        "candidate_mode": "lean",
+        "blind_review": false,
+        "review_only": false,
+        "skip_review": true,
+        "review_batch": 2,
+        "documents": [
+          "01-cost-estimate.md"
+        ]
+      },
+      "documents": {
+        "01-cost-estimate.md": {
+          "matched": 65,
+          "expected": 67,
+          "proposed": 65,
+          "outside_expected": 0,
+          "errors": 0,
+          "calls": 5,
+          "planned_fragments": 5
+        }
+      },
+      "discovery": {
+        "matched": 65,
+        "expected": 67,
+        "proposed": 65,
+        "outside_expected": 0,
+        "errors": 0,
+        "public_document_findings": 0
+      },
+      "recorded_calls": 5,
+      "finish_reasons": {
+        "stop": 5
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 0
+    },
+    "external_application_full": {
+      "artifact": "artifacts/inference-lab/external-application-full-resumed/result.json",
+      "layer": "application_entries",
+      "status": "completed",
+      "settings": {
+        "inference": {
+          "context_tokens": 32768,
+          "max_output_tokens": 4096,
+          "reserve_tokens": 64,
+          "batch_size": 2
+        },
+        "chunking": {
+          "discovery_mode": "values",
+          "strategy": "auto",
+          "target_input_tokens": 0,
+          "context_hint_tokens": 256,
+          "max_candidates": 128,
+          "max_fragments": 256
+        }
+      },
+      "documents": {
+        "01-cost-estimate.md": {
+          "matched": 67,
+          "expected": 67,
+          "proposed": 67,
+          "outside_expected": 0,
+          "errors": 0
+        },
+        "02-application.log": {
+          "matched": 13,
+          "expected": 25,
+          "proposed": 13,
+          "outside_expected": 0,
+          "errors": 0
+        },
+        "03-deployment-config.yaml": {
+          "matched": 26,
+          "expected": 31,
+          "proposed": 28,
+          "outside_expected": 2,
+          "errors": 0
+        },
+        "04-incident-report.md": {
+          "matched": 22,
+          "expected": 24,
+          "proposed": 22,
+          "outside_expected": 0,
+          "errors": 0
+        },
+        "05-procurement-thread.md": {
+          "matched": 18,
+          "expected": 23,
+          "proposed": 18,
+          "outside_expected": 0,
+          "errors": 0
+        },
+        "06-support-contract.md": {
+          "matched": 19,
+          "expected": 22,
+          "proposed": 19,
+          "outside_expected": 0,
+          "errors": 0
+        },
+        "07-operations-handover-en.md": {
+          "matched": 27,
+          "expected": 27,
+          "proposed": 27,
+          "outside_expected": 0,
+          "errors": 0
+        },
+        "08-public-reference.md": {
+          "matched": 0,
+          "expected": 0,
+          "proposed": 0,
+          "outside_expected": 0,
+          "errors": 0
+        }
+      },
+      "resumed_after_environment_restart": true,
+      "retry_rounds": 0,
+      "initial_failures": {},
+      "discovery": {
+        "matched": 192,
+        "expected": 219,
+        "proposed": 194,
+        "outside_expected": 2,
+        "errors": 0,
+        "public_document_findings": 0
+      },
+      "recorded_calls": 4,
+      "finish_reasons": {
+        "stop": 4
+      },
+      "http_errors": {},
+      "max_observed_model_rss_bytes": 0
+    }
+  },
+  "resume_verification": {
+    "verified": true,
+    "documents": [
+      {
+        "name": "06-support-contract.md",
+        "state": "queued",
+        "source_matches_fixture": true,
+        "extracted": 0
+      },
+      {
+        "name": "07-operations-handover-en.md",
+        "state": "queued",
+        "source_matches_fixture": true,
+        "extracted": 0
+      },
+      {
+        "name": "08-public-reference.md",
+        "state": "queued",
+        "source_matches_fixture": true,
+        "extracted": 0
+      },
+      {
+        "name": "05-procurement-thread.md",
+        "state": "running",
+        "source_matches_fixture": true,
+        "extracted": 0
+      },
+      {
+        "name": "01-cost-estimate.md",
+        "state": "succeeded",
+        "source_matches_fixture": true,
+        "extracted": 67
+      },
+      {
+        "name": "02-application.log",
+        "state": "succeeded",
+        "source_matches_fixture": true,
+        "extracted": 13
+      },
+      {
+        "name": "03-deployment-config.yaml",
+        "state": "succeeded",
+        "source_matches_fixture": true,
+        "extracted": 28
+      },
+      {
+        "name": "04-incident-report.md",
+        "state": "succeeded",
+        "source_matches_fixture": true,
+        "extracted": 22
+      }
+    ],
+    "entries_checked": 130,
+    "outbound_requests": 0
+  },
+  "qwen_context_evidence": {
+    "input_tokens": 3201,
+    "max_output_tokens": 1600,
+    "finish_reason": "length",
+    "usage": {
+      "completion_tokens": 895,
+      "prompt_tokens": 3201,
+      "total_tokens": 4096,
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    },
+    "process_alive": true,
+    "cgroup": {
+      "memory.events": "low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\noom_group_kill 0",
+      "memory.max": "8589934592",
+      "cpu.max": "200000 100000"
+    }
+  }
+}

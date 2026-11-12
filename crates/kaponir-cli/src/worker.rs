@@ -53,7 +53,11 @@ pub fn run(
     let mut command = std::process::Command::new(python);
     command
         .arg("-c")
-        .arg(include_str!("../../../scripts/kaponir_worker.py"))
+        .arg(concat!(
+            include_str!("../../../scripts/kaponir_inference.py"),
+            "\n",
+            include_str!("../../../scripts/kaponir_worker.py")
+        ))
         .args(args)
         .env("KAPONIR_HOME", &home.dir)
         .env("KAPONIR_EXECUTABLE", std::env::current_exe()?);

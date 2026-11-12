@@ -196,7 +196,7 @@ class WorkerTests(unittest.TestCase):
         self.worker.ocr_base='http://fixture'
         results=[]
         body={'model':'qwen3-0.6b','parallelism':3,'prompt':'fixture','schema':{},'input':{}}
-        with patch.object(self.worker,'start_runtime') as runtime, patch('kaponir_worker.http_json',side_effect=response):
+        with patch.object(self.worker,'start_runtime') as runtime, patch.object(self.worker,'prompt_token_count',return_value=10), patch('kaponir_worker.http_json',side_effect=response):
             threads=[threading.Thread(target=lambda:results.append(self.worker.evaluate(body))) for _ in range(7)]
             for thread in threads:thread.start()
             for thread in threads:thread.join(timeout=5)
@@ -226,13 +226,58 @@ class WorkerTests(unittest.TestCase):
             (urllib.error.HTTPError('http://RAW_SECRET',503,'RAW_SECRET',{},None), 'model_runtime_http_error'),
             (TimeoutError('RAW_SECRET'), 'model_timeout'),
         ]
-        with patch.object(self.worker, 'start_runtime'):
+        with patch.object(self.worker, 'start_runtime'), patch.object(self.worker,'prompt_token_count',return_value=10):
             for failure, code in cases:
                 with self.subTest(code=code), patch('kaponir_worker.http_json', side_effect=failure):
                     with self.assertRaisesRegex(ValueError, '^'+code+'$'):
                         self.worker.evaluate(body)
                     self.assertFalse(self.worker.evaluations)
                     self.assertEqual(self.worker.jobs()[0]['state'], 'failed')
+
+    def test_context_preflight_reserves_output_before_generation(self):
+        self.worker.ocr_base='http://fixture'
+        body={'model':'qwen3-0.6b','prompt':'fixture','schema':{},'input':{},'telemetry':True}
+        with patch.object(self.worker,'start_runtime'), patch.object(self.worker,'prompt_token_count',return_value=3201), patch('kaponir_worker.http_json') as request:
+            with self.assertRaisesRegex(ValueError,'^model_context_budget_exceeded$') as failure:
+                self.worker.evaluate(body)
+            request.assert_not_called()
+            self.assertEqual(failure.exception.telemetry['prompt_tokens'],3201)
+            self.assertEqual(failure.exception.telemetry['max_output_tokens'],1600)
+            self.assertFalse(self.worker.evaluations)
+
+    def test_input_size_uses_utf8_bytes_instead_of_ascii_escape_expansion(self):
+        self.worker.ocr_base='http://fixture'
+        body={'prompt':'fixture','schema':{},'input':{'source':'я'*400000}}
+        with patch.object(self.worker,'start_runtime'),patch.object(self.worker,'prompt_token_count',return_value=1),patch('kaponir_worker.http_json',return_value={'choices':[{'finish_reason':'stop','message':{'content':'{}'}}]}):
+            self.assertEqual(self.worker.evaluate(body),{})
+        with self.assertRaisesRegex(ValueError,'^evaluation_input_too_large$'):
+            self.worker.evaluate({**body,'input':{'source':'я'*1100000}})
+
+    def test_truncation_retains_numeric_usage_and_finish_reason(self):
+        self.worker.ocr_base='http://fixture'
+        reply={'choices':[{'finish_reason':'length','message':{'content':'RAW_PRIVATE_TEXT'}}],'usage':{'prompt_tokens':1200,'completion_tokens':1600,'total_tokens':2800}}
+        with patch.object(self.worker,'start_runtime'),patch.object(self.worker,'prompt_token_count',return_value=1200),patch('kaponir_worker.http_json',return_value=reply):
+            with self.assertRaisesRegex(ValueError,'^model_response_truncated$') as failure:
+                self.worker.evaluate({'prompt':'fixture','schema':{},'input':{}})
+            self.assertEqual(failure.exception.telemetry['finish_reason'],'length')
+            self.assertEqual(failure.exception.telemetry['completion_tokens'],1600)
+            self.assertNotIn('RAW_PRIVATE_TEXT',json.dumps(failure.exception.telemetry))
+
+    def test_context_changes_wait_for_inflight_requests(self):
+        self.worker.ocr_base='http://fixture'
+        entered=threading.Event();release=threading.Event();contexts=[]
+        def response(*_,**__):
+            entered.set();release.wait(3)
+            return {'choices':[{'finish_reason':'stop','message':{'content':'{}'}}]}
+        def start(*_,**kwargs):contexts.append(kwargs['context_tokens'])
+        body={'prompt':'fixture','schema':{},'input':{}}
+        with patch.object(self.worker,'start_runtime',side_effect=start),patch.object(self.worker,'prompt_token_count',return_value=1),patch('kaponir_worker.http_json',side_effect=response):
+            first=threading.Thread(target=self.worker.evaluate,args=(body,));first.start();self.assertTrue(entered.wait(2))
+            second=threading.Thread(target=self.worker.evaluate,args=({**body,'inference':{'context_tokens':8192}},));second.start()
+            time.sleep(.05);self.assertEqual(contexts,[4096])
+            release.set();first.join(4);second.join(4)
+            self.assertFalse(first.is_alive());self.assertFalse(second.is_alive())
+            self.assertEqual(contexts,[4096,8192])
 
     def test_source_boundary_and_symlinks(self):
         (self.root/'a.txt').write_text('hello')
