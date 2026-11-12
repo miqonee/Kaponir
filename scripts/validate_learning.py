@@ -52,7 +52,7 @@ def check_browser(base, api, output):
         page.locator('[data-tab=analysis]').click()
         page.locator('#learning-toggle').click()
         wait_for(lambda:not api('/api/v1/ui/analysis')['settings']['enabled'])
-        page.wait_for_function("() => document.querySelector('#learning-state').textContent==='Обучение приостановлено'")
+        page.wait_for_function("() => document.querySelector('#learning-state').textContent==='Анализ приостановлен'")
         page.locator('#learning-toggle').click()
         wait_for(lambda:api('/api/v1/ui/analysis')['settings']['enabled'])
         for width in [390,1440]:

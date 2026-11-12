@@ -176,12 +176,12 @@ def main():
                 page.locator('#analysis-provider').select_option('api')
                 page.locator('#analysis-url').fill('http://127.0.0.1:9999/v1/chat/completions')
                 page.locator('#analysis-worker-toggle').click()
-                page.wait_for_function("() => document.querySelector('#analysis-worker-state').textContent==='Готов'", timeout=20000)
+                page.wait_for_function("() => document.querySelector('#analysis-worker-state').textContent==='Служба запущена'", timeout=20000)
                 assert api('/api/v1/ui/worker')['enabled']
                 assert not any(m['downloaded'] for m in api('/api/v1/ui/worker')['models'].values())
                 page.locator('#analysis-navigation [data-go="worker"]').click()
                 page.locator('#worker-toggle').click()
-                page.wait_for_function("() => document.querySelector('#worker-toggle').textContent==='Включить воркер'")
+                page.wait_for_function("() => document.querySelector('#worker-toggle').textContent==='Запустить обработку'")
                 assert not api('/api/v1/ui/worker')['enabled']
 
                 page.locator('[data-tab="discover"]').click()

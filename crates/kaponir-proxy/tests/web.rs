@@ -831,6 +831,13 @@ async fn worker_management_is_authenticated_and_optional() {
     let protected = spawn(Some("private-token")).await;
     let (status, _) = call("GET", format!("{protected}/api/v1/ui/worker"), None).await;
     assert_eq!(status, 401);
+    let (status, _) = call(
+        "POST",
+        format!("{protected}/api/v1/ui/worker/models/verify"),
+        Some(json!({"model":"qwen3-0.6b"})),
+    )
+    .await;
+    assert_eq!(status, 401);
     let base = spawn(None).await;
     let (status, value) = call("GET", format!("{base}/api/v1/ui/worker"), None).await;
     assert_eq!(status, 200);
@@ -839,6 +846,13 @@ async fn worker_management_is_authenticated_and_optional() {
         "POST",
         format!("{base}/api/v1/ui/worker/jobs"),
         Some(json!({"source":"."})),
+    )
+    .await;
+    assert_eq!(status, 503);
+    let (status, _) = call(
+        "POST",
+        format!("{base}/api/v1/ui/worker/models/verify"),
+        Some(json!({"model":"qwen3-0.6b"})),
     )
     .await;
     assert_eq!(status, 503);

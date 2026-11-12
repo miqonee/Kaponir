@@ -814,6 +814,24 @@ td small { display: block; }
 .worker-summary-row strong { font-family: inherit; font-weight: 500; text-align: right; }
 .status-pill { white-space: normal; }
 #worker-state p { margin: 8px 0; }
+.analysis-flow { margin-bottom: 18px; line-height: 1.7; }
+.setting-explanation .hint { margin: 6px 0 0 28px; }
+.model-install { min-width: 0; margin-top: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-subtle); }
+.model-install p { margin: 0 0 10px; }
+.model-install .model-state { color: var(--text); font-weight: 650; font-size: 13px; }
+.model-install .form-actions { margin-bottom: 12px; }
+.model-install progress { width: 100%; height: 8px; margin-bottom: 12px; accent-color: var(--accent); }
+.model-file, .model-metadata dd { overflow-wrap: anywhere; word-break: break-word; }
+.model-offline { border-top: 1px solid var(--line); padding-top: 12px; }
+.model-offline summary, .installation-error summary { cursor: pointer; color: var(--accent); font-size: 12px; }
+.model-offline[open] > div { padding-top: 12px; }
+.model-metadata { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin: 10px 0 16px; font-size: 12px; }
+.model-metadata dt { color: var(--dim); margin-top: 6px; }
+.model-metadata dd { margin: 0; min-width: 0; }
+.installation-error { padding: 12px 0; }
+.model-install .err, .installation-error .err { color: var(--danger); }
+.worker-summary-row { align-items: start; }
+.worker-summary-row strong { min-width: 0; overflow-wrap: anywhere; }
 .selection-toolbar { gap: 8px; }
 .selection-toolbar h3 { margin: 0 auto 0 0; }
 .selection-toolbar .grow { display: none; }

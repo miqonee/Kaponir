@@ -109,7 +109,10 @@ verified the address, route, and rules with synthetic data.
 ## Web UI
 
 The dashboard shows proxy statistics and grouped sessions. **LLM & analysis** contains background
-discovery, separate categorization and worker controls. Completed turns are analyzed in the background; verified scores above 85% can create reversible rules. See [background learning](docs/LEARNING.md).
+discovery, separate categorization, and **Models and queue**. Each local model card shows file integrity
+and runtime readiness, with download and offline installation instructions. Settings can wait for
+missing files without downloading automatically. Completed turns are analyzed in the background;
+verified scores above 85% can create reversible rules. See [background learning](docs/LEARNING.md).
 Screenshots use synthetic traffic against a local fixture provider.
 
 ![Dashboard in dark mode](docs/images/console-dashboard-dark-en.png)

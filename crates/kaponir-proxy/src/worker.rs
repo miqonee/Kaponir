@@ -19,6 +19,7 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/worker/stop", post(stop))
         .route("/api/v1/ui/worker/jobs", post(submit))
         .route("/api/v1/ui/worker/models/download", post(download))
+        .route("/api/v1/ui/worker/models/verify", post(verify))
         .route("/api/v1/ui/worker/jobs/{id}/{action}", post(action))
 }
 pub(crate) async fn forward(
@@ -202,6 +203,14 @@ async fn download(
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &headers, true)?;
     forward(&st, "/models/download", Some(body)).await
+}
+async fn verify(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    forward(&st, "/models/verify", Some(body)).await
 }
 async fn action(
     State(st): State<Shared>,

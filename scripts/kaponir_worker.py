@@ -5,6 +5,7 @@ Python 3.12+. Pillow/pypdfium2 are optional for image/PDF input.
 import argparse
 import base64
 import contextlib
+import errno
 import hashlib
 import hmac
 import http.server
@@ -17,6 +18,7 @@ import platform
 import shutil
 import signal
 import socket
+import ssl
 import sqlite3
 import subprocess
 import sys
@@ -175,6 +177,36 @@ class Interrupted(Exception):
     pass
 
 
+class InstallationError(ValueError):
+    """Stable public code; arbitrary exception/provider text never enters job metadata."""
+    def __init__(self, code):
+        super().__init__(code)
+        self.code = code
+
+
+def installation_error(exc, stage=None, host=None):
+    details = {'stage': stage, 'host': host}
+    reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+    if isinstance(exc, InstallationError): code = exc.code
+    elif isinstance(exc, urllib.error.HTTPError):
+        code = 'proxy_error' if exc.code == 407 else 'http_error'
+        details['http_status'] = exc.code
+    elif isinstance(reason, ssl.SSLError): code = 'tls_error'
+    elif isinstance(reason, (TimeoutError, socket.timeout)): code = 'download_timeout'
+    elif isinstance(reason, socket.gaierror): code = 'dns_error'
+    elif isinstance(reason, OSError):
+        code = {errno.ENOSPC: 'disk_full', errno.EDQUOT: 'disk_full',
+                errno.EACCES: 'permission_denied', errno.EPERM: 'permission_denied'}.get(
+                    reason.errno, 'connection_failed' if isinstance(exc, urllib.error.URLError) else 'file_error')
+        details['errno'] = reason.errno
+    elif isinstance(exc, urllib.error.URLError):
+        text = str(reason).lower()
+        code = 'proxy_error' if 'proxy' in text or 'tunnel' in text else 'connection_failed'
+    else: code = 'installation_failed'
+    return {'type': type(exc).__name__, 'code': code, 'message': code,
+            **{key: value for key, value in details.items() if value is not None}}
+
+
 def http_json(url, body=None, token='', timeout=10):
     headers = {'Content-Type': 'application/json'}
     if token:
@@ -231,6 +263,11 @@ class Worker:
         with self.connection() as db:
             db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, created REAL, updated REAL, body TEXT)')
         self.runtime = Path(config['runtime']) if config['runtime'] else self.models/'runtime/llama-b12038/llama-server'
+        self.runtime = self.runtime.expanduser().resolve()
+        self.model_checks = {}
+        self.verification_pending = {}
+        self.verification_lock = threading.RLock()
+        self.verification_thread = None
         self.ocr_base = None
         self.runtime_log = None
 
@@ -273,7 +310,13 @@ class Worker:
         job={'id':uuid.uuid4().hex,'kind':kind,'source':source,'root':str(self.root),'model':model,'use_s1':bool(use_s1),'mode':mode,
              'state':'queued','created':time.time(),'updated':time.time(),'completed':0,'page':0,'files':None,
              'total':0,'errors':[],'skipped':0,'control':None,'progress':0,'progress_total':0,'current':''}
-        with self.connection() as db:
+        with self.lock, self.connection() as db:
+            if kind == 'download':
+                for row in db.execute('SELECT body FROM jobs ORDER BY created'):
+                    previous = json.loads(row[0])
+                    if (previous['kind'] == 'download' and previous['state'] not in TERMINAL
+                            and MODEL_ALIASES.get(previous['model']) == model):
+                        return previous
             count=db.execute('SELECT count(*) FROM jobs').fetchone()[0]
             if count>=1000:
                 expired=next((j['id'] for row in db.execute('SELECT body FROM jobs ORDER BY created') if (j:=json.loads(row[0]))['state'] in TERMINAL and j['id']!=self.active),None)
@@ -343,18 +386,98 @@ class Worker:
                         self.update(job['id'], state='queued', control=None, activation_paused=False)
         return self.status()
 
+    @staticmethod
+    def file_signature(path):
+        stat = path.stat()
+        return (stat.st_dev, stat.st_ino, stat.st_size, stat.st_mtime_ns, stat.st_ctime_ns)
+
+    def refresh_model_checks(self, force=None):
+        """Only stat here. One bounded background thread hashes installed files, even while idle."""
+        with self.verification_lock:
+            for variant, item in FILES.items():
+                path = self.models / item[0]
+                try:
+                    signature = self.file_signature(path) if path.is_file() else None
+                except OSError:
+                    self.model_checks[variant] = {'signature': None, 'state': 'unreadable', 'error': 'permission_denied'}
+                    continue
+                previous = self.model_checks.get(variant, {})
+                if (previous.get('signature') == signature and previous.get('state')
+                        and (signature is not None or previous['state'] == 'missing')
+                        and (force != variant or previous['state'] == 'checking')):
+                    continue
+                if signature is None:
+                    entry = {'signature': None, 'state': 'missing'}
+                elif item[1] and signature[2] != item[1]:
+                    entry = {'signature': signature, 'state': 'invalid', 'error': 'size_mismatch'}
+                else:
+                    entry = {'signature': signature, 'state': 'checking'}
+                    self.verification_pending[variant] = (signature, item)
+                self.model_checks[variant] = entry
+            if self.verification_pending and self.verification_thread is None:
+                self.verification_thread = threading.Thread(target=self.verify_pending, daemon=True)
+                self.verification_thread.start()
+
+    def verify_pending(self):
+        while not self.stop.is_set():
+            with self.verification_lock:
+                if not self.verification_pending:
+                    self.verification_thread = None
+                    return
+                variant = next(iter(self.verification_pending))
+                signature, item = self.verification_pending.pop(variant)
+            path = self.models / item[0]
+            try:
+                with path.open('rb') as source:
+                    digest = hashlib.file_digest(source, 'sha256').hexdigest()
+                if self.file_signature(path) != signature:
+                    continue  # A subsequent status/check schedules the changed file.
+                result = {'state': 'ready'} if digest == item[2] else {'state': 'invalid', 'error': 'checksum_mismatch'}
+            except OSError as exc:
+                result = {'state': 'unreadable', 'error': installation_error(exc)['code']}
+            with self.verification_lock:
+                if self.model_checks.get(variant, {}).get('signature') == signature:
+                    self.model_checks[variant] = {'signature': signature, **result}
+        with self.verification_lock:
+            self.verification_thread = None
+
+    def verify_models(self, model):
+        if not isinstance(model, str) or model not in MODEL_ALIASES:
+            raise ValueError('unsupported model')
+        self.refresh_model_checks(force=MODEL_ALIASES[model])
+        return {'model': model, 'state': self.model_checks[MODEL_ALIASES[model]]['state']}
+
+    def runtime_info(self):
+        try:
+            present = self.runtime.is_file()
+            ready = present and os.access(self.runtime, os.X_OK)
+            state = 'ready' if ready else 'not_executable' if present else 'missing'
+        except OSError:
+            ready, state = False, 'unreadable'
+        supported = platform.system() == 'Linux' and platform.machine() in ['x86_64', 'AMD64']
+        return {'ready': ready, 'path': str(self.runtime), 'configured': bool(self.cfg['runtime']),
+                'state': state,
+                'automatic_install': supported and not self.cfg['runtime'],
+                'archive': {'file': RUNTIME_NAME, 'url': RUNTIME_URL, 'sha256': RUNTIME_SHA,
+                            'path': str(self.models / RUNTIME_NAME), 'extract_to': str(self.models / 'runtime')}}
+
     def status(self):
+        self.refresh_model_checks()
         models={}
         for variant in ['q4','q5','qwen3.5-0.8b']:
             item = FILES[variant]
             fname, fsize = item[0], item[1]
             fpath = self.models / fname
-            ready = fpath.is_file() and (fsize == 0 or fpath.stat().st_size == fsize)
-            info = {'downloaded':ready,'bytes':fsize,'file':fname,'label':MODEL_LABELS.get(variant,variant),'kind':'text-cpu'}
+            with self.verification_lock:
+                check = dict(self.model_checks[variant])
+            info = {'downloaded':check['state'] == 'ready','state':check['state'], 'error':check.get('error'),
+                    'bytes':fsize,'file':fname,'path':str(fpath),'url':item[3], 'sha256':item[2],
+                    'label':MODEL_LABELS.get(variant,variant),'kind':'text-cpu'}
             models[variant] = info
         models['qwen3-0.6b'] = dict(models['q4'])
         models['qwen3-0.6b-q8'] = dict(models['q5'])
-        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'input_root':str(self.root),'models':models,'runtime_ready':self.runtime.is_file(),
+        runtime = self.runtime_info()
+        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],
                 'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
                 'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'evaluations':len(self.evaluations),'jobs':[j for j in self.jobs() if j['kind'] != 'evaluate']}
 
@@ -382,8 +505,10 @@ class Worker:
             found.append({'path':str(p.relative_to(self.root)),'size':stat.st_size,'mtime_ns':stat.st_mtime_ns})
         return found,skipped
 
-    def download_file(self, ident, name, url, digest, size=None):
+    def download_file(self, ident, name, url, digest, size=None, component='model'):
         path=self.models/name
+        self.update(ident, current=name, stage=component+'_verify', source_host=urllib.parse.urlsplit(url).hostname,
+                    progress=0, progress_total=size or 0)
         if path.is_file() and (size is None or size == 0 or path.stat().st_size==size):
             if not digest: return path
             with path.open('rb') as f:
@@ -391,14 +516,17 @@ class Worker:
         partial=path.with_suffix(path.suffix+'.part')
         try:
             sha=hashlib.sha256();count=0;last=0
+            self.update(ident, stage=component+'_download')
             with urllib.request.urlopen(url,timeout=30) as src,partial.open('wb') as out:
                 total=size or int(src.headers.get('Content-Length',0))
+                self.update(ident, progress_total=total)
                 while data:=src.read(256*1024):
                     self.check(ident);out.write(data);sha.update(data);count+=len(data)
                     if time.monotonic()-last>1:
                         self.update(ident,current=name,progress=count,progress_total=total);last=time.monotonic()
-            if digest and sha.hexdigest()!=digest: raise ValueError('download checksum mismatch')
-            if size and size > 0 and count!=size: raise ValueError('download size mismatch')
+            self.update(ident, stage=component+'_verify', progress=count, progress_total=total)
+            if size and size > 0 and count!=size: raise InstallationError('size_mismatch')
+            if digest and sha.hexdigest()!=digest: raise InstallationError('checksum_mismatch')
             partial.replace(path)
         finally:
             partial.unlink(missing_ok=True)
@@ -410,22 +538,32 @@ class Worker:
         name, size, digest = item[0], item[1], item[2]
         url = item[3] if len(item) > 3 else MODEL_BASE + name
         self.check(ident);self.update(ident,current=name,progress=0,progress_total=size)
-        self.download_file(ident,name,url,digest,size)
+        path = self.download_file(ident,name,url,digest,size)
+        with self.verification_lock:
+            self.model_checks[variant] = {'signature': self.file_signature(path), 'state': 'ready'}
+        self.update(ident, stage='runtime_install', current=self.runtime.name, source_host=None,
+                    progress=0, progress_total=0)
         if not self.runtime.is_file():
-            if self.cfg['runtime']: raise ValueError('configured runtime is missing')
+            if self.cfg['runtime']: raise InstallationError('runtime_missing')
             if platform.system()!='Linux' or platform.machine() not in ['x86_64','AMD64']:
-                raise ValueError('set worker.runtime to a llama-server built for this platform')
-            archive=self.download_file(ident,RUNTIME_NAME,RUNTIME_URL,RUNTIME_SHA)
+                raise InstallationError('runtime_unsupported')
+            archive=self.download_file(ident,RUNTIME_NAME,RUNTIME_URL,RUNTIME_SHA,component='runtime')
+            self.update(ident, stage='runtime_install', progress=0, progress_total=0)
             stage=self.models/'runtime-install'
             shutil.rmtree(stage,ignore_errors=True);stage.mkdir()
             try:
-                with tarfile.open(archive) as f:f.extractall(stage,filter='data')
+                try:
+                    with tarfile.open(archive) as f:f.extractall(stage,filter='data')
+                except tarfile.TarError as exc:
+                    raise InstallationError('runtime_install_failed') from exc
                 self.check(ident)
                 (self.models/'runtime').mkdir(exist_ok=True)
                 target=self.models/'runtime/llama-b12038'
                 if not target.exists(): (stage/'llama-b12038').replace(target)
             finally: shutil.rmtree(stage,ignore_errors=True)
-        if not self.runtime.is_file(): raise ValueError('runtime installation incomplete')
+        if not self.runtime.is_file(): raise InstallationError('runtime_missing')
+        if not os.access(self.runtime, os.X_OK): raise InstallationError('runtime_not_executable')
+        self.update(ident, stage='ready')
 
     def start_runtime(self, ident, variant, slots=1):
         variant = MODEL_ALIASES.get(variant, variant)
@@ -737,11 +875,15 @@ class Worker:
             self.update(ident,state=self.get(ident)['control'] or 'queued')
         except Exception as exc:
             state=self.get(ident)['control']
-            self.update(ident,state=state or 'failed',errors=[{'type':type(exc).__name__,'message':str(exc)[:200] if isinstance(exc,ValueError) else 'worker operation failed'}])
+            error = (installation_error(exc, self.get(ident).get('stage'), self.get(ident).get('source_host'))
+                     if job['kind'] == 'download' else
+                     {'type':type(exc).__name__,'message':str(exc)[:200] if isinstance(exc,ValueError) else 'worker operation failed'})
+            self.update(ident,state=state or 'failed',errors=[error])
         finally:self.stop_runtime();self.active=None
 
     def loop(self):
         while not self.stop.is_set():
+            self.refresh_model_checks()
             if not self.enabled:
                 self.stop.wait(.5)
                 continue
@@ -783,6 +925,7 @@ def handler(worker, token):
                 elif path=='/evaluate':result=worker.evaluate(body)
                 elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'))
                 elif path=='/models/download':result=worker.submit('download',model=body.get('model'))
+                elif path=='/models/verify':result=worker.verify_models(body.get('model'))
                 elif path.startswith('/jobs/'):
                     _,_,ident,action=path.split('/');result=worker.action(ident,action)
                 else:raise ValueError('unknown route')

@@ -1,15 +1,19 @@
 """Queue lifecycle, file boundary, download integrity and HTTP auth without models."""
 import hashlib
+import errno
 import json
 from pathlib import Path
 import tempfile
 import threading
+import socket
+import ssl
+import time
 import unittest
 from unittest.mock import patch
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from kaponir_worker import Worker, configuration, handler, Interrupted, grounded_candidates, text_pages, text_chunks
+from kaponir_worker import Worker, configuration, handler, Interrupted, grounded_candidates, text_pages, text_chunks, installation_error
 
 
 class WorkerTests(unittest.TestCase):
@@ -18,7 +22,126 @@ class WorkerTests(unittest.TestCase):
         self.root=self.home/'inbox';self.root.mkdir()
         self.worker=Worker(self.home,configuration(self.home),'unused-binary')
     def tearDown(self):
-        self.worker.stop.set();self.worker.stop_runtime();self.temp.cleanup()
+        self.worker.stop.set();self.worker.stop_runtime()
+        if self.worker.verification_thread:
+            self.worker.verification_thread.join(timeout=5)
+        self.temp.cleanup()
+
+    def settled_model(self, worker=None):
+        worker = worker or self.worker
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            model = worker.status()['models']['qwen3-0.6b']
+            if model['state'] != 'checking': return model
+            time.sleep(.01)
+        self.fail('model verification did not finish')
+
+    def test_offline_verification_while_disabled_detects_same_size_corruption_and_restart(self):
+        data = b'fixture-model'
+        digest = hashlib.sha256(data).hexdigest()
+        item = ('fixture.gguf', len(data), digest, 'https://example.test/model')
+        self.worker.activate(False)
+        with patch.dict('kaponir_worker.FILES', {'q4': item}), patch('kaponir_worker.urllib.request.urlopen', side_effect=AssertionError('offline')):
+            self.assertEqual(self.settled_model()['state'], 'missing')
+            path = self.worker.models / item[0]
+            path.write_bytes(data)
+            self.assertTrue(self.settled_model()['downloaded'])
+            self.assertFalse(self.worker.enabled)
+            with patch('kaponir_worker.hashlib.file_digest', side_effect=AssertionError('cached')):
+                self.assertTrue(self.worker.status()['models']['q4']['downloaded'])
+            path.write_bytes(b'x' * len(data))
+            invalid = self.settled_model()
+            self.assertEqual(invalid['state'], 'invalid')
+            self.assertEqual(invalid['error'], 'checksum_mismatch')
+            self.assertFalse(invalid['downloaded'])
+            path.write_bytes(data[:-1])
+            self.assertEqual(self.settled_model()['error'], 'size_mismatch')
+            path.write_bytes(data)
+            self.worker.verify_models('qwen3-0.6b')
+            self.assertTrue(self.settled_model()['downloaded'])
+            recovered = Worker(self.home, configuration(self.home), 'unused')
+            self.assertTrue(self.settled_model(recovered)['downloaded'])
+            self.assertFalse(recovered.enabled)
+            status = self.worker.status()
+            self.assertEqual(status['models']['q4'], status['models']['qwen3-0.6b'])
+            self.assertEqual(status['models']['q4']['path'], str(path))
+            self.assertEqual(status['models']['q4']['sha256'], digest)
+            self.assertEqual(status['runtime']['path'], str(self.worker.runtime))
+            self.assertTrue(status['model_verification'])
+
+    def test_download_deduplicates_canonical_model_including_paused_jobs(self):
+        first = self.worker.submit('download', model='q4')
+        duplicate = self.worker.submit('download', model='qwen3-0.6b')
+        self.assertEqual(first['id'], duplicate['id'])
+        self.worker.action(first['id'], 'pause')
+        self.assertEqual(self.worker.submit('download', model='q4')['id'], first['id'])
+        self.worker.action(first['id'], 'cancel')
+        self.assertNotEqual(self.worker.submit('download', model='q4')['id'], first['id'])
+
+    def test_unreadable_files_do_not_break_status_and_removed_files_become_missing(self):
+        path = self.worker.models / 'fixture.gguf'
+        path.write_bytes(b'fixture')
+        item = ('fixture.gguf', 7, hashlib.sha256(b'fixture').hexdigest(), 'https://example.test/model')
+        with patch.dict('kaponir_worker.FILES', {'q4': item}):
+            with patch.object(self.worker, 'file_signature', side_effect=PermissionError(errno.EACCES, 'private path')):
+                model = self.worker.status()['models']['q4']
+                self.assertEqual(model['state'], 'unreadable')
+                self.assertFalse(model['downloaded'])
+            path.unlink()
+            self.assertEqual(self.worker.status()['models']['q4']['state'], 'missing')
+        with patch.object(Path, 'is_file', side_effect=PermissionError(errno.EACCES, 'private path')):
+            status = self.worker.status()
+            self.assertEqual(status['runtime']['state'], 'unreadable')
+            self.assertFalse(status['runtime_ready'])
+
+    def test_runtime_failure_retains_verified_weights_without_network(self):
+        data = b'fixture-model'
+        item = ('fixture.gguf', len(data), hashlib.sha256(data).hexdigest(), 'https://example.test/model')
+        (self.worker.models / item[0]).write_bytes(data)
+        self.worker.cfg['runtime'] = '/missing/llama-server'
+        with patch.dict('kaponir_worker.FILES', {'q4': item}), patch('kaponir_worker.urllib.request.urlopen', side_effect=AssertionError('offline')):
+            job = self.worker.submit('download')
+            self.worker.process_one(job['id'])
+            result = self.worker.get(job['id'])
+            self.assertEqual(result['state'], 'failed')
+            self.assertEqual(result['errors'][0]['code'], 'runtime_missing')
+            self.assertEqual(result['errors'][0]['stage'], 'runtime_install')
+            self.assertTrue(self.settled_model()['downloaded'])
+            self.assertFalse(self.worker.status()['runtime_ready'])
+            self.worker.runtime.parent.mkdir(parents=True, exist_ok=True)
+            self.worker.runtime.write_text('fixture')
+            self.assertFalse(self.worker.status()['runtime_ready'])
+            self.worker.runtime.chmod(0o755)
+            retry = self.worker.submit('download')
+            self.worker.process_one(retry['id'])
+            self.assertEqual(self.worker.get(retry['id'])['state'], 'succeeded')
+
+    def test_installation_errors_are_actionable_without_arbitrary_exception_text(self):
+        cases = [
+            (urllib.error.URLError(socket.gaierror(-2, 'RAW_SECRET')), 'dns_error'),
+            (urllib.error.URLError(ssl.SSLError('RAW_SECRET')), 'tls_error'),
+            (urllib.error.URLError(TimeoutError('RAW_SECRET')), 'download_timeout'),
+            (urllib.error.URLError('proxy RAW_SECRET'), 'proxy_error'),
+            (urllib.error.URLError('RAW_SECRET'), 'connection_failed'),
+            (urllib.error.HTTPError('https://RAW_SECRET', 404, 'RAW_SECRET', {}, None), 'http_error'),
+            (urllib.error.HTTPError('https://RAW_SECRET', 407, 'RAW_SECRET', {}, None), 'proxy_error'),
+            (OSError(errno.ENOSPC, 'RAW_SECRET'), 'disk_full'),
+            (PermissionError(errno.EACCES, 'RAW_SECRET'), 'permission_denied'),
+            (RuntimeError('RAW_SECRET'), 'installation_failed'),
+        ]
+        for exception, code in cases:
+            with self.subTest(code=code):
+                result = installation_error(exception, 'model_download', 'huggingface.co')
+                self.assertEqual(result['code'], code)
+                self.assertNotIn('RAW_SECRET', json.dumps(result))
+        job = self.worker.submit('download')
+        with patch('kaponir_worker.urllib.request.urlopen', side_effect=urllib.error.URLError('RAW_SECRET')):
+            self.worker.process_one(job['id'])
+        error = self.worker.get(job['id'])['errors'][0]
+        self.assertEqual(error['code'], 'connection_failed')
+        self.assertEqual(error['stage'], 'model_download')
+        self.assertEqual(error['host'], 'huggingface.co')
+        self.assertNotIn('RAW_SECRET', json.dumps(error))
     def test_activation_persists_without_downloading_or_losing_jobs(self):
         (self.root/'a.txt').write_text('project: Amber Pine')
         job = self.worker.submit('scan')
@@ -155,6 +278,11 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(err.exception.code,401)
             req=urllib.request.Request(url+'/jobs',data=b'{"source":"."}',headers={'Content-Type':'application/json','Authorization':'Bearer fixture-token'})
             with urllib.request.urlopen(req) as r:self.assertEqual(json.load(r)['state'],'queued')
+            self.worker.activate(False)
+            verify = urllib.request.Request(url+'/models/verify', data=b'{"model":"qwen3-0.6b"}', headers={'Content-Type':'application/json','Authorization':'Bearer fixture-token'})
+            with urllib.request.urlopen(verify) as response:
+                self.assertEqual(json.load(response)['state'], 'missing')
+            self.assertFalse(self.worker.enabled)
             req.add_header('Origin','https://other.example')
             with self.assertRaises(urllib.error.HTTPError) as err:urllib.request.urlopen(req)
             self.assertEqual(err.exception.code,400)

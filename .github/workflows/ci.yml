@@ -35,6 +35,7 @@ jobs:
           .venv-browser/bin/python -m playwright install --with-deps chromium
           .venv-browser/bin/python scripts/validate_console.py target/release/kaponir --output artifacts/console
           .venv-browser/bin/python scripts/validate_learning.py target/release/kaponir --output artifacts/learning
+          .venv-browser/bin/python scripts/validate_models.py target/release/kaponir --output artifacts/models
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -42,6 +43,7 @@ jobs:
           path: |
             artifacts/console
             artifacts/learning
+            artifacts/models
           if-no-files-found: ignore
       - run: python3 scripts/release_check.py target/release/kaponir --output dist
       - uses: actions/upload-artifact@v4

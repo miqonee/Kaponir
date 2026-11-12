@@ -56,7 +56,7 @@ const learningErrors = {
 };
 const learningError = (code) => tr(learningErrors[code] || code || "—");
 const bytesMiB = (bytes) =>
-  bytes == null ? "—" : `${(bytes / 1048576).toFixed(1)} ${tr("МБ")}`;
+  bytes == null ? "—" : `${(bytes / 1048576).toFixed(1)} MiB`;
 
 function learningFormVisibility() {
   const a = $("#analysis-provider").value,
@@ -79,7 +79,13 @@ function learningFormVisibility() {
     $(`#${role}-clear-key`).disabled =
       busy || !data?.editable || !data?.key_saved;
     $(`#${role}-test`).hidden = (role === "analysis" ? a : c) === "none";
+    const local = (role === "analysis" ? a : c) === "local",
+      button = $(`#${role}-test`);
+    button.textContent = tr(local ? "Проверить запуск" : "Проверить подключение");
+    if (local) button.disabled = busy || !data?.editable || !WORKER.data?.enabled || !!localModelIssue(selectedModel(role));
   }
+  $("#analysis-threshold").disabled ||= !$("#analysis-auto").checked;
+  if (typeof renderModelCards === "function") renderModelCards();
 }
 function renderLearningForms() {
   for (const role of ["analysis", "categorization"]) {
@@ -90,7 +96,7 @@ function renderLearningForms() {
     if (role === "analysis") {
       $("#analysis-enabled").checked = s.enabled;
       $("#analysis-local-model").value =
-        s.provider === "local" ? s.model : "qwen3-0.6b";
+        s.provider === "local" ? canonicalModel(s.model) : "qwen3-0.6b";
       $("#analysis-api-model").value = s.provider === "api" ? s.model : "";
       $("#analysis-url").value = s.url;
       $("#analysis-background").checked = s.background;
@@ -99,7 +105,7 @@ function renderLearningForms() {
       $("#analysis-timeout").value = s.timeout_seconds;
       $("#analysis-parallelism").value = s.parallelism;
     } else {
-      $("#categorization-local-model").value = s.model;
+      $("#categorization-local-model").value = canonicalModel(s.model);
       $("#categorization-protocol").value = s.http.protocol;
       $("#categorization-api-model").value = s.http.model || "";
       $("#categorization-url").value = s.http.url;
@@ -190,6 +196,7 @@ async function saveLearningForm(role, test = false) {
   learningFormVisibility();
   output.classList.remove("err");
   output.textContent = tr(test ? "Проверяем…" : "Применяем…");
+  let saved = false;
   try {
     const result = await api(`/api/v1/ui/${role}${test ? "/test" : ""}`, {
       method: test ? "POST" : "PUT",
@@ -197,22 +204,38 @@ async function saveLearningForm(role, test = false) {
     });
     if (!test) {
       LearningUI[role] = result;
+      saved = true;
       LearningUI.dirty.delete(role);
       renderLearningForms();
-      if (role === "analysis" && previous.enabled !== result.settings.enabled)
+      if (role === "analysis" && (previous.enabled !== result.settings.enabled || (result.settings.enabled && !WORKER.data?.enabled)))
         await workerAction(result.settings.enabled ? "/start" : "/stop", {});
+      await loadWorkerSummary();
     }
-    output.textContent = tr(
-      test ? "Подключение проверено" : "Настройки сохранены и применены.",
-    );
+    const local = body.settings.provider === "local";
+    output.textContent = test ? tr(local ? "Модель запущена и проверена на синтетическом примере." : "Подключение проверено")
+      : tr("Настройки сохранены."); // Live readiness is shown by the widget and model cards.
     await loadLearningHistory();
   } catch (e) {
-    output.textContent = learningError(e.message);
+    output.textContent = saved ? tr("Настройки сохранены, но служба не выполнила действие: {{0}}", [learningError(e.message)]) : learningError(e.message);
     output.classList.add("err");
   } finally {
     LearningUI.busy.delete(role);
     learningFormVisibility();
   }
+}
+
+function learningWaitingReason() {
+  const settings = LearningUI.analysis?.settings, worker = WORKER.data || {};
+  if (!settings?.enabled || settings.provider === "none") return null;
+  if (!worker.online) return tr("Служба анализа недоступна. Наличие файлов пока не проверено.");
+  if (!worker.enabled) return tr("Анализ ожидает запуска обработки.");
+  for (const [role, config] of [["analysis", settings], ["categorization", LearningUI.categorization?.settings]]) {
+    if (config?.provider !== "local") continue;
+    const issue = localModelIssue(config.model);
+    if (issue) return tr(role === "analysis" ? "Анализ ожидает подготовки модели обнаружения: {{0}}. {{1}}"
+      : "Анализ ожидает подготовки модели категоризации: {{0}}. {{1}}", [modelName(config.model), tr(issue)]);
+  }
+  return null;
 }
 
 function renderLearningWidget() {
@@ -222,35 +245,16 @@ function renderLearningWidget() {
   if (!history || !settings) return;
   const summary = history.summary,
     totals = summary.totals;
-  let state =
+  const state =
     !settings.enabled || settings.provider === "none"
-      ? "Обучение приостановлено"
-      : summary.running
-        ? "Идёт анализ"
-        : !worker.enabled
-          ? "Ожидает включения воркера"
-          : summary.queued
-            ? "Ожидает обработки"
-            : "Ожидает новых данных";
-  if (
-    settings.enabled &&
-    settings.provider === "local" &&
-    worker.enabled &&
-    !worker.models?.[settings.model]?.downloaded
-  )
-    state = "Ожидает загрузки модели";
-  const category = LearningUI.categorization?.settings;
-  if (
-    settings.enabled &&
-    category?.provider === "local" &&
-    worker.enabled &&
-    !worker.models?.[category.model]?.downloaded
-  )
-    state = "Ожидает модели категоризации";
-  $("#learning-state").textContent = tr(state);
+      ? tr("Анализ приостановлен")
+      : learningWaitingReason() || (
+        summary.running ? tr("Идёт анализ") : summary.queued ? tr("Ожидает обработки")
+          : tr(settings.background ? "Ожидает новых данных" : "Автоматический сбор сообщений выключен. Можно отправлять документы вручную."));
+  $("#learning-state").textContent = state;
   const toggle = $("#learning-toggle");
   toggle.textContent = tr(
-    settings.enabled ? "Пауза обучения" : "Возобновить обучение",
+    settings.enabled ? "Приостановить анализ" : "Возобновить анализ",
   );
   toggle.disabled =
     LearningUI.busy.has("toggle") || !LearningUI.analysis?.editable;
@@ -308,11 +312,11 @@ $("#learning-toggle").addEventListener("click", async () => {
       method: "PUT",
       body: { settings: { ...settings, enabled: !settings.enabled } },
     });
+    if (!LearningUI.dirty.has("analysis")) renderLearningForms();
     await workerAction(
       LearningUI.analysis.settings.enabled ? "/start" : "/stop",
       {},
     );
-    if (!LearningUI.dirty.has("analysis")) renderLearningForms();
     await loadLearningHistory();
   } catch (e) {
     fail(e);
