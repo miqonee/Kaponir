@@ -50,7 +50,7 @@ fn segments(
     out: &mut Vec<Candidate>,
 ) {
     let proj = Slot {
-        kind: "PROJ",
+        kind: "PATH",
         category: Category::Infra,
         prior: 0.6,
         dns: false,
@@ -364,7 +364,7 @@ mod tests {
             f,
             vec![
                 ("USER".to_string(), "mgoloshanov".to_string()),
-                ("PROJ".to_string(), "sber-pay-core".to_string())
+                ("PATH".to_string(), "sber-pay-core".to_string())
             ]
         );
     }
@@ -375,8 +375,8 @@ mod tests {
         assert_eq!(
             f,
             vec![
-                ("PROJ".to_string(), "zorg-api".to_string()),
-                ("PROJ".to_string(), "zorg".to_string())
+                ("PATH".to_string(), "zorg-api".to_string()),
+                ("PATH".to_string(), "zorg".to_string())
             ]
         );
     }
@@ -387,7 +387,7 @@ mod tests {
         assert!(f.contains(&("USER".into(), "ivanov".into())), "{f:?}");
         assert_eq!(
             f.iter()
-                .filter(|(k, v)| k == "PROJ" && v == "zorgproj")
+                .filter(|(k, v)| k == "PATH" && v == "zorgproj")
                 .count(),
             2,
             "{f:?}"

@@ -45,6 +45,8 @@ pub struct ReplacementItem {
     pub evidence: Vec<kaponir_core::Evidence>,
     #[serde(default)]
     pub probability: Option<f32>,
+    #[serde(default)]
+    pub protected: bool,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -93,6 +95,10 @@ pub struct Usage {
     #[serde(default)]
     pub uncertain: u64,
     #[serde(default)]
+    pub review_items: Vec<kaponir_core::journal::JournalReference>,
+    #[serde(default)]
+    pub review_ids: Vec<i64>,
+    #[serde(default)]
     pub prompt_tokens: u64,
     #[serde(default)]
     pub completion_tokens: u64,
@@ -114,6 +120,16 @@ pub struct Usage {
 
 impl Usage {
     pub fn add(&mut self, other: &Self) {
+        for item in &other.review_items {
+            if self.review_items.len() < 128 {
+                self.review_items.push(item.clone());
+            }
+        }
+        for id in &other.review_ids {
+            if !self.review_ids.contains(id) && self.review_ids.len() < 128 {
+                self.review_ids.push(*id);
+            }
+        }
         self.classifier_us += other.classifier_us;
         self.replacements += other.replacements;
         self.cached_replacements += other.cached_replacements;
@@ -173,6 +189,8 @@ impl Usage {
         let mut usage = Self {
             uncertain: m.uncertain as u64,
             classifier_us: m.classifier_us,
+            review_items: m.review_items.clone(),
+            review_ids: m.review_items.iter().filter_map(|item| item.id).collect(),
             ..Self::default()
         };
         for replacement in &m.replacements {
@@ -198,6 +216,7 @@ impl Usage {
                     origin: Some(replacement.origin.clone()),
                     evidence: replacement.evidence.clone(),
                     probability: Some(replacement.probability),
+                    protected: replacement.protected,
                 });
             }
         }
@@ -315,6 +334,8 @@ fn add_to_bucket(bucket: &mut Bucket, event: &Event) {
     bucket.cancelled += u64::from(event.outcome == "cancelled");
     bucket.usage.add(&event.usage);
     bucket.usage.masked_items.clear();
+    bucket.usage.review_items.clear();
+    bucket.usage.review_ids.clear();
     bucket.usage.unknown_tokens.clear();
     bucket.usage.denied_tokens.clear();
     bucket.usage.raw_response_buf.clear();
@@ -428,6 +449,7 @@ impl Traffic {
         for event in snapshot.events.iter_mut().chain(snapshot.active.iter_mut()) {
             event.inspector = None;
             event.usage.masked_items.clear();
+            event.usage.review_items.clear();
             event.usage.unknown_tokens.clear();
             event.usage.denied_tokens.clear();
             event.upstream_url = None;

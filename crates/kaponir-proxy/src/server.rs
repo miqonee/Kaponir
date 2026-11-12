@@ -29,6 +29,7 @@ enum Api {
 
 pub fn router(state: Shared) -> Router {
     crate::learning::start(&state);
+    crate::review::start(&state);
     Router::new()
         .route("/v1/messages", post(anthropic_messages))
         .route("/v1/messages/count_tokens", post(anthropic_messages))
@@ -47,6 +48,7 @@ pub fn router(state: Shared) -> Router {
         .merge(crate::web::routes())
         .merge(crate::worker::routes())
         .merge(crate::learning::routes())
+        .merge(crate::review::routes())
         .merge(crate::providers::routes())
         .layer(DefaultBodyLimit::max(64 << 20))
         .layer(middleware::from_fn_with_state(state.clone(), guard_host))
@@ -108,6 +110,11 @@ fn loopback_host(host: &str) -> bool {
 pub(crate) struct ApiError {
     status: StatusCode,
     message: String,
+}
+impl ApiError {
+    pub(crate) fn message(&self) -> &str {
+        &self.message
+    }
 }
 
 impl IntoResponse for ApiError {

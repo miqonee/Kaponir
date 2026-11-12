@@ -37,6 +37,9 @@ FILES = {
     'q4': ('Qwen3-0.6B-Q4_K_M.gguf', 396705472, 'f3fc6b7d42c01f07aa6fa2c517fa492c179f7de0e1fd2275fb8ed6e3c9c90c9f', 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf'),
     'q5': ('Qwen3-0.6B-Q8_0.gguf', 639446688, '8f02b92277a0eb2d11b3b7248511859b02c1b0a5ff5ebfc81b03c5222ebfc79e', 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q8_0.gguf'),
     'qwen3.5-0.8b': ('Qwen3.5-0.8B-Q4_K_M.gguf', 532517120, 'bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517', 'https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf'),
+    'minicpm5-2b': ('MiniCPM5-2B-Q4_K_M.gguf', 1561318368, 'ec2d5801640099e97d8d7e8003ad4d81f336e757811f03a26173dddf386602fd', 'https://huggingface.co/openbmb/MiniCPM5-2B-GGUF/resolve/8ad02b786ab81e33d465e1c80562640c55ab2877/MiniCPM5-2B-Q4_K_M.gguf'),
+    'qwen3.5-2b': ('Qwen3.5-2B-Q4_K_M.gguf', 1280835840, 'aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223', 'https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf'),
+    'huihui-qwen3.5-2b-abliterated': ('Huihui-Qwen3.5-2B-abliterated.Q4_K_M.gguf', 1270809024, 'aa25eea787afe56a097268f7ed3460cb623e1901d2e89cd2b654cabb42f80636', 'https://huggingface.co/mradermacher/Huihui-Qwen3.5-2B-abliterated-GGUF/resolve/7f5aee7d2dc4df18bd67eab85ea81e0bc2e98a2c/Huihui-Qwen3.5-2B-abliterated.Q4_K_M.gguf'),
 }
 MODEL_ALIASES = {
     'q4': 'q4',
@@ -44,15 +47,83 @@ MODEL_ALIASES = {
     'qwen3-0.6b': 'q4',
     'qwen3-0.6b-q8': 'q5',
     'qwen3.5-0.8b': 'qwen3.5-0.8b',
+    'minicpm5-2b': 'minicpm5-2b',
+    'qwen3.5-2b': 'qwen3.5-2b',
+    'huihui-qwen3.5-2b-abliterated': 'huihui-qwen3.5-2b-abliterated',
 }
 MODEL_LABELS = {
-    'q4': 'Qwen3-0.6B (Q4_K_M · быстрый CPU, ~397 МБ)',
-    'q5': 'Qwen3-0.6B (Q8_0 · CPU, ~639 МБ)',
-    'qwen3.5-0.8b': 'Qwen3.5-0.8B (Q4_K_M · новая CPU LLM, ~533 МБ)',
+    'q4': 'Qwen3-0.6B · Q4_K_M',
+    'q5': 'Qwen3-0.6B · Q8_0',
+    'qwen3.5-0.8b': 'Qwen3.5-0.8B · Q4_K_M',
+    'minicpm5-2b': 'MiniCPM5-2B · Q4_K_M',
+    'qwen3.5-2b': 'Qwen3.5-2B · Q4_K_M',
+    'huihui-qwen3.5-2b-abliterated': 'Huihui-Qwen3.5-2B-abliterated · Q4_K_M',
 }
 RUNTIME_NAME = 'llama-b12038-bin-ubuntu-x64.tar.gz'
 RUNTIME_URL = 'https://github.com/ggml-org/llama.cpp/releases/download/b12038/' + RUNTIME_NAME
 RUNTIME_SHA = '46b89b9a84c7a0fa46e89911034c4f6d3024150cb5d477e1426b921f81f4ddab'
+CUSTOM_ID = re.compile(r'hf-[a-f0-9]{24}\Z')
+
+
+def hf_reference(url):
+    """Only public Hugging Face model/repository links, never arbitrary download URLs."""
+    if not isinstance(url, str) or len(url) > 2048: raise ValueError('hf_invalid_url')
+    parsed = urllib.parse.urlsplit(url.strip())
+    if (parsed.scheme != 'https' or parsed.netloc not in ['huggingface.co', 'hf.co']
+            or parsed.username or parsed.password or parsed.fragment
+            or parsed.query not in ['', 'download=true', 'download=1']):
+        raise ValueError('hf_invalid_url')
+    parts = [urllib.parse.unquote(part) for part in parsed.path.strip('/').split('/')]
+    if len(parts) < 2 or any(not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', part) for part in parts[:2]): raise ValueError('hf_invalid_url')
+    repo, revision, filename = '/'.join(parts[:2]), 'main', None
+    if len(parts) > 2:
+        if len(parts) < 4 or parts[2] not in ['resolve', 'blob', 'tree']: raise ValueError('hf_invalid_url')
+        revision = parts[3]
+        if not re.fullmatch(r'[A-Za-z0-9_.-]{1,128}', revision) or revision in ['.', '..']: raise ValueError('hf_invalid_url')
+        if len(parts) > 4: filename = '/'.join(parts[4:])
+        if parts[2] == 'tree': filename = None
+    if filename and (len(filename) > 512 or any(part in ['', '.', '..'] for part in filename.split('/'))
+                     or '\\' in filename or any(ord(c) < 32 for c in filename)):
+        raise ValueError('hf_invalid_url')
+    return repo, revision, filename
+
+
+def resolve_hf(url, filename=None):
+    repo, revision, linked_file = hf_reference(url)
+    requested = filename or linked_file
+    endpoint = 'https://huggingface.co/api/models/' + repo + '/revision/' + urllib.parse.quote(revision, safe='') + '?blobs=true'
+    try:
+        request = urllib.request.Request(endpoint, headers={'Accept':'application/json', 'User-Agent':'Kaponir-model-catalog'})
+        with urllib.request.urlopen(request, timeout=12) as response: raw = response.read(4*1024*1024+1)
+        if len(raw) > 4*1024*1024: raise ValueError('hf_metadata_too_large')
+        metadata = json.loads(raw)
+    except urllib.error.HTTPError as exc:
+        raise ValueError('hf_access_denied' if exc.code in [401,403] else 'hf_not_found' if exc.code == 404 else 'hf_unavailable') from None
+    except (OSError, urllib.error.URLError): raise ValueError('hf_unavailable') from None
+    except (json.JSONDecodeError, UnicodeError): raise ValueError('hf_invalid_metadata') from None
+    commit = metadata.get('sha') if isinstance(metadata, dict) else None
+    if (not isinstance(commit, str) or not re.fullmatch(r'[a-f0-9]{40}', commit) or not isinstance(metadata.get('siblings'),list)
+            or re.fullmatch(r'[a-f0-9]{40}',revision) and commit!=revision): raise ValueError('hf_invalid_metadata')
+    choices = []
+    for item in metadata.get('siblings', []):
+        if not isinstance(item,dict): continue
+        name = item.get('rfilename', '')
+        if not isinstance(name,str) or not name.lower().endswith('.gguf') or 'mmproj' in name.lower(): continue
+        if re.search(r'-\d{5}-of-\d{5}\.gguf$', name, re.I): continue
+        if len(name)>512 or any(part in ['', '.', '..'] for part in name.split('/')) or '\\' in name or any(ord(c)<32 for c in name): continue
+        lfs = item.get('lfs') or {}
+        if not isinstance(lfs,dict): continue
+        digest, size = lfs.get('sha256'), lfs.get('size', item.get('size'))
+        if not isinstance(digest,str) or not re.fullmatch(r'[a-f0-9]{64}',digest) or type(size) is not int or not 8 <= size <= 128*1024**3: continue
+        choices.append({'file':name,'bytes':size,'sha256':digest,
+            'url':'https://huggingface.co/'+repo+'/resolve/'+commit+'/'+urllib.parse.quote(name,safe='/')})
+    choices.sort(key=lambda item: (not bool(re.search(r'(?:-|\.)Q4_K_M\.gguf$',item['file'],re.I)),item['file'].lower()))
+    if not choices: raise ValueError('hf_no_gguf')
+    if requested and not any(item['file']==requested for item in choices): raise ValueError('hf_file_not_supported')
+    if requested: choices=[item for item in choices if item['file']==requested]
+    elif len(choices)>128: choices=choices[:128]
+    return {'repo':repo,'revision':commit,'files':choices,'selected':requested or choices[0]['file']}
+
 TEXT = {'.txt', '.md', '.json', '.jsonl', '.log', '.yaml', '.yml', '.toml', '.ini', '.env', '.csv', '.tsv'}
 IMAGES = {'.png', '.jpg', '.jpeg', '.webp', '.tif', '.tiff', '.bmp'}
 TERMINAL = {'succeeded', 'failed', 'cancelled'}
@@ -231,8 +302,8 @@ def configuration(home, overrides=None):
         defaults[key] = (p if p.is_absolute() else home / p).resolve()
     for key, upper in [('threads',32),('max_files',10000),('max_file_bytes',134217728),('max_pages',1000),('max_edge',1536),('ocr_timeout_seconds',1800)]:
         if not isinstance(defaults[key],int) or not 1 <= defaults[key] <= upper: raise ValueError('invalid worker setting: '+key)
-    if defaults['model'] not in MODEL_ALIASES: raise ValueError('unsupported model')
-    defaults['model'] = MODEL_ALIASES[defaults['model']]
+    if defaults['model'] not in MODEL_ALIASES and not CUSTOM_ID.fullmatch(defaults['model']): raise ValueError('unsupported model')
+    defaults['model'] = MODEL_ALIASES.get(defaults['model'],defaults['model'])
     return defaults
 
 
@@ -262,6 +333,8 @@ class Worker:
             self.enabled = bool(json.loads(self.activation_file.read_text()).get('enabled', False))
         with self.connection() as db:
             db.execute('CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, created REAL, updated REAL, body TEXT)')
+            db.execute('CREATE TABLE IF NOT EXISTS models (id TEXT PRIMARY KEY, body TEXT NOT NULL)')
+            self.custom_models = {row[0]:json.loads(row[1]) for row in db.execute('SELECT id,body FROM models')}
         self.runtime = Path(config['runtime']) if config['runtime'] else self.models/'runtime/llama-b12038/llama-server'
         self.runtime = self.runtime.expanduser().resolve()
         self.model_checks = {}
@@ -270,6 +343,29 @@ class Worker:
         self.verification_thread = None
         self.ocr_base = None
         self.runtime_log = None
+
+    def model_files(self):
+        with self.lock:
+            return {**FILES, **{key:tuple(item['artifact']) for key,item in self.custom_models.items()}}
+
+    def canonical_model(self, model):
+        if not isinstance(model,str): raise ValueError('unsupported model')
+        variant = MODEL_ALIASES.get(model,model)
+        if variant not in self.model_files(): raise ValueError('unsupported model')
+        return variant
+
+    def register_model(self, url, filename=None):
+        resolved = resolve_hf(url,filename)
+        artifact = next(item for item in resolved['files'] if item['file']==resolved['selected'])
+        ident = 'hf-'+hashlib.sha256(artifact['url'].encode()).hexdigest()[:24]
+        basename = re.sub(r'[^A-Za-z0-9_.-]','_',Path(artifact['file']).stem)[:150]+'.gguf'
+        record = {'id':ident,'label':resolved['repo']+' · '+artifact['file'],'repo':resolved['repo'],'revision':resolved['revision'],
+            'source_file':artifact['file'],'custom':True,'artifact':[ident+'-'+basename,artifact['bytes'],artifact['sha256'],artifact['url']]}
+        with self.lock, self.connection() as db:
+            if ident not in self.custom_models and len(self.custom_models)>=32: raise ValueError('hf_catalog_full')
+            db.execute('INSERT OR IGNORE INTO models VALUES (?,?)',(ident,json.dumps(record)))
+            self.custom_models[ident] = record
+        return {'model':ident,'label':record['label'],'revision':record['revision']}
 
     @contextlib.contextmanager
     def connection(self):
@@ -303,8 +399,7 @@ class Worker:
         if not isinstance(use_s1,bool): raise ValueError('use_s1 must be a boolean')
         if not isinstance(mode, str) or mode not in MODES: raise ValueError('unsupported analysis mode')
         model=model or self.cfg['model']
-        if not isinstance(model, str) or model not in MODEL_ALIASES: raise ValueError('unsupported model')
-        model=MODEL_ALIASES[model]
+        model=self.canonical_model(model)
         if not isinstance(source,str) or len(source)>1024: raise ValueError('invalid source path')
         if kind=='scan' and source!='@sessions': self.resolve(source)
         job={'id':uuid.uuid4().hex,'kind':kind,'source':source,'root':str(self.root),'model':model,'use_s1':bool(use_s1),'mode':mode,
@@ -315,7 +410,7 @@ class Worker:
                 for row in db.execute('SELECT body FROM jobs ORDER BY created'):
                     previous = json.loads(row[0])
                     if (previous['kind'] == 'download' and previous['state'] not in TERMINAL
-                            and MODEL_ALIASES.get(previous['model']) == model):
+                            and MODEL_ALIASES.get(previous['model'],previous['model']) == model):
                         return previous
             count=db.execute('SELECT count(*) FROM jobs').fetchone()[0]
             if count>=1000:
@@ -393,8 +488,9 @@ class Worker:
 
     def refresh_model_checks(self, force=None):
         """Only stat here. One bounded background thread hashes installed files, even while idle."""
+        files = self.model_files()
         with self.verification_lock:
-            for variant, item in FILES.items():
+            for variant, item in files.items():
                 path = self.models / item[0]
                 try:
                     signature = self.file_signature(path) if path.is_file() else None
@@ -429,10 +525,12 @@ class Worker:
             path = self.models / item[0]
             try:
                 with path.open('rb') as source:
+                    header = source.read(4);source.seek(0)
                     digest = hashlib.file_digest(source, 'sha256').hexdigest()
                 if self.file_signature(path) != signature:
                     continue  # A subsequent status/check schedules the changed file.
                 result = {'state': 'ready'} if digest == item[2] else {'state': 'invalid', 'error': 'checksum_mismatch'}
+                if variant.startswith('hf-') and header!=b'GGUF': result={'state':'invalid','error':'invalid_gguf'}
             except OSError as exc:
                 result = {'state': 'unreadable', 'error': installation_error(exc)['code']}
             with self.verification_lock:
@@ -442,10 +540,9 @@ class Worker:
             self.verification_thread = None
 
     def verify_models(self, model):
-        if not isinstance(model, str) or model not in MODEL_ALIASES:
-            raise ValueError('unsupported model')
-        self.refresh_model_checks(force=MODEL_ALIASES[model])
-        return {'model': model, 'state': self.model_checks[MODEL_ALIASES[model]]['state']}
+        variant=self.canonical_model(model)
+        self.refresh_model_checks(force=variant)
+        return {'model': model, 'state': self.model_checks[variant]['state']}
 
     def runtime_info(self):
         try:
@@ -463,21 +560,23 @@ class Worker:
 
     def status(self):
         self.refresh_model_checks()
-        models={}
-        for variant in ['q4','q5','qwen3.5-0.8b']:
-            item = FILES[variant]
+        models={};catalog=[]
+        for variant,item in self.model_files().items():
             fname, fsize = item[0], item[1]
             fpath = self.models / fname
             with self.verification_lock:
-                check = dict(self.model_checks[variant])
+                check = dict(self.model_checks.get(variant,{'state':'missing'}))
             info = {'downloaded':check['state'] == 'ready','state':check['state'], 'error':check.get('error'),
                     'bytes':fsize,'file':fname,'path':str(fpath),'url':item[3], 'sha256':item[2],
-                    'label':MODEL_LABELS.get(variant,variant),'kind':'text-cpu'}
+                    'label':MODEL_LABELS.get(variant,self.custom_models.get(variant,{}).get('label',variant)),
+                    'kind':'text-cpu','custom':variant in self.custom_models}
             models[variant] = info
+            catalog.append({'id':{'q4':'qwen3-0.6b','q5':'qwen3-0.6b-q8'}.get(variant,variant),
+                'label':info['label'],'bytes':fsize,'custom':info['custom']})
         models['qwen3-0.6b'] = dict(models['q4'])
         models['qwen3-0.6b-q8'] = dict(models['q5'])
         runtime = self.runtime_info()
-        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],
+        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],'catalog':catalog,'hf_import':True,
                 'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
                 'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'evaluations':len(self.evaluations),'jobs':[j for j in self.jobs() if j['kind'] != 'evaluate']}
 
@@ -512,7 +611,10 @@ class Worker:
         if path.is_file() and (size is None or size == 0 or path.stat().st_size==size):
             if not digest: return path
             with path.open('rb') as f:
-                if hashlib.file_digest(f,'sha256').hexdigest()==digest: return path
+                header=f.read(4);f.seek(0)
+                if hashlib.file_digest(f,'sha256').hexdigest()==digest:
+                    if component=='model' and name.startswith('hf-') and header!=b'GGUF': raise InstallationError('invalid_gguf')
+                    return path
         partial=path.with_suffix(path.suffix+'.part')
         try:
             sha=hashlib.sha256();count=0;last=0
@@ -527,14 +629,17 @@ class Worker:
             self.update(ident, stage=component+'_verify', progress=count, progress_total=total)
             if size and size > 0 and count!=size: raise InstallationError('size_mismatch')
             if digest and sha.hexdigest()!=digest: raise InstallationError('checksum_mismatch')
+            if component=='model' and name.startswith('hf-'):
+                with partial.open('rb') as source:
+                    if source.read(4)!=b'GGUF': raise InstallationError('invalid_gguf')
             partial.replace(path)
         finally:
             partial.unlink(missing_ok=True)
         return path
 
     def install(self, ident, variant):
-        variant = MODEL_ALIASES.get(variant, variant)
-        item = FILES[variant]
+        variant = self.canonical_model(variant)
+        item = self.model_files()[variant]
         name, size, digest = item[0], item[1], item[2]
         url = item[3] if len(item) > 3 else MODEL_BASE + name
         self.check(ident);self.update(ident,current=name,progress=0,progress_total=size)
@@ -566,7 +671,7 @@ class Worker:
         self.update(ident, stage='ready')
 
     def start_runtime(self, ident, variant, slots=1):
-        variant = MODEL_ALIASES.get(variant, variant)
+        variant = self.canonical_model(variant)
         if self.process and self.process.poll() is None and self.process_variant == variant and self.process_slots == slots: return
         self.stop_runtime()
         if not self.runtime.is_file() or not self.status()['models'][variant]['downloaded']:
@@ -574,9 +679,9 @@ class Worker:
         with socket.socket() as sock:
             sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         self.ocr_base=f'http://127.0.0.1:{port}'
-        cmd=[str(self.runtime),'-m',str(self.models/FILES[variant][0]),
+        cmd=[str(self.runtime),'-m',str(self.models/self.model_files()[variant][0]),
              '--host','127.0.0.1','--port',str(port),'-c',str(4096*slots),'-np',str(slots),'-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
-             '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning','off']
+             '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning','off','--no-mmproj']
         # Runtime output may contain source text; do not persist it as a log.
         self.process=subprocess.Popen(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         self.process_variant = variant
@@ -584,7 +689,7 @@ class Worker:
         deadline=time.monotonic()+120
         while time.monotonic()<deadline:
             self.check(ident)
-            if self.process.poll() is not None: raise RuntimeError('LLM runtime exited during startup')
+            if self.process.poll() is not None: raise ValueError('model_runtime_start_failed')
             try:
                 http_json(self.ocr_base+'/health',timeout=1);return
             except (OSError,ValueError):time.sleep(.25)
@@ -638,8 +743,7 @@ class Worker:
 
     def evaluate(self, body):
         if not self.enabled: raise ValueError('worker is disabled')
-        model = MODEL_ALIASES.get(body.get('model', self.cfg['model']))
-        if model is None: raise ValueError('unsupported model')
+        model = self.canonical_model(body.get('model', self.cfg['model']))
         slots = body.get('parallelism', 1)
         if type(slots) is not int or not 1 <= slots <= 10: raise ValueError('invalid parallelism')
         prompt, schema, source = body.get('prompt'), body.get('schema'), body.get('input')
@@ -677,6 +781,12 @@ class Worker:
             self.last_inference_at = time.time()
             self.update(ident, state='succeeded')
             return value
+        except urllib.error.HTTPError as exc:
+            self.update(ident, state='failed')
+            raise ValueError('model_context_or_schema_error' if exc.code == 400 else 'model_runtime_http_error') from None
+        except TimeoutError:
+            self.update(ident, state='failed')
+            raise ValueError('model_timeout') from None
         except Exception:
             self.update(ident, state=self.get(ident).get('control') or 'failed')
             raise
@@ -687,7 +797,7 @@ class Worker:
                 self.evaluation_condition.notify_all()
 
     def extract_text_candidates(self, ident, variant, source):
-        """Run compact CPU text LLM (Qwen3-0.6B Q4 / Q8) directly on text chunk."""
+        """Run the selected local CPU text model directly on a text chunk."""
         self.start_runtime(ident, variant)
         payload = {
             'model': 'qwen3-cpu',
@@ -924,6 +1034,8 @@ def handler(worker, token):
                 elif path=='/disable':result=worker.activate(False)
                 elif path=='/evaluate':result=worker.evaluate(body)
                 elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'))
+                elif path=='/models/resolve':result=resolve_hf(body.get('url'))
+                elif path=='/models/register':result=worker.register_model(body.get('url'),body.get('file'))
                 elif path=='/models/download':result=worker.submit('download',model=body.get('model'))
                 elif path=='/models/verify':result=worker.verify_models(body.get('model'))
                 elif path.startswith('/jobs/'):
@@ -958,9 +1070,9 @@ def main():
     sub=parser.add_subparsers(dest='command',required=True)
     serve_parser=sub.add_parser('serve');serve_parser.add_argument('--idle',action='store_true');sub.add_parser('status')
     for mode in ['submit','run']:
-        p=sub.add_parser(mode);p.add_argument('source',nargs='?',default='.');p.add_argument('--model',choices=sorted(MODEL_ALIASES));p.add_argument('--s1',action='store_true')
-        p.add_argument('--mode', choices=sorted(MODES), default='local', help='local detection or CPU LLM (Qwen3) candidate extraction plus local detection')
-    p=sub.add_parser('download');p.add_argument('model',choices=sorted(MODEL_ALIASES))
+        p=sub.add_parser(mode);p.add_argument('source',nargs='?',default='.');p.add_argument('--model',help='built-in model ID or registered hf-… ID');p.add_argument('--s1',action='store_true')
+        p.add_argument('--mode', choices=sorted(MODES), default='local', help='local detection or selected CPU LLM candidate extraction plus local detection')
+    p=sub.add_parser('download');p.add_argument('model',help='built-in model ID or registered hf-… ID')
     for mode in ['pause','resume','cancel']:
         p=sub.add_parser(mode);p.add_argument('id')
     args=parser.parse_args();home=Path(args.home).resolve()

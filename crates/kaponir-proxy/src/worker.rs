@@ -20,6 +20,8 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/worker/jobs", post(submit))
         .route("/api/v1/ui/worker/models/download", post(download))
         .route("/api/v1/ui/worker/models/verify", post(verify))
+        .route("/api/v1/ui/worker/models/resolve", post(resolve_model))
+        .route("/api/v1/ui/worker/models/register", post(register_model))
         .route("/api/v1/ui/worker/jobs/{id}/{action}", post(action))
 }
 pub(crate) async fn forward(
@@ -61,6 +63,8 @@ pub(crate) async fn forward(
             1
         } else if path == "/evaluate" {
             300
+        } else if matches!(path, "/models/resolve" | "/models/register") {
+            20
         } else {
             10
         }))
@@ -211,6 +215,28 @@ async fn verify(
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &headers, true)?;
     forward(&st, "/models/verify", Some(body)).await
+}
+async fn resolve_model(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    if st.control.is_none() {
+        return Err(error(StatusCode::FORBIDDEN, "read_only"));
+    }
+    forward(&st, "/models/resolve", Some(body)).await
+}
+async fn register_model(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    if st.control.is_none() {
+        return Err(error(StatusCode::FORBIDDEN, "read_only"));
+    }
+    forward(&st, "/models/register", Some(body)).await
 }
 async fn action(
     State(st): State<Shared>,

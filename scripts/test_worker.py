@@ -218,6 +218,22 @@ class WorkerTests(unittest.TestCase):
         memory=self.worker.resources()
         if memory['worker_rss_bytes'] is not None: self.assertGreater(memory['worker_rss_bytes'],0)
 
+    def test_evaluation_errors_are_safe_and_release_runtime_slots(self):
+        self.worker.ocr_base = 'http://fixture'
+        body = {'model':'qwen3-0.6b','prompt':'fixture','schema':{},'input':{}}
+        cases = [
+            (urllib.error.HTTPError('http://RAW_SECRET',400,'RAW_SECRET',{},None), 'model_context_or_schema_error'),
+            (urllib.error.HTTPError('http://RAW_SECRET',503,'RAW_SECRET',{},None), 'model_runtime_http_error'),
+            (TimeoutError('RAW_SECRET'), 'model_timeout'),
+        ]
+        with patch.object(self.worker, 'start_runtime'):
+            for failure, code in cases:
+                with self.subTest(code=code), patch('kaponir_worker.http_json', side_effect=failure):
+                    with self.assertRaisesRegex(ValueError, '^'+code+'$'):
+                        self.worker.evaluate(body)
+                    self.assertFalse(self.worker.evaluations)
+                    self.assertEqual(self.worker.jobs()[0]['state'], 'failed')
+
     def test_source_boundary_and_symlinks(self):
         (self.root/'a.txt').write_text('hello')
         outside=self.home/'outside.txt';outside.write_text('outside')

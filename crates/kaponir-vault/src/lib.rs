@@ -128,7 +128,7 @@ impl JournalRow {
             id: format!("review-{}", self.id),
             kind: kind.unwrap_or(&self.kind).to_ascii_uppercase(),
             value: Some(self.value.clone()),
-            category: serde_json::from_value(serde_json::Value::String(self.category.clone())).ok(),
+            category: Some(kaponir_core::kinds::category(kind.unwrap_or(&self.kind))),
             note: format!("kaponir review: {} ×{}", self.recognizer, self.count),
             ..kaponir_core::rules::Rule::default()
         }
@@ -502,6 +502,19 @@ impl SqliteVault {
         Ok(n > 0)
     }
 
+    /// Metadata only; event summaries must not decrypt values just to display review state.
+    pub fn journal_states(&self) -> Result<std::collections::HashMap<i64, String>, VaultError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT id,status FROM journal")
+            .map_err(db)?;
+        statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .map_err(db)?
+            .collect::<Result<_, _>>()
+            .map_err(db)
+    }
+
     /// Память сессии прокси: значения, уже замаскированные или восстановленные в разговоре.
     /// Переживает перезапуск, иначе восстановленный оригинал ушёл бы из истории открытым.
     pub fn load_session(&self, id: &str) -> Result<Vec<Known>, VaultError> {
@@ -649,6 +662,17 @@ impl SqliteVault {
 }
 
 impl Vault for SqliteVault {
+    fn journal_id(&self, kind: &str, value: &str) -> Result<Option<i64>, VaultError> {
+        let blind = self.blind(&["journal", kind, value]);
+        self.conn
+            .query_row(
+                "SELECT id FROM journal WHERE blind=?1",
+                params![blind],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(db)
+    }
     fn allocate(&mut self, req: &AllocRequest<'_>) -> Result<TokenId, VaultError> {
         let strategy = format!("{:?}", req.strategy);
         let blind = self.blind(&[

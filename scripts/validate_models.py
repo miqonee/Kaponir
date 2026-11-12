@@ -2,6 +2,7 @@
 """Exercise real worker/proxy/UI installation flows with tiny fixtures, without internet or LLM weights."""
 import argparse
 import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -207,6 +208,15 @@ def main():
                 assert not worker.enabled
                 page.unroute('**/api/v1/ui/worker/start')
 
+                # An unknown saved/preset ID is a catalog problem, not a missing weight file.
+                unknown=worker.status();unknown['models'].pop('minicpm5-2b');unknown['catalog']=[item for item in unknown['catalog'] if item['id']!='minicpm5-2b']
+                page.locator('#analysis-local-model').select_option('minicpm5-2b')
+                page.route('**/api/v1/ui/worker',lambda route:route.fulfill(json=unknown))
+                page.evaluate('loadWorkerSummary()')
+                page.locator('#analysis-model-install .model-state').filter(has_text='нет в каталоге').wait_for()
+                assert page.locator('#analysis-download').is_disabled() and page.locator('#analysis-verify').is_disabled()
+                page.unroute('**/api/v1/ui/worker');page.locator('#analysis-local-model').select_option('qwen3.5-0.8b');page.evaluate('loadWorkerSummary()')
+
                 # An older worker and an unreachable worker must never look like a missing model.
                 old = worker.status()
                 old.pop('model_verification')
@@ -241,12 +251,66 @@ def main():
                                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), (language, theme, width, tab)
                             page.evaluate("showTab('analysis')")
                             page.screenshot(path=str(args.output / f'models-{language}-{theme}-{width}.png'), full_page=True)
+                # Real worker/proxy/UI HF flow, with only metadata and tiny GGUF bytes mocked.
+                for role in ['analysis','categorization','worker']:
+                    select='#worker-model' if role=='worker' else f'#{role}-local-model'
+                    for model in ['minicpm5-2b','qwen3.5-2b','huihui-qwen3.5-2b-abliterated']:
+                        assert page.locator(select+f' option[value="{model}"]').count()==1
+                hf_bytes=b'GGUFfixture-custom-model';hf_sha=hashlib.sha256(hf_bytes).hexdigest();revision='a'*40
+                original_open=urllib.request.urlopen;metadata_requests=[]
+                def hf_open(request,*params,**kwargs):
+                    url=request.full_url if isinstance(request,urllib.request.Request) else str(request)
+                    if url.startswith('https://huggingface.co/api/models/'):
+                        metadata_requests.append(url)
+                        files=[{'rfilename':'Custom-Q8_0.gguf','lfs':{'size':len(hf_bytes),'sha256':hf_sha}},
+                               {'rfilename':'Custom-Q4_K_M.gguf','lfs':{'size':len(hf_bytes),'sha256':hf_sha}}]
+                        if '/acme/safetensors/' in url:files=[{'rfilename':'model.safetensors'}]
+                        return io.BytesIO(json.dumps({'sha':revision,'siblings':files}).encode())
+                    if url.startswith('https://huggingface.co/acme/custom/resolve/'):
+                        downloads.append('custom-hf');return io.BytesIO(hf_bytes)
+                    return original_open(request,*params,**kwargs)
+                with patch('kaponir_worker.urllib.request.urlopen',side_effect=hf_open):
+                    page.set_viewport_size({'width':1440,'height':1000});page.evaluate("showTab('analysis')")
+                    page.locator('[data-add-hf=analysis]').click();page.locator('#hf-model-url').fill('https://example.com/weights.gguf')
+                    page.locator('#hf-model-resolve').click();page.locator('#hf-model-result .err').filter(has_text='HTTPS-ссылку').wait_for()
+                    assert not metadata_requests
+                    page.locator('#hf-model-url').fill('https://huggingface.co/acme/custom')
+                    page.wait_for_timeout(2700);assert page.locator('#hf-model-url').input_value()=='https://huggingface.co/acme/custom'
+                    page.locator('#hf-model-resolve').click();page.locator('#hf-model-file').wait_for()
+                    assert page.locator('#hf-model-file').input_value()=='Custom-Q4_K_M.gguf'
+                    assert page.locator('#hf-model-file option').count()==2
+                    assert revision in page.locator('#hf-model-result').inner_text() and hf_sha in page.locator('#hf-model-result').inner_text()
+                    for width in [390,1440]:
+                        page.set_viewport_size({'width':width,'height':1000});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+                        page.screenshot(path=str(args.output/f'hf-dialog-ru-dark-{width}.png'),full_page=True)
+                    saved_before=api('/api/v1/ui/analysis')['settings'];downloads_before=len(downloads)
+                    page.locator('#hf-model-add').click();wait_for(lambda:not page.locator('#hf-model-dialog').evaluate('(dialog)=>dialog.open'))
+                    custom_id=page.locator('#analysis-local-model').input_value();assert re.fullmatch('hf-[a-f0-9]{24}',custom_id)
+                    assert api('/api/v1/ui/analysis')['settings']==saved_before
+                    assert len(downloads)==downloads_before
+                    assert all(page.locator(selector+f' option[value="{custom_id}"]').count()==1 for selector in ['#analysis-local-model','#categorization-local-model','#worker-model'])
+                    if not worker.enabled:api('/api/v1/ui/worker/start',{})
+                    page.evaluate('loadWorkerSummary()');wait_for(lambda:page.locator('#analysis-download').is_enabled())
+                    page.locator('#analysis-download').click();wait_for(lambda:model_ready(custom_id))
+                    page.locator('#analysis-model-install .model-state').filter(has_text='проверены и готовы').wait_for()
+                    custom_state=api('/api/v1/ui/worker')['models'][custom_id]
+                    assert Path(custom_state['path']).read_bytes()==hf_bytes and custom_state['sha256']==hf_sha
+                    page.locator('#analysis-save').click();wait_for(lambda:api('/api/v1/ui/analysis')['settings']['model']==custom_id)
+                    page.reload();wait_for(lambda:page.locator('#analysis-local-model').input_value()==custom_id)
+                    page.locator('#analysis-model-install .model-offline summary').click()
+                    assert custom_state['path'] in page.locator('#analysis-model-install .model-offline').inner_text()
+                    page.locator('[data-add-hf=analysis]').click();page.locator('#hf-model-url').fill('https://huggingface.co/acme/safetensors')
+                    page.locator('#hf-model-resolve').click();page.locator('#hf-model-result .err').filter(has_text='нет подходящего GGUF').wait_for()
+                    assert page.locator('#hf-model-add').is_disabled();page.keyboard.press('Escape')
+                    assert page.locator('#analysis-local-model').input_value()==custom_id
                 assert not errors, errors
                 browser.close()
             report = {'passed': True, 'downloads': len(downloads), 'cases': ['offline verification', 'network error and retry',
                       'duplicate installation', 'same-size corruption', 'independent model stages', 'waiting and readiness',
                       'unsaved form and focus', 'empty sessions', 'legacy errors', 'partial save', 'old and offline worker',
-                      'languages, themes and viewport sizes']}
+                      'languages, themes and viewport sizes','unknown catalog ID','three additional presets','HF repository and file selection',
+                      'invalid HF URL and unsupported format','HF import without hidden download or settings changes',
+                      'custom GGUF integrity, selection and reload','custom offline instructions']}
             (args.output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
             print(json.dumps(report))
         finally:

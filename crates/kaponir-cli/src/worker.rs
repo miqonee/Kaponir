@@ -75,11 +75,8 @@ pub fn run(
 impl Settings {
     pub fn validate(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
-            matches!(
-                self.model.as_str(),
-                "q4" | "q5" | "qwen3-0.6b" | "qwen3.5-0.8b" | "qwen3-0.6b-q8"
-            ),
-            "worker model must be q4 (qwen3-0.6b) or q5 (qwen3-0.6b-q8)"
+            kaponir_core::models::valid_local_id(&self.model),
+            "unsupported local worker model; select a built-in model or a registered Hugging Face artifact"
         );
         for (name, value, maximum) in [
             ("threads", u64::from(self.threads), 32),

@@ -46,7 +46,9 @@ rules. Keep them with the source. Historical validation reports belong in the lo
 
 - `assets/index.html`: sidebar, semantic structure, forms and static labels.
 - `assets/app.css`: shared styles, responsive layout and accessible focus states.
-- `assets/app.js`: existing lab, review, document discovery and rule management.
+- `assets/app.js`: lab, document discovery and rule management.
+- `assets/review.js`: unified detector/LLM review, explicit recommendations and action previews.
+- `assets/help.js`: shared settings help for pointer, keyboard and touch.
 - `assets/panel.js`: proxy overview, events, connection guide, settings and setup wizard.
 - `assets/i18n.js` and `assets/locales/*.json`: language selection and translations.
 

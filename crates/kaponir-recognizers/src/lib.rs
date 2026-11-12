@@ -9,6 +9,7 @@ pub mod paths;
 pub mod rules;
 pub mod secrets;
 pub mod tabular;
+pub mod users;
 pub mod validators;
 pub mod web;
 
@@ -21,6 +22,7 @@ pub fn builtin() -> Vec<Box<dyn Recognizer>> {
     vec![
         Box::new(secrets::Secrets::new()),
         Box::new(kv::KeyValue::new()),
+        Box::new(users::Users::new()),
         Box::new(tabular::Tabular::new()),
         Box::new(network::Network::new()),
         Box::new(web::Web::new()),

@@ -20,6 +20,13 @@ pub struct JournalEntry {
     pub evidence: Vec<Evidence>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct JournalReference {
+    pub id: Option<i64>,
+    #[serde(flatten)]
+    pub entry: JournalEntry,
+}
+
 /// Форма строки в духе Drain: `prod-billing-7d9f8b` → `x-x-dxdx`.
 /// Буквы → `x`/`X`, цифры → `d`, серии одного класса схлопываются.
 pub fn shape(s: &str) -> String {

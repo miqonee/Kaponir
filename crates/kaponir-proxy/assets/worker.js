@@ -21,6 +21,7 @@ const installationErrors = {
   file_error: "Не удалось прочитать или записать файл модели.",
   size_mismatch: "Размер файла не совпадает с ожидаемым.",
   checksum_mismatch: "Контрольная сумма файла не совпадает. Файл повреждён или выбран другой вариант модели.",
+  invalid_gguf: "Файл не является моделью GGUF. Проверьте выбранный файл и его источник.",
   runtime_missing: "Файл среды запуска llama-server не найден.",
   runtime_not_executable: "У llama-server нет разрешения на запуск.",
   runtime_unsupported: "Для этой платформы нужна отдельно установленная среда запуска.",
@@ -29,6 +30,35 @@ const installationErrors = {
 };
 const modelAliases = { q4: "qwen3-0.6b", q5: "qwen3-0.6b-q8" };
 const canonicalModel = (model) => modelAliases[model] || model;
+const builtinModelChoices = [
+  ["qwen3-0.6b", "Qwen3-0.6B · Q4_K_M", 396705472],
+  ["qwen3-0.6b-q8", "Qwen3-0.6B · Q8_0", 639446688],
+  ["qwen3.5-0.8b", "Qwen3.5-0.8B · Q4_K_M", 532517120],
+  ["qwen3.5-2b", "Qwen3.5-2B · Q4_K_M", 1280835840],
+  ["minicpm5-2b", "MiniCPM5-2B · Q4_K_M", 1561318368],
+  ["huihui-qwen3.5-2b-abliterated", "Huihui-Qwen3.5-2B-abliterated · Q4_K_M", 1270809024],
+].map(([id,label,bytes])=>({id,label,bytes}));
+function modelSelect(role) { return $(role === "worker" ? "#worker-model" : `#${role}-local-model`); }
+function ensureModelChoice(model) {
+  if (!model || !(builtinModelChoices.some((item)=>item.id===model) || /^hf-[a-f0-9]{24}$/.test(model))) return;
+  for (const role of ["analysis","categorization","worker"]) {
+    const select=modelSelect(role);
+    if (![...select.options].some((option)=>option.value===model)) select.append(h("option",{value:model},WORKER.data?.models?.[model]?.label || model));
+  }
+}
+function syncModelChoices() {
+  const catalog=WORKER.data?.catalog || builtinModelChoices;
+  for (const role of ["analysis","categorization","worker"]) {
+    const select=modelSelect(role), current=select.value;
+    const items=[...catalog];
+    if (current && !items.some((item)=>item.id===current)) items.push({id:current,label:WORKER.data?.models?.[current]?.label || current});
+    const signature=JSON.stringify(items.map((item)=>[item.id,item.label,item.bytes]));
+    if (select.dataset.catalog===signature) continue;
+    select.dataset.catalog=signature;
+    select.replaceChildren(...items.map((item)=>h("option",{value:item.id},item.label+(item.bytes ? ` · ${formatModelBytes(item.bytes)}` : ""))));
+    if (current) select.value=current;
+  }
+}
 const formatModelBytes = (bytes) => `${(Number(bytes || 0) / 1048576).toFixed(1)} MiB`;
 function modelName(model) {
   return [...$("#worker-model").options].find((o) => o.value === canonicalModel(model))?.textContent || model;
@@ -77,7 +107,8 @@ function localModelIssue(model) {
   const data = WORKER.data, weights = data?.models?.[model];
   if (!data?.online) return "Служба анализа недоступна. Наличие файлов пока не проверено.";
   if (!data.model_verification) return "Обновите воркер для проверки целостности файлов и инструкций установки.";
-  if (!weights || weights.state === "missing") return "Модель не установлена";
+  if (!weights) return "Выбранной модели нет в каталоге службы. Добавьте её по HF-ссылке или обновите службу.";
+  if (weights.state === "missing") return "Модель не установлена";
   if (weights.state === "checking") return "Проверяем контрольную сумму модели…";
   if (weights.state === "invalid" || weights.state === "unreadable") return "Файл модели не прошёл проверку";
   if (!weights.downloaded) return "Наличие файлов пока не проверено";
@@ -146,6 +177,7 @@ function offlineInstructions(model, runtime) {
 }
 function renderModelCards() {
   const data = WORKER.data || {};
+  for (const button of document.querySelectorAll("[data-add-hf]")) button.disabled=!info.editable || WORKER.busy;
   for (const role of ["analysis", "categorization", "worker"]) {
     const card = WORKER.cards.get(role) || createModelCard(role), model = selectedModel(role),
       weights = data.models?.[model], job = activeModelDownload(model) || modelDownloadJob(model),
@@ -177,8 +209,8 @@ function renderModelCards() {
     }
     card.download.textContent = tr(job?.state === "paused" ? "Продолжить установку" : error ? "Повторить установку" : "Скачать на сервер");
     card.download.hidden = ready;
-    card.download.disabled = !editable || busy || !data.online || !data.enabled || (active && job.state !== "paused");
-    card.verify.disabled = !editable || busy || !data.online || !data.model_verification || weights?.state === "checking" || active;
+    card.download.disabled = !editable || busy || !data.online || !data.enabled || !weights || (active && job.state !== "paused");
+    card.verify.disabled = !editable || busy || !data.online || !data.model_verification || !weights || weights.state === "checking" || active;
     if (role !== "worker" && $(`#${role}-provider`).value === "local")
       $(`#${role}-test`).disabled = !editable || busy || !data.enabled || !ready;
     card.start.hidden = data.online && data.enabled;
@@ -260,7 +292,8 @@ function renderWorker() {
     return h("tr", {}, h("td", { class: "mono" }, job.id.slice(0, 8)),
       h("td", {}, job.kind === "download" ? `${tr("Установка модели")} · ${modelName(job.model)}` : job.source,
         h("div", { class: "hint" }, job.kind !== "scan" ? "" : tr(job.mode === "configured" ? "Настроенный фоновый анализ"
-          : ["qwen", "xiaomi"].includes(job.mode) ? "Семантический поиск Qwen3 (CPU) + локальные детекторы" : "Локальный поиск · быстрые детекторы"))),
+          : ["qwen", "xiaomi"].includes(job.mode) ? "Поиск локальной моделью (CPU) + быстрые детекторы" : "Локальный поиск · быстрые детекторы")),
+        job.kind==="scan" && ["qwen","xiaomi"].includes(job.mode) ? h("small",{class:"hint"},modelName(job.model)) : null),
       h("td", {}, tr(workerStates[job.state] || job.state), job.control ? h("small", {}, " · " + tr("Остановка запрошена")) : null),
       h("td", {}, jobProgress(job), h("div", { class: "hint mono" }, job.current || ""), ...errors,
         job.candidate_page ? h("div", { class: "hint" }, tr("Фрагмент текста: {{0}}", [job.candidate_page])) : null,
@@ -278,6 +311,7 @@ async function loadWorkerSummary() {
     const data = await api("/api/v1/ui/worker");
     if (request !== WORKER.request) return;
     WORKER.data = data;
+    syncModelChoices();
   } catch (error) {
     if (request !== WORKER.request) return;
     WORKER.data = { state: "error", online: false, can_manage: false, error: error.message };
@@ -331,3 +365,70 @@ setInterval(() => {
 }, 2500);
 // Keep forms inert until their saved settings have arrived; early edits must not mask defaults.
 learningFormVisibility();
+
+const hfModelErrors = {
+  hf_invalid_url: "Вставьте HTTPS-ссылку на репозиторий или файл модели на huggingface.co.",
+  hf_not_found: "Репозиторий, ревизия или файл не найдены. Проверьте ссылку.",
+  hf_access_denied: "Репозиторий требует доступа. Для установки по ссылке нужен общедоступный GGUF.",
+  hf_unavailable: "Hugging Face недоступен с машины анализа. Проверьте интернет или прокси и повторите.",
+  hf_no_gguf: "В репозитории нет подходящего GGUF. Найдите GGUF-версию модели; Safetensors, проекторы и наборы частей здесь не устанавливаются.",
+  hf_file_not_supported: "По ссылке выбран неподдерживаемый файл. Нужен один основной файл GGUF, без mmproj и разделения на части.",
+  hf_invalid_metadata: "Hugging Face не вернул размер и контрольную сумму файла. Установка не начата.",
+  hf_metadata_too_large: "Каталог репозитория слишком большой. Используйте ссылку на другой репозиторий GGUF.",
+  hf_catalog_full: "Достигнут лимит: 32 собственные модели в каталоге службы анализа.",
+};
+function hfModelError(error) { const code=error.messageKey || error.message; return tr(hfModelErrors[code] || code); }
+let hfModelSession=0;
+function openHfModel(role, initialUrl="") {
+  const session=++hfModelSession, dialog=$("#hf-model-dialog");
+  let resolved=null, busy=false;
+  const source=h("input",{type:"url",required:true,id:"hf-model-url",placeholder:"https://huggingface.co/author/model-GGUF",value:initialUrl}),
+    output=h("div",{id:"hf-model-result",role:"status","aria-live":"polite"}),
+    find=h("button",{class:"secondary",type:"submit",id:"hf-model-resolve"},tr("Проверить ссылку")),
+    add=h("button",{class:"primary",type:"button",id:"hf-model-add",disabled:true},tr("Добавить модель"));
+  const validSession=()=>session===hfModelSession && dialog.open;
+  const setBusy=(value)=>{busy=value;source.disabled=value;find.disabled=value;add.disabled=value || !resolved;const files=$("#hf-model-file");if(files)files.disabled=value;};
+  source.addEventListener("input",()=>{resolved=null;add.disabled=true;output.replaceChildren();});
+  const form=h("form",{onsubmit:async(event)=>{
+    event.preventDefault();if(busy)return;setBusy(true);resolved=null;output.replaceChildren(h("p",{class:"hint"},tr("Проверяем файлы на Hugging Face…")));
+    try {
+      const result=await api("/api/v1/ui/worker/models/resolve",{method:"POST",body:{url:source.value.trim()}});
+      if(!validSession())return;resolved=result;
+      const files=h("select",{id:"hf-model-file"},...result.files.map((file)=>h("option",{value:file.file,selected:file.file===result.selected},`${file.file} · ${formatModelBytes(file.bytes)}`))),
+        details=h("div",{class:"model-offline-body"});
+      const renderDetails=()=>{
+        const file=result.files.find((item)=>item.file===files.value);
+        details.replaceChildren(h("dl",{class:"model-metadata"},h("dt",{},tr("Ревизия")),h("dd",{class:"mono"},result.revision),
+          h("dt",{},"SHA-256"),h("dd",{class:"mono"},file.sha256)),
+          h("a",{href:file.url,target:"_blank",rel:"noopener noreferrer"},tr("Источник файла")));
+      };
+      files.addEventListener("change",renderDetails);renderDetails();
+      output.replaceChildren(h("p",{},result.repo),h("label",{class:"field"},h("span",{},tr("Файл GGUF")),files),details,
+        h("p",{class:"hint"},tr("Ревизия и контрольная сумма закрепляются. Добавление в список не скачивает веса и не меняет сохранённые настройки анализа.")));
+    } catch(error) { if(validSession())output.replaceChildren(h("p",{class:"err"},hfModelError(error))); }
+    finally {if(validSession())setBusy(false);}
+  }},h("label",{class:"field"},h("span",{},tr("Ссылка Hugging Face")),source),find);
+  add.addEventListener("click",async()=>{
+    if(busy || !resolved)return;setBusy(true);
+    const file=resolved.files.find((item)=>item.file===$("#hf-model-file").value);
+    try {
+      const result=await workerAction("/models/register",{url:file.url});
+      if(!validSession())return;
+      ensureModelChoice(result.model);const select=modelSelect(role);select.value=result.model;
+      select.dispatchEvent(new Event("input",{bubbles:true}));select.dispatchEvent(new Event("change",{bubbles:true}));
+      dialog.close();select.focus();renderModelCards();
+      toast(tr("Модель добавлена. Скачайте веса в карточке модели и сохраните настройки выбранного этапа."));
+    } catch(error){if(validSession())output.append(h("p",{class:"err"},hfModelError(error)));}
+    finally {if(validSession())setBusy(false);}
+  });
+  const available=WORKER.data?.online && WORKER.data?.hf_import && info.editable;
+  find.disabled=!available;
+  dialog.replaceChildren(h("div",{class:"review-confirm-body"},h("h2",{id:"hf-model-title"},tr("Своя модель Hugging Face")),
+    h("p",{class:"hint"},tr("Вставьте ссылку на общедоступный репозиторий GGUF или конкретный файл. Для текстового анализа нужен основной GGUF; vision-проектор не загружается.")),
+    !available?h("div",{class:"inline-notice"},tr(!WORKER.data?.online ? "Сначала запустите службу анализа для проверки ссылки." : "Обновите службу анализа для добавления моделей по ссылке."),
+      !WORKER.data?.online&&WORKER.data?.can_manage?h("button",{type:"button",class:"secondary",onclick:async()=>{try{await workerAction("/start",{});openHfModel(role,source.value);}catch(error){fail(error);}}},tr("Запустить обработку")):null):null,
+    form,output,h("div",{class:"form-actions"},add,h("button",{class:"secondary",type:"button",onclick:()=>dialog.close()},tr("Отмена")))));
+  if(!dialog.open)dialog.showModal();source.focus();
+}
+for(const button of document.querySelectorAll("[data-add-hf]")) button.addEventListener("click",()=>openHfModel(button.dataset.addHf));
+syncModelChoices();

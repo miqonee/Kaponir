@@ -25,7 +25,7 @@
         for(const attr of ['title','placeholder','aria-label'])for(const element of document.querySelectorAll('[data-i18n-'+attr+']'))element.setAttribute(attr,tr(element.getAttribute('data-i18n-'+attr)));
       }};
     I18N.apply();
-    for(const file of ['app.js','panel.js','providers.js','s1.js','worker.js'])await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=file;script.onload=resolve;script.onerror=reject;document.head.append(script);});
+    for(const file of ['app.js','panel.js','providers.js','s1.js','worker.js','help.js','review.js'])await new Promise((resolve,reject)=>{const script=document.createElement('script');script.src=file;script.onload=resolve;script.onerror=reject;document.head.append(script);});
     await startApp();
   }catch(error){
     const main=document.getElementById('content');const message=document.createElement('p');message.textContent=language==='ru'?'Не удалось загрузить панель. Проверьте соединение и обновите страницу.':'Unable to load the panel. Check your connection and reload the page.';main.prepend(message);console.error(error);

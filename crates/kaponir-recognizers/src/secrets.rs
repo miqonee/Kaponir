@@ -17,6 +17,7 @@ pub struct Secrets {
     entropy: Regex,
     password_token: Regex,
     uuid: Regex,
+    public_metadata: Regex,
 }
 
 impl Default for Secrets {
@@ -114,6 +115,7 @@ impl Secrets {
             entropy: Regex::new(r"[A-Za-z0-9+/_\-]{20,}={0,2}").expect("valid regex"),
             password_token: Regex::new(r"[A-Za-z0-9!@#$%^&*+~=?_\-]{12,128}").expect("valid regex"),
             uuid: Regex::new(r"(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$").expect("valid regex"),
+            public_metadata: Regex::new(r"(?i)(?:\.(?:py|md|rs|js|ts|json|yaml|yml|txt)\?ref=[a-f0-9]{7,64}\b|\bMDEwOlJlcG9zaXRvcnk[A-Za-z0-9+/]{8,}={0,2})").expect("metadata regex"),
         }
     }
 
@@ -208,6 +210,11 @@ impl Recognizer for Secrets {
 
     fn analyze(&self, input: &Input<'_>, ctx: &AnalyzeCtx<'_>, out: &mut Vec<Candidate>) {
         let text = input.text;
+        let metadata: Vec<_> = self
+            .public_metadata
+            .find_iter(text)
+            .map(|m| (m.start(), m.end()))
+            .collect();
         for (name, re) in &self.known {
             for m in re.find_iter(text) {
                 let (mut s, e) = (m.start(), m.end());
@@ -253,6 +260,9 @@ impl Recognizer for Secrets {
             );
         }
         for m in self.password_token.find_iter(text) {
+            if metadata.iter().any(|&(a, b)| m.start() < b && a < m.end()) {
+                continue;
+            }
             let (mut s, mut e) = (m.start(), m.end());
             // Если токен имеет вид KEY=VALUE (например, в env или командной строке), оцениваем само значение.
             let raw = &text[s..e];
@@ -293,6 +303,9 @@ impl Recognizer for Secrets {
             }
         }
         for m in self.entropy.find_iter(text) {
+            if metadata.iter().any(|&(a, b)| m.start() < b && a < m.end()) {
+                continue;
+            }
             if !word_bounded(text, m.start(), m.end()) {
                 continue;
             }
@@ -342,5 +355,17 @@ mod tests {
         let mut out = Vec::new();
         secrets.analyze(&Input::text(text), &AnalyzeCtx::new(&lex), &mut out);
         assert!(out.is_empty(), "Unexpected candidates: {out:?}");
+    }
+
+    #[test]
+    fn git_references_and_repository_ids_are_not_entropy_passwords() {
+        let text = "https://github.com/acme/repo/file.py?ref=a7acf7442f68a01bff5fbbb028ad357ac88dfb49 file.md?ref=fc3c0ffa989a3860cda84ef5198226410e1ec6ed MDEwOlJlcG9zaXRvcnkxMjY1MTM3NzI2";
+        let lex = Lexicon::default();
+        let mut out = Vec::new();
+        Secrets::new().analyze(&Input::text(text), &AnalyzeCtx::new(&lex), &mut out);
+        assert!(out.is_empty(), "{out:?}");
+        let text = "Bearer ghp_1234567890abcdefghijklmnopqrstuvwx123456";
+        Secrets::new().analyze(&Input::text(text), &AnalyzeCtx::new(&lex), &mut out);
+        assert!(out.iter().any(|c| c.hard));
     }
 }

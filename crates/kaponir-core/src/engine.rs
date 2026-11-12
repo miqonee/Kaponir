@@ -189,6 +189,7 @@ pub struct Replacement {
     pub verdict: Verdict,
     pub origin: Origin,
     pub evidence: Vec<Evidence>,
+    pub protected: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -209,6 +210,8 @@ pub struct Masked {
     pub text: String,
     pub replacements: Vec<Replacement>,
     pub uncertain: usize,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub review_items: Vec<crate::journal::JournalReference>,
     /// Time spent in this invocation's classifier (never a global metrics delta).
     pub classifier_us: u64,
     /// Строки вида токена во входе, которых нет в vault (зарезервированы как литералы).
@@ -472,7 +475,7 @@ impl Engine {
             result.uncertain += 1;
             if opts.journal && !opts.irreversible {
                 let surface = s.c.surface(text);
-                vault.record(&JournalEntry {
+                let entry = JournalEntry {
                     kind: s.c.kind.clone(),
                     category: s.c.category,
                     recognizer: s.c.recognizer.clone(),
@@ -486,7 +489,14 @@ impl Engine {
                         Verdict::Keep
                     },
                     evidence: s.c.evidence.clone(),
-                })?;
+                };
+                vault.record(&entry)?;
+                if result.review_items.len() < 128 {
+                    result.review_items.push(crate::journal::JournalReference {
+                        id: vault.journal_id(&entry.kind, &entry.value)?,
+                        entry,
+                    });
+                }
             }
         }
 
@@ -566,6 +576,7 @@ impl Engine {
                 verdict: s.verdict,
                 origin: c.origin.clone(),
                 evidence: c.evidence.clone(),
+                protected: c.hard,
             });
         }
         out.push_str(&text[pos..]);

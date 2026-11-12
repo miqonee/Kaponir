@@ -36,6 +36,7 @@ jobs:
           .venv-browser/bin/python scripts/validate_console.py target/release/kaponir --output artifacts/console
           .venv-browser/bin/python scripts/validate_learning.py target/release/kaponir --output artifacts/learning
           .venv-browser/bin/python scripts/validate_models.py target/release/kaponir --output artifacts/models
+          .venv-browser/bin/python scripts/validate_review.py target/release/kaponir --output artifacts/review
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -44,6 +45,7 @@ jobs:
             artifacts/console
             artifacts/learning
             artifacts/models
+            artifacts/review
           if-no-files-found: ignore
       - run: python3 scripts/release_check.py target/release/kaponir --output dist
       - uses: actions/upload-artifact@v4

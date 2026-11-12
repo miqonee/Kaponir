@@ -140,6 +140,7 @@ function filteredEvents(applyFilter = true) {
   );
 }
 function hasIssue(e) {
+  if (e.review_reasons) return ["error", "restore_error", "cancelled"].includes(e.outcome) || e.review_reasons.some((reason) => reason.state !== "resolved");
   return (
     ["error", "restore_error", "cancelled"].includes(e.outcome) ||
     e.usage?.unknown ||
@@ -448,7 +449,7 @@ window.addEventListener("kaponir-themechange", () => {
 });
 
 function eventOutcome(e) {
-  return e.outcome === "ok" && hasIssue(e) ? "needs_review" : e.outcome;
+  return e.outcome;
 }
 function outcomeLabel(e) {
   return tr(
@@ -531,6 +532,8 @@ function eventsTable(events, compact = false) {
               { class: "event-status " + eventOutcome(e) },
               outcomeLabel(e),
             ),
+            (e.review_reasons || []).length ? h("button", { class: "text-button event-review-link", onclick: () => openInspector(e.id, "review") },
+              tr(e.review_reasons.some((reason) => reason.state !== "resolved") ? "Проверка: {{0}} причин" : "Проверка закрыта: {{0}}", [e.review_reasons.length])) : null,
             e.status >= 400
               ? h("small", { class: "hint" }, " HTTP " + e.status)
               : null,
@@ -713,7 +716,7 @@ function renderEventViews() {
     (target || $("#events-refresh")).focus({ preventScroll: true });
   }
 }
-async function openInspector(id) {
+async function openInspector(id, initialTab = null) {
   try {
     const ev = await api("/api/v1/ui/events/" + id),
       insp = ev.inspector || {},
@@ -741,6 +744,26 @@ async function openInspector(id) {
         h("pre", {}, value || tr("Нет данных")),
       );
     const tabs = {
+      review: () => {
+        const reasons = ev.review_reasons || [], nodes = [];
+        const titles = { detector_uncertain: "Спорное решение детектора", legacy_uncertain: "Спорные решения без сохранённой связи", unknown_restore_token: "Неизвестный токен восстановления", restore_access_denied: "Нет доступа к восстановлению" };
+        for (const reason of reasons) {
+          const tokens = reason.code === "unknown_restore_token" ? ev.usage?.unknown_tokens : reason.code === "restore_access_denied" ? ev.usage?.denied_tokens : null;
+          nodes.push(h("article", { class: "panel review-card" }, h("strong", {}, tr(titles[reason.code] || reason.code)),
+            h("p", {}, tr("Значений: {{0}}", [reason.count]), " · ", tr(reason.state === "resolved" ? "Проверка закрыта" : "Требует проверки")),
+            reason.code === "legacy_uncertain" ? h("p", { class: "hint" }, tr("Старая версия сохранила число спорных решений, но не их связи с этим событием.")) : null,
+            tokens?.length ? h("p", { class: "mono" }, tokens.join(" · ")) : null,
+            reason.code === "restore_access_denied" ? h("p", { class: "hint" }, tr("Токен найден, но текущий пользователь не имеет доступа к его области. Проверьте настройки доступа; это не спорная оценка детектора.")) : null,
+            reason.code === "unknown_restore_token" ? h("p", { class: "hint" }, tr("Для токена нет соответствия в Vault. Проверьте исходную сессию, хранилище и ответ поставщика.")) : null,
+            reason.keys?.length ? h("button", { class: "secondary", onclick: () => { dlg.close(); showReview(reason.keys, reason.state === "resolved" ? "history" : "pending"); } }, tr("Открыть связанные решения")) : null));
+        }
+        for (const reference of ev.usage?.review_items || []) nodes.push(h("div", { class: "review-card" },
+          h("code", {}, reference.value), h("p", {}, `${kindLabel(reference.kind)} · ${tr("Оценка детектора")}: ${(reference.probability * 100).toFixed(1)}%`),
+          h("p", { class: "hint" }, tr(reference.applied === "mask" ? "В этом запросе значение замаскировано по политике." : "В этом запросе значение осталось в тексте.")),
+          h("blockquote", {}, reference.context)));
+        if (ev.error) nodes.push(h("div", { class: "event-error-banner" }, h("strong", {}, ev.error.kind), h("p", {}, ev.error.message)));
+        body.replaceChildren(...(nodes.length ? nodes : [h("p", { class: "hint" }, tr("Причин для проверки не зарегистрировано"))]));
+      },
       request: () => {
         let raw = false;
         const right = pane("Отправлено поставщику", insp.masked_request);
@@ -809,7 +832,7 @@ async function openInspector(id) {
                   h(
                     "tbody",
                     {},
-                    ...items.map((it) =>
+                    ...items.map((it, itemIndex) =>
                       h(
                         "tr",
                         {},
@@ -845,6 +868,8 @@ async function openInspector(id) {
                                 { class: "hint" },
                                 " p=" + it.probability.toFixed(2),
                               ),
+                          h("button", {class:"text-button",disabled:it.protected||it.from_cache||it.origin?.type!=="builtin",
+                            onclick:()=>queueEventReview(ev.id,itemIndex,dlg)},tr("Проверить это решение")),
                         ),
                       ),
                     ),
@@ -898,6 +923,7 @@ async function openInspector(id) {
       ["request", "Запрос"],
       ["response", "Ответ"],
       ["replacements", "Замены"],
+      ["review", "Проверка"],
       ["diagnostics", "Диагностика"],
     ])
       nav.append(
@@ -938,7 +964,7 @@ async function openInspector(id) {
         body,
       ),
     );
-    select("request");
+    select(initialTab || (hasIssue(ev) ? "review" : "request"));
     if (!dlg.open) dlg.showModal();
   } catch (e) {
     fail(e);
@@ -1143,6 +1169,9 @@ async function loadAudit() {
     weak_value: "Недостаточно оснований",
     invalid_ip: "Не похоже на полный IP-адрес",
     generated_rule: "Создано из найденного кандидата",
+    type_format_conflict: "Тип правила противоречит формату значения",
+    ambiguous_calendar_name: "Возможное имя из календарной даты",
+    unconfirmed_path_project: "Часть пути была сохранена как проект",
     session_memory: "Значение из памяти сессии",
   };
   const selectAll = h("input", {
@@ -1489,7 +1518,7 @@ $("#language-switch").addEventListener("change", async (e) => {
   syncRuleForm();
   if (LearningUI.analysis) renderLearningForms();
   renderLearningWidget();
-  renderLearningHistory(true);
+  if (typeof renderReview === "function") renderReview(true);
   if (WORKER.data) renderWorker();
   await loadInfo().catch(fail);
   showTab(location.hash.slice(1) || "overview", false);

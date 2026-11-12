@@ -14,6 +14,7 @@ mod learning;
 mod metrics;
 pub mod openai;
 pub mod providers;
+mod review;
 mod server;
 pub mod sse;
 mod state;

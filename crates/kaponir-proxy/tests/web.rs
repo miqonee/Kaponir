@@ -206,10 +206,228 @@ async fn entries(base: &str) -> i64 {
 const PATH_TEXT: &str = "deploy to /srv/zorgbilling/releases";
 
 #[tokio::test]
+async fn unified_review_distinguishes_closing_exceptions_and_rollback() {
+    let base = spawn(None).await;
+    mask(&base, PATH_TEXT, json!({"commit":true})).await;
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    let item = &list["items"][0];
+    let id = item["id"].as_str().unwrap();
+    assert_eq!(item["origin"], "detector");
+    assert_eq!(item["kind"], "PATH");
+    let path = format!("{base}/api/v1/ui/review/detector/{id}");
+    assert_eq!(
+        call("POST", format!("{path}/dismiss"), Some(json!({})))
+            .await
+            .0,
+        200
+    );
+    assert!(
+        call("GET", format!("{base}/api/v1/rules"), None)
+            .await
+            .1
+            .to_string()
+            .find("review-")
+            .is_none()
+    );
+    assert_eq!(
+        call("GET", format!("{base}/api/v1/ui/review"), None)
+            .await
+            .1["pending"],
+        0
+    );
+    assert_eq!(
+        call("POST", format!("{path}/reopen"), Some(json!({})))
+            .await
+            .0,
+        200
+    );
+    assert_eq!(
+        call(
+            "POST",
+            format!("{path}/keep"),
+            Some(json!({"scope":"team"}))
+        )
+        .await
+        .0,
+        200
+    );
+    let masked = mask(&base, PATH_TEXT, json!({})).await;
+    assert_eq!(masked["text"], PATH_TEXT);
+    assert_eq!(
+        call("POST", format!("{path}/rollback"), Some(json!({})))
+            .await
+            .0,
+        200
+    );
+    assert!(
+        mask(&base, PATH_TEXT, json!({})).await["text"]
+            .as_str()
+            .unwrap()
+            .contains("ANON_PATH")
+    );
+    assert_eq!(
+        call(
+            "POST",
+            format!("{path}/mask"),
+            Some(json!({"kind":"USER","scope":"personal"}))
+        )
+        .await
+        .0,
+        200
+    );
+    let rules = call("GET", format!("{base}/api/v1/rules"), None).await.1;
+    assert!(rules.to_string().contains("identity"), "{rules}");
+}
+
+#[tokio::test]
+async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
+    async fn model(axum::Json(body): axum::Json<Value>) -> axum::Json<Value> {
+        let input: Value =
+            serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let decisions:Vec<_>=input["items"].as_array().unwrap().iter().map(|item|json!({"id":item["id"],"action":"mask","kind":"PROJ","scope":"team",
+            "confidence":if item["context"].as_str().unwrap().contains("InvalidScore") {100.0} else {0.97},"reason":"A private project in the quoted path."})).collect();
+        axum::Json(
+            json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"decisions":decisions}).to_string()}}]}),
+        )
+    }
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(
+            listener,
+            axum::Router::new().route("/v1/chat/completions", axum::routing::post(model)),
+        )
+        .await
+        .unwrap()
+    });
+    let base = spawn(None).await;
+    let mut settings = call("GET", format!("{base}/api/v1/ui/analysis"), None)
+        .await
+        .1["settings"]
+        .clone();
+    settings["provider"] = json!("api");
+    settings["url"] = json!(format!("http://{addr}/v1/chat/completions"));
+    settings["model"] = json!("fixture-review");
+    assert_eq!(
+        call(
+            "PUT",
+            format!("{base}/api/v1/ui/analysis"),
+            Some(json!({"settings":settings}))
+        )
+        .await
+        .0,
+        200
+    );
+    mask(&base, PATH_TEXT, json!({"commit":true})).await;
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    let item = list["items"][0].clone();
+    let key = item["key"].clone();
+    let (_, job) = call(
+        "POST",
+        format!("{base}/api/v1/ui/review/jobs"),
+        Some(json!({"keys":[key],"model_source":"analysis"})),
+    )
+    .await;
+    assert_eq!(job["state"], "queued");
+    // No long rule lock is held while awaiting the model.
+    assert_eq!(
+        call(
+            "POST",
+            format!("{base}/api/v1/rules"),
+            Some(json!({"scope":"personal","rule":{"kind":"PROJ","value":"UnrelatedProject"}}))
+        )
+        .await
+        .0,
+        200
+    );
+    let mut state = Value::Null;
+    for _ in 0..100 {
+        state = call(
+            "GET",
+            format!(
+                "{base}/api/v1/ui/review/jobs/{}",
+                job["id"].as_str().unwrap()
+            ),
+            None,
+        )
+        .await
+        .1;
+        if state["state"] == "succeeded" || state["state"] == "failed" {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert_eq!(state["state"], "succeeded", "{state}");
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    assert_eq!(list["items"][0]["probability"], item["probability"]);
+    assert_eq!(list["items"][0]["recommendation"]["kind"], "PROJ");
+    assert_eq!(list["items"][0]["recommendation"]["confidence"], 0.97);
+    let rules = call("GET", format!("{base}/api/v1/rules"), None).await.1;
+    assert!(!rules.to_string().contains("review-"));
+    mask(
+        &base,
+        &format!("New context: {PATH_TEXT}"),
+        json!({"commit":true}),
+    )
+    .await;
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    assert_eq!(list["items"][0]["recommendation"]["state"], "stale");
+    let (status, _) = call(
+        "POST",
+        format!(
+            "{base}/api/v1/ui/review/detector/{}/apply",
+            item["id"].as_str().unwrap()
+        ),
+        Some(json!({"use_recommendation":true})),
+    )
+    .await;
+    assert_eq!(status, 400);
+    // Some constrained local models still return percentages despite a 0..1 JSON schema.
+    mask(
+        &base,
+        &format!("InvalidScore: {PATH_TEXT}"),
+        json!({"commit":true}),
+    )
+    .await;
+    let (_, invalid) = call(
+        "POST",
+        format!("{base}/api/v1/ui/review/jobs"),
+        Some(json!({"keys":[key],"model_source":"analysis"})),
+    )
+    .await;
+    for _ in 0..100 {
+        state = call(
+            "GET",
+            format!(
+                "{base}/api/v1/ui/review/jobs/{}",
+                invalid["id"].as_str().unwrap()
+            ),
+            None,
+        )
+        .await
+        .1;
+        if state["state"] == "failed" {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert_eq!(state["state"], "failed");
+    assert_eq!(state["error"], "invalid_classification_response");
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    assert_eq!(list["items"][0]["probability"], item["probability"]);
+    assert_eq!(list["items"][0]["recommendation"]["state"], "failed");
+    assert_eq!(
+        call("GET", format!("{base}/api/v1/rules"), None).await.1,
+        rules
+    );
+}
+
+#[tokio::test]
 async fn preview_does_not_persist_commit_does() {
     let base = spawn(None).await;
     let v = mask(&base, PATH_TEXT, json!({})).await;
-    assert_eq!(v["text"], "deploy to /srv/ANON_PROJ_1/releases");
+    assert_eq!(v["text"], "deploy to /srv/ANON_PATH_1/releases");
     assert!(!v["explain"].as_array().unwrap().is_empty());
     assert_eq!(
         entries(&base).await,
@@ -224,12 +442,12 @@ async fn preview_does_not_persist_commit_does() {
     );
 
     let v = mask(&base, PATH_TEXT, json!({"commit": true})).await;
-    assert_eq!(v["text"], "deploy to /srv/ANON_PROJ_1/releases");
+    assert_eq!(v["text"], "deploy to /srv/ANON_PATH_1/releases");
     assert_eq!(entries(&base).await, 1);
     let (_, r) = call(
         "POST",
         format!("{base}/api/v1/ui/restore"),
-        Some(json!({"text": "see /srv/anon_proj_1/x"})),
+        Some(json!({"text": "see /srv/anon_path_1/x"})),
     )
     .await;
     assert_eq!(r["text"], "see /srv/zorgbilling/x");
@@ -831,6 +1049,15 @@ async fn worker_management_is_authenticated_and_optional() {
     let protected = spawn(Some("private-token")).await;
     let (status, _) = call("GET", format!("{protected}/api/v1/ui/worker"), None).await;
     assert_eq!(status, 401);
+    for endpoint in ["resolve", "register"] {
+        let (status, _) = call(
+            "POST",
+            format!("{protected}/api/v1/ui/worker/models/{endpoint}"),
+            Some(json!({"url":"https://huggingface.co/acme/model"})),
+        )
+        .await;
+        assert_eq!(status, 401);
+    }
     let (status, _) = call(
         "POST",
         format!("{protected}/api/v1/ui/worker/models/verify"),

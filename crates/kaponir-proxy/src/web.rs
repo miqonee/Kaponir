@@ -105,6 +105,24 @@ pub(crate) fn routes() -> Router<Shared> {
             }),
         )
         .route("/api/v1/ui/info", get(info))
+        .route(
+            "/ui/help.js",
+            get(|| async {
+                asset(
+                    include_str!("../assets/help.js"),
+                    "text/javascript; charset=utf-8",
+                )
+            }),
+        )
+        .route(
+            "/ui/review.js",
+            get(|| async {
+                asset(
+                    include_str!("../assets/review.js"),
+                    "text/javascript; charset=utf-8",
+                )
+            }),
+        )
         .route("/api/v1/ui/events", get(ui_events))
         .route("/api/v1/ui/events/{id}", get(ui_event_by_id))
         .route(
@@ -241,7 +259,9 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
                     .events
                     .iter()
                     .any(|e| e.sent && e.status < 400 && e.status >= 200)));
-    let stats = st.with_vault(|_, v| Ok(v.stats()?)).map_err(internal)?;
+    let (stats, learning_pending) = st
+        .with_vault(|_, v| Ok((v.stats()?, v.app_record_count("learning-entry-pending")?)))
+        .map_err(internal)?;
     let (rules_count, corp_domains_count) = control(&st)
         .ok()
         .and_then(|ctl| ctl.rules().ok())
@@ -278,6 +298,7 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
         "provider_configured": provider_configured,
         "corp_domains_count": corp_domains_count,
         "unique_entities": stats.entries,
+        "review_pending": (stats.journal_open.max(0) as usize).saturating_add(learning_pending),
         "api_token_required": st.cfg.api_token.is_some(),
         "upstreams": {
             "openai": reqwest::Url::parse(openai.as_ref().map_or(st.cfg.openai_upstream.as_str(), |p| p.base_url.as_str())).ok().and_then(|u| u.host_str().map(str::to_owned)),
@@ -298,7 +319,7 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
 
 async fn ui_events(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     authorized(&st, &headers, true)?;
-    Ok(Json(st.traffic.summary_snapshot()).into_response())
+    Ok(Json(crate::review::traffic_summary(&st)).into_response())
 }
 
 async fn ui_event_by_id(
@@ -308,7 +329,7 @@ async fn ui_event_by_id(
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
     if let Some(ev) = st.traffic.event_by_id(id) {
-        return Ok(Json(ev).into_response());
+        return Ok(Json(crate::review::event_detail(&st, ev)).into_response());
     }
     let from_vault: Option<crate::traffic::Event> = st
         .with_vault(|_, v| {
@@ -323,7 +344,7 @@ async fn ui_event_by_id(
         })
         .map_err(internal)?;
     match from_vault {
-        Some(ev) => Ok(Json(ev).into_response()),
+        Some(ev) => Ok(Json(crate::review::event_detail(&st, ev)).into_response()),
         None => Err(error(
             StatusCode::NOT_FOUND,
             format!("event #{id} not found"),
@@ -938,7 +959,7 @@ async fn auto_review(
     let engine = st.engine();
     let rows_for_cls = rows.clone();
     let classifications = tokio::task::spawn_blocking(move || {
-        use kaponir_core::s1::{CandidateView, Disclosure, classify_from_score, features};
+        use kaponir_core::s1::{CandidateView, Disclosure, features};
         let lex = engine.lexicon();
         let views: Vec<CandidateView> = rows_for_cls
             .iter()
@@ -963,22 +984,22 @@ async fn auto_review(
                 }
             })
             .collect();
-        if let Some(s1) = engine.s1_config()
-            && let Ok(cls) = s1
-                .provider
-                .classify(&views, &kaponir_core::s1::disclosure_profile(&s1.profile))
-            && cls.len() == rows_for_cls.len()
-        {
-            return cls;
-        }
-        rows_for_cls
-            .iter()
-            .zip(&views)
-            .map(|(r, v)| classify_from_score(v, r.probability as f32, "heuristic"))
-            .collect::<Vec<_>>()
+        let s1 = engine
+            .s1_config()
+            .ok_or_else(|| anyhow::anyhow!("categorization_disabled"))?;
+        let result = s1
+            .provider
+            .classify(&views, &kaponir_core::s1::disclosure_profile(&s1.profile))
+            .map_err(|_| anyhow::anyhow!("categorization_failed"))?;
+        anyhow::ensure!(
+            result.len() == rows_for_cls.len(),
+            "invalid_classification_response"
+        );
+        Ok::<_, anyhow::Error>(result)
     })
     .await
-    .map_err(|e| internal(e.into()))?;
+    .map_err(|e| internal(e.into()))?
+    .map_err(bad)?;
 
     let mut items = Vec::with_capacity(rows.len());
     let mut auto_saved = 0usize;
@@ -991,7 +1012,7 @@ async fn auto_review(
         if req.auto_save
             && cls.source != "heuristic"
             && cls.confidence.is_finite()
-            && cls.confidence >= threshold
+            && cls.confidence > threshold
             && let Some(ctl) = ctl
         {
             if seen_values.insert((cls.scope, r.value.clone())) {
@@ -1099,6 +1120,7 @@ fn memory_audit_items(st: &Shared) -> anyhow::Result<(Vec<serde_json::Value>, St
     let mut candidates = std::collections::BTreeMap::new();
     for value in values {
         if kaponir_core::discover::weak_business_value(&value.kind, &value.text)
+            || kaponir_core::kinds::type_conflict(&value.kind, &value.text)
             || (value.kind == "DOM" && value.text.chars().count() <= 3)
             || (value.kind == "IP"
                 && (value.text.parse::<std::net::IpAddr>().is_err()
@@ -1192,6 +1214,18 @@ async fn audit_rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult 
             let value = rule.value.as_deref().unwrap_or_default();
             let reason = if rule.disabled {
                 "disabled"
+            } else if kaponir_core::kinds::type_conflict(&rule.kind, value) {
+                "type_format_conflict"
+            } else if matches!(rule.kind.as_str(), "FNAME" | "LNAME")
+                && [
+                    "thu", "nov", "mon", "tue", "wed", "fri", "sat", "sun", "jan", "feb", "mar",
+                    "apr", "sep", "oct", "dec",
+                ]
+                .contains(&value.to_lowercase().as_str())
+            {
+                "ambiguous_calendar_name"
+            } else if rule.kind == "PROJ" && rule.note.contains("paths") {
+                "unconfirmed_path_project"
             } else if kaponir_core::discover::weak_business_value(&rule.kind, value)
                 && rule.value.is_some()
             {

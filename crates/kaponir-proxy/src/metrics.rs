@@ -20,7 +20,7 @@ pub(crate) async fn snapshot(
         Json(json!({
             "uptime_seconds": st.started.elapsed().as_secs(),
             "http": st.requests.snapshot(),
-            "traffic": st.traffic.summary_snapshot(),
+            "traffic": crate::review::traffic_summary(&st),
             "stream_errors": st.stream_errors.load(Relaxed),
             "engine": st.engine().metrics().snapshot(),
         })),

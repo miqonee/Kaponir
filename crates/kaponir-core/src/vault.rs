@@ -48,6 +48,10 @@ pub trait Vault {
     fn resolve(&self, kind: &str, id: &TokenId) -> Result<Option<Resolved>, VaultError>;
     /// Журнал спорных решений; повтор того же `(kind, value)` увеличивает счётчик.
     fn record(&mut self, entry: &JournalEntry) -> Result<(), VaultError>;
+    /// Optional stable reference for linking a request to its review record.
+    fn journal_id(&self, _kind: &str, _value: &str) -> Result<Option<i64>, VaultError> {
+        Ok(None)
+    }
 }
 
 /// Кто восстанавливает. В локальном режиме пользователь — владелец всего, кроме чужих Personal.

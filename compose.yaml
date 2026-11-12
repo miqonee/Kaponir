@@ -34,7 +34,7 @@ services:
       - kaponir
     restart: unless-stopped
     cpus: "2.0"
-    mem_limit: 2560m
+    mem_limit: 4g
 volumes:
   kaponir-data:
   kaponir-models:

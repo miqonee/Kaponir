@@ -47,6 +47,9 @@ const learningErrors = {
   invalid_model_json: "Модель вернула некорректный JSON",
   invalid_classification_response: "Некорректный ответ категоризации",
   model_response_truncated: "Ответ модели обрезан",
+  model_context_or_schema_error: "Среда модели отклонила запрос: проверьте объём контекста и совместимость формата ответа.",
+  model_runtime_http_error: "Среда локальной модели вернула ошибку HTTP.",
+  model_runtime_start_failed: "Среда не смогла запустить модель. Проверьте совместимость GGUF с этой версией llama.cpp и доступную память.",
   analysis_failed: "Анализ не завершён. Проверьте настройки модели.",
   source_too_large: "Документ слишком большой",
   document_chunk_limit: "Разделите документ на меньшие части",
@@ -92,6 +95,7 @@ function renderLearningForms() {
     const data = LearningUI[role];
     if (!data || LearningUI.dirty.has(role)) continue;
     const s = data.settings;
+    ensureModelChoice(canonicalModel(s.model));
     $(`#${role}-provider`).value = s.provider;
     if (role === "analysis") {
       $("#analysis-enabled").checked = s.enabled;
@@ -325,181 +329,6 @@ $("#learning-toggle").addEventListener("click", async () => {
     renderLearningWidget();
   }
 });
-function learningEntry(entry, showActions) {
-  const kind = h(
-    "select",
-    { "aria-label": tr("Тип") },
-    ...STANDARD_KINDS.map((k) => h("option", { value: k }, kindLabel(k))),
-  );
-  if (!STANDARD_KINDS.includes(entry.kind))
-    kind.append(h("option", { value: entry.kind }, kindLabel(entry.kind)));
-  kind.value = entry.kind;
-  const scope = h(
-    "select",
-    { "aria-label": tr("Контур") },
-    ...["personal", "team", "global"].map((k) =>
-      h(
-        "option",
-        { value: k },
-        tr({ personal: "Личные", team: "Команда", global: "Корпоративные" }[k]),
-      ),
-    ),
-  );
-  scope.value = entry.scope;
-  const controls = h("div", { class: "learning-entry-actions" });
-  if (showActions) {
-    controls.append(
-      kind,
-      scope,
-      h(
-        "button",
-        {
-          class: "primary",
-          onclick: () =>
-            learningAction(entry.id, "approve", {
-              kind: kind.value,
-              scope: scope.value,
-            }),
-        },
-        tr("Подтвердить"),
-      ),
-      h(
-        "button",
-        { class: "ghost", onclick: () => learningAction(entry.id, "reject") },
-        tr("Отклонить"),
-      ),
-    );
-  } else if (entry.state === "active")
-    controls.append(
-      h(
-        "button",
-        {
-          class: "secondary",
-          onclick: () => learningAction(entry.id, "rollback"),
-        },
-        tr("Отменить правило"),
-      ),
-    );
-  const confidence =
-    entry.confidence == null
-      ? tr("Нет общей оценки")
-      : `${(entry.confidence * 100).toFixed(1)}%`;
-  const details = h(
-    "details",
-    { class: "learning-evidence" },
-    h("summary", {}, tr("Источник и оценки")),
-    h("p", { class: "hint" }, entry.source),
-    h("blockquote", {}, entry.quote),
-    h(
-      "p",
-      { class: "hint" },
-      tr("Обнаружение: {{0}} · категоризация: {{1}}", [
-        entry.extraction_confidence == null
-          ? "—"
-          : `${(entry.extraction_confidence * 100).toFixed(1)}%`,
-        entry.classification_confidence == null
-          ? "—"
-          : `${(entry.classification_confidence * 100).toFixed(1)}%`,
-      ]),
-    ),
-    h("p", { class: "hint" }, `${entry.model} · ${entry.classifier || "—"}`),
-  );
-  return h(
-    "article",
-    { class: "learning-entry", "data-learning-id": entry.id },
-    h(
-      "div",
-      { class: "learning-entry-heading" },
-      h("code", { class: "learning-value" }, entry.value),
-      kindBadge(entry.kind),
-      h(
-        "span",
-        { class: "status-pill" },
-        tr(learningStates[entry.state] || entry.state),
-      ),
-      h("strong", {}, confidence),
-    ),
-    entry.reason
-      ? h("p", { class: "hint" }, learningError(entry.reason))
-      : null,
-    details,
-    controls,
-  );
-}
-function renderLearningHistory(force = false) {
-  const data = LearningUI.history;
-  if (!data) return;
-  if (
-    !force &&
-    (document.activeElement?.closest("#learning-pending,#learning-history") ||
-      document.querySelector(
-        "#learning-pending details[open],#learning-history details[open]",
-      ))
-  )
-    return;
-  const pending = data.entries.filter((e) => e.state === "pending");
-  $("#learning-pending").replaceChildren(
-    ...(pending.length
-      ? pending.map((e) => learningEntry(e, true))
-      : [h("div", { class: "empty" }, tr("Нет находок для подтверждения"))]),
-  );
-  const history = data.entries.filter((e) => e.state !== "pending");
-  $("#learning-history").replaceChildren(
-    ...(history.length
-      ? history.map((e) => learningEntry(e, false))
-      : [h("div", { class: "empty" }, tr("Журнал обучения пока пуст"))]),
-  );
-  $("#learning-jobs").replaceChildren(
-    h(
-      "div",
-      { class: "panel-heading" },
-      h("h2", {}, tr("Задания обучения")),
-      h(
-        "button",
-        { class: "ghost", onclick: () => loadLearningHistory(true) },
-        tr("Обновить"),
-      ),
-    ),
-    ...data.jobs.map((job) =>
-      h(
-        "div",
-        { class: "learning-job" },
-        h(
-          "div",
-          {},
-          h("strong", {}, job.name),
-          h(
-            "p",
-            { class: "hint" },
-            tr(learningStates[job.state] || job.state) +
-              (job.error ? " · " + learningError(job.error) : ""),
-          ),
-        ),
-        job.retryable
-          ? h(
-              "button",
-              {
-                class: "secondary",
-                onclick: () => learningAction(job.id, "retry"),
-              },
-              tr("Повторить"),
-            )
-          : null,
-        job.state === "succeeded" &&
-          data.entries.some((e) => e.job_id === job.id && e.state === "active")
-          ? h(
-              "button",
-              {
-                class: "ghost",
-                onclick: () => learningAction(job.id, "rollback-job"),
-              },
-              tr("Отменить изменения задания"),
-            )
-          : null,
-      ),
-    ),
-  );
-}
 async function learningAction(id, action, body = {}) {
   if (LearningUI.busy.has("action")) return;
   LearningUI.busy.add("action");
@@ -519,23 +348,8 @@ async function learningAction(id, action, body = {}) {
 async function loadLearningHistory(force = false) {
   LearningUI.history = await api("/api/v1/ui/learning");
   renderLearningWidget();
-  renderLearningHistory(force);
 }
-for (const button of document.querySelectorAll("[data-learning-view]"))
-  button.addEventListener("click", () => {
-    LearningUI.view = button.dataset.learningView;
-    for (const b of document.querySelectorAll("[data-learning-view]"))
-      b.setAttribute("aria-pressed", String(b === button));
-    $("#learning-pending").hidden = LearningUI.view !== "pending";
-    $("#learning-history").hidden = LearningUI.view !== "history";
-    $("#learning-jobs").hidden = LearningUI.view !== "history";
-    $(".detector-decisions").hidden = LearningUI.view !== "pending";
-    loadLearningHistory(true).catch(fail);
-  });
-$("#learning-open-history").addEventListener("click", () => {
-  showTab("review");
-  document.querySelector('[data-learning-view="history"]').click();
-});
+$("#learning-open-history").addEventListener("click", () => openReview("history"));
 async function loadCategorization() {
   await Promise.all([
     loadLearningSettings(),
@@ -552,7 +366,7 @@ Object.assign(TABS, {
 setInterval(() => {
   if (
     !document.hidden &&
-    ["#analysis", "#categorization", "#worker", "#review"].includes(
+    ["#analysis", "#categorization", "#worker"].includes(
       location.hash,
     )
   )

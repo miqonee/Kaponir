@@ -4,8 +4,10 @@
 pub mod discover;
 pub mod engine;
 pub mod journal;
+pub mod kinds;
 pub mod lexicon;
 pub mod metrics;
+pub mod models;
 pub mod onboarding;
 pub mod pack;
 pub mod recognizer;

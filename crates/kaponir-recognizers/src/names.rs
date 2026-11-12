@@ -12,18 +12,26 @@ use kaponir_core::{
 };
 
 use crate::{char_after, char_before};
+use regex::Regex;
 
 const ID: &str = "names";
 
 /// Больше слов подряд с заглавной — скорее заголовок, чем имя.
 const MAX_WORDS: usize = 4;
 
-#[derive(Default)]
-pub struct Names;
+pub struct Names {
+    calendar: Regex,
+}
+
+impl Default for Names {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Names {
     pub fn new() -> Self {
-        Self
+        Self { calendar: Regex::new(r"(?i)\b(?:(?:mon|tue|wed|thu|fri|sat|sun)(?:day)?[,]?\s+)?(?:(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{1,2}\b|\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}\b)").expect("calendar regex") }
     }
 }
 
@@ -517,9 +525,18 @@ impl Recognizer for Names {
         let text = input.text;
         let names = &ctx.lexicon.names;
         let ws = words(text);
+        let calendar: Vec<_> = self
+            .calendar
+            .find_iter(text)
+            .map(|m| (m.start(), m.end()))
+            .collect();
         let mut i = 0;
         while i < ws.len() {
             let w = &ws[i];
+            if calendar.iter().any(|&(a, b)| w.start < b && a < w.end) {
+                i += 1;
+                continue;
+            }
             let starts = match w.tok {
                 Tok::Name | Tok::Initial => true,
                 // Строчная словоформа рассматривается отдельно и только при признаках имени:
@@ -608,6 +625,7 @@ mod tests {
             ("анна", Gender::Female),
             ("mary", Gender::Female),
             ("will", Gender::Male),
+            ("thu", Gender::Female),
         ] {
             n.given.insert(g.into(), Some(gender));
         }
@@ -668,6 +686,24 @@ mod tests {
             ]
         );
         assert!(f.iter().all(|(_, _, p)| *p > 0.9), "{f:?}");
+    }
+
+    #[test]
+    fn calendar_dates_are_not_people_but_real_names_remain() {
+        for text in [
+            "Thu Nov 12 10:40:00 2026",
+            "Date: Thu, 12 Nov 2026 10:40:00 +0700",
+            "Wed, 11 Nov 2026",
+        ] {
+            assert!(found(text).is_empty(), "{text}");
+        }
+        let f = found("cc John Smith");
+        assert!(f.iter().any(|(_, v, _)| v == "John"));
+        assert!(
+            found("Thu Lan Nguyen reviewed it.")
+                .iter()
+                .any(|(_, value, _)| value == "Thu")
+        );
     }
 
     #[test]

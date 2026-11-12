@@ -83,6 +83,11 @@ const KIND_LABELS = {
   ACCT: "Банковский счёт",
   PASS: "Паспорт",
   CUSTOM: "Своё правило",
+  FNAME: "Имя",
+  LNAME: "Фамилия",
+  MNAME: "Отчество",
+  PATH: "Часть пути",
+  AMOUNT: "Финансовое значение",
 };
 
 const KIND_TOOLTIPS = {
@@ -100,7 +105,7 @@ const KIND_TOOLTIPS = {
   CUSTOM: "Пользовательская категория чувствительных данных (CUSTOM)",
 };
 
-const STANDARD_KINDS = ['PROJ', 'SVC', 'HOST', 'SECRET', 'DOM', 'CLIENT', 'PERSON', 'ORG', 'USER', 'MODULE', 'CUSTOM'];
+const STANDARD_KINDS = Object.keys(KIND_LABELS);
 
 function kindLabel(kind) {
   const k = String(kind || 'CUSTOM').toUpperCase();
@@ -120,10 +125,9 @@ function kindBadge(kind) {
 
 function defaultScopeForKind(kind) {
   const k = String(kind || '').toUpperCase();
-  if (['SECRET', 'DOM', 'SUB', 'ORG', 'INN', 'OGRN', 'BIK', 'ACCT'].includes(k)) return 'global';
-  if (['PROJ', 'SVC', 'HOST', 'MODULE', 'CLIENT'].includes(k)) return 'team';
-  if (['PERSON', 'USER', 'EMAIL', 'PHONE', 'SNILS', 'PASS'].includes(k)) return 'personal';
-  return ($('#j-scope') && $('#j-scope').value) || 'team';
+  if (['DOM', 'ORG', 'CLIENT'].includes(k)) return 'global';
+  if (['PROJ', 'SVC', 'HOST', 'MODULE', 'PATH', 'SUB'].includes(k)) return 'team';
+  return 'personal';
 }
 
 window.kindLabel = kindLabel;
@@ -216,8 +220,9 @@ async function loadInfo() {
   const s = info.stats || {};
   $('#who').textContent = tr("{{0}} · vault: {{1}} · префикс {{2}}", [info.owner, s.entries ?? 0, info.prefix]);
   const badge = $('#review-badge');
-  badge.textContent = s.journal_open || '';
-  badge.hidden = !s.journal_open;
+  const pending = info.review_pending ?? s.journal_open;
+  badge.textContent = pending || '';
+  badge.hidden = !pending;
   document.body.classList.toggle('readonly', !info.editable);
   $('#rf').hidden = !info.editable || (typeof rulesView !== 'undefined' && rulesView === 'audit');
   renderPacks();
@@ -691,56 +696,6 @@ $('#r-copy').addEventListener('click', async () => {
 
 // ---------- Разбор ----------
 
-let jView = 'list';
-const reviewRecommendations = new Map();
-
-for (const b of document.querySelectorAll('#j-view button')) {
-  b.addEventListener('click', () => {
-    jView = b.dataset.view;
-    for (const x of document.querySelectorAll('#j-view button')) x.setAttribute('aria-pressed', String(x === b));
-    loadJournal().catch(fail);
-  });
-}
-$('#j-status').addEventListener('change', () => loadJournal().catch(fail));
-$('#j-refresh').addEventListener('click', () => Promise.all([loadJournal(), loadInfo()]).catch(fail));
-
-if ($('#j-auto-save')) { $('#j-auto-save').checked=false; $('#j-auto-save').closest('label').hidden=true; }
-
-if ($('#j-auto-review')) {
-  $('#j-auto-review').addEventListener('click', async () => {
-    const btn = $('#j-auto-review');
-    if (btn.disabled) return;
-    btn.disabled = true;
-    const autoSave = false;
-    try {
-      const res = await api('/api/v1/ui/journal/auto-review', {
-        method: 'POST',
-        body: { auto_save: autoSave, auto_save_threshold: 0.85 },
-      });
-      toast(tr("Авторазбор: классифицировано {{0}}, автоматически сохранено правил: {{1}}", [res.reviewed || 0, res.auto_saved || 0]));
-      for(const item of res.items||[])reviewRecommendations.set(item.id,item);
-      await loadJournal();
-    } catch (e) { fail(e); }
-    finally { btn.disabled = false; }
-  });
-}
-
-async function decide(body, label, rowEl = null, highlightClass = '') {
-  try {
-    if (rowEl && highlightClass) rowEl.classList.add(highlightClass);
-    const scope = body.scope || $('#j-scope').value;
-    const r = await api('/api/v1/journal/decide', { method: 'POST', body: { scope, ...body } });
-    toast(tr("{{0}}: {{1}} зап.", [label, r.closed]));
-    if (rowEl && highlightClass) {
-      await new Promise((resolve) => setTimeout(resolve, 260));
-    }
-    await afterRulesChanged();
-  } catch (e) {
-    if (rowEl && highlightClass) rowEl.classList.remove(highlightClass);
-    fail(e);
-  }
-}
-
 function makeKindSelect(initialKind, disabled) {
   const current = String(initialKind || 'CUSTOM').toUpperCase();
   const options = STANDARD_KINDS.includes(current) ? STANDARD_KINDS : [current, ...STANDARD_KINDS];
@@ -760,147 +715,7 @@ function makeScopeSelect(initialScope, disabled) {
   );
 }
 
-function decisionButtons(sel, kindDefault, open, recommendedScope) {
-  if (!open) return [];
-  const ro = !info.editable;
-  const kindSel = makeKindSelect(kindDefault, ro);
-  const scopeSel = makeScopeSelect(recommendedScope || defaultScopeForKind(kindDefault), ro);
-  let userChangedScope = false;
-  scopeSel.addEventListener('change', () => { userChangedScope = true; });
-  kindSel.addEventListener('change', () => {
-    if (!userChangedScope) scopeSel.value = defaultScopeForKind(kindSel.value);
-  });
-  return [
-    kindSel,
-    scopeSel,
-    h('button', {
-      class: 'btn-confirm',
-      disabled: ro,
-      onclick: (ev) => decide({ ...sel, action: 'mask', kind: normKind(kindSel.value) || null, scope: scopeSel.value }, tr("Подтверждено (маскировать)"), ev.currentTarget.closest('tr, .card'), 'row-confirmed')
-    }, tr("✓ Подтвердить")),
-    h('button', {
-      class: 'btn-reject',
-      disabled: ro,
-      onclick: (ev) => decide({ ...sel, action: 'keep', scope: scopeSel.value }, tr("Отклонено (не секрет)"), ev.currentTarget.closest('tr, .card'), 'row-rejected')
-    }, tr("✕ Отказать")),
-    h('button', {
-      class: 'small ghost',
-      onclick: (ev) => decide({ ...sel, action: 'dismiss', scope: scopeSel.value }, tr("Закрыто"), ev.currentTarget.closest('tr, .card'))
-    }, tr("Скрыть")),
-  ];
-}
-
-const STATUS_NAMES = { open: tr("открыто"), masked: tr("маскируется правилом"), kept: tr("оставлено правилом"), dismissed: tr("закрыто") };
-
-function renderVerdictCell(r) {
-  const isUncertain = (r.verdict || 'uncertain') === 'uncertain';
-  const badge = isUncertain
-    ? h('div', {
-        class: 'verdict-uncertain-box',
-        title: tr("Детектор не уверен на 100% (вероятность p={{0}} попала в спорный коридор). Применена политика по умолчанию uncertain={{1}}.", [r.probability.toFixed(2), r.applied])
-      },
-      h('strong', { text: `${tr("Спорно")} (p=${r.probability.toFixed(2)})` }),
-      h('small', { text: r.applied === 'mask' ? tr("маскируется по политике uncertain=mask") : tr("оставляется по политике uncertain=keep") }))
-    : h('span', { class: 'verdict ' + r.applied, text: `${VERDICTS[r.applied] || r.applied} (p=${r.probability.toFixed(2)})` });
-  return h('div', {},
-    badge,
-    r.status !== 'open' ? h('div', { class: 'status-tag', text: STATUS_NAMES[r.status] || r.status }) : null
-  );
-}
-
-async function loadJournal() {
-  const status = $('#j-status').value;
-  const rows = await api(`/api/v1/journal?status=${encodeURIComponent(status)}&limit=2000`);
-  const list = $('#j-list');
-  if (!rows.length) {
-    list.replaceChildren(h('div', { class: 'card empty', text: status === 'open' ? tr("Спорных решений нет. Они появятся после «Сохранить и копировать», mask в CLI или запросов через прокси.") : tr("Записей нет") }));
-    return;
-  }
-  if (jView === 'list') {
-    list.replaceChildren(h('div', { class: 'review-table-wrap' }, h('table', { class: 'review-table' },
-      h('thead', {}, h('tr', {}, ...[tr("Значение и контекст"), tr("Вердикт и политика"), tr("Источник"), tr("Тип сущности"), tr("Контур правил"), tr("Решение в 1 клик")].map((c) => h('th', { text: c })))),
-      h('tbody', {}, rows.map((r) => {
-        const ro = !info.editable;
-        const open = r.status === 'open';
-        const kindSel = open ? makeKindSelect(reviewRecommendations.get(r.id)?.kind||r.kind, ro) : kindBadge(r.kind);
-        const recScope = reviewRecommendations.get(r.id)?.scope || r.recommended_scope || defaultScopeForKind(r.kind);
-        const scopeSel = open ? makeScopeSelect(recScope, ro) : h('span', { class: 'tag', text: SCOPE_NAMES[recScope] || recScope });
-        if (open) {
-          let userChangedScope = false;
-          scopeSel.addEventListener('change', () => { userChangedScope = true; });
-          kindSel.addEventListener('change', () => {
-            if (!userChangedScope) scopeSel.value = defaultScopeForKind(kindSel.value);
-          });
-        }
-        const trRow = h('tr', {},
-          h('td', { class: 'review-value-cell' },
-            h('div', {}, h('span', { class: 'mono', text: r.value }), ' ', h('span', { class: 'tag', text: '×' + r.count })),
-            r.context ? h('div', { class: 'context', text: r.context }) : null
-          ),
-          h('td', {}, renderVerdictCell(r), reviewRecommendations.has(r.id)?h('p',{class:'hint'},tr('Рекомендация: {{0}}',[tr(reviewRecommendations.get(r.id).action==='mask'?'маскировать':'не маскировать')])):null),
-          h('td', {}, h('code', { text: r.recognizer })),
-          h('td', {}, kindSel),
-          h('td', {}, scopeSel),
-          h('td', {}, open ? h('div', { class: 'review-actions' },
-            h('button', {
-              class: 'btn-confirm',
-              disabled: ro,
-              onclick: () => decide({ ids: [r.id], action: 'mask', kind: normKind(kindSel.value) || null, scope: scopeSel.value }, tr("Подтверждено (маскировать)"), trRow, 'row-confirmed')
-            }, tr("✓ Подтвердить")),
-            h('button', {
-              class: 'btn-reject',
-              disabled: ro,
-              onclick: () => decide({ ids: [r.id], action: 'keep', scope: scopeSel.value }, tr("Отклонено (не секрет)"), trRow, 'row-rejected')
-            }, tr("✕ Отказать")),
-            h('button', {
-              class: 'small ghost',
-              onclick: () => decide({ ids: [r.id], action: 'dismiss', scope: scopeSel.value }, tr("Закрыто"), trRow)
-            }, tr("Скрыть"))
-          ) : h('span', { class: 'hint', text: STATUS_NAMES[r.status] || r.status })),
-        );
-        return trRow;
-      })),
-    )));
-    return;
-  }
-  const groups = new Map();
-  for (const r of rows) {
-    const key = r.kind + '\u0000' + r.shape;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(r);
-  }
-  const sorted = [...groups.values()].sort((a, b) => b.reduce((s, r) => s + r.count, 0) - a.reduce((s, r) => s + r.count, 0));
-  list.replaceChildren(...sorted.map((g) => {
-    const r0 = g[0];
-    const total = g.reduce((s, r) => s + r.count, 0);
-    const ps = g.map((r) => r.probability);
-    const open = g.some((r) => r.status === 'open');
-    const prange = Math.min(...ps) === Math.max(...ps) ? ps[0].toFixed(2) : `${Math.min(...ps).toFixed(2)}–${Math.max(...ps).toFixed(2)}`;
-    return h('div', { class: 'card' },
-      h('div', { class: 'group-head' },
-        kindBadge(r0.kind),
-        h('span', { class: 'shape', text: tr("форма ") + r0.shape }),
-        h('span', { class: 'count', text: tr("{{0}} знач. · встречено {{1}}× · p {{2}} · {{3}}", [g.length, total, prange, r0.recognizer]) }),
-      ),
-      h('div', { class: 'samples' }, g.slice(0, 14).map((r) => h('span', { class: 'chip', title: r.context }, h('span', {}, r.value), h('span', { class: 'k', text: '×' + r.count }))),
-        g.length > 14 ? h('span', { class: 'hint', text: tr("и ещё {{0}}", [g.length - 14]) }) : null),
-      h('p', { class: 'context', text: r0.context }),
-      h('div', { class: 'actions' }, decisionButtons(status === 'open' ? { shape: r0.shape, of_kind: r0.kind } : { ids: g.filter((r) => r.status === 'open').map((r) => r.id) }, r0.kind, open, r0.recommended_scope)),
-    );
-  }));
-}
-
-$('#j-template').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const t = $('#j-template-input').value.trim();
-  if (!t) return;
-  try {
-    const r = await api('/api/v1/journal/template', { method: 'POST', body: { template: t, scope: $('#j-scope').value } });
-    $('#j-template-input').value = '';
-    toast(tr("Шаблон добавлен, закрыто записей: {{0}}", [r.closed]));
-    await afterRulesChanged();
-  } catch (err) { fail(err); }
-});
+async function loadJournal() { if (typeof loadReview === 'function' && location.hash === '#review') await loadReview(true); }
 
 // ---------- Первоначальная настройка ----------
 
@@ -1248,7 +1063,6 @@ function relocalizeConstants() {
   Object.assign(SCOPE_NAMES, { global: tr("корпоративный"), team: tr("команда"), personal: tr("личный") });
   Object.assign(SCOPE_TITLES, { global: tr("Корпоративные правила"), team: tr("Правила команды"), personal: tr("Личные правила") });
   Object.assign(VERDICTS, { mask: tr("маскировать"), keep: tr("оставить"), uncertain: tr("спорно") });
-  Object.assign(STATUS_NAMES, { open: tr("открыто"), masked: tr("маскируется правилом"), kept: tr("оставлено правилом"), dismissed: tr("закрыто") });
   Object.assign(PTYPE_HINTS, {
   value: [tr("Рога и Копыта"), tr("Точное значение по границам слова.")],
   template: ['{env:prod|stage|dev}-{SVC}-{hash}', tr("Слоты: {KIND} — чувствительная часть (заменяется токеном), {env:a|b} — перечисление, {hash}, {word}, {num}, {any} — каркас, который остаётся.")],
