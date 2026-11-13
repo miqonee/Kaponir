@@ -32,5 +32,14 @@ class EvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError,'only_shadow_experiments'):
                 export(source,root/'output')
 
+    def test_interrupted_truncation_diagnostic_keeps_its_status(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root=Path(temporary);source=root/'source'
+            path=source/'context-controls/qwen08-native-unbounded/result.json'
+            path.parent.mkdir(parents=True)
+            path.write_text(json.dumps({'status':'interrupted','signature':{},'shadow':True,'rules_changed':0}))
+            result=export(source,root/'output')
+            self.assertEqual(result['files'][path.relative_to(source).as_posix()]['status'],'interrupted')
+
 
 if __name__=='__main__':unittest.main()

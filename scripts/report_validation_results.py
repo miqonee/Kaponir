@@ -27,6 +27,8 @@ CONTEXT_RUNS = [
     'qwen2-native-document', 'minicpm-common', 'minicpm-native-document',
     'minicpm-card-document',
     'nanbeige-card-document', 'granite-card-document', 'gemma-card-document',
+    'qwen08-prompt-document', 'qwen2-prompt-document', 'minicpm-prompt-document',
+    'qwen08-single-record', 'qwen2-single-record', 'minicpm-single-record',
 ]
 
 
