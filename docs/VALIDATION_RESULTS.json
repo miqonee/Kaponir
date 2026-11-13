@@ -4878,7 +4878,126 @@
     }
   },
   "selected_holdout": {
-    "status": "not_run"
+    "status": "completed",
+    "structured_output": "grammar",
+    "runtime_supports_json_schema": true,
+    "metrics": {
+      "detector_proposals": {
+        "expected": 127,
+        "proposals": 91,
+        "proposal_matches": 51,
+        "visible_matches": 51,
+        "visible_outside": 40,
+        "confirmed_matches": 51,
+        "confirmed_outside": 40,
+        "correct_values_filtered": 0,
+        "outside_values_filtered": 0,
+        "needs_review_values": 0,
+        "correct_kind": 49,
+        "correct_scope": 33,
+        "public_control_visible": 0,
+        "negative_document_visible": 0
+      },
+      "detector_applied": {
+        "expected": 127,
+        "proposals": 73,
+        "proposal_matches": 42,
+        "visible_matches": 42,
+        "visible_outside": 31,
+        "confirmed_matches": 42,
+        "confirmed_outside": 31,
+        "correct_values_filtered": 0,
+        "outside_values_filtered": 0,
+        "needs_review_values": 0,
+        "correct_kind": 40,
+        "correct_scope": 33,
+        "public_control_visible": 0,
+        "negative_document_visible": 0
+      },
+      "current_union": {
+        "expected": 127,
+        "proposals": 137,
+        "proposal_matches": 79,
+        "visible_matches": 79,
+        "visible_outside": 58,
+        "confirmed_matches": 79,
+        "confirmed_outside": 58,
+        "correct_values_filtered": 0,
+        "outside_values_filtered": 0,
+        "needs_review_values": 0,
+        "correct_kind": 53,
+        "correct_scope": 43,
+        "public_control_visible": 5,
+        "negative_document_visible": 0
+      }
+    },
+    "resources_before": {
+      "cpu.max": "200000 100000",
+      "memory.max": "8589934592",
+      "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+    },
+    "resources_after": {
+      "cpu.max": "200000 100000",
+      "memory.max": "8589934592",
+      "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+    },
+    "active_runtime_memory_policy": {
+      "cache_ram_mib": 0,
+      "cache_idle_slots": false,
+      "request_cache_prompt": false
+    },
+    "result_sha256": "45c9215c520103b71a5b864241bc63c61268f2bf992cd2957474a7ce098e3a90",
+    "signature": {
+      "model": "qwen3.5-2b",
+      "artifact": [
+        "Qwen3.5-2B-Q4_K_M.gguf",
+        1280835840,
+        "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+        "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf"
+      ],
+      "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+      "source_sha256": {
+        "03-deployment-config.yaml": "d58f6206e59ab4d6c54fc65a9033058cec2dc6362682aa0bd0f88307cf054a36",
+        "04-incident-report.md": "f8dd7ea9461ec00690c980275862eda36305e6ad1ad83fd833f058f5da71c6ce",
+        "05-procurement-thread.md": "9139a5ea48694976f471003d8275b737f118c212e1630fd259bfd24eac776acd",
+        "06-support-contract.md": "e8ddb7f22ffa3aedb4489dad27d7dfadd01358d70038081c9a6f02e4e6416f7c",
+        "07-operations-handover-en.md": "d5d0100393f8b5106a00dfc81d2ce88076b0874d0ce52a86512cdc35ac0de25d"
+      },
+      "settings": {
+        "model": "qwen3.5-2b",
+        "hf_url": null,
+        "documents": [
+          "03-deployment-config.yaml",
+          "04-incident-report.md",
+          "05-procurement-thread.md",
+          "06-support-contract.md",
+          "07-operations-handover-en.md"
+        ],
+        "schemes": [
+          "free"
+        ],
+        "batch_size": 8,
+        "context_tokens": 4096,
+        "output_tokens": 1600,
+        "reserve_tokens": 64,
+        "hint_tokens": 256,
+        "max_candidates": 24,
+        "max_fragments": 256,
+        "timeout": 300
+      },
+      "prompts": {
+        "primary": "a8ad2fb6804256a45c1effe84edddd6c4364ba9fd8aacd49edcc8301fe3c6d83",
+        "audit": "7bb3d73a5d8a818215d141e5b675f47503c9ec1aac2b6e868c1ef28938f49a3b",
+        "region": "04be0641bcf7abbb59104e61c749a3b30e8ada80f16663ed2546f87b601beead"
+      }
+    },
+    "calls": 7,
+    "shadow": true,
+    "rules_changed": 0,
+    "inference_errors": {},
+    "finish_reasons": {
+      "stop": 7
+    }
   },
   "context_controls": {
     "gemma-card-document": {
@@ -4891,7 +5010,133 @@
       "status": "not_run"
     },
     "minicpm-common": {
-      "status": "not_run"
+      "status": "running",
+      "structured_output": "grammar",
+      "metrics": {
+        "review-record-bounded": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 4,
+          "visible_outside": 4,
+          "confirmed_matches": 0,
+          "confirmed_outside": 0,
+          "correct_values_filtered": 12,
+          "outside_values_filtered": 12,
+          "needs_review_values": 8,
+          "correct_kind": 0,
+          "correct_scope": 0,
+          "public_control_visible": 4,
+          "negative_document_visible": 0,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 12,
+          "failed_batches": 0,
+          "raw_private_keep_before_guard": 12,
+          "invalid_decisions": 6,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 0,
+          "kind_correct_without_protection": 0,
+          "scope_correct_without_protection": 0,
+          "kind_and_scope_correct_without_protection": 0
+        }
+      },
+      "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "artifact": [
+        "MiniCPM5-2B-Q4_K_M.gguf",
+        1561318368,
+        "ec2d5801640099e97d8d7e8003ad4d81f336e757811f03a26173dddf386602fd",
+        "https://huggingface.co/openbmb/MiniCPM5-2B-GGUF/resolve/8ad02b786ab81e33d465e1c80562640c55ab2877/MiniCPM5-2B-Q4_K_M.gguf"
+      ],
+      "thinking_template_probe": {
+        "off": {
+          "formatted_sha256": "88e3e984d75741b78abe7cb1b93c486f10444cea1c54ea20bc8fe70c0e399e5c",
+          "tokens": 20
+        },
+        "on": {
+          "formatted_sha256": "52a1fcef66c49744033d053d36d69242cf7eedb9ebeb81cc40d5d75cfa61eaf8",
+          "tokens": 18
+        },
+        "toggle_changes_template": true
+      },
+      "runtime_reasoning": "auto",
+      "reasoning_format": "deepseek",
+      "runtime_restarts": [
+        {
+          "cause": "stopped_processes_on_resume",
+          "utc": "2026-11-13T21:16:29.761901+00:00",
+          "completed_calls_before_resume": 2
+        }
+      ],
+      "result_sha256": "51dfa79d2d5494f3c3c7ed3c39f69b1e8b4b06eed50512f03158f952007d58d7",
+      "signature": {
+        "model": "minicpm5-2b",
+        "settings": {
+          "model": "minicpm5-2b",
+          "case_limit": 32,
+          "tasks": [
+            "review",
+            "discovery"
+          ],
+          "contexts": [
+            "record",
+            "document"
+          ],
+          "thinking": [
+            "bounded",
+            "off"
+          ],
+          "reasoning_budget": null,
+          "context_tokens": 16384,
+          "output_tokens": 4096,
+          "retry_output_tokens": 8192,
+          "reserve_tokens": 64,
+          "hint_tokens": 256,
+          "batch_size": 8,
+          "max_candidates": 128,
+          "timeout": 600,
+          "response_format": "auto",
+          "temperature": 0,
+          "top_p": 0.95,
+          "top_k": 40,
+          "min_p": 0,
+          "seed": 42
+        },
+        "cases_sha256": "2bf882c35cf06e5dc171910f6cacb6e24574579f74126663af600d354c7259c5",
+        "source_sha256": {
+          "01-cost-estimate.md": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+          "02-application.log": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+          "08-public-reference.md": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+        "review_prompt_sha256": "509fe83501162b765a0fe9bddaf2f09ea8640cbea144c3cfbcf5b41aa94d2709",
+        "extraction_prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "kinds_sha256": "b758bce69da3083cb7c3131e4fc6bda521cfbbad168b4ec30dc11458bf6ada10",
+        "detector_export_sha256": "4aa898e3434ec4c59ca324f41c7f968b2fecd4e7715112d5db8fda4e2bcdfd0f",
+        "annotations_sha256": "1815af85ae5198240fac4d9aaff659d33e35779f5bc1ae621699afafc370ce92",
+        "code_sha256": {
+          "evaluate_context_controls.py": "0652eac8e93aefdc5cf1e614e5dfb9ae2db525af421247312961c1c02a800fcc",
+          "validation_pipeline.py": "2eda54057af6fb67e0b4a84f9f84e08434c2d9f86a404c1b93f88d04a52aba1a",
+          "kaponir_worker.py": "756bea099c8c903aea9682ca7683d87741b8e5324dd7394d47caaaf00ba44ba7",
+          "evaluate_external_model.py": "98721739560e3b7ab325d558b5c97d344a0d777dd6c922b92c7af71457ca71c0",
+          "experiment_inference.py": "84659cafa268224c0045508953ca143fdea0fe125e7e275778778048768829c8",
+          "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
+        }
+      },
+      "calls": 8,
+      "shadow": true,
+      "rules_changed": 0,
+      "inference_errors": {},
+      "finish_reasons": {
+        "stop": 8
+      }
     },
     "minicpm-native-document": {
       "status": "not_run"
@@ -5543,13 +5788,62 @@
       "inference_errors": {},
       "finish_reasons": {
         "stop": 5
+      },
+      "reason_length_diagnostics": {
+        "review-document-off": {
+          "posthoc_diagnostic": true,
+          "new_inference_calls": 0,
+          "original_results_changed": false,
+          "change": "Clip explanation reason to 120 characters; preserve every other check and field.",
+          "overlong_reasons": 4,
+          "rows_rejected_only_for_reason_length": 0,
+          "strict": {
+            "expected": 16,
+            "proposals": 32,
+            "proposal_matches": 16,
+            "visible_matches": 16,
+            "visible_outside": 16,
+            "confirmed_matches": 0,
+            "confirmed_outside": 0,
+            "correct_values_filtered": 0,
+            "outside_values_filtered": 0,
+            "needs_review_values": 32,
+            "correct_kind": 0,
+            "correct_scope": 0,
+            "public_control_visible": 16,
+            "negative_document_visible": 6
+          },
+          "reason_clipped": {
+            "expected": 16,
+            "proposals": 32,
+            "proposal_matches": 16,
+            "visible_matches": 16,
+            "visible_outside": 16,
+            "confirmed_matches": 0,
+            "confirmed_outside": 0,
+            "correct_values_filtered": 0,
+            "outside_values_filtered": 0,
+            "needs_review_values": 32,
+            "correct_kind": 0,
+            "correct_scope": 0,
+            "public_control_visible": 16,
+            "negative_document_visible": 6
+          },
+          "metadata_after_clip": {
+            "gold_proposals_without_protection": 16,
+            "gold_confirmed_without_protection": 0,
+            "kind_correct_without_protection": 0,
+            "scope_correct_without_protection": 0,
+            "kind_and_scope_correct_without_protection": 0
+          }
+        }
       }
     },
     "qwen08-single-record": {
       "status": "not_run"
     },
     "qwen2-common": {
-      "status": "running",
+      "status": "completed",
       "structured_output": "grammar",
       "metrics": {
         "review-record-bounded": {
@@ -5671,9 +5965,54 @@
           "kind_correct_without_protection": 0,
           "scope_correct_without_protection": 0,
           "kind_and_scope_correct_without_protection": 0
+        },
+        "discovery-document-bounded": {
+          "expected": 92,
+          "proposals": 109,
+          "proposal_matches": 77,
+          "visible_matches": 77,
+          "visible_outside": 32,
+          "confirmed_matches": 77,
+          "confirmed_outside": 32,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 70,
+          "correct_scope": 17,
+          "public_control_visible": 1,
+          "negative_document_visible": 5,
+          "complete_documents": 3,
+          "errors": [],
+          "invalid_proposals": 1,
+          "quality_is_lower_bound_if_incomplete": false
+        },
+        "discovery-document-off": {
+          "expected": 92,
+          "proposals": 107,
+          "proposal_matches": 74,
+          "visible_matches": 74,
+          "visible_outside": 33,
+          "confirmed_matches": 74,
+          "confirmed_outside": 33,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 68,
+          "correct_scope": 14,
+          "public_control_visible": 4,
+          "negative_document_visible": 6,
+          "complete_documents": 3,
+          "errors": [],
+          "invalid_proposals": 1,
+          "quality_is_lower_bound_if_incomplete": false
         }
       },
       "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "resources_after": {
         "cpu.max": "200000 100000",
         "memory.max": "8589934592",
         "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
@@ -5697,7 +6036,19 @@
       },
       "runtime_reasoning": "auto",
       "reasoning_format": "deepseek",
-      "result_sha256": "7c994c90011dd4c42cf2dceff3641ceed45f9de811c6fd5bf12b388ebb1caad9",
+      "runtime_restarts": [
+        {
+          "cause": "environment_restart",
+          "utc": "2026-11-13T18:29:34.432576+00:00",
+          "completed_calls_before_resume": 22,
+          "resources_before_resume": {
+            "cpu.max": "200000 100000",
+            "memory.max": "8589934592",
+            "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+          }
+        }
+      ],
+      "result_sha256": "ed9d56ccf685f549f3a547cbb0bcf320a1b84a880134401c90a4d4c5b991f227",
       "signature": {
         "model": "qwen3.5-2b",
         "settings": {
@@ -5752,19 +6103,326 @@
           "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
         }
       },
-      "calls": 20,
+      "calls": 29,
+      "shadow": true,
+      "rules_changed": 0,
+      "inference_errors": {
+        "model_response_truncated": 3
+      },
+      "finish_reasons": {
+        "stop": 26,
+        "length": 3
+      }
+    },
+    "qwen2-native-document": {
+      "status": "completed",
+      "structured_output": "grammar",
+      "metrics": {
+        "discovery-document-on": {
+          "expected": 92,
+          "proposals": 94,
+          "proposal_matches": 68,
+          "visible_matches": 68,
+          "visible_outside": 26,
+          "confirmed_matches": 68,
+          "confirmed_outside": 26,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 67,
+          "correct_scope": 12,
+          "public_control_visible": 1,
+          "negative_document_visible": 2,
+          "complete_documents": 0,
+          "errors": [
+            {
+              "file": "01-cost-estimate.md",
+              "error": "model_response_truncated"
+            },
+            {
+              "file": "02-application.log",
+              "error": "not_attempted_after_empty_thinking_truncation"
+            },
+            {
+              "file": "08-public-reference.md",
+              "error": "not_attempted_after_empty_thinking_truncation"
+            }
+          ],
+          "invalid_proposals": 0,
+          "quality_is_lower_bound_if_incomplete": true
+        }
+      },
+      "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "resources_after": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "artifact": [
+        "Qwen3.5-2B-Q4_K_M.gguf",
+        1280835840,
+        "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+        "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf"
+      ],
+      "thinking_template_probe": {
+        "off": {
+          "formatted_sha256": "27dd8fb722d0165344022b0bc7cd401be2864704e96e34f9b188f506df725f4c",
+          "tokens": 19
+        },
+        "on": {
+          "formatted_sha256": "03e88c3e7487a438c5a562f657f505868027133e387e1f6a32e445d4149191ba",
+          "tokens": 17
+        },
+        "toggle_changes_template": true
+      },
+      "runtime_reasoning": "auto",
+      "reasoning_format": "deepseek",
+      "result_sha256": "9cb65f98e0e4cd3a30d9fe8c5fc164715cd2b2fb2d8b5cdf1df89f970be6d799",
+      "signature": {
+        "model": "qwen3.5-2b",
+        "settings": {
+          "model": "qwen3.5-2b",
+          "case_limit": 32,
+          "tasks": [
+            "discovery"
+          ],
+          "contexts": [
+            "record",
+            "document"
+          ],
+          "thinking": [
+            "on"
+          ],
+          "reasoning_budget": null,
+          "context_tokens": 16384,
+          "output_tokens": 4096,
+          "retry_output_tokens": 8192,
+          "reserve_tokens": 64,
+          "hint_tokens": 256,
+          "batch_size": 8,
+          "max_candidates": 128,
+          "timeout": 1200,
+          "response_format": "auto",
+          "temperature": 0,
+          "top_p": 0.95,
+          "top_k": 40,
+          "min_p": 0,
+          "seed": 42
+        },
+        "cases_sha256": "2bf882c35cf06e5dc171910f6cacb6e24574579f74126663af600d354c7259c5",
+        "source_sha256": {
+          "01-cost-estimate.md": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+          "02-application.log": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+          "08-public-reference.md": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+        "review_prompt_sha256": "509fe83501162b765a0fe9bddaf2f09ea8640cbea144c3cfbcf5b41aa94d2709",
+        "extraction_prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "kinds_sha256": "b758bce69da3083cb7c3131e4fc6bda521cfbbad168b4ec30dc11458bf6ada10",
+        "detector_export_sha256": "4aa898e3434ec4c59ca324f41c7f968b2fecd4e7715112d5db8fda4e2bcdfd0f",
+        "annotations_sha256": "1815af85ae5198240fac4d9aaff659d33e35779f5bc1ae621699afafc370ce92",
+        "code_sha256": {
+          "evaluate_context_controls.py": "0652eac8e93aefdc5cf1e614e5dfb9ae2db525af421247312961c1c02a800fcc",
+          "validation_pipeline.py": "2eda54057af6fb67e0b4a84f9f84e08434c2d9f86a404c1b93f88d04a52aba1a",
+          "kaponir_worker.py": "756bea099c8c903aea9682ca7683d87741b8e5324dd7394d47caaaf00ba44ba7",
+          "evaluate_external_model.py": "98721739560e3b7ab325d558b5c97d344a0d777dd6c922b92c7af71457ca71c0",
+          "experiment_inference.py": "84659cafa268224c0045508953ca143fdea0fe125e7e275778778048768829c8",
+          "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
+        }
+      },
+      "calls": 2,
+      "shadow": true,
+      "rules_changed": 0,
+      "inference_errors": {
+        "model_response_truncated": 2
+      },
+      "finish_reasons": {
+        "length": 2
+      }
+    },
+    "qwen2-prompt-document": {
+      "status": "completed",
+      "structured_output": "prompt",
+      "metrics": {
+        "review-document-off": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 15,
+          "visible_outside": 8,
+          "confirmed_matches": 0,
+          "confirmed_outside": 0,
+          "correct_values_filtered": 1,
+          "outside_values_filtered": 8,
+          "needs_review_values": 23,
+          "correct_kind": 0,
+          "correct_scope": 0,
+          "public_control_visible": 8,
+          "negative_document_visible": 0,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 8,
+          "failed_batches": 0,
+          "raw_private_keep_before_guard": 4,
+          "invalid_decisions": 23,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 0,
+          "kind_correct_without_protection": 0,
+          "scope_correct_without_protection": 0,
+          "kind_and_scope_correct_without_protection": 0
+        }
+      },
+      "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "resources_after": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "artifact": [
+        "Qwen3.5-2B-Q4_K_M.gguf",
+        1280835840,
+        "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+        "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf"
+      ],
+      "thinking_template_probe": {
+        "off": {
+          "formatted_sha256": "27dd8fb722d0165344022b0bc7cd401be2864704e96e34f9b188f506df725f4c",
+          "tokens": 19
+        },
+        "on": {
+          "formatted_sha256": "03e88c3e7487a438c5a562f657f505868027133e387e1f6a32e445d4149191ba",
+          "tokens": 17
+        },
+        "toggle_changes_template": true
+      },
+      "runtime_reasoning": "auto",
+      "reasoning_format": "deepseek",
+      "runtime_restarts": [
+        {
+          "cause": "environment_restart",
+          "utc": "2026-11-13T19:06:38.919360+00:00",
+          "completed_calls_before_resume": 2
+        }
+      ],
+      "result_sha256": "e525d056634ef36fa669a70cfe012263968bd4ad6a0166064c262a4c04f5f215",
+      "signature": {
+        "model": "qwen3.5-2b",
+        "settings": {
+          "model": "qwen3.5-2b",
+          "case_limit": 32,
+          "tasks": [
+            "review"
+          ],
+          "contexts": [
+            "document"
+          ],
+          "thinking": [
+            "off"
+          ],
+          "reasoning_budget": null,
+          "context_tokens": 16384,
+          "output_tokens": 4096,
+          "retry_output_tokens": 8192,
+          "reserve_tokens": 64,
+          "hint_tokens": 256,
+          "batch_size": 8,
+          "max_candidates": 128,
+          "timeout": 600,
+          "response_format": "prompt",
+          "temperature": 0,
+          "top_p": 0.95,
+          "top_k": 40,
+          "min_p": 0,
+          "seed": 42
+        },
+        "cases_sha256": "2bf882c35cf06e5dc171910f6cacb6e24574579f74126663af600d354c7259c5",
+        "source_sha256": {
+          "01-cost-estimate.md": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+          "02-application.log": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+          "08-public-reference.md": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+        "review_prompt_sha256": "509fe83501162b765a0fe9bddaf2f09ea8640cbea144c3cfbcf5b41aa94d2709",
+        "extraction_prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "kinds_sha256": "b758bce69da3083cb7c3131e4fc6bda521cfbbad168b4ec30dc11458bf6ada10",
+        "detector_export_sha256": "4aa898e3434ec4c59ca324f41c7f968b2fecd4e7715112d5db8fda4e2bcdfd0f",
+        "annotations_sha256": "1815af85ae5198240fac4d9aaff659d33e35779f5bc1ae621699afafc370ce92",
+        "code_sha256": {
+          "evaluate_context_controls.py": "0652eac8e93aefdc5cf1e614e5dfb9ae2db525af421247312961c1c02a800fcc",
+          "validation_pipeline.py": "2eda54057af6fb67e0b4a84f9f84e08434c2d9f86a404c1b93f88d04a52aba1a",
+          "kaponir_worker.py": "756bea099c8c903aea9682ca7683d87741b8e5324dd7394d47caaaf00ba44ba7",
+          "evaluate_external_model.py": "98721739560e3b7ab325d558b5c97d344a0d777dd6c922b92c7af71457ca71c0",
+          "experiment_inference.py": "84659cafa268224c0045508953ca143fdea0fe125e7e275778778048768829c8",
+          "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
+        }
+      },
+      "calls": 5,
       "shadow": true,
       "rules_changed": 0,
       "inference_errors": {},
       "finish_reasons": {
-        "stop": 20
+        "stop": 5
+      },
+      "reason_length_diagnostics": {
+        "review-document-off": {
+          "posthoc_diagnostic": true,
+          "new_inference_calls": 0,
+          "original_results_changed": false,
+          "change": "Clip explanation reason to 120 characters; preserve every other check and field.",
+          "overlong_reasons": 23,
+          "rows_rejected_only_for_reason_length": 21,
+          "strict": {
+            "expected": 16,
+            "proposals": 32,
+            "proposal_matches": 16,
+            "visible_matches": 15,
+            "visible_outside": 8,
+            "confirmed_matches": 0,
+            "confirmed_outside": 0,
+            "correct_values_filtered": 1,
+            "outside_values_filtered": 8,
+            "needs_review_values": 23,
+            "correct_kind": 0,
+            "correct_scope": 0,
+            "public_control_visible": 8,
+            "negative_document_visible": 0
+          },
+          "reason_clipped": {
+            "expected": 16,
+            "proposals": 32,
+            "proposal_matches": 16,
+            "visible_matches": 12,
+            "visible_outside": 8,
+            "confirmed_matches": 12,
+            "confirmed_outside": 6,
+            "correct_values_filtered": 4,
+            "outside_values_filtered": 8,
+            "needs_review_values": 2,
+            "correct_kind": 7,
+            "correct_scope": 5,
+            "public_control_visible": 8,
+            "negative_document_visible": 0
+          },
+          "metadata_after_clip": {
+            "gold_proposals_without_protection": 16,
+            "gold_confirmed_without_protection": 12,
+            "kind_correct_without_protection": 7,
+            "scope_correct_without_protection": 5,
+            "kind_and_scope_correct_without_protection": 4
+          }
+        }
       }
-    },
-    "qwen2-native-document": {
-      "status": "not_run"
-    },
-    "qwen2-prompt-document": {
-      "status": "not_run"
     },
     "qwen2-single-record": {
       "status": "not_run"
@@ -5778,6 +6436,34 @@
     "Old RAM-state cache was disabled after Qwen request 67; all comparison requests forbid prompt reuse. No speed or cold-memory ranking.",
     "No permanent rules, training labels or user vault decisions were changed by the experiments."
   ],
+  "holdout_selection": {
+    "model": "qwen3.5-2b",
+    "method": "current_union",
+    "documents": [
+      "03-deployment-config.yaml",
+      "04-incident-report.md",
+      "05-procurement-thread.md",
+      "06-support-contract.md",
+      "07-operations-handover-en.md"
+    ],
+    "policy": "Select additive finder by maximum calibration exact-value coverage, then fewer outside-gold values, then smaller artifact. No automatic candidate filtering or rule application.",
+    "calibration_metrics": {
+      "expected": 92,
+      "proposals": 131,
+      "proposal_matches": 80,
+      "visible_matches": 80,
+      "visible_outside": 51,
+      "confirmed_matches": 80,
+      "confirmed_outside": 51,
+      "correct_values_filtered": 0,
+      "outside_values_filtered": 0,
+      "needs_review_values": 0,
+      "correct_kind": 71,
+      "correct_scope": 15,
+      "public_control_visible": 2,
+      "negative_document_visible": 6
+    }
+  },
   "runtime_cache_diagnostic": {
     "model": "qwen3.5-2b",
     "context_tokens": 4096,

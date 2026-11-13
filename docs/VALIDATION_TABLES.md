@@ -49,6 +49,7 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 
 | Профиль | Метод | Верный mask приватного | Верный keep публичного | Ошибочный keep приватного | Ошибочный mask публичного | Review | Верны тип и scope / mask приватного |
 |---|---|---|---|---|---|---|---|
+| minicpm-common | review-record-bounded | 0 | 12 | 12 | 0 | 8 | — |
 | qwen08-common | review-record-bounded | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-record-off | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-document-bounded | 0 | 3 | 5 | 0 | 24 | — |
@@ -58,10 +59,22 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | qwen2-common | review-record-off | 0 | 10 | 3 | 0 | 19 | — |
 | qwen2-common | review-document-bounded | 0 | 7 | 10 | 0 | 15 | — |
 | qwen2-common | review-document-off | 0 | 11 | 10 | 0 | 11 | — |
+| qwen2-prompt-document | review-document-off | 0 | 8 | 1 | 0 | 23 | — |
 
 `record` — запись с подсказкой; `document` — весь документ. `bounded` — лимит reasoning в половину начального ответа; `on` — без этого ограничения. Профили `prompt` меняют и инструкцию формата, и способ ограничения JSON. `single` содержит один кандидат на запрос. Точные параметры — в JSON-сводке.
 
 Завершённые этапы ещё выполняющегося прогона показаны отдельно. Технически неполные этапы не получают численную оценку качества.
+
+## Диагностика лимита объяснения
+
+Повторная обработка тех же сохранённых ответов, **без новых запросов модели**. Во втором варианте reason обрезан до 120 символов; остальные проверки сохранены. Исходные результаты выше не меняются. Это разбор влияния ограничения формата, а не проверенный режим автоматического применения.
+
+| Профиль | Метод | Обработка ответа | Верный mask приватного | Верный keep публичного | Ошибочный keep приватного | Ошибочный mask публичного | Review | Верны тип и scope / mask приватного |
+|---|---|---|---|---|---|---|---|---|
+| qwen2-prompt-document | review-document-off | Исходный контракт | 0 | 8 | 1 | 0 | 23 | — |
+| qwen2-prompt-document | review-document-off | Обрезан только reason | 12 | 8 | 4 | 6 | 2 | 4/12 |
+
+Обрезка объяснения может пропустить и ошибочные keep. Соответствие длине текста не доказывает правильность приватности, типа или scope.
 
 ## Поиск по целому документу
 
@@ -72,14 +85,23 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | qwen08-common | discovery-document-bounded | 70 / 31 | 3 |
 | qwen08-common | discovery-document-off | 68 / 30 | 3 |
 | qwen08-native-document | discovery-document-on | неполный | 0 |
+| qwen2-common | discovery-document-bounded | 77 / 32 | 3 |
+| qwen2-common | discovery-document-off | 74 / 33 | 3 |
+| qwen2-native-document | discovery-document-on | неполный | 0 |
 
-Ещё не запускались: `gemma-card-document`, `granite-card-document`, `minicpm-card-document`, `minicpm-common`, `minicpm-native-document`, `minicpm-prompt-document`, `minicpm-single-record`, `nanbeige-card-document`, `qwen08-native-prompt`, `qwen08-single-record`, `qwen2-native-document`, `qwen2-prompt-document`, `qwen2-single-record`.
+Ещё не запускались: `gemma-card-document`, `granite-card-document`, `minicpm-card-document`, `minicpm-native-document`, `minicpm-prompt-document`, `minicpm-single-record`, `nanbeige-card-document`, `qwen08-native-prompt`, `qwen08-single-record`, `qwen2-single-record`.
 
 ## Отложенные документы
 
 127 эталонных значений в пяти других документах. Выбор добавляющего поиск профиля сделан по калибровке, без автоматического отклонения кандидатов.
 
-Статус: не запускался.
+Статус: завершён.
 
+Модель: Qwen3.5-2B.
+
+| Схема | Осталось / вне эталона |
+|---|---|
+| Предложения детекторов | 51 / 40 |
+| Детекторы + поиск LLM | 79 / 58 |
 
 Результаты коротких диагностических проб на 20 случаях не включены в документную матрицу. Сырые контрольные точки и их SHA — [benchmarks](benchmarks/README.md).

@@ -96,8 +96,33 @@ def render(report):
         'Профили `prompt` меняют и инструкцию формата, и способ ограничения JSON. '
         '`single` содержит один кандидат на запрос. Точные параметры — в JSON-сводке.','',
         'Завершённые этапы ещё выполняющегося прогона показаны отдельно. '
-        'Технически неполные этапы не получают численную оценку качества.','',
-        '## Поиск по целому документу','',
+        'Технически неполные этапы не получают численную оценку качества.','']
+    diagnostic_rows=[]
+    for name,run in report.get('context_controls',{}).items():
+        for method,diagnostic in run.get('reason_length_diagnostics',{}).items():
+            if not diagnostic['rows_rejected_only_for_reason_length']:continue
+            for label,key in [('Исходный контракт','strict'),('Обрезан только reason','reason_clipped')]:
+                m=diagnostic[key]
+                quality=(run.get('metrics',{}).get(method,{}) if key=='strict' else
+                         diagnostic['metadata_after_clip'])
+                joint=quality.get('kind_and_scope_correct_without_protection')
+                metadata=('—' if not m['confirmed_matches'] else
+                    f"{joint}/{m['confirmed_matches']}" if joint is not None else 'нет оценки')
+                diagnostic_rows.append([name,method,label,m['confirmed_matches'],
+                    m['outside_values_filtered'],m['correct_values_filtered'],
+                    m['confirmed_outside'],m['needs_review_values'],metadata])
+    if diagnostic_rows:
+        lines+=['## Диагностика лимита объяснения','',
+            'Повторная обработка тех же сохранённых ответов, **без новых запросов модели**. '
+            'Во втором варианте reason обрезан до 120 символов; остальные проверки сохранены. '
+            'Исходные результаты выше не меняются. Это разбор влияния ограничения формата, '
+            'а не проверенный режим автоматического применения.','']
+        lines+=table(['Профиль','Метод','Обработка ответа','Верный mask приватного',
+            'Верный keep публичного','Ошибочный keep приватного','Ошибочный mask публичного','Review',
+            'Верны тип и scope / mask приватного'],diagnostic_rows)
+        lines+=['','Обрезка объяснения может пропустить и ошибочные keep. '
+            'Соответствие длине текста не доказывает правильность приватности, типа или scope.','']
+    lines+=['## Поиск по целому документу','',
         'В ячейке те же эталонные/вне эталона. Пул включает быстрые детекторы. '
         'Флаги confirmed и scope у поискового пула не означают проверенную приватность. '
         'По сравнению с основной матрицей здесь также увеличены лимиты контекста, '

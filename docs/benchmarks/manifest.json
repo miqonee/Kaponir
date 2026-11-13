@@ -94,12 +94,40 @@
       "archive_sha256": "1ee2c3e1388aee135a82c9ba942025d30729abb3190020c9fc9f0011e97c3714",
       "json_bytes": 61303
     },
+    "context-controls/qwen2-common/result.json": {
+      "archive": "context-controls--qwen2-common--result.json.gz",
+      "status": "completed",
+      "json_sha256": "ed9d56ccf685f549f3a547cbb0bcf320a1b84a880134401c90a4d4c5b991f227",
+      "archive_sha256": "a05b1a5a1d95d1ebbcfd6c3f7966bf270ed166f0869b5f1f91c0e859e11c8bbb",
+      "json_bytes": 506619
+    },
+    "context-controls/qwen2-native-document/result.json": {
+      "archive": "context-controls--qwen2-native-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "9cb65f98e0e4cd3a30d9fe8c5fc164715cd2b2fb2d8b5cdf1df89f970be6d799",
+      "archive_sha256": "72118c0c3124f77926e1938b57d8ffd122ae25aad4bd7d3931ae11c7b7235cb1",
+      "json_bytes": 61292
+    },
     "context-controls/qwen08-prompt-document/result.json": {
       "archive": "context-controls--qwen08-prompt-document--result.json.gz",
       "status": "completed",
       "json_sha256": "cdbb4eb3f9a529bb833fe9415265fd34813381d4de98068e22a6833222b67016",
       "archive_sha256": "7a6d94f886110374356f7bf587ad41271e1a11da26acf6478686e9fde16c360a",
       "json_bytes": 49653
+    },
+    "context-controls/qwen2-prompt-document/result.json": {
+      "archive": "context-controls--qwen2-prompt-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "e525d056634ef36fa669a70cfe012263968bd4ad6a0166064c262a4c04f5f215",
+      "archive_sha256": "1d9b6b760598871aec07e89dba2b4707fbf26626806810b87d08a6dcd93a33df",
+      "json_bytes": 73053
+    },
+    "selected-holdout/result.json": {
+      "archive": "selected-holdout--result.json.gz",
+      "status": "completed",
+      "json_sha256": "45c9215c520103b71a5b864241bc63c61268f2bf992cd2957474a7ce098e3a90",
+      "archive_sha256": "eb736dec5e3623c99ca09aca8a685d0cbe40ead9a1afdee04fee8d9724c3c7b9",
+      "json_bytes": 208651
     },
     "classifier-audit/result.json": {
       "archive": "classifier-audit--result.json.gz",

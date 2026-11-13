@@ -73,6 +73,7 @@ def run_summary(path):
         'resources_before', 'resources_after', 'error', 'runtime_exit_code',
         'cache_origin', 'active_runtime_memory_policy', 'runtime_cache_history', 'artifact',
         'thinking_template_probe', 'runtime_reasoning', 'reasoning_format',
+        'runtime_restarts',
     ] if key in state}
     result.update(result_sha256=hashlib.sha256(snapshot).hexdigest(), signature=signature,
         calls=len(state.get('calls', [])), shadow=state['shadow'], rules_changed=state['rules_changed'],
@@ -81,6 +82,15 @@ def run_summary(path):
     if any(method in state.get('stages',{}) for method in ['point','regions','union_point','double']):
         _,expected,_,_,_=load_corpus()
         result['validation_quality']=validation_quality(state,expected)
+    if state.get('control_cases'):
+        from analyze_reason_limits import analyze
+        try:
+            diagnostics=analyze(state)
+        except (ValueError,KeyError,IndexError,TypeError) as exc:
+            # Optional post-hoc diagnostics must not stop the benchmark queue.
+            result['reason_length_diagnostics_error']=type(exc).__name__
+        else:
+            if diagnostics:result['reason_length_diagnostics']=diagnostics
     if 'probes' in state:
         result['probes'] = state['probes']['summary']
         # These fixed probes have two complete passes. Preserve raw-verdict
