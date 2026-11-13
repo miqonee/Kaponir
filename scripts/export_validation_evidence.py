@@ -29,6 +29,7 @@ def export(directory, output):
         directory/'selected-holdout/result.json',directory/'classifier-audit/result.json',
         directory/'classifier-audit/raw.json',
         directory/'runtime-cache-diagnostic.json',directory/'runtime-cache-replay.json',
+        directory/'context-budget-probe.json',
         *(directory/name for name in TECHNICAL_DIAGNOSTICS)]
     manifest={'version':1,'source':'synthetic tests/docs/input and validation-review-heldout.json',
         'encoding':'gzip; UTF-8 JSON; mtime=0','files':{}}

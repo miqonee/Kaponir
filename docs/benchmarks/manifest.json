@@ -87,6 +87,13 @@
       "archive_sha256": "5c9c92f41b8e4f4eb0db925fe9db7ebcb4b9b943ee367b3c91f8589a6f330fb6",
       "json_bytes": 542879
     },
+    "context-controls/qwen08-native-document/result.json": {
+      "archive": "context-controls--qwen08-native-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "30fee0d6b6bf1c2372d337ca83e81a84202fe40905494ccf1472ed5cd8d2aafe",
+      "archive_sha256": "1ee2c3e1388aee135a82c9ba942025d30729abb3190020c9fc9f0011e97c3714",
+      "json_bytes": 61303
+    },
     "context-controls/qwen08-prompt-document/result.json": {
       "archive": "context-controls--qwen08-prompt-document--result.json.gz",
       "status": "completed",
@@ -121,6 +128,13 @@
       "json_sha256": "1a21ec5f9d983c936581f467954fe72feab3a78b8ec48a6eccbb29d007e5f436",
       "archive_sha256": "df1c75e1919e8888f221ff31b0c6a417eb1a58cb678e477db14f8536cc26e491",
       "json_bytes": 1903
+    },
+    "context-budget-probe.json": {
+      "archive": "context-budget-probe.json.gz",
+      "status": "completed",
+      "json_sha256": "5caf0f3e3099a28f7528fa4d934535d7f65c56a91c3c4e10cba2e42ff8d2601f",
+      "archive_sha256": "27037034e7b3d2aabccdea3b8d8818e4319473027ba4a98f7edb0df55f6e24b5",
+      "json_bytes": 2497
     },
     "context-controls/qwen08-native-unbounded/result.json": {
       "archive": "context-controls--qwen08-native-unbounded--result.json.gz",

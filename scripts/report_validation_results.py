@@ -29,6 +29,7 @@ CONTEXT_RUNS = [
     'nanbeige-card-document', 'granite-card-document', 'gemma-card-document',
     'qwen08-prompt-document', 'qwen2-prompt-document', 'minicpm-prompt-document',
     'qwen08-single-record', 'qwen2-single-record', 'minicpm-single-record',
+    'qwen08-native-prompt',
 ]
 
 
@@ -147,6 +148,7 @@ def build_report(directory):
     for name, key in [('holdout-selection', 'holdout_selection'),
                       ('runtime-cache-diagnostic', 'runtime_cache_diagnostic'),
                       ('runtime-cache-replay', 'runtime_cache_replay'),
+                      ('context-budget-probe', 'context_budget_probe'),
                       ('classifier-audit/result', 'internal_classifier_audit')]:
         path = directory/(name+'.json')
         if path.is_file(): report[key] = json.loads(path.read_text())
@@ -157,9 +159,12 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--directory', type=Path, default=ROOT/'artifacts/validation-schemes')
     parser.add_argument('--output', type=Path, default=ROOT/'docs/VALIDATION_RESULTS.json')
+    parser.add_argument('--tables-output',type=Path,help='Readable tables; defaults beside the JSON report')
     args = parser.parse_args()
     report = build_report(args.directory)
     atomic_json(args.output, report)
+    from render_validation_tables import write_tables
+    write_tables(report,args.tables_output or args.output.with_name('VALIDATION_TABLES.md'))
     print(json.dumps({model: row['status'] for model, row in report['primary_matrix']['models'].items()}))
 
 
