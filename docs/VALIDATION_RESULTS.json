@@ -5010,7 +5010,7 @@
       "status": "not_run"
     },
     "minicpm-common": {
-      "status": "running",
+      "status": "completed",
       "structured_output": "grammar",
       "metrics": {
         "review-record-bounded": {
@@ -5042,9 +5042,144 @@
           "kind_correct_without_protection": 0,
           "scope_correct_without_protection": 0,
           "kind_and_scope_correct_without_protection": 0
+        },
+        "review-record-off": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 4,
+          "visible_outside": 7,
+          "confirmed_matches": 1,
+          "confirmed_outside": 4,
+          "correct_values_filtered": 12,
+          "outside_values_filtered": 9,
+          "needs_review_values": 6,
+          "correct_kind": 0,
+          "correct_scope": 1,
+          "public_control_visible": 7,
+          "negative_document_visible": 2,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 10,
+          "failed_batches": 0,
+          "raw_private_keep_before_guard": 12,
+          "invalid_decisions": 4,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 1,
+          "kind_correct_without_protection": 0,
+          "scope_correct_without_protection": 1,
+          "kind_and_scope_correct_without_protection": 0
+        },
+        "review-document-bounded": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 4,
+          "visible_outside": 3,
+          "confirmed_matches": 2,
+          "confirmed_outside": 1,
+          "correct_values_filtered": 12,
+          "outside_values_filtered": 13,
+          "needs_review_values": 4,
+          "correct_kind": 2,
+          "correct_scope": 2,
+          "public_control_visible": 3,
+          "negative_document_visible": 2,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 15,
+          "failed_batches": 0,
+          "raw_private_keep_before_guard": 12,
+          "invalid_decisions": 2,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 2,
+          "kind_correct_without_protection": 2,
+          "scope_correct_without_protection": 2,
+          "kind_and_scope_correct_without_protection": 2
+        },
+        "review-document-off": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 2,
+          "visible_outside": 2,
+          "confirmed_matches": 0,
+          "confirmed_outside": 0,
+          "correct_values_filtered": 14,
+          "outside_values_filtered": 14,
+          "needs_review_values": 4,
+          "correct_kind": 0,
+          "correct_scope": 0,
+          "public_control_visible": 2,
+          "negative_document_visible": 1,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 14,
+          "failed_batches": 0,
+          "raw_private_keep_before_guard": 16,
+          "invalid_decisions": 4,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 0,
+          "kind_correct_without_protection": 0,
+          "scope_correct_without_protection": 0,
+          "kind_and_scope_correct_without_protection": 0
+        },
+        "discovery-document-bounded": {
+          "expected": 92,
+          "proposals": 95,
+          "proposal_matches": 68,
+          "visible_matches": 68,
+          "visible_outside": 27,
+          "confirmed_matches": 68,
+          "confirmed_outside": 27,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 67,
+          "correct_scope": 12,
+          "public_control_visible": 2,
+          "negative_document_visible": 3,
+          "complete_documents": 3,
+          "errors": [],
+          "invalid_proposals": 0,
+          "quality_is_lower_bound_if_incomplete": false
+        },
+        "discovery-document-off": {
+          "expected": 92,
+          "proposals": 110,
+          "proposal_matches": 81,
+          "visible_matches": 81,
+          "visible_outside": 29,
+          "confirmed_matches": 81,
+          "confirmed_outside": 29,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 70,
+          "correct_scope": 17,
+          "public_control_visible": 1,
+          "negative_document_visible": 2,
+          "complete_documents": 3,
+          "errors": [],
+          "invalid_proposals": 115,
+          "quality_is_lower_bound_if_incomplete": false
         }
       },
       "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "resources_after": {
         "cpu.max": "200000 100000",
         "memory.max": "8589934592",
         "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
@@ -5073,9 +5208,14 @@
           "cause": "stopped_processes_on_resume",
           "utc": "2026-11-13T21:16:29.761901+00:00",
           "completed_calls_before_resume": 2
+        },
+        {
+          "reason": "environment_restarted_on_resume",
+          "unix_time": 1794608766.2949991,
+          "saved_calls": 21
         }
       ],
-      "result_sha256": "51dfa79d2d5494f3c3c7ed3c39f69b1e8b4b06eed50512f03158f952007d58d7",
+      "result_sha256": "0a50ce43de657dea0889171d1fb23a91d94031bdfddedc09696f5ec67ecad4e4",
       "signature": {
         "model": "minicpm5-2b",
         "settings": {
@@ -5130,19 +5270,109 @@
           "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
         }
       },
-      "calls": 8,
+      "calls": 27,
       "shadow": true,
       "rules_changed": 0,
-      "inference_errors": {},
+      "inference_errors": {
+        "model_response_truncated": 1
+      },
       "finish_reasons": {
-        "stop": 8
+        "stop": 26,
+        "length": 1
       }
     },
     "minicpm-native-document": {
       "status": "not_run"
     },
     "minicpm-prompt-document": {
-      "status": "not_run"
+      "status": "running",
+      "structured_output": "prompt",
+      "metrics": {},
+      "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "artifact": [
+        "MiniCPM5-2B-Q4_K_M.gguf",
+        1561318368,
+        "ec2d5801640099e97d8d7e8003ad4d81f336e757811f03a26173dddf386602fd",
+        "https://huggingface.co/openbmb/MiniCPM5-2B-GGUF/resolve/8ad02b786ab81e33d465e1c80562640c55ab2877/MiniCPM5-2B-Q4_K_M.gguf"
+      ],
+      "thinking_template_probe": {
+        "off": {
+          "formatted_sha256": "88e3e984d75741b78abe7cb1b93c486f10444cea1c54ea20bc8fe70c0e399e5c",
+          "tokens": 20
+        },
+        "on": {
+          "formatted_sha256": "52a1fcef66c49744033d053d36d69242cf7eedb9ebeb81cc40d5d75cfa61eaf8",
+          "tokens": 18
+        },
+        "toggle_changes_template": true
+      },
+      "runtime_reasoning": "auto",
+      "reasoning_format": "deepseek",
+      "result_sha256": "ed171054c04e3456a578c6b9e1f97a674167c0dac5184cee7175005bc60cff2e",
+      "signature": {
+        "model": "minicpm5-2b",
+        "settings": {
+          "model": "minicpm5-2b",
+          "case_limit": 32,
+          "tasks": [
+            "review"
+          ],
+          "contexts": [
+            "document"
+          ],
+          "thinking": [
+            "off"
+          ],
+          "reasoning_budget": null,
+          "context_tokens": 16384,
+          "output_tokens": 4096,
+          "retry_output_tokens": 8192,
+          "reserve_tokens": 64,
+          "hint_tokens": 256,
+          "batch_size": 8,
+          "max_candidates": 128,
+          "timeout": 600,
+          "response_format": "prompt",
+          "temperature": 0,
+          "top_p": 0.95,
+          "top_k": 40,
+          "min_p": 0,
+          "seed": 42
+        },
+        "cases_sha256": "2bf882c35cf06e5dc171910f6cacb6e24574579f74126663af600d354c7259c5",
+        "source_sha256": {
+          "01-cost-estimate.md": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+          "02-application.log": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+          "08-public-reference.md": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+        "review_prompt_sha256": "509fe83501162b765a0fe9bddaf2f09ea8640cbea144c3cfbcf5b41aa94d2709",
+        "extraction_prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "kinds_sha256": "b758bce69da3083cb7c3131e4fc6bda521cfbbad168b4ec30dc11458bf6ada10",
+        "detector_export_sha256": "4aa898e3434ec4c59ca324f41c7f968b2fecd4e7715112d5db8fda4e2bcdfd0f",
+        "annotations_sha256": "1815af85ae5198240fac4d9aaff659d33e35779f5bc1ae621699afafc370ce92",
+        "code_sha256": {
+          "evaluate_context_controls.py": "0652eac8e93aefdc5cf1e614e5dfb9ae2db525af421247312961c1c02a800fcc",
+          "validation_pipeline.py": "2eda54057af6fb67e0b4a84f9f84e08434c2d9f86a404c1b93f88d04a52aba1a",
+          "kaponir_worker.py": "756bea099c8c903aea9682ca7683d87741b8e5324dd7394d47caaaf00ba44ba7",
+          "evaluate_external_model.py": "98721739560e3b7ab325d558b5c97d344a0d777dd6c922b92c7af71457ca71c0",
+          "experiment_inference.py": "84659cafa268224c0045508953ca143fdea0fe125e7e275778778048768829c8",
+          "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
+        }
+      },
+      "calls": 1,
+      "shadow": true,
+      "rules_changed": 0,
+      "inference_errors": {
+        "JSONDecodeError": 1
+      },
+      "finish_reasons": {
+        "stop": 1
+      }
     },
     "minicpm-single-record": {
       "status": "not_run"

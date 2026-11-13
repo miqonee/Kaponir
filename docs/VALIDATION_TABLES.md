@@ -50,6 +50,9 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | Профиль | Метод | Верный mask приватного | Верный keep публичного | Ошибочный keep приватного | Ошибочный mask публичного | Review | Верны тип и scope / mask приватного |
 |---|---|---|---|---|---|---|---|
 | minicpm-common | review-record-bounded | 0 | 12 | 12 | 0 | 8 | — |
+| minicpm-common | review-record-off | 1 | 9 | 12 | 4 | 6 | 0/1 |
+| minicpm-common | review-document-bounded | 2 | 13 | 12 | 1 | 4 | 2/2 |
+| minicpm-common | review-document-off | 0 | 14 | 14 | 0 | 4 | — |
 | qwen08-common | review-record-bounded | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-record-off | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-document-bounded | 0 | 3 | 5 | 0 | 24 | — |
@@ -82,6 +85,8 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 
 | Профиль | Метод | Осталось / вне эталона | Документов завершено |
 |---|---|---|---|
+| minicpm-common | discovery-document-bounded | 68 / 27 | 3 |
+| minicpm-common | discovery-document-off | 81 / 29 | 3 |
 | qwen08-common | discovery-document-bounded | 70 / 31 | 3 |
 | qwen08-common | discovery-document-off | 68 / 30 | 3 |
 | qwen08-native-document | discovery-document-on | неполный | 0 |
@@ -89,7 +94,7 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | qwen2-common | discovery-document-off | 74 / 33 | 3 |
 | qwen2-native-document | discovery-document-on | неполный | 0 |
 
-Ещё не запускались: `gemma-card-document`, `granite-card-document`, `minicpm-card-document`, `minicpm-native-document`, `minicpm-prompt-document`, `minicpm-single-record`, `nanbeige-card-document`, `qwen08-native-prompt`, `qwen08-single-record`, `qwen2-single-record`.
+Ещё не запускались: `gemma-card-document`, `granite-card-document`, `minicpm-card-document`, `minicpm-native-document`, `minicpm-single-record`, `nanbeige-card-document`, `qwen08-native-prompt`, `qwen08-single-record`, `qwen2-single-record`.
 
 ## Отложенные документы
 

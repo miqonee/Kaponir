@@ -108,6 +108,13 @@
       "archive_sha256": "72118c0c3124f77926e1938b57d8ffd122ae25aad4bd7d3931ae11c7b7235cb1",
       "json_bytes": 61292
     },
+    "context-controls/minicpm-common/result.json": {
+      "archive": "context-controls--minicpm-common--result.json.gz",
+      "status": "completed",
+      "json_sha256": "0a50ce43de657dea0889171d1fb23a91d94031bdfddedc09696f5ec67ecad4e4",
+      "archive_sha256": "b86b642870d474035a8bc2151c67475c9ae914cd44163f6f12231415a9f8ce26",
+      "json_bytes": 421945
+    },
     "context-controls/qwen08-prompt-document/result.json": {
       "archive": "context-controls--qwen08-prompt-document--result.json.gz",
       "status": "completed",
