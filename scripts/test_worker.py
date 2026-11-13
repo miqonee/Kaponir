@@ -94,6 +94,36 @@ class WorkerTests(unittest.TestCase):
             self.assertIn('--no-cache-idle-slots',command)
             self.worker.stop_runtime()
 
+    def test_runtime_reasoning_mode_is_explicit_and_part_of_reuse_identity(self):
+        self.worker.runtime.parent.mkdir(parents=True,exist_ok=True)
+        self.worker.runtime.write_text('fixture');self.worker.runtime.chmod(0o755)
+        job=self.worker.submit('evaluate',model='q4')
+        with patch.object(self.worker,'status',return_value={'models':{'q4':{'downloaded':True}}}), \
+             patch('kaponir_worker.subprocess.Popen') as launch, \
+             patch('kaponir_worker.http_json',return_value={}), \
+             patch.object(self.worker,'detect_json_schema'):
+            launch.return_value.poll.return_value=None
+            self.worker.start_runtime(job['id'],'q4')
+            self.worker.start_runtime(job['id'],'q4')
+            self.assertEqual(launch.call_count,1)
+            self.worker.start_runtime(job['id'],'q4',reasoning='auto',reasoning_format='deepseek')
+            self.assertEqual(launch.call_count,2)
+            command=launch.call_args.args[0]
+            self.assertEqual(command[command.index('--reasoning')+1],'auto')
+            self.assertEqual(command[command.index('--reasoning-format')+1],'deepseek')
+            self.worker.start_runtime(job['id'],'q4',reasoning='auto',reasoning_format='deepseek',reasoning_budget=128)
+            self.assertEqual(launch.call_count,3)
+            command=launch.call_args.args[0]
+            self.assertEqual(command[command.index('--reasoning-budget')+1],'128')
+            self.worker.stop_runtime()
+
+    def test_token_planning_uses_the_requested_thinking_template(self):
+        self.worker.ocr_base='http://fixture'
+        with patch('kaponir_worker.http_json',return_value={'prompt':'formatted'} ) as request, \
+             patch.object(self.worker,'count_text_tokens',return_value=17):
+            self.assertEqual(self.worker.prompt_token_count('instruction',{'source':'text'}, {'enable_thinking':True}),17)
+            self.assertEqual(request.call_args.args[1]['chat_template_kwargs'],{'enable_thinking':True})
+
     def test_unreadable_files_do_not_break_status_and_removed_files_become_missing(self):
         path = self.worker.models / 'fixture.gguf'
         path.write_bytes(b'fixture')

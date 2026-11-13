@@ -361,6 +361,9 @@ class Worker:
         self.evaluation_limit = 1
         self.process_slots = 1
         self.process_context_tokens = 0
+        self.process_reasoning = None
+        self.process_reasoning_format = None
+        self.process_reasoning_budget = None
         self.process_supports_json_schema = None
         self.evaluation_profile = None
         self.token_counts = OrderedDict()
@@ -737,9 +740,16 @@ class Worker:
         use_prompt=response_format=='prompt' or response_format=='auto' and self.process_supports_json_schema is False
         return schema_prompt(prompt,schema) if use_prompt else prompt
 
-    def start_runtime(self, ident, variant, slots=1, context_tokens=4096):
+    def start_runtime(self, ident, variant, slots=1, context_tokens=4096, reasoning='off', reasoning_format='auto', reasoning_budget=-1):
+        if reasoning not in ['off','on','auto'] or reasoning_format not in ['auto','none','deepseek','deepseek-legacy']:
+            raise ValueError('invalid_reasoning_settings')
+        if type(reasoning_budget) is not int or not -1<=reasoning_budget<=context_tokens:
+            raise ValueError('invalid_reasoning_settings')
         variant = self.canonical_model(variant)
-        if self.process and self.process.poll() is None and self.process_variant == variant and self.process_slots == slots and self.process_context_tokens==context_tokens: return
+        if (self.process and self.process.poll() is None and self.process_variant == variant
+                and self.process_slots == slots and self.process_context_tokens==context_tokens
+                and self.process_reasoning==reasoning and self.process_reasoning_format==reasoning_format
+                and self.process_reasoning_budget==reasoning_budget): return
         self.stop_runtime()
         if not self.runtime.is_file() or not self.status()['models'][variant]['downloaded']:
             raise ValueError('CPU LLM model/runtime missing; download the model first')
@@ -748,8 +758,10 @@ class Worker:
         self.ocr_base=f'http://127.0.0.1:{port}'
         cmd=[str(self.runtime),'-m',str(self.models/self.model_files()[variant][0]),
              '--host','127.0.0.1','--port',str(port),'-c',str(context_tokens*slots),'-np',str(slots),'-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
-             '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning','off','--no-mmproj',
+             '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning',reasoning,'--no-mmproj',
              '--cache-ram','0','--no-cache-idle-slots']
+        if reasoning_format!='auto':cmd.extend(['--reasoning-format',reasoning_format])
+        if reasoning_budget!=-1:cmd.extend(['--reasoning-budget',str(reasoning_budget)])
         # Each request is independent (cache_prompt=False). The server's separate
         # default 8 GiB RAM cache still saves old states unless disabled explicitly;
         # recurrent models can otherwise accumulate ~100 MiB per request.
@@ -758,6 +770,9 @@ class Worker:
         self.process_variant = variant
         self.process_slots = slots
         self.process_context_tokens = context_tokens
+        self.process_reasoning = reasoning
+        self.process_reasoning_format = reasoning_format
+        self.process_reasoning_budget = reasoning_budget
         with self.token_lock:self.token_counts.clear()
         deadline=time.monotonic()+120
         while time.monotonic()<deadline:
@@ -784,12 +799,13 @@ class Worker:
             if len(self.token_counts)>256:self.token_counts.popitem(last=False)
         return count
 
-    def prompt_token_count(self, prompt, source):
+    def prompt_token_count(self, prompt, source, template_kwargs=None):
         messages=[{'role':'system','content':prompt},{'role':'user','content':json.dumps(source,ensure_ascii=False)}]
-        return self.message_token_count(messages)
+        return self.message_token_count(messages,template_kwargs)
 
-    def message_token_count(self, messages):
-        formatted=http_json(self.ocr_base+'/apply-template',{'messages':messages,'chat_template_kwargs':{'enable_thinking':False},'add_generation_prompt':True})
+    def message_token_count(self, messages, template_kwargs=None):
+        kwargs={'enable_thinking':False} if template_kwargs is None else template_kwargs
+        formatted=http_json(self.ocr_base+'/apply-template',{'messages':messages,'chat_template_kwargs':kwargs,'add_generation_prompt':True})
         return self.count_text_tokens(formatted['prompt'])
 
     def stop_runtime(self):
@@ -800,6 +816,7 @@ class Worker:
                 except subprocess.TimeoutExpired:process.kill();process.wait()
         self.process=None;self.ocr_base=None;self.ocr_process=None;self.process_variant=None
         self.process_supports_json_schema=None
+        self.process_reasoning=None;self.process_reasoning_format=None;self.process_reasoning_budget=None
 
     def ocr(self, ident, image, variant):
         """Extract text from image or scanned PDF page using local Tesseract OCR on CPU."""

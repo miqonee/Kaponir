@@ -7,11 +7,12 @@ call records token usage and finish reason. No automatic rule changes are made.
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import tempfile
 import time
-from kaponir_worker import Worker, configuration, http_json
+from kaponir_worker import Worker, configuration, http_json, schema_prompt
 from kaponir_inference import plan_text, split_span, document_hint
 from compare_local_models import ROOT, DOCUMENTS, score_application_review
 from evaluate_external_model import ExternalClient, parse_model_json, explicit_json_contract
@@ -25,8 +26,23 @@ def prompts_and_kinds():
     return extract,review,kinds
 
 
+def sampling_settings(value=None):
+    defaults={'temperature':0.0,'top_p':0.95,'top_k':40,'min_p':0.0}
+    value={} if value is None else value
+    if not isinstance(value,dict) or set(value)-set(defaults)-{'seed'}:raise ValueError('invalid_sampling_settings')
+    result={**defaults,**value}
+    for name,lower,upper in [('temperature',0,2),('top_p',0,1),('min_p',0,1)]:
+        v=result[name]
+        if isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or not lower<=v<=upper or name=='top_p' and v==0:raise ValueError('invalid_sampling_settings')
+    if type(result['top_k']) is not int or not 0<=result['top_k']<=10000:raise ValueError('invalid_sampling_settings')
+    if result.get('seed') is None:result.pop('seed',None)
+    elif type(result['seed']) is not int or not 0<=result['seed']<=2**32-1:raise ValueError('invalid_sampling_settings')
+    return result
+
+
 class LocalClient:
-    def __init__(self, worker, model, context_tokens, output_tokens):
+    def __init__(self, worker, model, context_tokens, output_tokens, response_format='grammar', sampling=None):
+        self.sampling=sampling_settings(sampling)
         self.worker,self.model,self.context_tokens,self.output_tokens=worker,model,context_tokens,output_tokens
         deadline=time.monotonic()+30
         while not worker.status()['models'][model]['downloaded']:
@@ -34,18 +50,25 @@ class LocalClient:
             time.sleep(.05)
         job=worker.submit('evaluate',model=model)
         worker.start_runtime(job['id'],model,1,context_tokens=context_tokens)
+        self.output_mode=('prompt' if worker.process_supports_json_schema is False else 'grammar') if response_format=='auto' else response_format
+        self.planning_schema={}
         self.records=[]
 
     def token_count(self,text):return self.worker.count_text_tokens(text)
-    def input_tokens(self,prompt,value):return self.worker.prompt_token_count(prompt,value)
+    def prepared_prompt(self,prompt,schema=None):
+        return schema_prompt(prompt,self.planning_schema if schema is None else schema) if self.output_mode=='prompt' else prompt
+    def input_tokens(self,prompt,value,schema=None):return self.worker.prompt_token_count(self.prepared_prompt(prompt,schema),value)
     def infer(self,prompt,value,schema,output_tokens):
-        started=time.monotonic();record={'input_tokens':self.input_tokens(prompt,value),'max_output_tokens':output_tokens}
+        prepared=self.prepared_prompt(prompt,schema)
+        started=time.monotonic();record={'input_tokens':self.worker.prompt_token_count(prepared,value),'max_output_tokens':output_tokens,'structured_output':self.output_mode}
         try:
-            reply=http_json(self.worker.ocr_base+'/v1/chat/completions',{
-                'model':'qwen-cpu','messages':[{'role':'system','content':prompt},{'role':'user','content':json.dumps(value,ensure_ascii=False)}],
-                'temperature':0,'max_tokens':output_tokens,'stream':False,'cache_prompt':False,
+            payload={
+                'model':'qwen-cpu','messages':[{'role':'system','content':prepared},{'role':'user','content':json.dumps(value,ensure_ascii=False)}],
+                **self.sampling,'max_tokens':output_tokens,'stream':False,'cache_prompt':False,
                 'chat_template_kwargs':{'enable_thinking':False},
-                'response_format':{'type':'json_schema','json_schema':{'name':'learning','strict':True,'schema':schema}}},timeout=self.worker.cfg['ocr_timeout_seconds'])
+                'response_format':{'type':'json_schema','json_schema':{'name':'learning','strict':True,'schema':schema}}}
+            if self.output_mode=='prompt':payload.pop('response_format')
+            reply=http_json(self.worker.ocr_base+'/v1/chat/completions',payload,timeout=self.worker.cfg['ocr_timeout_seconds'])
             choice=reply['choices'][0];record.update(finish_reason=choice.get('finish_reason'),usage=reply.get('usage'),memory=self.worker.resources())
             if choice.get('finish_reason')!='stop':raise ValueError('model_response_truncated')
             return json.loads(choice['message']['content'])
@@ -82,7 +105,7 @@ def extraction_schema(kinds,mode,count):
 
 def discover(client,text,prompt,kinds,args,checkpoint=lambda:None):
     schema=extraction_schema(kinds,args.candidate_mode,args.max_candidates)
-    if isinstance(client,RemoteClient):client.planning_schema=schema
+    if isinstance(client,(RemoteClient,LocalClient)):client.planning_schema=schema
     if args.candidate_mode=='lean':
         prompt=re.search(r'const EXTRACT_VALUES_PROMPT: &str = "([^"]+)";', (ROOT/'crates/kaponir-proxy/src/learning.rs').read_text()).group(1)
     hints={}

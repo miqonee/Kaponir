@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "limit": 32,
+  "source_sha256": {
+    "01-cost-estimate.md": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+    "02-application.log": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+    "08-public-reference.md": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+  },
+  "candidate_source": "reference_oracle",
+  "reference_private": 16,
+  "reference_public": 16,
+  "selection": "Private reference spans stratified by kind; public controls round-robin across documents, excluding overlaps with private spans. Stable opaque-id order. Types and labels are scoring-only, never model input. Protected bypass is disabled in this diagnostic.",
+  "candidates": [
+    {
+      "id": "03b1619e6887825b9f9a327e",
+      "file": "01-cost-estimate.md",
+      "value": "740,00 ₽",
+      "start": 2474,
+      "end": 2482
+    },
+    {
+      "id": "05b10e708a9095ae56d4a24f",
+      "file": "02-application.log",
+      "value": "::C",
+      "start": 9769,
+      "end": 9772
+    },
+    {
+      "id": "05d1ae123365656e7c7f8137",
+      "file": "01-cost-estimate.md",
+      "value": "52 400,00 ₽",
+      "start": 3280,
+      "end": 3291
+    },
+    {
+      "id": "07a606381ad21ac16476af0b",
+      "file": "08-public-reference.md",
+      "value": "s1",
+      "start": 1023,
+      "end": 1025
+    },
+    {
+      "id": "09ac7451a8728c129b97ef1c",
+      "file": "08-public-reference.md",
+      "value": "example.org",
+      "start": 927,
+      "end": 938
+    },
+    {
+      "id": "0c4f9a17814b433deba31279",
+      "file": "02-application.log",
+      "value": "INC-2026-047",
+      "start": 9151,
+      "end": 9163
+    },
+    {
+      "id": "0de50776faa1453c4aebe419",
+      "file": "01-cost-estimate.md",
+      "value": "20%",
+      "start": 3653,
+      "end": 3656
+    },
+    {
+      "id": "0f1049d40c5b222e4403c4d7",
+      "file": "08-public-reference.md",
+      "value": "Python",
+      "start": 732,
+      "end": 738
+    },
+    {
+      "id": "0f71b19235072472faa00142",
+      "file": "01-cost-estimate.md",
+      "value": "PoE",
+      "start": 1556,
+      "end": 1559
+    },
+    {
+      "id": "0fdf3df3fbf67e7a00191831",
+      "file": "02-application.log",
+      "value": "marina.ops@cedar.test",
+      "start": 9223,
+      "end": 9244
+    },
+    {
+      "id": "1678df27dca3fa2297553ddd",
+      "file": "02-application.log",
+      "value": "cache.fixture.N8v2Q6z9",
+      "start": 529,
+      "end": 551
+    },
+    {
+      "id": "1c3f623a44c3a18d049d1f4c",
+      "file": "02-application.log",
+      "value": "/opt/cedar/app/report.py",
+      "start": 4146,
+      "end": 4170
+    },
+    {
+      "id": "1d647d75a006574312791eae",
+      "file": "01-cost-estimate.md",
+      "value": "cedar-lab.example",
+      "start": 5051,
+      "end": 5068
+    },
+    {
+      "id": "1eddd54c22c6305514daba37",
+      "file": "08-public-reference.md",
+      "value": "https://docs.python.org/3/",
+      "start": 740,
+      "end": 766
+    },
+    {
+      "id": "1f064906222135f95edb6652",
+      "file": "02-application.log",
+      "value": "...",
+      "start": 9921,
+      "end": 9924
+    },
+    {
+      "id": "21198906a56bd4612ea130a1",
+      "file": "08-public-reference.md",
+      "value": "::f",
+      "start": 1739,
+      "end": 1742
+    },
+    {
+      "id": "21940358c21f763c66ca3a21",
+      "file": "01-cost-estimate.md",
+      "value": "TCP/IP",
+      "start": 5566,
+      "end": 5572
+    },
+    {
+      "id": "27aee07d72b34c6b50060cc7",
+      "file": "02-application.log",
+      "value": "gemini-3.8-flash",
+      "start": 9418,
+      "end": 9434
+    },
+    {
+      "id": "2b8a81731ec6a9d19ab5e4d4",
+      "file": "08-public-reference.md",
+      "value": "character",
+      "start": 1065,
+      "end": 1074
+    },
+    {
+      "id": "2ba43903b7c6d77677396061",
+      "file": "01-cost-estimate.md",
+      "value": "https://www.rfc-editor.org/",
+      "start": 5476,
+      "end": 5503
+    },
+    {
+      "id": "2db37c0399bac499ee7a4fcf",
+      "file": "02-application.log",
+      "value": "10.74.18.21",
+      "start": 767,
+      "end": 778
+    },
+    {
+      "id": "2ebe642dd35b45c9da01933a",
+      "file": "02-application.log",
+      "value": "marina-ops",
+      "start": 989,
+      "end": 999
+    },
+    {
+      "id": "39467113293617e59a7450dc",
+      "file": "02-application.log",
+      "value": "TLSv1.3",
+      "start": 879,
+      "end": 886
+    },
+    {
+      "id": "3a90945b357f211e8e4405c1",
+      "file": "02-application.log",
+      "value": "questions",
+      "start": 9345,
+      "end": 9354
+    },
+    {
+      "id": "5497da7a9319bdc664b1c2fe",
+      "file": "01-cost-estimate.md",
+      "value": "Ethernet",
+      "start": 5545,
+      "end": 5553
+    },
+    {
+      "id": "712ac776113a54e734b68302",
+      "file": "01-cost-estimate.md",
+      "value": "Павел Олегович Туманов",
+      "start": 150,
+      "end": 172
+    },
+    {
+      "id": "831edde3c0cee04bd7145b33",
+      "file": "01-cost-estimate.md",
+      "value": "ООО «Медный Ток»",
+      "start": 133,
+      "end": 149
+    },
+    {
+      "id": "9f7cf5bb1cb317f5a0dcbb5a",
+      "file": "01-cost-estimate.md",
+      "value": "+7 (000) 518-24-09",
+      "start": 5181,
+      "end": 5199
+    },
+    {
+      "id": "b1763b72031134e7894a12f9",
+      "file": "02-application.log",
+      "value": "cache01.cedar.test",
+      "start": 480,
+      "end": 498
+    },
+    {
+      "id": "b26096641f31a46b0a94cb1f",
+      "file": "01-cost-estimate.md",
+      "value": "АО «Кедровые лаборатории»",
+      "start": 63,
+      "end": 88
+    },
+    {
+      "id": "be9aebd166e52a29583cd807",
+      "file": "01-cost-estimate.md",
+      "value": "Кедровый Атлас",
+      "start": 429,
+      "end": 443
+    },
+    {
+      "id": "d70bb17f7591d4b37545511b",
+      "file": "02-application.log",
+      "value": "cedar-api",
+      "start": 53,
+      "end": 62
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "provenance": "New fictitious cases frozen before the November 13 validation sweep; no real credentials or identities. IDs sent to models are hashes.",
+  "policy": "Closed commercial terms global; people/accounts/credentials personal; internal projects/hosts/paths team. Public values keep. Ambiguous or overly broad spans review.",
+  "cases": [
+    {
+      "case": "1",
+      "value": "Thu",
+      "source": "Время публичной записи: Thu Nov 12 08:15:00 2026.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "2",
+      "value": "Thu Mai Tran",
+      "source": "Контакт внутренней команды: сотрудница Thu Mai Tran. ФИО не публикуется.",
+      "expected_verdict": "mask",
+      "expected_kind": "PERSON",
+      "expected_scope": "personal"
+    },
+    {
+      "case": "3",
+      "value": "Nov",
+      "source": "Публичная временная метка: Thu Nov 12 08:15:00 2026.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "4",
+      "value": "r.kedrin",
+      "source": "Внутренний журнал: login=r.kedrin. Это учётная запись сотрудника.",
+      "expected_verdict": "mask",
+      "expected_kind": "USER",
+      "expected_scope": "personal"
+    },
+    {
+      "case": "5",
+      "value": "r.kedrin",
+      "source": "Новая внутренняя учётная запись r.kedrin назначена инженеру, это не проект.",
+      "expected_verdict": "mask",
+      "expected_kind": "USER",
+      "expected_scope": "personal"
+    },
+    {
+      "case": "6",
+      "value": "8 470,50 ₽",
+      "source": "Закрытое коммерческое предложение компании. Цена за единицу: 8 470,50 ₽.",
+      "expected_verdict": "mask",
+      "expected_kind": "AMOUNT",
+      "expected_scope": "global"
+    },
+    {
+      "case": "7",
+      "value": "8 470,50 ₽",
+      "source": "Общедоступный учебник: условная цена 8 470,50 ₽. Это публичный пример.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "8",
+      "value": "35%",
+      "source": "Публичный учебный расчёт: аванс 35%. Коммерческих условий здесь нет.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "9",
+      "value": "72 линии",
+      "source": "Публичное описание монтажа: 72 линии. Это количество, а не цена.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "10",
+      "value": "Quartz Bridge",
+      "source": "Секретное кодовое название ещё не выпущенного проекта: Quartz Bridge.",
+      "expected_verdict": "mask",
+      "expected_kind": "PROJ",
+      "expected_scope": "team"
+    },
+    {
+      "case": "11",
+      "value": "Quartz",
+      "source": "Quartz — общедоступное название минерала в статье энциклопедии.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "12",
+      "value": "ledgerbox",
+      "source": "Внутренний путь /srv/ledgerbox/jobs.log. ledgerbox — частный компонент пути, название проекта неизвестно.",
+      "expected_verdict": "mask",
+      "expected_kind": "PATH",
+      "expected_scope": "team"
+    },
+    {
+      "case": "13",
+      "value": "jq",
+      "source": "jq — название публичной утилиты обработки JSON в открытой инструкции.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "14",
+      "value": "4ca93e7b69290d32c587e27902bb611d3af04721",
+      "source": "Публичный Git commit: 4ca93e7b69290d32c587e27902bb611d3af04721. Это ревизия открытого репозитория, не ключ доступа.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "15",
+      "value": "fixture_kpn_V7m2G9q4L6z8",
+      "source": "Внутренняя конфигурация: api_key=fixture_kpn_V7m2G9q4L6z8. Значение даёт доступ к тестовому API.",
+      "expected_verdict": "mask",
+      "expected_kind": "SECRET",
+      "expected_scope": "personal"
+    },
+    {
+      "case": "16",
+      "value": "Софья Алексеевна Лескова",
+      "source": "Внутренний документ: ответственная сотрудница Софья Алексеевна Лескова.",
+      "expected_verdict": "mask",
+      "expected_kind": "PERSON",
+      "expected_scope": "personal"
+    },
+    {
+      "case": "17",
+      "value": "cache.orchid.test",
+      "source": "Внутренний сервер кэша: cache.orchid.test. Адрес не публикуется.",
+      "expected_verdict": "mask",
+      "expected_kind": "HOST",
+      "expected_scope": "team"
+    },
+    {
+      "case": "18",
+      "value": "HTTP 503",
+      "source": "Публичная документация протокола: HTTP 503 означает временную недоступность сервера.",
+      "expected_verdict": "keep"
+    },
+    {
+      "case": "19",
+      "value": "Orchid Harbour",
+      "source": "Orchid Harbour",
+      "expected_verdict": "review"
+    },
+    {
+      "case": "20",
+      "value": "Поставка кабеля | 72 | 8 470,50 ₽",
+      "source": "Закрытая смета. Столбцы: Наименование | Количество | Цена.\nПоставка кабеля | 72 | 8 470,50 ₽\nКоличество публично, цена является коммерческой тайной.",
+      "expected_verdict": "review"
+    }
+  ]
+}
