@@ -1259,5 +1259,16 @@
   "Провайдер остановил ответ по лимиту": "Provider stopped at a limit",
   "Модель нарушила формат находок или допустимые типы. Попробуйте режим «Только значения» в дополнительных параметрах.": "The model violated the finding format or allowed kinds. Try Values only in advanced settings.",
   "Бюджет контекста": "Context budget",
-  "Исходник вместе с контекстом превышает допустимый размер запроса к локальной модели.": "Source and context exceed the local model request size limit."
+  "Исходник вместе с контекстом превышает допустимый размер запроса к локальной модели.": "Source and context exceed the local model request size limit.",
+  "Модели недостаточно данных для решения": "The model has insufficient evidence to decide",
+  "Проверьте контекст и выберите решение вручную или повторите пересмотр.": "Check the context and decide manually, or run the review again.",
+  "Модели недостаточно данных. Выберите решение вручную или повторите пересмотр.": "The model has insufficient evidence. Decide manually or run the review again.",
+  "Тип предложен детектором по признакам текста. Приватность значения нужно подтвердить по контексту.": "The detector proposed a type using text features. Confirm whether the value is private from its context.",
+  "Формат JSON-ответа": "JSON response format",
+  "Авто": "Auto",
+  "Ограничение JSON Schema": "JSON Schema constraint",
+  "JSON по инструкции": "JSON from instructions",
+  "Режим для обращений к LLM. Авто проверяет поддержку JSON Schema у локальной среды. «JSON по инструкции» передаёт схему в подсказке без ограничителя; ответ всё равно проверяется. Нативный S1 использует собственный протокол.": "Mode for LLM requests. Auto checks JSON Schema support in the local runtime. JSON from instructions places the schema in the prompt without a decoder constraint; the response is still validated. Native S1 uses its own protocol.",
+  "Сколько значений проверять за одно обращение. 1 — отдельный запрос для каждой находки. Большему пакету нужны контекст, лимит ответа и время; при обрывах уменьшите пакет.": "How many values to check in one request. 1 sends a separate request for each finding. Larger batches require context, output tokens and time; reduce the batch if responses are interrupted.",
+  "Проверьте контекст, лимит ответа, резерв, размер пакета и формат JSON.": "Check context, output limit, reserve, batch size and JSON format."
 }

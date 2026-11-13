@@ -254,7 +254,7 @@ def main():
                 # Real worker/proxy/UI HF flow, with only metadata and tiny GGUF bytes mocked.
                 for role in ['analysis','categorization','worker']:
                     select='#worker-model' if role=='worker' else f'#{role}-local-model'
-                    for model in ['minicpm5-2b','qwen3.5-2b','huihui-qwen3.5-2b-abliterated']:
+                    for model in ['minicpm5-2b','qwen3.5-2b','huihui-qwen3.5-2b-abliterated','nanbeige42-3b','granite42-3b','gemma4-e4b-qat']:
                         assert page.locator(select+f' option[value="{model}"]').count()==1
                 hf_bytes=b'GGUFfixture-custom-model';hf_sha=hashlib.sha256(hf_bytes).hexdigest();revision='a'*40
                 original_open=urllib.request.urlopen;metadata_requests=[]
@@ -308,7 +308,7 @@ def main():
             report = {'passed': True, 'downloads': len(downloads), 'cases': ['offline verification', 'network error and retry',
                       'duplicate installation', 'same-size corruption', 'independent model stages', 'waiting and readiness',
                       'unsaved form and focus', 'empty sessions', 'legacy errors', 'partial save', 'old and offline worker',
-                      'languages, themes and viewport sizes','unknown catalog ID','three additional presets','HF repository and file selection',
+                      'languages, themes and viewport sizes','unknown catalog ID','six additional presets','HF repository and file selection',
                       'invalid HF URL and unsupported format','HF import without hidden download or settings changes',
                       'custom GGUF integrity, selection and reload','custom offline instructions']}
             (args.output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')

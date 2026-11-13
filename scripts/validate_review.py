@@ -8,7 +8,7 @@ from validate_console import free_port,wait_for
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('binary',type=Path);parser.add_argument('--output',type=Path,default=Path('artifacts/review'));args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
-    fail=threading.Event();release=threading.Event();release.set();seen=[]
+    fail=threading.Event();release=threading.Event();release.set();seen=[];seen_formats=[]
     class Provider(BaseHTTPRequestHandler):
         def log_message(self,*_):pass
         def respond(self,data,status=200):
@@ -21,12 +21,13 @@ def main():
             if self.path in ['/enable','/disable']:self.respond({'enabled':True});return
             if self.path=='/evaluate':
                 self.respond({'decisions':[{'kind':'AMOUNT','scope':'personal','confidence':.99} for _ in body['input']['candidates']]});return
-            if body.get('response_format'):
+            if body.get('response_format') or any(isinstance(m.get('content'),str) and 'JSON Schema:' in m['content'] for m in body.get('messages',[])):
+                seen_formats.append('response_format' in body)
                 content=json.loads(body['messages'][-1]['content']);seen.append(content)
                 if 'items' in content:
                     release.wait(timeout=10)
                     if fail.is_set():self.respond({'error':'RAW_BODY_MUST_NOT_LEAK'},503);return
-                    result={'decisions':[{'id':item['id'],'action':'keep' if 'publictool' in item['value'] else 'mask','kind':'PROJ','scope':'team','confidence':.97,'reason':'Confirmed private project in source context.'} for item in content['items']]}
+                    result={'decisions':[{'id':item['id'],'action':'review' if 'uncertain' in item['value'] else 'keep' if 'publictool' in item['value'] else 'mask','kind':'PROJ','scope':'team','confidence':.97,'reason':'Not enough context to establish confidentiality.' if 'uncertain' in item['value'] else 'Confirmed private project in source context.'} for item in content['items']]}
                 else:result={'candidates':[{'value':'40%','kind':'PERSON','confidence':.90},{'value':'1 320,00 ₽','kind':'SVC','confidence':.78}]}
                 self.respond({'choices':[{'finish_reason':'stop','message':{'content':json.dumps(result,ensure_ascii=False)}}]});return
             self.respond({'choices':[{'message':{'role':'assistant','content':'ready'}}]})
@@ -43,6 +44,7 @@ def main():
         try:
             wait_for(lambda:api('/api/v1/ui/info'))
             settings=api('/api/v1/ui/analysis')['settings'];settings.update(provider='api',model='fixture-review',url=upstream+'/v1/chat/completions',enabled=True,background=False,auto_apply=False)
+            settings['inference']['response_format']='prompt'
             cat=api('/api/v1/ui/categorization')['settings'];cat['provider']='none';api('/api/v1/ui/categorization',{'settings':cat},'PUT');api('/api/v1/ui/analysis',{'settings':settings},'PUT')
             api('/api/v1/ui/analysis/documents',{'documents':[{'name':'financial-fixture.md','text':'Private commercial conditions: Аванс 40%, цена 1 320,00 ₽.'}]})
             wait_for(lambda:len([i for i in rows() if i['origin']=='learning'])==2)
@@ -53,6 +55,11 @@ def main():
                 try:
                     page.goto(base+'/ui/#analysis');page.locator('#analysis-enabled').wait_for()
                     wait_for(lambda:page.locator('#analysis-enabled').is_enabled())
+                    assert page.locator('#analysis-response-format').input_value()=='prompt'
+                    page.locator('#analysis-response-format').evaluate("e=>e.closest('details').open=true")
+                    page.locator('#analysis-response-format').select_option('grammar');page.locator('#analysis-save').click()
+                    wait_for(lambda:api('/api/v1/ui/analysis')['settings']['inference']['response_format']=='grammar')
+                    page.locator('#analysis-response-format').select_option('prompt');page.locator('#analysis-save').click();wait_for(lambda:api('/api/v1/ui/analysis')['settings']['inference']['response_format']=='prompt')
                     checked=page.locator('#analysis-enabled').is_checked();help_button=page.locator('#analysis-form .help-check .setting-help-button').first
                     help_button.click();page.locator('#setting-help-popup').wait_for();assert page.locator('#analysis-enabled').is_checked()==checked
                     assert not page.locator('#analysis-enabled-help').is_visible()
@@ -67,6 +74,7 @@ def main():
                     wait_for(lambda:any(i.get('recommendation',{}).get('state')=='succeeded' for i in rows() if i['key']==target['key']))
                     page.locator('#review-refresh').click();card.locator('.review-recommendation').wait_for()
                     assert json.dumps(api('/api/v1/rules'))==rules_before_review
+                    assert seen_formats and not any(seen_formats)
                     assert rows()[0].get('origin')
                     card.get_by_role('button',name='Применить рекомендацию',exact=True).click()
                     assert 'Команда' in page.locator('#review-confirm').inner_text()
@@ -89,6 +97,18 @@ def main():
                     fail.set();page.locator('#review-refresh').click();card=page.locator(selector);card.get_by_role('button',name='Пересмотреть моделью',exact=True).click();page.locator('#review-confirm-run').click()
                     wait_for(lambda:any(i['key']==target['key'] and i.get('recommendation',{}).get('state')=='failed' for i in rows()))
                     page.locator('#review-refresh').click();assert 'RAW_BODY_MUST_NOT_LEAK' not in page.locator('#review-list').inner_text();fail.clear()
+                    # A successful call can abstain: show why and prohibit automatic application.
+                    seed('zorgreviewuncertain');page.locator('#review-refresh').click()
+                    uncertain=next(i for i in rows() if i['value']=='zorgreviewuncertain')
+                    uncertain_card=page.locator('[data-review-key="'+uncertain['key']+'"]')
+                    before=json.dumps(api('/api/v1/rules'))
+                    uncertain_card.get_by_role('button',name='Пересмотреть моделью',exact=True).click();page.locator('#review-confirm-run').click()
+                    wait_for(lambda:any(i['key']==uncertain['key'] and i.get('recommendation',{}).get('state')=='needs_review' for i in rows()))
+                    page.locator('#review-refresh').click();uncertain_card.locator('.review-recommendation').wait_for()
+                    assert 'Модели недостаточно данных' in uncertain_card.inner_text()
+                    assert uncertain_card.get_by_role('button',name='Применить рекомендацию',exact=True).count()==0
+                    assert uncertain_card.locator('option[value="auto"]').is_disabled()
+                    assert json.dumps(api('/api/v1/rules'))==before
                     # The event exposes a concrete reason and stable links, without leaking values in summaries.
                     api('/v1/chat/completions',{'model':'fixture-review','messages':[{'role':'user','content':'Read /srv/zorgrevieweventalpha/config.toml'}]})
                     event=wait_for(lambda:next((e for e in api('/api/v1/metrics')['traffic']['events'] if e['usage']['uncertain']),None))
@@ -136,7 +156,7 @@ def main():
                     page.screenshot(path=str(args.output/'failure.png'),full_page=True);(args.output/'browser-errors.json').write_text(json.dumps(errors))
                     (args.output/'failure-state.json').write_text(json.dumps({'learning':api('/api/v1/ui/learning'),'review':rows('all')},ensure_ascii=False,indent=2));raise
                 finally:browser.close()
-            report={'passed':True,'checks':['help popup','honest category stages','async model review','explicit apply','rollback and restore','close and reopen','KEEP exception','no heuristic fallback','event links and privacy','explicit review from event','numeric corrections require confirmation','selection and grouping','RU/EN themes and mobile']};(args.output/'result.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
+            report={'passed':True,'checks':['help popup','honest category stages','async model review','prompt JSON profile roundtrip and API payload','explicit apply','rollback and restore','close and reopen','KEEP exception','no heuristic fallback','inconclusive review stays pending','event links and privacy','explicit review from event','numeric corrections require confirmation','selection and grouping','RU/EN themes and mobile']};(args.output/'result.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
         finally:release.set();process.terminate();process.wait(timeout=20);log.close();provider.shutdown();provider.server_close()
 
 if __name__=='__main__':main()

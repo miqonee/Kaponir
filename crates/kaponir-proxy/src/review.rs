@@ -406,6 +406,10 @@ struct Target {
     key: String,
     fingerprint: String,
 }
+fn model_id(target: &Target) -> String {
+    blake3::hash(format!("{}\0{}", target.key, target.fingerprint).as_bytes()).to_hex()[..24]
+        .to_owned()
+}
 #[derive(Deserialize)]
 struct Submit {
     keys: Vec<String>,
@@ -488,7 +492,7 @@ async fn job(State(st): State<Shared>, headers: HeaderMap, Path(id): Path<String
 fn schema(ids: &[String]) -> Value {
     let count = ids.len();
     json!({"type":"object","properties":{"decisions":{"type":"array","minItems":count,"maxItems":count,"items":{"type":"object","properties":{
-        "id":{"type":"string","enum":ids},"action":{"type":"string","enum":["mask","keep"]},"kind":{"type":"string","enum":kaponir_core::kinds::STANDARD},
+        "id":{"type":"string","enum":ids},"action":{"type":"string","enum":["mask","keep","review"]},"kind":{"type":"string","enum":kaponir_core::kinds::STANDARD},
         "scope":{"type":"string","enum":["personal","team","global"]},"confidence":{"type":"number","minimum":0,"maximum":1},"reason":{"type":"string","minLength":1,"maxLength":400}},
         "required":["id","action","kind","scope","confidence","reason"],"additionalProperties":false}}},"required":["decisions"],"additionalProperties":false})
 }
@@ -554,18 +558,13 @@ async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
                     .any(|c| c.hard && c.category == kaponir_core::Category::Credential),
                 "protected_credential"
             );
-            input.push(json!({"id":target.key,"value":item["value"],"kind":item["kind"],"context":redacted_context(st,item["context"].as_str().unwrap_or_default(),value)}));
+            input.push(json!({"id":model_id(target),"value":item["value"],"kind":item["kind"],"context":redacted_context(st,item["context"].as_str().unwrap_or_default(),value)}));
         }
         let reply = learning::review_infer(
             st,
             job["source"]["role"].as_str().unwrap(),
             json!(input),
-            schema(
-                &batch
-                    .iter()
-                    .map(|target| target.key.clone())
-                    .collect::<Vec<_>>(),
-            ),
+            schema(&batch.iter().map(model_id).collect::<Vec<_>>()),
         )
         .await?;
         anyhow::ensure!(
@@ -581,13 +580,14 @@ async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
         );
         let mut validated = Vec::new();
         for target in batch {
-            let found: Vec<_> = decisions.iter().filter(|d| d["id"] == target.key).collect();
+            let id = model_id(target);
+            let found: Vec<_> = decisions.iter().filter(|d| d["id"] == id).collect();
             anyhow::ensure!(found.len() == 1, "invalid_classification_response");
             let d = found[0];
             let kind = d["kind"].as_str().unwrap_or_default();
             anyhow::ensure!(
                 kaponir_core::kinds::STANDARD.contains(&kind)
-                    && matches!(d["action"].as_str(), Some("mask" | "keep"))
+                    && matches!(d["action"].as_str(), Some("mask" | "keep" | "review"))
                     && d["confidence"]
                         .as_f64()
                         .is_some_and(|p| p.is_finite() && (0.0..=1.0).contains(&p))
@@ -601,14 +601,19 @@ async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
             );
             let item = current.iter().find(|i| i["key"] == target.key).unwrap();
             anyhow::ensure!(
-                !kaponir_core::kinds::type_conflict(
-                    kind,
-                    item["value"].as_str().unwrap_or_default()
-                ),
+                d["action"] == "review"
+                    || !kaponir_core::kinds::type_conflict(
+                        kind,
+                        item["value"].as_str().unwrap_or_default()
+                    ),
                 "type_format_conflict"
             );
             let mut rec = d.clone();
-            rec["state"] = json!("succeeded");
+            rec["state"] = json!(if d["action"] == "review" {
+                "needs_review"
+            } else {
+                "succeeded"
+            });
             rec["job_id"] = job["id"].clone();
             rec["revision"] = job["revision"].clone();
             rec["fingerprint"] = json!(target.fingerprint);
@@ -688,6 +693,9 @@ async fn apply(
         .unwrap_or_else(|| kaponir_core::s1::default_scope_for_kind(&kind));
     if req.use_recommendation {
         let rec = &item["recommendation"];
+        if rec["state"] == "needs_review" {
+            return Err(bad("review_inconclusive"));
+        }
         if rec["state"] != "succeeded" {
             return Err(bad("review_stale"));
         }

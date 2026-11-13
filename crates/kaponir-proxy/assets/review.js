@@ -6,6 +6,7 @@ const reviewReasons = {
   type_format_conflict: "Предложенный тип противоречит формату значения. Автоматическое применение запрещено.",
   type_rechecked: "Исходный тип противоречил формату значения и был перепроверен категоризатором.",
   protected_credential: "Защищённые учётные данные не передаются модели для пересмотра.",
+  review_inconclusive: "Модели недостаточно данных. Выберите решение вручную или повторите пересмотр.",
   review_stale: "Рекомендация устарела. Пересмотрите запись заново.",
   interrupted_review: "Пересмотр прерван перезапуском. Его можно запустить заново.",
   review_busy: "Уже выполняются задания пересмотра. Дождитесь их завершения.",
@@ -39,7 +40,7 @@ function detectorReason(item) {
   const sources = (item.evidence || []).map((e) => e.source);
   if (sources.includes("private-path-root")) return tr("Неизвестная часть пути в частном каталоге. Название проекта не подтверждено.");
   if (sources.includes("name:pair")) return tr("Слова похожи на сочетание имени и фамилии. Детектор не подтвердил, что это человек.");
-  return tr("Оценка попала в спорный диапазон. В запросе применена выбранная политика обработки таких случаев.");
+  return tr("Тип предложен детектором по признакам текста. Приватность значения нужно подтвердить по контексту.");
 }
 function showReview(keys = [], view = "pending") {
   ReviewUI.keys = keys.join(","); ReviewUI.offset = 0; ReviewUI.view = view; ReviewUI.selected.clear();
@@ -97,6 +98,11 @@ function reviewCard(item) {
     h("p", {}, `${kindLabel(rec.kind)} · ${scopeLabel(rec.scope)} · ${tr("Оценка пересмотра")}: ${reviewPercent(rec.confidence)}`),
     h("p", {}, rec.reason === "configured_categorizer" ? tr("Рекомендация настроенного категоризатора") : rec.reason),
     h("small", { class: "hint" }, modelName(rec.model))));
+  else if (rec?.state === "needs_review") article.append(h("div", { class: "review-recommendation inconclusive" },
+    h("strong", {}, tr("Модели недостаточно данных для решения")),
+    h("p", {}, rec.reason),
+    h("small", { class: "hint" }, tr("Проверьте контекст и выберите решение вручную или повторите пересмотр.")),
+    h("p", { class: "hint" }, modelName(rec.model))));
   else if (rec) article.append(h("p", { class: "err" }, rec.state === "stale" ? reviewError("review_stale") : reviewError(rec.error)));
   article.append(evidence);
   const controls = h("div", { class: "review-card-actions" });
@@ -135,7 +141,7 @@ function inferenceDetails(job) {
     h("div",{class:"table-wrap"},h("table",{},h("thead",{},h("tr",{},...["Обращение","Вход","Ответ","Бюджет контекста","Завершение"].map(key=>h("th",{},tr(key))))),
       h("tbody",{},...job.inference.map((trace,index)=>h("tr",{},h("td",{},String(index+1)),h("td",{},trace.prompt_tokens??"—"),
         h("td",{},`${trace.completion_tokens??"—"} / ${trace.max_output_tokens??"—"}`),h("td",{},trace.context_tokens??"—"),
-        h("td",{},trace.finish_reason||"—",trace.finish_reason==="length"?" · "+tr(trace.token_count_method==="runtime_tokenizer"&&(trace.total_tokens??0)>=(trace.context_tokens??Infinity)?"Исчерпан контекст":(trace.completion_tokens??0)>=(trace.max_output_tokens??Infinity)?"Достигнут лимит ответа":"Провайдер остановил ответ по лимиту"):"",trace.http_status>=400?` · HTTP ${trace.http_status}`:"",trace.runtime_exit_code!=null?` · exit ${trace.runtime_exit_code}`:"",trace.error?" · "+learningError(trace.error):"")))))));
+        h("td",{},trace.finish_reason||"—",trace.finish_reason==="length"?" · "+tr(trace.token_count_method==="runtime_tokenizer"&&(trace.total_tokens??0)>=(trace.context_tokens??Infinity)?"Исчерпан контекст":(trace.completion_tokens??0)>=(trace.max_output_tokens??Infinity)?"Достигнут лимит ответа":"Провайдер остановил ответ по лимиту"):"",trace.http_status>=400?` · HTTP ${trace.http_status}`:"",trace.runtime_exit_code!=null?` · exit ${trace.runtime_exit_code}`:"",trace.error?" · "+learningError(trace.error):"",trace.structured_output?h("div",{class:"hint"},tr(trace.structured_output==="json_prompt"?"JSON по инструкции":"Ограничение JSON Schema")):null)))))));
 }
 function renderReview(force = false) {
   const data = ReviewUI.data;

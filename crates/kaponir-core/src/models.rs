@@ -8,6 +8,9 @@ pub fn valid_local_id(model: &str) -> bool {
             | "qwen3.5-0.8b"
             | "qwen3.5-2b"
             | "minicpm5-2b"
+            | "nanbeige42-3b"
+            | "granite42-3b"
+            | "gemma4-e4b-qat"
             | "huihui-qwen3.5-2b-abliterated"
     ) || model.strip_prefix("hf-").is_some_and(|id| {
         id.len() == 24
@@ -25,6 +28,9 @@ mod tests {
         for model in [
             "qwen3.5-2b",
             "minicpm5-2b",
+            "nanbeige42-3b",
+            "granite42-3b",
+            "gemma4-e4b-qat",
             "huihui-qwen3.5-2b-abliterated",
             "hf-0123456789abcdef01234567",
         ] {

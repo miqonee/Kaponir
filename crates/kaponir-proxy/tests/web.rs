@@ -284,9 +284,17 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
     async fn model(axum::Json(body): axum::Json<Value>) -> axum::Json<Value> {
         let input: Value =
             serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        for item in input["items"].as_array().unwrap() {
+            assert_eq!(item.as_object().unwrap().len(), 3);
+            let id = item["id"].as_str().unwrap();
+            assert_eq!(id.len(), 24);
+            assert!(id.bytes().all(|b| b.is_ascii_hexdigit()));
+            assert!(item.get("kind").is_none());
+            assert!(item.get("probability").is_none());
+        }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        let decisions:Vec<_>=input["items"].as_array().unwrap().iter().map(|item|json!({"id":item["id"],"action":"mask","kind":"PROJ","scope":"team",
-            "confidence":if item["context"].as_str().unwrap().contains("InvalidScore") {100.0} else {0.97},"reason":"A private project in the quoted path."})).collect();
+        let decisions:Vec<_>=input["items"].as_array().unwrap().iter().map(|item|json!({"id":item["id"],"action":if item["context"].as_str().unwrap().contains("UncertainReview") {"review"} else {"mask"},"kind":"PROJ","scope":"team",
+            "confidence":if item["context"].as_str().unwrap().contains("InvalidScore") {100.0} else {0.97},"reason":if item["context"].as_str().unwrap().contains("UncertainReview") {"Context does not establish confidentiality."} else {"A private project in the quoted path."}})).collect();
         axum::Json(
             json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"decisions":decisions}).to_string()}}]}),
         )
@@ -417,6 +425,63 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
     let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
     assert_eq!(list["items"][0]["probability"], item["probability"]);
     assert_eq!(list["items"][0]["recommendation"]["state"], "failed");
+    // A completed model request may still have no actionable recommendation.
+    mask(
+        &base,
+        "deploy to /srv/UncertainReview/releases",
+        json!({"commit":true}),
+    )
+    .await;
+    let (_, pending) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    let uncertain = pending["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["value"] == "UncertainReview")
+        .unwrap();
+    let (_, review) = call(
+        "POST",
+        format!("{base}/api/v1/ui/review/jobs"),
+        Some(json!({"keys":[uncertain["key"]],"model_source":"analysis"})),
+    )
+    .await;
+    for _ in 0..100 {
+        state = call(
+            "GET",
+            format!(
+                "{base}/api/v1/ui/review/jobs/{}",
+                review["id"].as_str().unwrap()
+            ),
+            None,
+        )
+        .await
+        .1;
+        if matches!(state["state"].as_str(), Some("succeeded" | "failed")) {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    }
+    assert_eq!(state["state"], "succeeded");
+    let (_, pending) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    let uncertain = pending["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["value"] == "UncertainReview")
+        .unwrap();
+    assert_eq!(uncertain["state"], "open");
+    assert_eq!(uncertain["recommendation"]["state"], "needs_review");
+    let (status, rejected) = call(
+        "POST",
+        format!(
+            "{base}/api/v1/ui/review/detector/{}/apply",
+            uncertain["id"].as_str().unwrap()
+        ),
+        Some(json!({"use_recommendation":true})),
+    )
+    .await;
+    assert_eq!(status, 400);
+    assert!(rejected.to_string().contains("review_inconclusive"));
     assert_eq!(
         call("GET", format!("{base}/api/v1/rules"), None).await.1,
         rules

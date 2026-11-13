@@ -37,6 +37,9 @@ const builtinModelChoices = [
   ["qwen3.5-2b", "Qwen3.5-2B · Q4_K_M", 1280835840],
   ["minicpm5-2b", "MiniCPM5-2B · Q4_K_M", 1561318368],
   ["huihui-qwen3.5-2b-abliterated", "Huihui-Qwen3.5-2B-abliterated · Q4_K_M", 1270809024],
+  ["nanbeige42-3b", "Nanbeige4.2-3B · Q4_K_M", 2684023968],
+  ["granite42-3b", "Granite-4.2-3B · Q4_K_M", 2244011552],
+  ["gemma4-e4b-qat", "Gemma 4 E4B · QAT Q4_0", 5154941280],
 ].map(([id,label,bytes])=>({id,label,bytes}));
 function modelSelect(role) { return $(role === "worker" ? "#worker-model" : `#${role}-local-model`); }
 function ensureModelChoice(model) {

@@ -39,12 +39,13 @@ except NameError:
 
 
 def inference_settings(value):
-    defaults={'context_tokens':4096,'max_output_tokens':1600,'reserve_tokens':64,'batch_size':2}
+    defaults={'context_tokens':4096,'max_output_tokens':1600,'reserve_tokens':64,'batch_size':2,'response_format':'auto'}
     if not isinstance(value,dict):raise ValueError('invalid_inference_settings')
     result={**defaults,**value}
     for name,maximum in [('context_tokens',262144),('max_output_tokens',131072),('reserve_tokens',8192),('batch_size',64)]:
         minimum=0 if name=='reserve_tokens' else 1
         if type(result[name]) is not int or not minimum<=result[name]<=maximum:raise ValueError('invalid_inference_settings')
+    if result['response_format'] not in ['auto','grammar','prompt']:raise ValueError('invalid_inference_settings')
     if result['max_output_tokens']+result['reserve_tokens']>=result['context_tokens']:raise ValueError('invalid_inference_settings')
     return result
 
@@ -54,6 +55,10 @@ class InferenceError(ValueError):
         super().__init__(code)
         self.telemetry=telemetry
 
+def schema_prompt(prompt, schema):
+    return prompt+'\nReturn exactly one JSON object matching this JSON Schema. No Markdown fences or bare arrays. JSON Schema: '+json.dumps(schema,ensure_ascii=False,separators=(',',':'))
+
+
 MODEL_BASE = 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/'
 FILES = {
     'q4': ('Qwen3-0.6B-Q4_K_M.gguf', 396705472, 'f3fc6b7d42c01f07aa6fa2c517fa492c179f7de0e1fd2275fb8ed6e3c9c90c9f', 'https://huggingface.co/Qwen/Qwen3-0.6B-GGUF/resolve/main/Qwen3-0.6B-Q4_K_M.gguf'),
@@ -62,6 +67,9 @@ FILES = {
     'minicpm5-2b': ('MiniCPM5-2B-Q4_K_M.gguf', 1561318368, 'ec2d5801640099e97d8d7e8003ad4d81f336e757811f03a26173dddf386602fd', 'https://huggingface.co/openbmb/MiniCPM5-2B-GGUF/resolve/8ad02b786ab81e33d465e1c80562640c55ab2877/MiniCPM5-2B-Q4_K_M.gguf'),
     'qwen3.5-2b': ('Qwen3.5-2B-Q4_K_M.gguf', 1280835840, 'aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223', 'https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf'),
     'huihui-qwen3.5-2b-abliterated': ('Huihui-Qwen3.5-2B-abliterated.Q4_K_M.gguf', 1270809024, 'aa25eea787afe56a097268f7ed3460cb623e1901d2e89cd2b654cabb42f80636', 'https://huggingface.co/mradermacher/Huihui-Qwen3.5-2B-abliterated-GGUF/resolve/7f5aee7d2dc4df18bd67eab85ea81e0bc2e98a2c/Huihui-Qwen3.5-2B-abliterated.Q4_K_M.gguf'),
+    'nanbeige42-3b': ('Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf', 2684023968, 'b92d2e35c9876b0c4bc671996360204f4149d0546c23d5954d5eb3b106c81f24', 'https://huggingface.co/bartowski/Nanbeige_Nanbeige4.2-3B-GGUF/resolve/17562eefe9752007209148d5f7a6e275fc8d8077/Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf'),
+    'granite42-3b': ('granite-4.2-3b-Q4_K_M.gguf', 2244011552, 'e0406663965846ae22a403456eb826ccce5f450840491f71952f18a7cb78e7d5', 'https://huggingface.co/ibm-granite/granite-4.2-3b-GGUF/resolve/c40945d71cd90f249a56985e8155551a9188dc30/granite-4.2-3b-Q4_K_M.gguf'),
+    'gemma4-e4b-qat': ('gemma-4-E4B_q4_0-it.gguf', 5154941280, '676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee', 'https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/4b4a2c1d584be7264f87aac328a1bc739ce81b6c/gemma-4-E4B_q4_0-it.gguf'),
 }
 MODEL_ALIASES = {
     'q4': 'q4',
@@ -72,6 +80,9 @@ MODEL_ALIASES = {
     'minicpm5-2b': 'minicpm5-2b',
     'qwen3.5-2b': 'qwen3.5-2b',
     'huihui-qwen3.5-2b-abliterated': 'huihui-qwen3.5-2b-abliterated',
+    'nanbeige42-3b': 'nanbeige42-3b',
+    'granite42-3b': 'granite42-3b',
+    'gemma4-e4b-qat': 'gemma4-e4b-qat',
 }
 MODEL_LABELS = {
     'q4': 'Qwen3-0.6B · Q4_K_M',
@@ -80,6 +91,9 @@ MODEL_LABELS = {
     'minicpm5-2b': 'MiniCPM5-2B · Q4_K_M',
     'qwen3.5-2b': 'Qwen3.5-2B · Q4_K_M',
     'huihui-qwen3.5-2b-abliterated': 'Huihui-Qwen3.5-2B-abliterated · Q4_K_M',
+    'nanbeige42-3b': 'Nanbeige4.2-3B · Q4_K_M',
+    'granite42-3b': 'Granite-4.2-3B · Q4_K_M',
+    'gemma4-e4b-qat': 'Gemma 4 E4B · QAT Q4_0',
 }
 RUNTIME_NAME = 'llama-b12038-bin-ubuntu-x64.tar.gz'
 RUNTIME_URL = 'https://github.com/ggml-org/llama.cpp/releases/download/b12038/' + RUNTIME_NAME
@@ -347,6 +361,7 @@ class Worker:
         self.evaluation_limit = 1
         self.process_slots = 1
         self.process_context_tokens = 0
+        self.process_supports_json_schema = None
         self.evaluation_profile = None
         self.token_counts = OrderedDict()
         self.token_lock = threading.Lock()
@@ -602,7 +617,7 @@ class Worker:
         models['qwen3-0.6b'] = dict(models['q4'])
         models['qwen3-0.6b-q8'] = dict(models['q5'])
         runtime = self.runtime_info()
-        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'token_planning':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],'catalog':catalog,'hf_import':True,
+        return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'token_planning':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'runtime_json_schema_supported':self.process_supports_json_schema,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],'catalog':catalog,'hf_import':True,
                 'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
                 'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'evaluations':len(self.evaluations),'jobs':[j for j in self.jobs() if j['kind'] != 'evaluate']}
 
@@ -696,6 +711,32 @@ class Worker:
         if not os.access(self.runtime, os.X_OK): raise InstallationError('runtime_not_executable')
         self.update(ident, stage='ready')
 
+    def detect_json_schema(self):
+        # Probe the loaded runtime, never guess capabilities from a model name.
+        # The probe contains no document data and does not evaluate model quality.
+        self.process_supports_json_schema = True
+        schema={'type':'object','properties':{'ok':{'type':'boolean'}},'required':['ok'],'additionalProperties':False}
+        try:
+            http_json(self.ocr_base+'/v1/chat/completions',{
+                'model':'qwen-cpu','messages':[{'role':'user','content':'Return a JSON object.'}],
+                'temperature':0,'max_tokens':1,'stream':False,'cache_prompt':False,
+                'chat_template_kwargs':{'enable_thinking':False},
+                'response_format':{'type':'json_schema','json_schema':{'name':'capability','strict':True,'schema':schema}}},timeout=min(30,self.cfg['ocr_timeout_seconds']))
+        except urllib.error.HTTPError as exc:
+            try:
+                error=json.loads(exc.read(4096))
+            except (ValueError,UnicodeError):
+                raise exc from None
+            message=error.get('error',{}).get('message','') if isinstance(error,dict) and isinstance(error.get('error'),dict) else ''
+            if exc.code==400 and isinstance(message,str) and message.startswith('Failed to initialize samplers:'):
+                self.process_supports_json_schema = False
+            else:
+                raise exc from None
+
+    def structured_prompt(self, prompt, schema, response_format='auto'):
+        use_prompt=response_format=='prompt' or response_format=='auto' and self.process_supports_json_schema is False
+        return schema_prompt(prompt,schema) if use_prompt else prompt
+
     def start_runtime(self, ident, variant, slots=1, context_tokens=4096):
         variant = self.canonical_model(variant)
         if self.process and self.process.poll() is None and self.process_variant == variant and self.process_slots == slots and self.process_context_tokens==context_tokens: return
@@ -707,7 +748,11 @@ class Worker:
         self.ocr_base=f'http://127.0.0.1:{port}'
         cmd=[str(self.runtime),'-m',str(self.models/self.model_files()[variant][0]),
              '--host','127.0.0.1','--port',str(port),'-c',str(context_tokens*slots),'-np',str(slots),'-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
-             '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning','off','--no-mmproj']
+             '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning','off','--no-mmproj',
+             '--cache-ram','0','--no-cache-idle-slots']
+        # Each request is independent (cache_prompt=False). The server's separate
+        # default 8 GiB RAM cache still saves old states unless disabled explicitly;
+        # recurrent models can otherwise accumulate ~100 MiB per request.
         # Runtime output may contain source text; do not persist it as a log.
         self.process=subprocess.Popen(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
         self.process_variant = variant
@@ -719,8 +764,11 @@ class Worker:
             self.check(ident)
             if self.process.poll() is not None: raise ValueError('model_runtime_start_failed')
             try:
-                http_json(self.ocr_base+'/health',timeout=1);return
-            except (OSError,ValueError):time.sleep(.25)
+                http_json(self.ocr_base+'/health',timeout=1)
+            except (OSError,ValueError):
+                time.sleep(.25);continue
+            self.detect_json_schema()
+            return
         raise TimeoutError('LLM runtime startup timeout')
 
     def count_text_tokens(self, text):
@@ -738,6 +786,9 @@ class Worker:
 
     def prompt_token_count(self, prompt, source):
         messages=[{'role':'system','content':prompt},{'role':'user','content':json.dumps(source,ensure_ascii=False)}]
+        return self.message_token_count(messages)
+
+    def message_token_count(self, messages):
         formatted=http_json(self.ocr_base+'/apply-template',{'messages':messages,'chat_template_kwargs':{'enable_thinking':False},'add_generation_prompt':True})
         return self.count_text_tokens(formatted['prompt'])
 
@@ -748,6 +799,7 @@ class Worker:
                 try:process.wait(timeout=5)
                 except subprocess.TimeoutExpired:process.kill();process.wait()
         self.process=None;self.ocr_base=None;self.ocr_process=None;self.process_variant=None
+        self.process_supports_json_schema=None
 
     def ocr(self, ident, image, variant):
         """Extract text from image or scanned PDF page using local Tesseract OCR on CPU."""
@@ -818,6 +870,9 @@ class Worker:
                 self.check(ident)
                 self.start_runtime(ident, model, slots, context_tokens=context_tokens)
                 base = self.ocr_base
+                prompt = self.structured_prompt(prompt,schema,settings['response_format'])
+                supports_schema = settings['response_format']=='grammar' or settings['response_format']=='auto' and self.process_supports_json_schema is not False
+            telemetry['structured_output']='json_schema' if supports_schema else 'json_prompt'
             if body.get('operation')=='plan':
                 chunking=body.get('chunking',{})
                 text=source.get('source')
@@ -837,13 +892,15 @@ class Worker:
             telemetry['prompt_tokens']=self.prompt_token_count(prompt,source)
             if telemetry['prompt_tokens']+settings['max_output_tokens']+settings['reserve_tokens']>context_tokens:
                 raise ValueError('model_context_budget_exceeded')
-            reply = http_json(base+'/v1/chat/completions', {
+            payload = {
                 'model':'qwen-cpu', 'messages':[{'role':'system','content':prompt},
                     {'role':'user','content':json.dumps(source, ensure_ascii=False)}],
                 'temperature':0, 'max_tokens':settings['max_output_tokens'], 'stream':False, 'cache_prompt':False,
                 'chat_template_kwargs':{'enable_thinking':False},
                 'response_format':{'type':'json_schema','json_schema':{'name':'learning','strict':True,'schema':schema}},
-            }, timeout=self.cfg['ocr_timeout_seconds'])
+            }
+            if not supports_schema:payload.pop('response_format')
+            reply = http_json(base+'/v1/chat/completions',payload,timeout=self.cfg['ocr_timeout_seconds'])
             self.check(ident)
             choice = reply['choices'][0]
             telemetry['finish_reason']=choice.get('finish_reason') if choice.get('finish_reason') in ['stop','length','content_filter','error'] else 'other'
@@ -888,7 +945,7 @@ class Worker:
         payload = {
             'model': 'qwen3-cpu',
             'messages': [
-                {'role': 'system', 'content': CANDIDATE_PROMPT},
+                {'role': 'system', 'content': self.structured_prompt(CANDIDATE_PROMPT,CANDIDATE_SCHEMA)},
                 {'role': 'user', 'content': source},
             ],
             'temperature': 0,
@@ -901,6 +958,10 @@ class Worker:
                 'json_schema': {'name': 'candidates', 'strict': True, 'schema': CANDIDATE_SCHEMA},
             },
         }
+        if self.process_supports_json_schema is False:payload.pop('response_format')
+        reserve=inference_settings({})['reserve_tokens']
+        if self.message_token_count(payload['messages'])+payload['max_tokens']+reserve>self.process_context_tokens:
+            raise ValueError('model_context_budget_exceeded')
         reply = http_json(self.ocr_base + '/v1/chat/completions', payload, timeout=self.cfg['ocr_timeout_seconds'])
         self.check(ident)
         choice = reply['choices'][0]

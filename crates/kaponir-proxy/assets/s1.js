@@ -50,7 +50,7 @@ const learningErrors = {
   model_response_truncated: "Ответ модели обрезан",
   model_context_budget_exceeded: "Вход и лимит ответа превышают контекст модели. Уменьшите вход или увеличьте контекст в дополнительных параметрах.",
   model_input_budget_too_small: "В целевой вход не помещается инструкция модели. Увеличьте целевой вход или уменьшите контекст фрагмента в дополнительных параметрах.",
-  invalid_inference_settings: "Лимит ответа и резерв должны помещаться в контекст модели.",
+  invalid_inference_settings: "Проверьте контекст, лимит ответа, резерв, размер пакета и формат JSON.",
   invalid_chunk_settings: "Проверьте пределы разбиения в дополнительных параметрах.",
   document_fragment_limit: "Достигнут предел обращений на документ. Найденное сохранено на подтверждение. Увеличьте предел или разделите документ.",
   model_fragment_cannot_split: "Фрагмент уже нельзя уменьшить. Проверьте контекст, лимит ответа и совместимость модели с JSON.",
@@ -108,6 +108,7 @@ function renderLearningForms() {
     const s = data.settings;
     for (const [key, field] of Object.entries({context_tokens:"context-tokens", max_output_tokens:"output-tokens", reserve_tokens:"reserve-tokens", batch_size:"batch-size"}))
       $(`#${role}-${field}`).value = s.inference?.[key] ?? ({context_tokens:4096,max_output_tokens:1600,reserve_tokens:64,batch_size:2})[key];
+    $(`#${role}-response-format`).value = s.inference?.response_format || "auto";
     ensureModelChoice(canonicalModel(s.model));
     $(`#${role}-provider`).value = s.provider;
     if (role === "analysis") {
@@ -179,6 +180,7 @@ function readLearningForm(role) {
   }
   const key = $(`#${role}-key`).value.trim();
   settings.inference = Object.fromEntries(Object.entries({context_tokens:"context-tokens", max_output_tokens:"output-tokens", reserve_tokens:"reserve-tokens", batch_size:"batch-size"}).map(([key,field]) => [key,Number($(`#${role}-${field}`).value)]));
+  settings.inference.response_format = $(`#${role}-response-format`).value;
   if (role === "analysis") settings.chunking = {
     discovery_mode: $("#analysis-discovery-mode").value,
     strategy: $("#analysis-chunk-strategy").value,

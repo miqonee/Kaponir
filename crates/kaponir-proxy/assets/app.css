@@ -836,6 +836,7 @@ td small { display: block; }
 .review-current .setting-help-button { margin-left: 6px; }
 .review-recommendation { margin: 14px 0; padding: 14px 16px; border-left: 3px solid var(--accent); border-radius: 6px; background: var(--soft); font-size: 13px; }
 .review-recommendation p { margin: 8px 0; }
+.review-recommendation.inconclusive { border-color: var(--warning); background: var(--warning-bg); }
 .review-evidence { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 14px; font-size: 12px; }
 .review-evidence summary { color: var(--accent); cursor: pointer; }
 .review-evidence blockquote { margin: 12px 0; padding: 12px; background: var(--panel-subtle); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }

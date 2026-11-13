@@ -1,5 +1,6 @@
 """Queue lifecycle, file boundary, download integrity and HTTP auth without models."""
 import hashlib
+import io
 import errno
 import json
 from pathlib import Path
@@ -77,6 +78,21 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(self.worker.submit('download', model='q4')['id'], first['id'])
         self.worker.action(first['id'], 'cancel')
         self.assertNotEqual(self.worker.submit('download', model='q4')['id'], first['id'])
+
+    def test_independent_requests_do_not_accumulate_server_prompt_states(self):
+        self.worker.runtime.parent.mkdir(parents=True,exist_ok=True)
+        self.worker.runtime.write_text('fixture');self.worker.runtime.chmod(0o755)
+        job=self.worker.submit('evaluate',model='q4')
+        with patch.object(self.worker,'status',return_value={'models':{'q4':{'downloaded':True}}}), \
+             patch('kaponir_worker.subprocess.Popen') as launch, \
+             patch('kaponir_worker.http_json',return_value={}), \
+             patch.object(self.worker,'detect_json_schema'):
+            launch.return_value.poll.return_value=None
+            self.worker.start_runtime(job['id'],'q4')
+            command=launch.call_args.args[0]
+            self.assertEqual(command[command.index('--cache-ram')+1],'0')
+            self.assertIn('--no-cache-idle-slots',command)
+            self.worker.stop_runtime()
 
     def test_unreadable_files_do_not_break_status_and_removed_files_become_missing(self):
         path = self.worker.models / 'fixture.gguf'
@@ -233,6 +249,53 @@ class WorkerTests(unittest.TestCase):
                         self.worker.evaluate(body)
                     self.assertFalse(self.worker.evaluations)
                     self.assertEqual(self.worker.jobs()[0]['state'], 'failed')
+
+    def test_schema_capability_probe_detects_sampler_failure_without_document_data(self):
+        self.worker.ocr_base='http://fixture'
+        error=urllib.error.HTTPError('http://fixture',400,'Bad request',{},io.BytesIO(json.dumps({'error':{'message':'Failed to initialize samplers: std::exception'}}).encode()))
+        with patch('kaponir_worker.http_json',side_effect=error) as request:
+            self.worker.detect_json_schema()
+        self.assertFalse(self.worker.process_supports_json_schema)
+        probe=request.call_args.args[1]
+        self.assertEqual(probe['max_tokens'],1)
+        self.assertNotIn('input',probe)
+        self.worker.stop_runtime()
+        self.assertIsNone(self.worker.process_supports_json_schema)
+
+    def test_schema_probe_does_not_hide_unrelated_http_errors(self):
+        self.worker.ocr_base='http://fixture'
+        for code,message in [(400,'Other invalid argument'),(401,'Unauthorized'),(500,'Internal failure')]:
+            error=urllib.error.HTTPError('http://fixture',code,'fixture',{},io.BytesIO(json.dumps({'error':{'message':message}}).encode()))
+            with patch('kaponir_worker.http_json',side_effect=error):
+                with self.assertRaises(urllib.error.HTTPError):self.worker.detect_json_schema()
+
+    def test_prompt_schema_mode_includes_contract_in_token_budget_and_omits_grammar(self):
+        self.worker.ocr_base='http://fixture'
+        self.worker.process_supports_json_schema=False
+        body={'prompt':'Check source.','schema':{'type':'object'},'input':{'source':'fixture'},'telemetry':True}
+        reply={'choices':[{'finish_reason':'stop','message':{'content':'{}'}}]}
+        with patch.object(self.worker,'start_runtime'),patch.object(self.worker,'prompt_token_count',return_value=10) as count,patch('kaponir_worker.http_json',return_value=reply) as request:
+            result=self.worker.evaluate(body)
+            self.assertEqual(result['telemetry']['structured_output'],'json_prompt')
+            self.assertIn('JSON Schema:',count.call_args.args[0])
+            payload=request.call_args.args[1]
+            self.assertEqual(payload['messages'][0]['content'],count.call_args.args[0])
+            self.assertNotIn('response_format',payload)
+        with patch.object(self.worker,'start_runtime'),patch.object(self.worker,'prompt_token_count',return_value=3201),patch('kaponir_worker.http_json') as request:
+            with self.assertRaisesRegex(ValueError,'^model_context_budget_exceeded$'):self.worker.evaluate(body)
+            request.assert_not_called()
+
+    def test_explicit_json_format_is_validated_and_overrides_runtime_capability(self):
+        self.worker.ocr_base='http://fixture'
+        reply={'choices':[{'finish_reason':'stop','message':{'content':'{}'}}]}
+        for capability,mode,has_grammar in [(True,'prompt',False),(False,'grammar',True)]:
+            self.worker.process_supports_json_schema=capability
+            with patch.object(self.worker,'start_runtime'),patch.object(self.worker,'prompt_token_count',return_value=10),patch('kaponir_worker.http_json',return_value=reply) as request:
+                self.worker.evaluate({'prompt':'fixture','schema':{},'input':{},'inference':{'response_format':mode}})
+                self.assertEqual('response_format' in request.call_args.args[1],has_grammar)
+        for mode in ['unknown',None,True]:
+            with self.assertRaisesRegex(ValueError,'^invalid_inference_settings$'):
+                self.worker.evaluate({'inference':{'response_format':mode}})
 
     def test_context_preflight_reserves_output_before_generation(self):
         self.worker.ocr_base='http://fixture'
