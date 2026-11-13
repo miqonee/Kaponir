@@ -9,10 +9,26 @@ import unittest
 from compare_local_models import DOCUMENTS, ROOT
 from check_learning_corpus import load_corpus
 from evaluate_scheme_matrix import COHORT, PROFILE, summarize
-from report_validation_results import build_report, run_summary
+from report_validation_results import build_report, reference_coverage, run_summary
 
 
 class MatrixTests(unittest.TestCase):
+    def test_reference_coverage_keeps_invalid_keep_visible_and_attributes_by_gold_type(self):
+        stage={'candidates':[
+            {'id':'a','file':'doc','value':'Alice','kind':'SVC','protected':False},
+            {'id':'b','file':'doc','value':'host','kind':'HOST','protected':False},
+            {'id':'c','file':'doc','value':'secret','kind':'SECRET','protected':True}],
+            'decisions':{'a':{'valid':False,'verdict':'keep'},
+                         'b':{'valid':True,'verdict':'keep'},
+                         'c':{'valid':True,'verdict':'keep'}}}
+        expected={('doc','Alice'):('PERSON','personal'),('doc','host'):('HOST','team'),
+                  ('doc','secret'):('SECRET','personal')}
+        rows=reference_coverage({'stages':{'point':stage}},expected)['point']
+        self.assertEqual(rows['PERSON']['visible'],1)
+        self.assertEqual(rows['PERSON']['confirmed_including_protection'],0)
+        self.assertEqual(rows['HOST']['filtered'],1)
+        self.assertEqual(rows['SECRET']['confirmed_including_protection'],1)
+
     def state(self, model):
         _,_,_,sources,_=load_corpus()
         return {'status':'completed','signature':{'model':model,'artifact':[],
@@ -71,6 +87,8 @@ class MatrixTests(unittest.TestCase):
             self.assertEqual(report['holdout_expected_values'],127)
             self.assertTrue(all(row['status']=='not_run' for row in report['primary_matrix']['models'].values()))
             self.assertEqual(report['selected_holdout']['status'],'not_run')
+            self.assertTrue(all(row['status']=='not_run' for row in report['additional_document_runs'].values()))
+            self.assertTrue(all(row['status']=='not_run' for row in report['context_controls'].values()))
 
     def test_diagnostic_probes_cannot_be_presented_as_document_comparison(self):
         with tempfile.TemporaryDirectory() as temporary:

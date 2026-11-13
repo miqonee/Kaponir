@@ -8,7 +8,7 @@ from pathlib import Path
 
 from check_learning_corpus import load_corpus
 from compare_local_models import ROOT
-from evaluate_scheme_matrix import summarize
+from evaluate_scheme_matrix import COHORT, METHODS, summarize, validation_quality
 from evaluate_validation_schemes import atomic_json
 
 DIAGNOSTICS = [
@@ -17,10 +17,46 @@ DIAGNOSTICS = [
     'nanbeige-probes-prompt-batch8-timeout', 'nanbeige-probes-prompt-single',
     'granite-probes-prompt-single', 'gemma-probes-prompt-single',
 ]
+ADDITIONAL = {
+    'nanbeige42-3b': 'nanbeige-calibration',
+    'granite42-3b': 'granite-calibration',
+    'gemma4-e4b-qat': 'gemma-calibration',
+}
+CONTEXT_RUNS = [
+    'qwen08-common', 'qwen08-native-document', 'qwen2-common',
+    'qwen2-native-document', 'minicpm-common', 'minicpm-native-document',
+    'minicpm-card-document',
+    'nanbeige-card-document', 'granite-card-document', 'gemma-card-document',
+]
 
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def reference_coverage(state, expected):
+    """Coverage grouped by reference type, regardless of the model's guessed type."""
+    totals=Counter(kind for kind,_ in expected.values())
+    result={}
+    for method in METHODS:
+        stage=state.get('stages',{}).get(method)
+        if stage is None:continue
+        proposed=set();visible=set();confirmed=set()
+        for candidate in stage['candidates']:
+            key=(candidate['file'],candidate['value'])
+            if key not in expected:continue
+            proposed.add(key)
+            row=stage['decisions'].get(candidate['id'],{})
+            protected=candidate.get('protected',False)
+            if protected or not row.get('valid') or row.get('verdict')!='keep':visible.add(key)
+            if protected or row.get('valid') and row.get('verdict')=='mask':confirmed.add(key)
+        result[method]={kind:{'expected':total,
+            'proposed':sum(expected[key][0]==kind for key in proposed),
+            'visible':sum(expected[key][0]==kind for key in visible),
+            'confirmed_including_protection':sum(expected[key][0]==kind for key in confirmed),
+            'filtered':sum(expected[key][0]==kind for key in proposed-visible)}
+            for kind,total in sorted(totals.items())}
+    return result
 
 
 def run_summary(path):
@@ -39,6 +75,9 @@ def run_summary(path):
         calls=len(state.get('calls', [])), shadow=state['shadow'], rules_changed=state['rules_changed'],
         inference_errors=dict(Counter(r['error'] for r in state['responses'].values() if 'error' in r)),
         finish_reasons=dict(Counter(c.get('finish_reason', c.get('error', 'unknown')) for c in state['calls'])))
+    if any(method in state.get('stages',{}) for method in ['point','regions','union_point','double']):
+        _,expected,_,_,_=load_corpus()
+        result['validation_quality']=validation_quality(state,expected)
     if 'probes' in state:
         result['probes'] = state['probes']['summary']
         # These fixed probes have two complete passes. Preserve raw-verdict
@@ -73,8 +112,9 @@ def run_summary(path):
 def build_report(directory):
     _, expected, _, sources, _ = load_corpus()
     matrix = summarize(directory)
+    calibration_gold={key:value for key,value in expected.items() if key[0] in matrix['documents']}
     report = {
-        'version': 2,
+        'version': 3,
         'unit': matrix['unit'],
         'full_corpus_expected_values': len(expected),
         'calibration_expected_values': matrix['expected_values'],
@@ -83,10 +123,16 @@ def build_report(directory):
         'annotations_sha256': digest(ROOT/'tests/docs/expected.json'),
         'probe_sha256': digest(ROOT/'tests/fixtures/validation-review-heldout.json'),
         'primary_matrix': matrix,
+        'primary_coverage_by_reference_kind': {
+            model:reference_coverage(json.loads((directory/name/'result.json').read_text()),calibration_gold)
+            for model,name in COHORT.items() if (directory/name/'result.json').is_file()},
         'diagnostic_runs': {name: run_summary(directory/name/'result.json') for name in DIAGNOSTICS},
+        'additional_document_runs': {model: run_summary(directory/name/'result.json')
+            for model,name in ADDITIONAL.items()},
         'selected_holdout': run_summary(directory/'selected-holdout/result.json'),
-        'context_controls': {path.parent.name:run_summary(path)
-            for path in sorted((directory/'context-controls').glob('*/result.json'))},
+        'context_controls': {name:run_summary(directory/'context-controls'/name/'result.json')
+            for name in sorted(set(CONTEXT_RUNS) | {
+                path.parent.name for path in (directory/'context-controls').glob('*/result.json')})},
         'limitations': [
             'Synthetic documents; exact unique values per document, not actual masking leakage.',
             'Outside-gold values include incorrect span boundaries and are not all proven false positives.',
