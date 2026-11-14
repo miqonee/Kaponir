@@ -136,6 +136,13 @@
       "archive_sha256": "0e7ca5b0ca483df4029b5606e3897a09740c680b21e9fe17be248474ee0cda92",
       "json_bytes": 130000
     },
+    "context-controls/nanbeige-card-document/result.json": {
+      "archive": "context-controls--nanbeige-card-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "7acc1543b51657afda62844f69cefb8b90cb26896f6b29711c94a5aac3b4ade1",
+      "archive_sha256": "b21d3f66c7a2c2c4eef8890e1198f5fec9ed5945be8a569eec198137d8f5676f",
+      "json_bytes": 214243
+    },
     "context-controls/qwen08-prompt-document/result.json": {
       "archive": "context-controls--qwen08-prompt-document--result.json.gz",
       "status": "completed",
