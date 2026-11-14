@@ -6151,7 +6151,97 @@
       }
     },
     "nanbeige-card-document": {
-      "status": "not_run"
+      "status": "running",
+      "structured_output": "prompt",
+      "metrics": {},
+      "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "artifact": [
+        "Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf",
+        2684023968,
+        "b92d2e35c9876b0c4bc671996360204f4149d0546c23d5954d5eb3b106c81f24",
+        "https://huggingface.co/bartowski/Nanbeige_Nanbeige4.2-3B-GGUF/resolve/17562eefe9752007209148d5f7a6e275fc8d8077/Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf"
+      ],
+      "thinking_template_probe": {
+        "off": {
+          "formatted_sha256": "8adcc76fa403c32ac8930165c6401756716cc9fcc98f4f6e42fb699099c6b84c",
+          "tokens": 45
+        },
+        "on": {
+          "formatted_sha256": "b322248cba81f3d2bfe93aae22b3131865678c9daa21d425f8b1b4f3f2d5443b",
+          "tokens": 40
+        },
+        "toggle_changes_template": true
+      },
+      "runtime_reasoning": "auto",
+      "reasoning_format": "deepseek",
+      "result_sha256": "26993dad06680eefad9e9d06c8a86a99927ebefae7b1fc662d870a4185109f93",
+      "signature": {
+        "model": "nanbeige42-3b",
+        "settings": {
+          "model": "nanbeige42-3b",
+          "case_limit": 32,
+          "tasks": [
+            "review",
+            "discovery"
+          ],
+          "contexts": [
+            "document"
+          ],
+          "thinking": [
+            "bounded",
+            "off"
+          ],
+          "reasoning_budget": null,
+          "context_tokens": 16384,
+          "output_tokens": 4096,
+          "retry_output_tokens": 8192,
+          "reserve_tokens": 64,
+          "hint_tokens": 256,
+          "batch_size": 8,
+          "max_candidates": 128,
+          "timeout": 1200,
+          "response_format": "auto",
+          "temperature": 0.6,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0,
+          "seed": 42
+        },
+        "cases_sha256": "2bf882c35cf06e5dc171910f6cacb6e24574579f74126663af600d354c7259c5",
+        "source_sha256": {
+          "01-cost-estimate.md": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+          "02-application.log": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+          "08-public-reference.md": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+        "review_prompt_sha256": "509fe83501162b765a0fe9bddaf2f09ea8640cbea144c3cfbcf5b41aa94d2709",
+        "extraction_prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "kinds_sha256": "b758bce69da3083cb7c3131e4fc6bda521cfbbad168b4ec30dc11458bf6ada10",
+        "detector_export_sha256": "4aa898e3434ec4c59ca324f41c7f968b2fecd4e7715112d5db8fda4e2bcdfd0f",
+        "annotations_sha256": "1815af85ae5198240fac4d9aaff659d33e35779f5bc1ae621699afafc370ce92",
+        "code_sha256": {
+          "evaluate_context_controls.py": "0652eac8e93aefdc5cf1e614e5dfb9ae2db525af421247312961c1c02a800fcc",
+          "validation_pipeline.py": "2eda54057af6fb67e0b4a84f9f84e08434c2d9f86a404c1b93f88d04a52aba1a",
+          "kaponir_worker.py": "756bea099c8c903aea9682ca7683d87741b8e5324dd7394d47caaaf00ba44ba7",
+          "evaluate_external_model.py": "98721739560e3b7ab325d558b5c97d344a0d777dd6c922b92c7af71457ca71c0",
+          "experiment_inference.py": "e34d1a4d47e05ffc0df3a60fc04d785134ac5626d0682d7d4ec3bec321dea781",
+          "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
+        }
+      },
+      "calls": 1,
+      "shadow": true,
+      "rules_changed": 0,
+      "request_errors": {},
+      "inference_errors": {
+        "TimeoutError": 1
+      },
+      "finish_reasons": {
+        "unknown": 1
+      }
     },
     "qwen08-common": {
       "status": "completed",

@@ -63,30 +63,44 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 
 32 отрезка: 16 приватных, 16 публичных. Метки и типы не отправляются модели; обход LLM для защищённых credentials отключён. Это контроль LLM, а не recall детекторов. Review включает ошибки формата и цитирования. Числа подтверждения приватного не гарантируют правильный тип и scope.
 
-| Профиль | Метод | Верный mask приватного | Верный keep публичного | Ошибочный keep приватного | Ошибочный mask публичного | Review | Верны тип и scope / mask приватного |
-|---|---|---|---|---|---|---|---|
-| minicpm-common | review-record-bounded | 0 | 12 | 12 | 0 | 8 | — |
-| minicpm-common | review-record-off | 1 | 9 | 12 | 4 | 6 | 0/1 |
-| minicpm-common | review-document-bounded | 2 | 13 | 12 | 1 | 4 | 2/2 |
-| minicpm-common | review-document-off | 0 | 14 | 14 | 0 | 4 | — |
-| minicpm-prompt-document | review-document-off | 0 | 0 | 0 | 0 | 32 | — |
-| minicpm-single-record | review-record-off | 4 | 9 | 8 | 5 | 6 | 2/4 |
-| qwen08-common | review-record-bounded | 0 | 0 | 0 | 0 | 32 | — |
-| qwen08-common | review-record-off | 0 | 0 | 0 | 0 | 32 | — |
-| qwen08-common | review-document-bounded | 0 | 3 | 5 | 0 | 24 | — |
-| qwen08-common | review-document-off | 0 | 0 | 0 | 0 | 32 | — |
-| qwen08-prompt-document | review-document-off | 0 | 0 | 0 | 0 | 32 | — |
-| qwen08-single-record | review-record-off | 0 | 0 | 0 | 0 | 32 | — |
-| qwen2-common | review-record-bounded | 0 | 6 | 6 | 0 | 20 | — |
-| qwen2-common | review-record-off | 0 | 10 | 3 | 0 | 19 | — |
-| qwen2-common | review-document-bounded | 0 | 7 | 10 | 0 | 15 | — |
-| qwen2-common | review-document-off | 0 | 11 | 10 | 0 | 11 | — |
-| qwen2-prompt-document | review-document-off | 0 | 8 | 1 | 0 | 23 | — |
-| qwen2-single-record | review-record-off | 0 | 10 | 4 | 0 | 18 | — |
+| Профиль | Метод | Верный mask приватного | Верный keep публичного | Ошибочный keep приватного | Ошибочный mask публичного | Review | Верны тип и scope / mask приватного | Сбоев пакетов |
+|---|---|---|---|---|---|---|---|---|
+| minicpm-common | review-record-bounded | 0 | 12 | 12 | 0 | 8 | — | 0 |
+| minicpm-common | review-record-off | 1 | 9 | 12 | 4 | 6 | 0/1 | 0 |
+| minicpm-common | review-document-bounded | 2 | 13 | 12 | 1 | 4 | 2/2 | 0 |
+| minicpm-common | review-document-off | 0 | 14 | 14 | 0 | 4 | — | 0 |
+| minicpm-prompt-document | review-document-off | 0 | 0 | 0 | 0 | 32 | — | 5 |
+| minicpm-single-record | review-record-off | 4 | 9 | 8 | 5 | 6 | 2/4 | 0 |
+| qwen08-common | review-record-bounded | 0 | 0 | 0 | 0 | 32 | — | 0 |
+| qwen08-common | review-record-off | 0 | 0 | 0 | 0 | 32 | — | 0 |
+| qwen08-common | review-document-bounded | 0 | 3 | 5 | 0 | 24 | — | 0 |
+| qwen08-common | review-document-off | 0 | 0 | 0 | 0 | 32 | — | 0 |
+| qwen08-prompt-document | review-document-off | 0 | 0 | 0 | 0 | 32 | — | 0 |
+| qwen08-single-record | review-record-off | 0 | 0 | 0 | 0 | 32 | — | 0 |
+| qwen2-common | review-record-bounded | 0 | 6 | 6 | 0 | 20 | — | 0 |
+| qwen2-common | review-record-off | 0 | 10 | 3 | 0 | 19 | — | 0 |
+| qwen2-common | review-document-bounded | 0 | 7 | 10 | 0 | 15 | — | 0 |
+| qwen2-common | review-document-off | 0 | 11 | 10 | 0 | 11 | — | 0 |
+| qwen2-prompt-document | review-document-off | 0 | 8 | 1 | 0 | 23 | — | 0 |
+| qwen2-single-record | review-record-off | 0 | 10 | 4 | 0 | 18 | — | 0 |
 
 `record` — запись с подсказкой; `document` — весь документ. `bounded` — лимит reasoning в половину начального ответа; `on` — без этого ограничения. Профили `prompt` меняют и инструкцию формата, и способ ограничения JSON. `single` содержит один кандидат на запрос. Точные параметры — в JSON-сводке.
 
-Завершённые этапы ещё выполняющегося прогона показаны отдельно. Технически неполные этапы не получают численную оценку качества.
+Завершённые этапы ещё выполняющегося прогона показаны отдельно. Технически неполные этапы не получают численную оценку качества. Сбой пакета оставляет его кандидатов на review; ноль подтверждений после таймаута не измеряет способность модели распознать приватность.
+
+Технические ошибки сохранённых запросов контрольных профилей (включая ещё выполняющиеся этапы):
+
+- `minicpm-card-document`: TimeoutError × 1, model_response_truncated × 3.
+- `minicpm-common`: model_response_truncated × 1.
+- `minicpm-native-document`: model_response_truncated × 2.
+- `minicpm-prompt-document`: JSONDecodeError × 5.
+- `nanbeige-card-document`: TimeoutError × 1.
+- `qwen08-common`: model_response_truncated × 4.
+- `qwen08-native-document`: model_response_truncated × 2.
+- `qwen08-native-prompt`: model_response_truncated × 2.
+- `qwen08-native-unbounded`: model_response_truncated × 4.
+- `qwen2-common`: model_response_truncated × 3.
+- `qwen2-native-document`: model_response_truncated × 2.
 
 ## Диагностика лимита объяснения
 
@@ -118,7 +132,7 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | qwen2-common | discovery-document-off | 74 / 33 | 3 |
 | qwen2-native-document | discovery-document-on | неполный | 0 |
 
-Ещё не запускались: `gemma-card-document`, `granite-card-document`, `nanbeige-card-document`.
+Ещё не запускались: `gemma-card-document`, `granite-card-document`.
 
 ## Отложенные документы
 

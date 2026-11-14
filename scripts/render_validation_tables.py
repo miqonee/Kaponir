@@ -97,26 +97,35 @@ def render(report):
             incomplete=m.get('quality_is_lower_bound_if_incomplete',False)
             if method.startswith('review-'):
                 if incomplete:
-                    reviews.append([name,method,*['неполный']*6]);continue
+                    reviews.append([name,method,*['неполный']*6,m.get('failed_batches','—')]);continue
                 counts=[m['confirmed_matches'],m['outside_values_filtered'],m['correct_values_filtered'],
                         m['confirmed_outside'],m['needs_review_values']]
                 if sum(counts)!=m['cases']:raise ValueError('review_confusion_count_mismatch')
                 joint=m.get('kind_and_scope_correct_without_protection')
                 metadata=('—' if not counts[0] else
                     f'{joint}/{counts[0]}' if joint is not None else 'нет оценки')
-                reviews.append([name,method,*counts,metadata])
+                reviews.append([name,method,*counts,metadata,m.get('failed_batches','—')])
             elif method.startswith('discovery-'):
                 discovery.append([name,method,'неполный' if incomplete else cell(m),
                     m.get('complete_documents','—')])
     lines+=table(['Профиль','Метод','Верный mask приватного','Верный keep публичного',
         'Ошибочный keep приватного','Ошибочный mask публичного','Review',
-        'Верны тип и scope / mask приватного'],reviews)
+        'Верны тип и scope / mask приватного','Сбоев пакетов'],reviews)
     lines+=['','`record` — запись с подсказкой; `document` — весь документ. '
         '`bounded` — лимит reasoning в половину начального ответа; `on` — без этого ограничения. '
         'Профили `prompt` меняют и инструкцию формата, и способ ограничения JSON. '
         '`single` содержит один кандидат на запрос. Точные параметры — в JSON-сводке.','',
         'Завершённые этапы ещё выполняющегося прогона показаны отдельно. '
-        'Технически неполные этапы не получают численную оценку качества.','']
+        'Технически неполные этапы не получают численную оценку качества. '
+        'Сбой пакета оставляет его кандидатов на review; ноль подтверждений после '
+        'таймаута не измеряет способность модели распознать приватность.','']
+    control_errors=[
+        '- `'+name+'`: '+', '.join(f'{code} × {count}' for code,count in sorted(
+            run['inference_errors'].items()))+'.'
+        for name,run in report.get('context_controls',{}).items() if run.get('inference_errors')]
+    if control_errors:
+        lines+=['Технические ошибки сохранённых запросов контрольных профилей '
+            '(включая ещё выполняющиеся этапы):','',*control_errors,'']
     diagnostic_rows=[]
     for name,run in report.get('context_controls',{}).items():
         for method,diagnostic in run.get('reason_length_diagnostics',{}).items():
