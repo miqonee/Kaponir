@@ -6178,7 +6178,7 @@
       },
       "runtime_reasoning": "auto",
       "reasoning_format": "deepseek",
-      "result_sha256": "26993dad06680eefad9e9d06c8a86a99927ebefae7b1fc662d870a4185109f93",
+      "result_sha256": "41485acfb9a45352f49d275cba1089c82e9cf19d24efac837d319b9790077a23",
       "signature": {
         "model": "nanbeige42-3b",
         "settings": {
@@ -6232,15 +6232,15 @@
           "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
         }
       },
-      "calls": 1,
+      "calls": 3,
       "shadow": true,
       "rules_changed": 0,
       "request_errors": {},
       "inference_errors": {
-        "TimeoutError": 1
+        "TimeoutError": 3
       },
       "finish_reasons": {
-        "unknown": 1
+        "unknown": 3
       }
     },
     "qwen08-common": {
@@ -8615,6 +8615,71 @@
       "inference_calls": 0,
       "quality_not_measured": true
     }
+  },
+  "context_runtime_probe_nanbeige": {
+    "status": "completed",
+    "new_inference_calls": 0,
+    "source": "Read-only GET /slots during the existing Nanbeige document control; no new model generation.",
+    "run": "context-controls/nanbeige-card-document",
+    "run_signature_sha256": "a675dae67bfb8a4f97f46be4ae160ab609a0da2179c7a72c646c88f5deef6ec8",
+    "saved_calls_at_probe": 3,
+    "completed_timeout_calls": [
+      {
+        "stage": "review-document-bounded",
+        "input_tokens": 4559,
+        "max_output_tokens": 4096,
+        "reasoning_budget": 2048,
+        "seconds": 1200.11,
+        "runtime_exit_code": null
+      },
+      {
+        "stage": "review-document-bounded",
+        "input_tokens": 4218,
+        "max_output_tokens": 4096,
+        "reasoning_budget": 2048,
+        "seconds": 1200.115,
+        "runtime_exit_code": null
+      },
+      {
+        "stage": "review-document-bounded",
+        "input_tokens": 7644,
+        "max_output_tokens": 4096,
+        "reasoning_budget": 2048,
+        "seconds": 1200.112,
+        "runtime_exit_code": null
+      }
+    ],
+    "slot_snapshot": {
+      "utc": "2026-11-14T13:04:53.192349+00:00",
+      "source": "GET /slots; read-only, no inference request",
+      "slots": [
+        {
+          "id": 0,
+          "id_task": 4596,
+          "n_ctx": 16384,
+          "is_processing": true,
+          "n_prompt_tokens": 7517,
+          "n_prompt_tokens_processed": 7212,
+          "n_prompt_tokens_cache": 0,
+          "next_token": [
+            {
+              "has_next_token": true,
+              "has_new_line": true,
+              "n_remain": 3791,
+              "n_decoded": 305
+            }
+          ]
+        }
+      ]
+    },
+    "memory_events_at_probe": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0",
+    "interpretation": [
+      "The persisted timeouts used 4559, 4218 and 7644 input tokens; each planned input plus output and reserve fits the 16384-token context.",
+      "The active slot snapshot reports 7212 processed prompt tokens and 305 decoded tokens. Input processing and generation both belong to the wall timeout.",
+      "The snapshot does not distinguish reasoning tokens from final text. It does not prove that reasoning_budget was ignored.",
+      "Partial outputs of timed-out requests were not returned, so privacy/type/scope quality cannot be scored from these timeouts.",
+      "Single read-only snapshot, not a speed benchmark."
+    ]
   },
   "internal_classifier_audit": {
     "version": 1,

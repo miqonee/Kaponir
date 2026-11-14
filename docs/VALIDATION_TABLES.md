@@ -94,7 +94,7 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 - `minicpm-common`: model_response_truncated × 1.
 - `minicpm-native-document`: model_response_truncated × 2.
 - `minicpm-prompt-document`: JSONDecodeError × 5.
-- `nanbeige-card-document`: TimeoutError × 1.
+- `nanbeige-card-document`: TimeoutError × 3.
 - `qwen08-common`: model_response_truncated × 4.
 - `qwen08-native-document`: model_response_truncated × 2.
 - `qwen08-native-prompt`: model_response_truncated × 2.

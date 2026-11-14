@@ -234,6 +234,13 @@
       "archive_sha256": "b4337c32145c582fbaf22d258d7986e208a924d5642ef02842bf656923ab57dc",
       "json_bytes": 4112
     },
+    "context-runtime-probe-nanbeige.json": {
+      "archive": "context-runtime-probe-nanbeige.json.gz",
+      "status": "completed",
+      "json_sha256": "473f9c361ada44b79dbb1332830eb046344436f699951a42bcf1762fb277c2de",
+      "archive_sha256": "f88bf989fb9b96d9e9f067d01c921411ed0edc00f02c5517764d3383290f44b1",
+      "json_bytes": 2299
+    },
     "context-controls/qwen08-native-unbounded/result.json": {
       "archive": "context-controls--qwen08-native-unbounded--result.json.gz",
       "status": "interrupted",
