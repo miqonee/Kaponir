@@ -42,19 +42,21 @@ def render(report):
         'Методы и ограничения: [SCHEME_COMPARISON.md](SCHEME_COMPARISON.md).','',
         'Это синтетические документы. Совпадение — точное значение в правильном документе. '
         'Значения вне эталона включают ошибки границ и не все являются ложными срабатываниями.','',
-        '## Общая матрица младших моделей','',
+        '## Общая матрица всех моделей','',
         'В ячейке: **осталось эталонных из 92 / осталось вне эталона**. '
         'Включены записи на review. Это не число автоматически правильных решений.','']
     primary=report['primary_matrix']['models']
-    names=list(primary)
+    additional=report.get('additional_document_runs',{})
+    runs={**primary,**additional}
+    names=list(runs)
     lines+=table(['Схема',*[MODELS.get(name,name) for name in names]],[
-        [LABELS[method],*[cell(primary[name].get('methods',{}).get(method)) for name in names]]
+        [LABELS[method],*[cell((runs[name].get('methods') or runs[name].get('metrics',{})).get(method)) for name in names]]
         for method in METHODS])
     lines+=['',*['- '+MODELS.get(name,name)+': '+STATUS.get(row['status'],row['status'])+'.'
         for name,row in primary.items()],'',
         'Пулы поиска ещё не классифицируют приватность и scope. '
         'Защищённые credentials сохранены правилами; это не заслуга LLM.','',
-        '## Более тяжёлые модели','',
+        '## Условия сравнения','',
         'Те же 92 значения и шесть схем. Совместимый JSON-режим выбирается технической '
         'пробой runtime; эффективный режим указан под таблицей. '
         'Основной профиль temperature=0 отделён от рекомендованных sampling-профилей ниже.','']
@@ -63,12 +65,8 @@ def render(report):
         'все запросы младших моделей основной матрицы завершились в пределах 300 секунд. '
         'В режиме prompt лимит 24 кандидата задаётся инструкцией и порогом дробления входа; '
         'ответ может содержать больше строк. Это отличается от ограничения JSON-грамматикой.','']
-    additional=report.get('additional_document_runs',{})
-    names=list(additional)
-    lines+=table(['Схема',*[MODELS.get(name,name) for name in names]],[
-        [LABELS[method],*[cell(additional[name].get('metrics',{}).get(method)) for name in names]]
-        for method in METHODS])
-    lines+=['',*['- '+MODELS.get(name,name)+': '+STATUS.get(row['status'],row['status'])+
+    lines+=['Четыре младшие модели основной матрицы использовали JSON Schema.','',
+        *['- '+MODELS.get(name,name)+': '+STATUS.get(row['status'],row['status'])+
         '; JSON: '+str(row.get('structured_output','—'))+error_note(row)+'.' for name,row in additional.items()],
         '', 'Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не одинаковое квантование.','']
     lines+=['## Объединение сохранённых региональных находок с детекторами','',

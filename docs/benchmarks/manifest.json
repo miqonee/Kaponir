@@ -45,6 +45,13 @@
       "archive_sha256": "f32707b40cb310ad2c835509b6c47b6dd8d2068b9a16476a900ca1bcde5d9917",
       "json_bytes": 629061
     },
+    "gemma-calibration/result.json": {
+      "archive": "gemma-calibration--result.json.gz",
+      "status": "completed",
+      "json_sha256": "0b0ac5a703df220ca797726be6b497432da8d6b9b5af5e6f5d33163a9a9fa399",
+      "archive_sha256": "3fab8dd38e5d7a3a2a89f1c1fc71cc05f04bcd173e1383d691742224612f48e8",
+      "json_bytes": 638847
+    },
     "minicpm-balanced/result.json": {
       "archive": "minicpm-balanced--result.json.gz",
       "status": "completed",
@@ -254,6 +261,13 @@
       "json_sha256": "3560e5f05f887340adddcc1695bdae6dba846be91e6faee14c3a5a4823b3dcb6",
       "archive_sha256": "b4337c32145c582fbaf22d258d7986e208a924d5642ef02842bf656923ab57dc",
       "json_bytes": 4112
+    },
+    "context-budget-probe-gemma.json": {
+      "archive": "context-budget-probe-gemma.json.gz",
+      "status": "completed",
+      "json_sha256": "60ea6edfa584cad1f67775134fdef6277c2d38caf5e88405e780d0a9067b6aab",
+      "archive_sha256": "78ade351f1101191c54c4363bdd5e41fdb8afeea2bb03e1a9633cc7d2e2d5d58",
+      "json_bytes": 4750
     },
     "context-runtime-probe-nanbeige.json": {
       "archive": "context-runtime-probe-nanbeige.json.gz",
