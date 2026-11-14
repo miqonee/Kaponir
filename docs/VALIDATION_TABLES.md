@@ -28,6 +28,8 @@
 
 Те же 92 значения и шесть схем. Совместимый JSON-режим выбирается технической пробой runtime; эффективный режим указан под таблицей. Основной профиль temperature=0 отделён от рекомендованных sampling-профилей ниже.
 
+Контекст 4096 и выход 1600 совпадают с младшими моделями. Для больших моделей CPU-таймаут увеличен с 300 до 1200 секунд; все запросы младших моделей основной матрицы завершились в пределах 300 секунд.
+
 | Схема | Nanbeige4.2-3B | Granite4.2-3B | Gemma4 E4B QAT |
 |---|---|---|---|
 | Предложения детекторов | — | — | — |
@@ -53,6 +55,7 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | minicpm-common | review-record-off | 1 | 9 | 12 | 4 | 6 | 0/1 |
 | minicpm-common | review-document-bounded | 2 | 13 | 12 | 1 | 4 | 2/2 |
 | minicpm-common | review-document-off | 0 | 14 | 14 | 0 | 4 | — |
+| minicpm-prompt-document | review-document-off | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-record-bounded | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-record-off | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-document-bounded | 0 | 3 | 5 | 0 | 24 | — |
@@ -85,8 +88,11 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 
 | Профиль | Метод | Осталось / вне эталона | Документов завершено |
 |---|---|---|---|
+| minicpm-card-document | discovery-document-off | 72 / 29 | 3 |
+| minicpm-card-document | discovery-document-on | неполный | 1 |
 | minicpm-common | discovery-document-bounded | 68 / 27 | 3 |
 | minicpm-common | discovery-document-off | 81 / 29 | 3 |
+| minicpm-native-document | discovery-document-on | неполный | 0 |
 | qwen08-common | discovery-document-bounded | 70 / 31 | 3 |
 | qwen08-common | discovery-document-off | 68 / 30 | 3 |
 | qwen08-native-document | discovery-document-on | неполный | 0 |
@@ -94,7 +100,7 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | qwen2-common | discovery-document-off | 74 / 33 | 3 |
 | qwen2-native-document | discovery-document-on | неполный | 0 |
 
-Ещё не запускались: `gemma-card-document`, `granite-card-document`, `minicpm-card-document`, `minicpm-native-document`, `minicpm-single-record`, `nanbeige-card-document`, `qwen08-native-prompt`, `qwen08-single-record`, `qwen2-single-record`.
+Ещё не запускались: `gemma-card-document`, `granite-card-document`, `minicpm-single-record`, `nanbeige-card-document`, `qwen08-native-prompt`, `qwen08-single-record`, `qwen2-single-record`.
 
 ## Отложенные документы
 

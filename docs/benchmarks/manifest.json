@@ -115,6 +115,20 @@
       "archive_sha256": "b86b642870d474035a8bc2151c67475c9ae914cd44163f6f12231415a9f8ce26",
       "json_bytes": 421945
     },
+    "context-controls/minicpm-native-document/result.json": {
+      "archive": "context-controls--minicpm-native-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "3946f272465cfb01f3264fad6f6c57e36c1a06ba37799627251077e2863234d8",
+      "archive_sha256": "60798f2e94f1aa2baa155707fa34ca96e0d0a8a9f8276fc74137b92414a3370c",
+      "json_bytes": 61301
+    },
+    "context-controls/minicpm-card-document/result.json": {
+      "archive": "context-controls--minicpm-card-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "fe7d95c72dc079ff0ceb7655853d8973a0202e9a06d92730a15ef3e013e2ccbd",
+      "archive_sha256": "0e7ca5b0ca483df4029b5606e3897a09740c680b21e9fe17be248474ee0cda92",
+      "json_bytes": 130000
+    },
     "context-controls/qwen08-prompt-document/result.json": {
       "archive": "context-controls--qwen08-prompt-document--result.json.gz",
       "status": "completed",
@@ -128,6 +142,13 @@
       "json_sha256": "e525d056634ef36fa669a70cfe012263968bd4ad6a0166064c262a4c04f5f215",
       "archive_sha256": "1d9b6b760598871aec07e89dba2b4707fbf26626806810b87d08a6dcd93a33df",
       "json_bytes": 73053
+    },
+    "context-controls/minicpm-prompt-document/result.json": {
+      "archive": "context-controls--minicpm-prompt-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "8f587200a275f580dfc3c656053e9508acf310dd7a61f9187cd50c278f5732b0",
+      "archive_sha256": "c8fe70cdd431062c2fa9b743c40c759ee87773662a0563cceeeacc93d2367d2c",
+      "json_bytes": 51396
     },
     "selected-holdout/result.json": {
       "archive": "selected-holdout--result.json.gz",
