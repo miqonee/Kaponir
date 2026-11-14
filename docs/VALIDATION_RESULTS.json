@@ -3768,6 +3768,1938 @@
           "filtered": 0
         }
       }
+    },
+    "nanbeige42-3b": {
+      "detector_proposals": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 51,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        }
+      },
+      "current_union": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 51,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 5,
+          "visible": 5,
+          "confirmed_including_protection": 5,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 4,
+          "visible": 4,
+          "confirmed_including_protection": 4,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        }
+      },
+      "point": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 47,
+          "confirmed_including_protection": 42,
+          "filtered": 4
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 2
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        }
+      },
+      "regions": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 46,
+          "visible": 46,
+          "confirmed_including_protection": 46,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        }
+      },
+      "union_point": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 47,
+          "confirmed_including_protection": 42,
+          "filtered": 4
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 5,
+          "visible": 4,
+          "confirmed_including_protection": 3,
+          "filtered": 1
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 2
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 2,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 4,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 4
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 1
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        }
+      },
+      "double": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 47,
+          "confirmed_including_protection": 0,
+          "filtered": 4
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 5,
+          "visible": 4,
+          "confirmed_including_protection": 1,
+          "filtered": 1
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 2,
+          "confirmed_including_protection": 1,
+          "filtered": 1
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 4,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        }
+      }
+    },
+    "granite42-3b": {
+      "detector_proposals": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 51,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        }
+      },
+      "current_union": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 51,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 4,
+          "visible": 4,
+          "confirmed_including_protection": 4,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        }
+      },
+      "point": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        }
+      },
+      "regions": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 29,
+          "visible": 29,
+          "confirmed_including_protection": 29,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        }
+      },
+      "union_point": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 4,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 4
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        }
+      },
+      "double": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 4,
+          "visible": 4,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        }
+      }
+    },
+    "gemma4-e4b-qat": {
+      "detector_proposals": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 51,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        }
+      },
+      "current_union": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 51,
+          "confirmed_including_protection": 51,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 5,
+          "visible": 5,
+          "confirmed_including_protection": 5,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        }
+      },
+      "point": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 51
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        }
+      },
+      "regions": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 3,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 0,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 2,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 1,
+          "filtered": 0
+        }
+      },
+      "union_point": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 51
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 5,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 4
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 3
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        }
+      },
+      "double": {
+        "AMOUNT": {
+          "expected": 51,
+          "proposed": 51,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 51
+        },
+        "CLIENT": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "CUSTOM": {
+          "expected": 6,
+          "proposed": 5,
+          "visible": 3,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "DOM": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "EMAIL": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "HOST": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "IP": {
+          "expected": 3,
+          "proposed": 3,
+          "visible": 3,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "ORG": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "PATH": {
+          "expected": 5,
+          "proposed": 1,
+          "visible": 1,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PERSON": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PHONE": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        },
+        "PROJ": {
+          "expected": 2,
+          "proposed": 2,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 2
+        },
+        "SECRET": {
+          "expected": 7,
+          "proposed": 7,
+          "visible": 7,
+          "confirmed_including_protection": 7,
+          "filtered": 0
+        },
+        "SVC": {
+          "expected": 1,
+          "proposed": 1,
+          "visible": 0,
+          "confirmed_including_protection": 0,
+          "filtered": 1
+        },
+        "USER": {
+          "expected": 3,
+          "proposed": 2,
+          "visible": 2,
+          "confirmed_including_protection": 0,
+          "filtered": 0
+        }
+      }
     }
   },
   "diagnostic_runs": {
@@ -5804,10 +7736,116 @@
   },
   "context_controls": {
     "gemma-card-document": {
-      "status": "running",
+      "status": "completed",
       "structured_output": "grammar",
-      "metrics": {},
+      "metrics": {
+        "review-document-bounded": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 7,
+          "visible_outside": 0,
+          "confirmed_matches": 7,
+          "confirmed_outside": 0,
+          "correct_values_filtered": 9,
+          "outside_values_filtered": 16,
+          "needs_review_values": 0,
+          "correct_kind": 6,
+          "correct_scope": 6,
+          "public_control_visible": 0,
+          "negative_document_visible": 0,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 23,
+          "failed_batches": 0,
+          "raw_private_keep_before_guard": 9,
+          "invalid_decisions": 0,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 7,
+          "kind_correct_without_protection": 6,
+          "scope_correct_without_protection": 6,
+          "kind_and_scope_correct_without_protection": 6
+        },
+        "review-document-off": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 2,
+          "visible_outside": 2,
+          "confirmed_matches": 0,
+          "confirmed_outside": 0,
+          "correct_values_filtered": 14,
+          "outside_values_filtered": 14,
+          "needs_review_values": 4,
+          "correct_kind": 0,
+          "correct_scope": 0,
+          "public_control_visible": 2,
+          "negative_document_visible": 0,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 14,
+          "failed_batches": 0,
+          "raw_private_keep_before_guard": 16,
+          "invalid_decisions": 4,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 0,
+          "kind_correct_without_protection": 0,
+          "scope_correct_without_protection": 0,
+          "kind_and_scope_correct_without_protection": 0
+        },
+        "discovery-document-bounded": {
+          "expected": 92,
+          "proposals": 106,
+          "proposal_matches": 79,
+          "visible_matches": 79,
+          "visible_outside": 27,
+          "confirmed_matches": 79,
+          "confirmed_outside": 27,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 68,
+          "correct_scope": 15,
+          "public_control_visible": 1,
+          "negative_document_visible": 2,
+          "complete_documents": 3,
+          "errors": [],
+          "invalid_proposals": 0,
+          "quality_is_lower_bound_if_incomplete": false
+        },
+        "discovery-document-off": {
+          "expected": 92,
+          "proposals": 111,
+          "proposal_matches": 84,
+          "visible_matches": 84,
+          "visible_outside": 27,
+          "confirmed_matches": 84,
+          "confirmed_outside": 27,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 72,
+          "correct_scope": 16,
+          "public_control_visible": 2,
+          "negative_document_visible": 3,
+          "complete_documents": 3,
+          "errors": [],
+          "invalid_proposals": 0,
+          "quality_is_lower_bound_if_incomplete": false
+        }
+      },
       "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "resources_after": {
         "cpu.max": "200000 100000",
         "memory.max": "8589934592",
         "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
@@ -5831,7 +7869,14 @@
       },
       "runtime_reasoning": "auto",
       "reasoning_format": "deepseek",
-      "result_sha256": "a46be941c84f5c94d2db729b85a78bdc4af1210166afb185f8bfc870c64d3e8e",
+      "runtime_restarts": [
+        {
+          "cause": "session_runner_stopped_supervisor_resume",
+          "utc": "2026-11-14T21:13:46.641200+00:00",
+          "saved_technical_calls": 1
+        }
+      ],
+      "result_sha256": "cf3e9f8f84a07cf0ffd2598e763911091b1d1d427bad73b776b803f159ed435e",
       "signature": {
         "model": "gemma4-e4b-qat",
         "settings": {
@@ -5885,13 +7930,13 @@
           "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
         }
       },
-      "calls": 1,
+      "calls": 16,
       "shadow": true,
       "rules_changed": 0,
       "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
-        "stop": 1
+        "stop": 16
       }
     },
     "granite-card-document": {

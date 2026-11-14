@@ -39,6 +39,7 @@ def error_note(row):
 def render(report):
     lines=['# Сводные таблицы экспериментов','',
         'Источник: [VALIDATION_RESULTS.json](VALIDATION_RESULTS.json). '
+        'Короткий разбор: [LOCAL_MODEL_FINDINGS.md](LOCAL_MODEL_FINDINGS.md). '
         'Методы и ограничения: [SCHEME_COMPARISON.md](SCHEME_COMPARISON.md).','',
         'Это синтетические документы. Совпадение — точное значение в правильном документе. '
         'Значения вне эталона включают ошибки границ и не все являются ложными срабатываниями.','',
@@ -52,6 +53,24 @@ def render(report):
     lines+=table(['Схема',*[MODELS.get(name,name) for name in names]],[
         [LABELS[method],*[cell((runs[name].get('methods') or runs[name].get('metrics',{})).get(method)) for name in names]]
         for method in METHODS])
+    coverage=report.get('primary_coverage_by_reference_kind',{})
+    if coverage:
+        def coverage_counts(kinds):
+            if not kinds:return ['—','—','—']
+            money=kinds.get('AMOUNT',{'visible':0,'expected':0})
+            other=[value for kind,value in kinds.items() if kind!='AMOUNT']
+            return [f"{money['visible']} / {money['expected']}",
+                f"{sum(v['visible'] for v in other)} / {sum(v['expected'] for v in other)}",
+                f"{sum(v['visible'] for v in kinds.values())} / {sum(v['expected'] for v in kinds.values())}"]
+        baseline=next(iter(coverage.values())).get('detector_proposals',{})
+        lines+=['','### Покрытие поиска с учётом состава данных','',
+            '51 из 92 эталонных значений — суммы, уже предложенные детекторами. '
+            'Разбивка относится к эталонному типу найденных значений; '
+            'правильность типа, присвоенного LLM, оценивается отдельно.','',
+            *table(['Пул','Суммы','Остальные значения','Всего'],[
+                ['Предложения детекторов',*coverage_counts(baseline)],
+                *[[MODELS.get(name,name)+' + детекторы',*coverage_counts(
+                    coverage.get(name,{}).get('current_union',{}))] for name in names]])]
     lines+=['',*['- '+MODELS.get(name,name)+': '+STATUS.get(row['status'],row['status'])+'.'
         for name,row in primary.items()],'',
         'Пулы поиска ещё не классифицируют приватность и scope. '
@@ -113,7 +132,6 @@ def render(report):
         '`bounded` — лимит reasoning в половину начального ответа; `on` — без этого ограничения. '
         'Профили `prompt` меняют и инструкцию формата, и способ ограничения JSON. '
         '`single` содержит один кандидат на запрос. Точные параметры — в JSON-сводке.','',
-        'Завершённые этапы ещё выполняющегося прогона показаны отдельно. '
         'Технически неполные этапы не получают численную оценку качества. '
         'Сбой пакета оставляет его кандидатов на review; ноль подтверждений после '
         'таймаута не измеряет способность модели распознать приватность.','']
@@ -122,8 +140,7 @@ def render(report):
             run['inference_errors'].items()))+'.'
         for name,run in report.get('context_controls',{}).items() if run.get('inference_errors')]
     if control_errors:
-        lines+=['Технические ошибки сохранённых запросов контрольных профилей '
-            '(включая ещё выполняющиеся этапы):','',*control_errors,'']
+        lines+=['Технические ошибки сохранённых запросов контрольных профилей:','',*control_errors,'']
     diagnostic_rows=[]
     for name,run in report.get('context_controls',{}).items():
         for method,diagnostic in run.get('reason_length_diagnostics',{}).items():

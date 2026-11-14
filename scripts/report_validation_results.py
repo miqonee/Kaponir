@@ -157,7 +157,7 @@ def build_report(directory):
         'primary_matrix': matrix,
         'primary_coverage_by_reference_kind': {
             model:reference_coverage(json.loads((directory/name/'result.json').read_text()),calibration_gold)
-            for model,name in COHORT.items() if (directory/name/'result.json').is_file()},
+            for model,name in {**COHORT,**ADDITIONAL}.items() if (directory/name/'result.json').is_file()},
         'diagnostic_runs': {name: run_summary(directory/name/'result.json') for name in DIAGNOSTICS},
         'additional_document_runs': {model: run_summary(directory/name/'result.json')
             for model,name in ADDITIONAL.items()},

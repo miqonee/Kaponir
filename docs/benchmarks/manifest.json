@@ -164,6 +164,13 @@
       "archive_sha256": "9af88ef87fd9325fe1f22e95491ba578c3743537016cbed8faa0b616a439201e",
       "json_bytes": 254922
     },
+    "context-controls/gemma-card-document/result.json": {
+      "archive": "context-controls--gemma-card-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "cf3e9f8f84a07cf0ffd2598e763911091b1d1d427bad73b776b803f159ed435e",
+      "archive_sha256": "0efeccb84980de998f074f23c4c56b48c38ac272f68115dc1b24b4816346f615",
+      "json_bytes": 255389
+    },
     "context-controls/qwen08-prompt-document/result.json": {
       "archive": "context-controls--qwen08-prompt-document--result.json.gz",
       "status": "completed",

@@ -7,8 +7,10 @@ Nanbeige4.2-3B, Granite4.2-3B и Gemma4 E4B. После восстановлен
 внутренних детекторов и отложенная проверка выбранного добавляющего поиска завершены.
 Nanbeige4.2-3B завершила шесть основных схем и контроли полного документа.
 Granite4.2-3B завершила шесть основных схем и полные контроли.
-Выполняются последние полные контроли Gemma4 E4B.
+Все запланированные контроли завершены, включая полный профиль Gemma4 E4B.
 Общий победитель по автоматической разметке не объявляется.
+
+Короткий итог и предложения следующего этапа — [LOCAL_MODEL_FINDINGS.md](LOCAL_MODEL_FINDINGS.md).
 
 Исправления runtime и интерфейса опубликованы в
 [4c1b178](https://github.com/miqonee/Kaponir/commit/4c1b178).
@@ -570,7 +572,7 @@ MiniCPM, а также предварительные валидаторы Nanbe
 
 Контроли младших моделей, основная матрица и контроли Nanbeige4.2-3B завершены.
 Основная матрица и полные контроли Granite4.2-3B также завершены.
-Основная матрица Gemma4 E4B завершена; осталось закончить её полный профиль.
+Основная матрица и полный профиль Gemma4 E4B завершены. Очередь завершена.
 Модели запускаются последовательно.
 
 В первом запросе проверки полного документа Nanbeige с рекомендованным sampling
@@ -815,13 +817,41 @@ credentials; собственных применимых mask LLM по этал�
 и запрет распространения сметы. Это конкретная ошибка оценки приватности;
 для неё исключены потеря статуса, обрыв ответа и OOM. Свидетельство —
 `context_budget_probe_gemma` и архив `context-budget-probe-gemma.json.gz`,
-без новых запросов генерации. Контроли полного документа ещё выполняются.
+без новых запросов генерации. Контроли полного документа также завершены.
 
 Региональный поиск без защиты нашёл 24 точных эталонных значения: тип верен
 у 12, scope у 22, оба у десяти. Объединение сохранённых региональных находок
 с исходными предложениями даёт 78/92 и 30 вне эталона: добавлены десять
 эталонных и четыре значения вне эталона. Это анализ кандидатного пула,
 не отдельный прогон проверки и применения правил.
+
+### Полный контекст Gemma
+
+Все 16 сохранённых запросов полного профиля Gemma завершились stop, без ошибок
+запросов/JSON и без OOM. После остановки runner контроль был возобновлён с одним
+сохранённым ответом; он переиспользован без повторной генерации. Событие отмечено
+в runtime_restarts. Для размещения весов временные сборочные кеши были сохранены
+и после удаления экспериментальных весов восстановлены.
+
+| Проверка правильных границ, 32 случая | Приватных mask | Публичных keep | Ошибочных keep приватного | Ошибочных mask публичного | Review | Верны тип и scope / приватных mask |
+|---|---:|---:|---:|---:|---:|---:|
+| Полный документ, bounded thinking | 7 | 16 | 9 | 0 | 0 | 6/7 |
+| Полный документ, thinking off | 0 | 14 | 14 | 0 | 4 | — |
+
+В этом контроле нет обхода LLM для credentials. Все случаи были запрошены.
+При одинаковом полном контексте и sampling ограниченное thinking увеличило
+число применимых подтверждений приватного; девять ошибочных keep сохранились.
+Без thinking сырые ответы дали keep всем 16 приватным примерам; два не прошли
+проверку контракта и остались на review. Успешный JSON не равен правильной
+оценке приватности. Результаты относятся к одному seed и этому набору.
+
+Добавляющий поиск полного профиля Gemma завершил три документа в обоих режимах:
+79/92 и 27 вне эталона с thinking, 84/92 и 27 без thinking. В последнем случае
+добавлены 16 эталонных значений и одно вне эталона к исходным предложениям.
+Все исходные предложения сохранены. Профиль: 16384/4096, temperature=1,
+top_k=64, seed=42. Для поисковика отключение thinking дало большее покрытие,
+хотя проверяющий в этом же контроле получил пользу от thinking.
+Архив — `context-controls--gemma-card-document--result.json.gz`.
 
 ## Воспроизведение
 
@@ -832,4 +862,30 @@ python3 scripts/evaluate_scheme_matrix.py --runtime /path/to/llama-server \
 python3 scripts/audit_internal_classifier.py --audit-binary target/debug/examples/classifier_audit \
   --detectors target/debug/examples/detector_candidates
 python3 scripts/report_validation_results.py
+python3 scripts/export_validation_evidence.py
 ```
+
+Для больших моделей использованы те же CLI-скрипты, например:
+
+```sh
+python3 scripts/evaluate_validation_schemes.py --model gemma4-e4b-qat \
+  --runtime /path/to/llama-server --model-dir /path/to/models \
+  --detectors target/debug/examples/detector_candidates --response-format auto \
+  --context-tokens 4096 --output-tokens 1600 --timeout 1200 \
+  --output artifacts/validation-schemes/gemma-calibration
+python3 scripts/evaluate_context_controls.py --model gemma4-e4b-qat \
+  --runtime /path/to/llama-server --model-dir /path/to/models \
+  --detectors target/debug/examples/detector_candidates --contexts document \
+  --thinking bounded off --context-tokens 16384 --output-tokens 4096 \
+  --retry-output-tokens 8192 --temperature 1 --top-p .95 --top-k 64 \
+  --min-p 0 --seed 42 --timeout 1200 \
+  --output artifacts/validation-schemes/context-controls/gemma-card-document
+```
+
+Предполагаются установленные закреплённые GGUF из каталога worker. Для Nanbeige
+ID — `nanbeige42-3b`, каталоги `nanbeige-calibration` и `nanbeige-card-document`,
+sampling полного контроля temperature=0.6, top_k=20. Для Granite — `granite42-3b`,
+каталоги `granite-calibration` и `granite-card-document`, temperature=1, top_k=40.
+Остальные показанные параметры совпадают. Полные настройки каждого прогона,
+хеши документов, моделей, runtime и производителей сохранены в signature
+и контрольных точках архивов.
