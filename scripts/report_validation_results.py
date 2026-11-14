@@ -123,6 +123,24 @@ def run_summary(path):
     return result
 
 
+def additive_region_pool(path, expected):
+    """Set union of saved proposals; no new inference or decision evaluation."""
+    if not path.is_file():return {'status':'not_run'}
+    state=json.loads(path.read_text());stage=state.get('stages',{}).get('regions')
+    if stage is None:return {'status':'region_stage_not_completed'}
+    original={(c['file'],c['value']) for c in state['candidate_pool']}
+    regional={(c['file'],c['value']) for c in stage['candidates']}
+    combined=original|regional
+    gold={key for key in expected if key[0] in state['signature']['source_sha256']}
+    return {'status':'derived_from_saved_pools','posthoc_analysis':True,'new_inference_calls':0,
+        'expected':len(gold),'visible_matches':len(combined&gold),'visible_outside':len(combined-gold),
+        'added_matches':len((regional-original)&gold),'added_outside':len((regional-original)-gold),
+        'original_proposals_retained':True,'privacy_kind_scope_decisions_not_evaluated':True,
+        'source_region_errors':sum(bool(row.get('error')) for row in state.get('regions',[])),
+        'source_pools_sha256':hashlib.sha256(json.dumps([state['candidate_pool'],stage],
+            sort_keys=True,ensure_ascii=False).encode()).hexdigest()}
+
+
 def build_report(directory):
     _, expected, _, sources, _ = load_corpus()
     matrix = summarize(directory)
@@ -143,6 +161,8 @@ def build_report(directory):
         'diagnostic_runs': {name: run_summary(directory/name/'result.json') for name in DIAGNOSTICS},
         'additional_document_runs': {model: run_summary(directory/name/'result.json')
             for model,name in ADDITIONAL.items()},
+        'derived_additive_region_pools': {model:additive_region_pool(directory/name/'result.json',expected)
+            for model,name in {**COHORT,**ADDITIONAL}.items()},
         'selected_holdout': run_summary(directory/'selected-holdout/result.json'),
         'context_controls': {name:run_summary(directory/'context-controls'/name/'result.json')
             for name in sorted(set(CONTEXT_RUNS) | {

@@ -70,8 +70,20 @@ def render(report):
         for method in METHODS])
     lines+=['',*['- '+MODELS.get(name,name)+': '+STATUS.get(row['status'],row['status'])+
         '; JSON: '+str(row.get('structured_output','—'))+error_note(row)+'.' for name,row in additional.items()],
-        '', 'Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не одинаковое квантование.','',
-        '## Проверка на правильных границах кандидатов','',
+        '', 'Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не одинаковое квантование.','']
+    lines+=['## Объединение сохранённых региональных находок с детекторами','',
+        'Анализ уже полученных списков, **без новых запросов LLM**. '
+        'Все исходные предложения сохранены и дополнены региональными находками. '
+        'Это расчёт кандидатного пула, а не отдельный прогон проверки приватности, '
+        'типа, scope или применения правил. Основные шесть схем выше не меняются.','']
+    derived=[]
+    for name,row in report.get('derived_additive_region_pools',{}).items():
+        if row['status']!='derived_from_saved_pools':values=['—','—']
+        elif row['source_region_errors']:values=['неполный','—']
+        else:values=[cell(row),f"{row['added_matches']} / {row['added_outside']}"]
+        derived.append([MODELS.get(name,name),*values])
+    lines+=table(['Модель','В эталоне / вне эталона','Добавлено: эталон / вне эталона'],derived)
+    lines+=['','## Проверка на правильных границах кандидатов','',
         '32 отрезка: 16 приватных, 16 публичных. Метки и типы не отправляются модели; '
         'обход LLM для защищённых credentials отключён. Это контроль LLM, а не recall детекторов. '
         'Review включает ошибки формата и цитирования. Числа подтверждения приватного '
