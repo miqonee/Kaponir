@@ -150,6 +150,13 @@
       "archive_sha256": "b21d3f66c7a2c2c4eef8890e1198f5fec9ed5945be8a569eec198137d8f5676f",
       "json_bytes": 214243
     },
+    "context-controls/granite-card-document/result.json": {
+      "archive": "context-controls--granite-card-document--result.json.gz",
+      "status": "completed",
+      "json_sha256": "c2c1f571969eb3337d4a65918630e09af237b65b7785e4da53b76f28ca3ed2c6",
+      "archive_sha256": "9af88ef87fd9325fe1f22e95491ba578c3743537016cbed8faa0b616a439201e",
+      "json_bytes": 254922
+    },
     "context-controls/qwen08-prompt-document/result.json": {
       "archive": "context-controls--qwen08-prompt-document--result.json.gz",
       "status": "completed",

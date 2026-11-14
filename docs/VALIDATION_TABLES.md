@@ -65,6 +65,8 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 
 | Профиль | Метод | Верный mask приватного | Верный keep публичного | Ошибочный keep приватного | Ошибочный mask публичного | Review | Верны тип и scope / mask приватного | Сбоев пакетов |
 |---|---|---|---|---|---|---|---|---|
+| granite-card-document | review-document-bounded | 0 | 8 | 3 | 0 | 21 | — | 0 |
+| granite-card-document | review-document-off | 0 | 8 | 11 | 0 | 13 | — | 0 |
 | minicpm-common | review-record-bounded | 0 | 12 | 12 | 0 | 8 | — | 0 |
 | minicpm-common | review-record-off | 1 | 9 | 12 | 4 | 6 | 0/1 | 0 |
 | minicpm-common | review-document-bounded | 2 | 13 | 12 | 1 | 4 | 2/2 | 0 |
@@ -121,6 +123,8 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 
 | Профиль | Метод | Осталось / вне эталона | Документов завершено |
 |---|---|---|---|
+| granite-card-document | discovery-document-bounded | 75 / 27 | 3 |
+| granite-card-document | discovery-document-off | 76 / 26 | 3 |
 | minicpm-card-document | discovery-document-off | 72 / 29 | 3 |
 | minicpm-card-document | discovery-document-on | неполный | 1 |
 | minicpm-common | discovery-document-bounded | 68 / 27 | 3 |
@@ -136,7 +140,7 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | qwen2-common | discovery-document-off | 74 / 33 | 3 |
 | qwen2-native-document | discovery-document-on | неполный | 0 |
 
-Ещё не запускались: `gemma-card-document`, `granite-card-document`.
+Ещё не запускались: `gemma-card-document`.
 
 ## Отложенные документы
 
