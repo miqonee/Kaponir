@@ -4883,7 +4883,7 @@
   },
   "additional_document_runs": {
     "nanbeige42-3b": {
-      "status": "running",
+      "status": "completed",
       "structured_output": "prompt",
       "runtime_supports_json_schema": false,
       "metrics": {
@@ -4982,9 +4982,30 @@
           "correct_scope": 12,
           "public_control_visible": 2,
           "negative_document_visible": 0
+        },
+        "double": {
+          "expected": 92,
+          "proposals": 158,
+          "proposal_matches": 89,
+          "visible_matches": 74,
+          "visible_outside": 35,
+          "confirmed_matches": 10,
+          "confirmed_outside": 5,
+          "correct_values_filtered": 15,
+          "outside_values_filtered": 34,
+          "needs_review_values": 94,
+          "correct_kind": 8,
+          "correct_scope": 8,
+          "public_control_visible": 3,
+          "negative_document_visible": 0
         }
       },
       "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "resources_after": {
         "cpu.max": "200000 100000",
         "memory.max": "8589934592",
         "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
@@ -5019,7 +5040,7 @@
         }
       },
       "discovery_checkpoint_initial_calls": 5,
-      "result_sha256": "7752bd8edbe891c30b0a0b4d0cedcc5d77c296ad9eb303ad02b03d939f9e9aff",
+      "result_sha256": "69cea89c7c0f9cd33870843866ff79c4369f370ff761bbbde78d648ce95e29a2",
       "signature": {
         "model": "nanbeige42-3b",
         "artifact": [
@@ -5064,17 +5085,17 @@
           "region": "04be0641bcf7abbb59104e61c749a3b30e8ada80f16663ed2546f87b601beead"
         }
       },
-      "calls": 88,
+      "calls": 118,
       "shadow": true,
       "rules_changed": 0,
       "request_errors": {
-        "JSONDecodeError": 5
+        "JSONDecodeError": 7
       },
       "inference_errors": {
-        "JSONDecodeError": 2
+        "JSONDecodeError": 4
       },
       "finish_reasons": {
-        "stop": 88
+        "stop": 118
       },
       "validation_quality": {
         "point": {
@@ -5097,6 +5118,13 @@
           "kind_correct_without_protection": 46,
           "scope_correct_without_protection": 5,
           "kind_and_scope_correct_without_protection": 4
+        },
+        "double": {
+          "gold_proposals_without_protection": 82,
+          "gold_confirmed_without_protection": 3,
+          "kind_correct_without_protection": 1,
+          "scope_correct_without_protection": 1,
+          "kind_and_scope_correct_without_protection": 1
         }
       }
     },

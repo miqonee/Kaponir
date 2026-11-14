@@ -31,6 +31,13 @@
       "archive_sha256": "0507b97f44bb6f5b157e014fcfa6b479fea9aec358e3c0fde3ee6e8fe6e75689",
       "json_bytes": 732343
     },
+    "nanbeige-calibration/result.json": {
+      "archive": "nanbeige-calibration--result.json.gz",
+      "status": "completed",
+      "json_sha256": "69cea89c7c0f9cd33870843866ff79c4369f370ff761bbbde78d648ce95e29a2",
+      "archive_sha256": "0e54e4ad581fd95f1ff477affc0b5fc43756890c34c4bb3b3b7da1c3a5f09687",
+      "json_bytes": 889243
+    },
     "minicpm-balanced/result.json": {
       "archive": "minicpm-balanced--result.json.gz",
       "status": "completed",
