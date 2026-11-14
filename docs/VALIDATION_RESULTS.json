@@ -6153,7 +6153,68 @@
     "nanbeige-card-document": {
       "status": "running",
       "structured_output": "prompt",
-      "metrics": {},
+      "metrics": {
+        "review-document-bounded": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 16,
+          "visible_outside": 12,
+          "confirmed_matches": 0,
+          "confirmed_outside": 0,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 4,
+          "needs_review_values": 28,
+          "correct_kind": 0,
+          "correct_scope": 0,
+          "public_control_visible": 12,
+          "negative_document_visible": 2,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 4,
+          "failed_batches": 4,
+          "raw_private_keep_before_guard": 0,
+          "invalid_decisions": 28,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 0,
+          "kind_correct_without_protection": 0,
+          "scope_correct_without_protection": 0,
+          "kind_and_scope_correct_without_protection": 0
+        },
+        "review-document-off": {
+          "expected": 16,
+          "proposals": 32,
+          "proposal_matches": 16,
+          "visible_matches": 9,
+          "visible_outside": 9,
+          "confirmed_matches": 4,
+          "confirmed_outside": 0,
+          "correct_values_filtered": 7,
+          "outside_values_filtered": 7,
+          "needs_review_values": 14,
+          "correct_kind": 3,
+          "correct_scope": 3,
+          "public_control_visible": 9,
+          "negative_document_visible": 6,
+          "cases": 32,
+          "reference_private_cases": 16,
+          "reference_public_cases": 16,
+          "attempted_cases": 32,
+          "quality_is_lower_bound_if_incomplete": false,
+          "action_correct": 11,
+          "failed_batches": 2,
+          "raw_private_keep_before_guard": 7,
+          "invalid_decisions": 14,
+          "gold_proposals_without_protection": 16,
+          "gold_confirmed_without_protection": 4,
+          "kind_correct_without_protection": 3,
+          "scope_correct_without_protection": 3,
+          "kind_and_scope_correct_without_protection": 2
+        }
+      },
       "resources_before": {
         "cpu.max": "200000 100000",
         "memory.max": "8589934592",
@@ -6178,7 +6239,7 @@
       },
       "runtime_reasoning": "auto",
       "reasoning_format": "deepseek",
-      "result_sha256": "41485acfb9a45352f49d275cba1089c82e9cf19d24efac837d319b9790077a23",
+      "result_sha256": "1c6b1d6d61938697b8f4ba86961472e119904950a176d99eb8a1be592467c4df",
       "signature": {
         "model": "nanbeige42-3b",
         "settings": {
@@ -6232,15 +6293,17 @@
           "kaponir_inference.py": "adfa7a9214059aeb7525c1c60d2fa6dba6cf1106829130c3ab3c86c4a0f587d4"
         }
       },
-      "calls": 3,
+      "calls": 10,
       "shadow": true,
       "rules_changed": 0,
       "request_errors": {},
       "inference_errors": {
-        "TimeoutError": 3
+        "TimeoutError": 5,
+        "JSONDecodeError": 1
       },
       "finish_reasons": {
-        "unknown": 3
+        "unknown": 5,
+        "stop": 5
       }
     },
     "qwen08-common": {

@@ -71,6 +71,8 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | minicpm-common | review-document-off | 0 | 14 | 14 | 0 | 4 | — | 0 |
 | minicpm-prompt-document | review-document-off | 0 | 0 | 0 | 0 | 32 | — | 5 |
 | minicpm-single-record | review-record-off | 4 | 9 | 8 | 5 | 6 | 2/4 | 0 |
+| nanbeige-card-document | review-document-bounded | 0 | 4 | 0 | 0 | 28 | — | 4 |
+| nanbeige-card-document | review-document-off | 4 | 7 | 7 | 0 | 14 | 2/4 | 2 |
 | qwen08-common | review-record-bounded | 0 | 0 | 0 | 0 | 32 | — | 0 |
 | qwen08-common | review-record-off | 0 | 0 | 0 | 0 | 32 | — | 0 |
 | qwen08-common | review-document-bounded | 0 | 3 | 5 | 0 | 24 | — | 0 |
@@ -94,7 +96,7 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 - `minicpm-common`: model_response_truncated × 1.
 - `minicpm-native-document`: model_response_truncated × 2.
 - `minicpm-prompt-document`: JSONDecodeError × 5.
-- `nanbeige-card-document`: TimeoutError × 3.
+- `nanbeige-card-document`: JSONDecodeError × 1, TimeoutError × 5.
 - `qwen08-common`: model_response_truncated × 4.
 - `qwen08-native-document`: model_response_truncated × 2.
 - `qwen08-native-prompt`: model_response_truncated × 2.
