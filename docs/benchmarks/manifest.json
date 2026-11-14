@@ -220,6 +220,13 @@
       "archive_sha256": "27037034e7b3d2aabccdea3b8d8818e4319473027ba4a98f7edb0df55f6e24b5",
       "json_bytes": 2497
     },
+    "context-budget-probe-nanbeige.json": {
+      "archive": "context-budget-probe-nanbeige.json.gz",
+      "status": "completed",
+      "json_sha256": "3560e5f05f887340adddcc1695bdae6dba846be91e6faee14c3a5a4823b3dcb6",
+      "archive_sha256": "b4337c32145c582fbaf22d258d7986e208a924d5642ef02842bf656923ab57dc",
+      "json_bytes": 4112
+    },
     "context-controls/qwen08-native-unbounded/result.json": {
       "archive": "context-controls--qwen08-native-unbounded--result.json.gz",
       "status": "interrupted",

@@ -160,6 +160,7 @@ def build_report(directory):
                       ('runtime-cache-diagnostic', 'runtime_cache_diagnostic'),
                       ('runtime-cache-replay', 'runtime_cache_replay'),
                       ('context-budget-probe', 'context_budget_probe'),
+                      ('context-budget-probe-nanbeige', 'context_budget_probe_nanbeige'),
                       ('classifier-audit/result', 'internal_classifier_audit')]:
         path = directory/(name+'.json')
         if path.is_file(): report[key] = json.loads(path.read_text())
