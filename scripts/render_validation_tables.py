@@ -27,10 +27,13 @@ def cell(metric):
 
 
 def error_note(row):
-    errors=row.get('inference_errors',{})
-    if not errors:return ''
-    return '; события ошибок этапов, включая повторы: '+', '.join(
-        f'{code} × {count}' for code,count in sorted(errors.items()))
+    notes=[]
+    for key,label in [('request_errors','ошибки запросов/JSON, включая восстановленные дроблением'),
+                      ('inference_errors','ошибки этапов; могут относиться к тем же запросам')]:
+        errors=row.get(key,{})
+        if errors:notes.append(label+': '+', '.join(
+            f'{code} × {count}' for code,count in sorted(errors.items())))
+    return '; '+'; '.join(notes) if notes else ''
 
 
 def render(report):

@@ -7,9 +7,23 @@ import tempfile
 import unittest
 
 from export_validation_evidence import export
+from report_validation_results import run_summary
+from render_validation_tables import error_note
 
 
 class EvidenceTests(unittest.TestCase):
+    def test_stopped_but_invalid_json_is_counted_separately_from_stage_errors(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path=Path(temporary)/'result.json'
+            path.write_text(json.dumps({'status':'completed','signature':{},'shadow':True,'rules_changed':0,
+                'calls':[{'finish_reason':'stop','error':'JSONDecodeError'},{'error':'TimeoutError'}],
+                'responses':{'review':{'error':'TimeoutError'}}}))
+            summary=run_summary(path)
+        self.assertEqual(summary['request_errors'],{'JSONDecodeError':1,'TimeoutError':1})
+        self.assertEqual(summary['inference_errors'],{'TimeoutError':1})
+        self.assertEqual(summary['finish_reasons'],{'stop':1,'TimeoutError':1})
+        self.assertIn('JSONDecodeError × 1',error_note(summary))
+
     def test_round_trip_hash_and_incomplete_exclusion(self):
         with tempfile.TemporaryDirectory() as temporary:
             root=Path(temporary);source=root/'source';output=root/'output'

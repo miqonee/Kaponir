@@ -3878,6 +3878,7 @@
       "calls": 20,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 20
@@ -3982,6 +3983,7 @@
       "calls": 6,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 6
@@ -4127,6 +4129,7 @@
       "calls": 40,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 40
@@ -4273,6 +4276,7 @@
       "calls": 40,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 40
@@ -4416,6 +4420,9 @@
       "calls": 6,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {
+        "HTTPError": 6
+      },
       "inference_errors": {
         "HTTPError": 6
       },
@@ -4559,6 +4566,10 @@
       "calls": 2,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {
+        "TimeoutError": 1,
+        "JSONDecodeError": 1
+      },
       "inference_errors": {
         "TimeoutError": 1,
         "JSONDecodeError": 1
@@ -4661,6 +4672,9 @@
       "calls": 40,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {
+        "JSONDecodeError": 2
+      },
       "inference_errors": {
         "JSONDecodeError": 2
       },
@@ -4809,6 +4823,7 @@
       "calls": 40,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 40
@@ -4932,7 +4947,7 @@
         }
       },
       "discovery_checkpoint_initial_calls": 5,
-      "result_sha256": "6acdeb93b68981d5e09fdaf8e9ad9df28b7dbe82843ffce549c792dd14cfde6c",
+      "result_sha256": "d1d572d3b53335f8948053f9086cd0462da915872d78efd9123f0250fc836e5b",
       "signature": {
         "model": "nanbeige42-3b",
         "artifact": [
@@ -4977,12 +4992,15 @@
           "region": "04be0641bcf7abbb59104e61c749a3b30e8ada80f16663ed2546f87b601beead"
         }
       },
-      "calls": 5,
+      "calls": 23,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {
+        "JSONDecodeError": 3
+      },
       "inference_errors": {},
       "finish_reasons": {
-        "stop": 5
+        "stop": 23
       }
     },
     "granite42-3b": {
@@ -5109,6 +5127,7 @@
     "calls": 7,
     "shadow": true,
     "rules_changed": 0,
+    "request_errors": {},
     "inference_errors": {},
     "finish_reasons": {
       "stop": 7
@@ -5261,6 +5280,7 @@
       "calls": 8,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 3,
         "TimeoutError": 1
@@ -5535,6 +5555,7 @@
       "calls": 27,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 1
       },
@@ -5666,6 +5687,7 @@
       "calls": 2,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 2
       },
@@ -5792,6 +5814,7 @@
       "calls": 5,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "JSONDecodeError": 5
       },
@@ -5918,6 +5941,7 @@
       "calls": 32,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 32
@@ -6178,6 +6202,7 @@
       "calls": 30,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 4
       },
@@ -6309,6 +6334,7 @@
       "calls": 2,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 2
       },
@@ -6439,6 +6465,7 @@
       "calls": 2,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 2
       },
@@ -6561,6 +6588,7 @@
       "calls": 9,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 4
       },
@@ -6688,6 +6716,7 @@
       "calls": 5,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 5
@@ -6861,6 +6890,7 @@
       "calls": 32,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 32
@@ -7130,6 +7160,7 @@
       "calls": 29,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 3
       },
@@ -7261,6 +7292,7 @@
       "calls": 2,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {
         "model_response_truncated": 2
       },
@@ -7394,6 +7426,7 @@
       "calls": 5,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 5
@@ -7567,6 +7600,7 @@
       "calls": 32,
       "shadow": true,
       "rules_changed": 0,
+      "request_errors": {},
       "inference_errors": {},
       "finish_reasons": {
         "stop": 32

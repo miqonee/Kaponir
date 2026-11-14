@@ -77,6 +77,7 @@ def run_summary(path):
     ] if key in state}
     result.update(result_sha256=hashlib.sha256(snapshot).hexdigest(), signature=signature,
         calls=len(state.get('calls', [])), shadow=state['shadow'], rules_changed=state['rules_changed'],
+        request_errors=dict(Counter(c['error'] for c in state.get('calls',[]) if c.get('error'))),
         inference_errors=dict(Counter(r['error'] for r in state['responses'].values() if 'error' in r)),
         finish_reasons=dict(Counter(c.get('finish_reason', c.get('error', 'unknown')) for c in state['calls'])))
     if any(method in state.get('stages',{}) for method in ['point','regions','union_point','double']):
