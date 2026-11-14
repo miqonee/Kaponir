@@ -56,16 +56,19 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | minicpm-common | review-document-bounded | 2 | 13 | 12 | 1 | 4 | 2/2 |
 | minicpm-common | review-document-off | 0 | 14 | 14 | 0 | 4 | — |
 | minicpm-prompt-document | review-document-off | 0 | 0 | 0 | 0 | 32 | — |
+| minicpm-single-record | review-record-off | 4 | 9 | 8 | 5 | 6 | 2/4 |
 | qwen08-common | review-record-bounded | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-record-off | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-common | review-document-bounded | 0 | 3 | 5 | 0 | 24 | — |
 | qwen08-common | review-document-off | 0 | 0 | 0 | 0 | 32 | — |
 | qwen08-prompt-document | review-document-off | 0 | 0 | 0 | 0 | 32 | — |
+| qwen08-single-record | review-record-off | 0 | 0 | 0 | 0 | 32 | — |
 | qwen2-common | review-record-bounded | 0 | 6 | 6 | 0 | 20 | — |
 | qwen2-common | review-record-off | 0 | 10 | 3 | 0 | 19 | — |
 | qwen2-common | review-document-bounded | 0 | 7 | 10 | 0 | 15 | — |
 | qwen2-common | review-document-off | 0 | 11 | 10 | 0 | 11 | — |
 | qwen2-prompt-document | review-document-off | 0 | 8 | 1 | 0 | 23 | — |
+| qwen2-single-record | review-record-off | 0 | 10 | 4 | 0 | 18 | — |
 
 `record` — запись с подсказкой; `document` — весь документ. `bounded` — лимит reasoning в половину начального ответа; `on` — без этого ограничения. Профили `prompt` меняют и инструкцию формата, и способ ограничения JSON. `single` содержит один кандидат на запрос. Точные параметры — в JSON-сводке.
 
@@ -96,11 +99,12 @@ Gemma использует QAT Q4_0, остальные — Q4_K_M. Это не 
 | qwen08-common | discovery-document-bounded | 70 / 31 | 3 |
 | qwen08-common | discovery-document-off | 68 / 30 | 3 |
 | qwen08-native-document | discovery-document-on | неполный | 0 |
+| qwen08-native-prompt | discovery-document-on | неполный | 0 |
 | qwen2-common | discovery-document-bounded | 77 / 32 | 3 |
 | qwen2-common | discovery-document-off | 74 / 33 | 3 |
 | qwen2-native-document | discovery-document-on | неполный | 0 |
 
-Ещё не запускались: `gemma-card-document`, `granite-card-document`, `minicpm-single-record`, `nanbeige-card-document`, `qwen08-native-prompt`, `qwen08-single-record`, `qwen2-single-record`.
+Ещё не запускались: `gemma-card-document`, `granite-card-document`, `nanbeige-card-document`.
 
 ## Отложенные документы
 

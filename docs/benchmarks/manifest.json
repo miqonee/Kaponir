@@ -150,6 +150,34 @@
       "archive_sha256": "c8fe70cdd431062c2fa9b743c40c759ee87773662a0563cceeeacc93d2367d2c",
       "json_bytes": 51396
     },
+    "context-controls/qwen08-single-record/result.json": {
+      "archive": "context-controls--qwen08-single-record--result.json.gz",
+      "status": "completed",
+      "json_sha256": "29afc0b18b340fa3c43a62bcfadf017f23e0590c6be043ee3f3a7ca6835840d0",
+      "archive_sha256": "769f0f396262f80ac7a4b8c105985d1a604d83487f88e3123ee36d9bb05f8340",
+      "json_bytes": 122197
+    },
+    "context-controls/qwen2-single-record/result.json": {
+      "archive": "context-controls--qwen2-single-record--result.json.gz",
+      "status": "completed",
+      "json_sha256": "948a5a3dd79fb3e18e4322c32e454ef0d7f9ffc17a7762380062a34855bd7146",
+      "archive_sha256": "5890cad8e2efd2f340c59c8d2423012b9fb4759d62b3ab470ac04e21af5e7888",
+      "json_bytes": 126777
+    },
+    "context-controls/minicpm-single-record/result.json": {
+      "archive": "context-controls--minicpm-single-record--result.json.gz",
+      "status": "completed",
+      "json_sha256": "d42af362531fb18fb8a5354e2b48d5c8c2655ed278cb3e5744233bbf3b9f397e",
+      "archive_sha256": "b5a49d5805bc13820cc5206223949f59f7aac1c5c97c016ad1e1c8400d59c483",
+      "json_bytes": 116046
+    },
+    "context-controls/qwen08-native-prompt/result.json": {
+      "archive": "context-controls--qwen08-native-prompt--result.json.gz",
+      "status": "completed",
+      "json_sha256": "297dcb08e084d5a8ded6151abc132d00a01f90866b5f180551d0d6846fe909f3",
+      "archive_sha256": "d2604af7e246a07ccec45abc30c57be90e6ac0c76ebf91b45dc0a9780c2639a5",
+      "json_bytes": 61300
+    },
     "selected-holdout/result.json": {
       "archive": "selected-holdout--result.json.gz",
       "status": "completed",
