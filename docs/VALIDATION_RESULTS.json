@@ -4966,6 +4966,22 @@
           "correct_scope": 46,
           "public_control_visible": 1,
           "negative_document_visible": 0
+        },
+        "union_point": {
+          "expected": 92,
+          "proposals": 158,
+          "proposal_matches": 89,
+          "visible_matches": 69,
+          "visible_outside": 26,
+          "confirmed_matches": 58,
+          "confirmed_outside": 13,
+          "correct_values_filtered": 20,
+          "outside_values_filtered": 43,
+          "needs_review_values": 24,
+          "correct_kind": 53,
+          "correct_scope": 12,
+          "public_control_visible": 2,
+          "negative_document_visible": 0
         }
       },
       "resources_before": {
@@ -4985,6 +5001,14 @@
           "saved_technical_calls": 5,
           "unfinished_discovery_payloads_cached": false,
           "recovery": "enable per-response discovery checkpointing; unfinished document must be recomputed once"
+        },
+        {
+          "cause": "processes_stopped_on_resume",
+          "utc": "2026-11-14T10:04:22.632244+00:00",
+          "saved_technical_calls": 82,
+          "cached_search_responses": 18,
+          "cached_validation_responses": 56,
+          "recovery": "reuse completed stages and cached responses; inference parameters unchanged"
         }
       ],
       "discovery_checkpoint_policy": {
@@ -4995,7 +5019,7 @@
         }
       },
       "discovery_checkpoint_initial_calls": 5,
-      "result_sha256": "f05a04b56d412627ba91236a9705dd6e94887b8b9f410eb1f8ed706b4fafd76f",
+      "result_sha256": "7752bd8edbe891c30b0a0b4d0cedcc5d77c296ad9eb303ad02b03d939f9e9aff",
       "signature": {
         "model": "nanbeige42-3b",
         "artifact": [
@@ -5040,17 +5064,17 @@
           "region": "04be0641bcf7abbb59104e61c749a3b30e8ada80f16663ed2546f87b601beead"
         }
       },
-      "calls": 68,
+      "calls": 88,
       "shadow": true,
       "rules_changed": 0,
       "request_errors": {
-        "JSONDecodeError": 4
+        "JSONDecodeError": 5
       },
       "inference_errors": {
-        "JSONDecodeError": 1
+        "JSONDecodeError": 2
       },
       "finish_reasons": {
-        "stop": 68
+        "stop": 88
       },
       "validation_quality": {
         "point": {
@@ -5066,6 +5090,13 @@
           "kind_correct_without_protection": 58,
           "scope_correct_without_protection": 39,
           "kind_and_scope_correct_without_protection": 33
+        },
+        "union_point": {
+          "gold_proposals_without_protection": 82,
+          "gold_confirmed_without_protection": 51,
+          "kind_correct_without_protection": 46,
+          "scope_correct_without_protection": 5,
+          "kind_and_scope_correct_without_protection": 4
         }
       }
     },
