@@ -38,6 +38,13 @@
       "archive_sha256": "0e54e4ad581fd95f1ff477affc0b5fc43756890c34c4bb3b3b7da1c3a5f09687",
       "json_bytes": 889243
     },
+    "granite-calibration/result.json": {
+      "archive": "granite-calibration--result.json.gz",
+      "status": "completed",
+      "json_sha256": "a3bda57b622fce951270b27f80a2625f25f2ab7c340fa3e267dc59131701e70e",
+      "archive_sha256": "f32707b40cb310ad2c835509b6c47b6dd8d2068b9a16476a900ca1bcde5d9917",
+      "json_bytes": 629061
+    },
     "minicpm-balanced/result.json": {
       "archive": "minicpm-balanced--result.json.gz",
       "status": "completed",
