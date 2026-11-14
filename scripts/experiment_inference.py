@@ -103,7 +103,11 @@ def extraction_schema(kinds,mode,count):
         'type':'object','properties':props,'required':list(props),'additionalProperties':False}}},'required':['candidates'],'additionalProperties':False},sort_keys=True))
 
 
-def discover(client,text,prompt,kinds,args,checkpoint=lambda:None):
+class DiscoveryCheckpointError(ValueError):
+    """Persistent experiment state is unavailable; do not score it as model output."""
+
+
+def discover(client,text,prompt,kinds,args,checkpoint=lambda:None,progress=None):
     schema=extraction_schema(kinds,args.candidate_mode,args.max_candidates)
     if isinstance(client,(RemoteClient,LocalClient)):client.planning_schema=schema
     if args.candidate_mode=='lean':
@@ -129,12 +133,33 @@ def discover(client,text,prompt,kinds,args,checkpoint=lambda:None):
         spans=plan_text(text,fits,context,strategy=args.strategy,max_fragments=args.max_fragments)
         pieces=[{'source':text[s['start']:s['end']],'context':s['context']} for s in spans]
     found={};errors=[];calls=0
+    responses=progress.setdefault('responses',{}) if progress is not None else None
+    def persist():
+        try:checkpoint()
+        except Exception as exc:raise DiscoveryCheckpointError('discovery_checkpoint_write_failed') from exc
     def consume(fragment,ctx):
         nonlocal calls
         if calls>=args.max_fragments:raise ValueError('document_fragment_limit')
         calls+=1
+        key=hashlib.sha256(json.dumps([prompt,{'context':ctx,'source':fragment},schema,
+            args.output_tokens,getattr(client,'model',None),getattr(client,'output_mode',None),
+            getattr(client,'sampling',None)],sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+        cached=responses.get(key) if responses is not None else None
+        if cached is not None:
+            index=cached.get('record_index')
+            if type(index) is not int or not 0<=index<len(client.records) or 'reply' not in cached:
+                raise DiscoveryCheckpointError('discovery_checkpoint_record_missing')
         try:
-            reply=client.infer(prompt,{'context':ctx,'source':fragment},schema,args.output_tokens)
+            if cached is None:
+                reply=client.infer(prompt,{'context':ctx,'source':fragment},schema,args.output_tokens)
+                record=client.records[-1]
+                if responses is not None:
+                    responses[key]={'reply':reply,'record_index':len(client.records)-1}
+                    # Persist the parent before candidate-limit recursion starts.
+                    persist()
+            else:
+                reply=cached['reply'];record=client.records[cached['record_index']]
+                progress['cache_hits']=progress.get('cache_hits',0)+1
             candidates=reply['candidates']
             if not isinstance(candidates,list):raise ValueError('invalid_model_response')
             grounded=set()
@@ -143,14 +168,15 @@ def discover(client,text,prompt,kinds,args,checkpoint=lambda:None):
                 if isinstance(quoted,str) and 3<=len(quoted.encode())<=512 and quoted.strip()==quoted and quoted in fragment:
                     grounded.add(quoted)
                     found.setdefault(quoted,{'value':quoted,'kind':value.get('kind','CUSTOM'),'confidence':value.get('confidence')})
-            client.records[-1].update(candidate_count=len(candidates),unique_grounded_count=len(grounded))
+            record.update(candidate_count=len(candidates),unique_grounded_count=len(grounded))
             if args.strategy!='fixed' and len(grounded)>=args.max_candidates and len(fragment)>1:
                 left,right=split_span(fragment,0,len(fragment));consume(fragment[left[0]:left[1]],ctx);consume(fragment[right[0]:right[1]],ctx)
+        except DiscoveryCheckpointError:raise
         except Exception as exc:
             if args.strategy!='fixed' and (isinstance(exc,json.JSONDecodeError) or str(exc) in ['model_response_truncated','invalid_model_response']) and len(fragment)>1:
                 left,right=split_span(fragment,0,len(fragment));consume(fragment[left[0]:left[1]],ctx);consume(fragment[right[0]:right[1]],ctx)
             else:errors.append({'error':type(exc).__name__,'code':str(exc)[:80],'fragment_sha256':hashlib.sha256(fragment.encode()).hexdigest()})
-        checkpoint()
+        persist()
     for piece in pieces:consume(piece['source'],piece['context'])
     return {'values':list(found.values()),'errors':errors,'fragments':len(pieces),'calls':calls}
 

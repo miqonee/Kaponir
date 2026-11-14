@@ -356,6 +356,15 @@ def main():
             state['structured_output'] = client.output_mode
             state['runtime_supports_json_schema'] = worker.process_supports_json_schema
             client.records = state['calls']
+            checkpoint_policy={'version':1,'source_sha256':{
+                name:hashlib.sha256((ROOT/'scripts'/name).read_bytes()).hexdigest()
+                for name in ['experiment_inference.py','evaluate_validation_schemes.py']}}
+            if 'discovery_checkpoint_policy' in state:
+                if state['discovery_checkpoint_policy']!=checkpoint_policy:
+                    raise ValueError('discovery_checkpoint_producer_changed')
+            else:
+                state['discovery_checkpoint_policy']=checkpoint_policy
+                state['discovery_checkpoint_initial_calls']=len(client.records)
             extract_prompt, _, kinds = prompts_and_kinds()
             experiment = Experiment(client, args, sources, kinds, state, save)
             def stage(name, values, decisions):
@@ -387,7 +396,8 @@ def main():
                     key = 'discovery:'+name
                     if key not in state['stages']:
                         settings = argparse.Namespace(**{**vars(args), 'candidate_mode': 'typed', 'strategy': 'auto', 'target_input_tokens': 0})
-                        state['stages'][key] = discover(client, text, extract_prompt, kinds, settings, save)
+                        progress=state.setdefault('discovery_progress',{}).setdefault(name,{})
+                        state['stages'][key] = discover(client, text, extract_prompt, kinds, settings, save,progress)
                         save()
                     for row in state['stages'][key]['values']:
                         value = row['value']; a = text.index(value)

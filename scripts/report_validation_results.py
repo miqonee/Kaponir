@@ -73,7 +73,7 @@ def run_summary(path):
         'resources_before', 'resources_after', 'error', 'runtime_exit_code',
         'cache_origin', 'active_runtime_memory_policy', 'runtime_cache_history', 'artifact',
         'thinking_template_probe', 'runtime_reasoning', 'reasoning_format',
-        'runtime_restarts',
+        'runtime_restarts', 'discovery_checkpoint_policy', 'discovery_checkpoint_initial_calls',
     ] if key in state}
     result.update(result_sha256=hashlib.sha256(snapshot).hexdigest(), signature=signature,
         calls=len(state.get('calls', [])), shadow=state['shadow'], rules_changed=state['rules_changed'],

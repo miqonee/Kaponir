@@ -4868,7 +4868,122 @@
   },
   "additional_document_runs": {
     "nanbeige42-3b": {
-      "status": "not_run"
+      "status": "running",
+      "structured_output": "prompt",
+      "runtime_supports_json_schema": false,
+      "metrics": {
+        "detector_proposals": {
+          "expected": 92,
+          "proposals": 94,
+          "proposal_matches": 68,
+          "visible_matches": 68,
+          "visible_outside": 26,
+          "confirmed_matches": 68,
+          "confirmed_outside": 26,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 67,
+          "correct_scope": 12,
+          "public_control_visible": 1,
+          "negative_document_visible": 2
+        },
+        "detector_applied": {
+          "expected": 92,
+          "proposals": 32,
+          "proposal_matches": 15,
+          "visible_matches": 15,
+          "visible_outside": 17,
+          "confirmed_matches": 15,
+          "confirmed_outside": 17,
+          "correct_values_filtered": 0,
+          "outside_values_filtered": 0,
+          "needs_review_values": 0,
+          "correct_kind": 15,
+          "correct_scope": 12,
+          "public_control_visible": 0,
+          "negative_document_visible": 0
+        }
+      },
+      "resources_before": {
+        "cpu.max": "200000 100000",
+        "memory.max": "8589934592",
+        "memory.events": "low 0\nhigh 0\nmax 4629668\noom 0\noom_kill 0\noom_group_kill 0"
+      },
+      "active_runtime_memory_policy": {
+        "cache_ram_mib": 0,
+        "cache_idle_slots": false,
+        "request_cache_prompt": false
+      },
+      "runtime_restarts": [
+        {
+          "cause": "processes_stopped_on_resume",
+          "utc": "2026-11-14T05:02:12.623725+00:00",
+          "saved_technical_calls": 5,
+          "unfinished_discovery_payloads_cached": false,
+          "recovery": "enable per-response discovery checkpointing; unfinished document must be recomputed once"
+        }
+      ],
+      "discovery_checkpoint_policy": {
+        "version": 1,
+        "source_sha256": {
+          "experiment_inference.py": "e34d1a4d47e05ffc0df3a60fc04d785134ac5626d0682d7d4ec3bec321dea781",
+          "evaluate_validation_schemes.py": "e6cd7e7f76cd54588b860eee46811ab97f005fe78818bb1c29ec02d1b5dd181c"
+        }
+      },
+      "discovery_checkpoint_initial_calls": 5,
+      "result_sha256": "6acdeb93b68981d5e09fdaf8e9ad9df28b7dbe82843ffce549c792dd14cfde6c",
+      "signature": {
+        "model": "nanbeige42-3b",
+        "artifact": [
+          "Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf",
+          2684023968,
+          "b92d2e35c9876b0c4bc671996360204f4149d0546c23d5954d5eb3b106c81f24",
+          "https://huggingface.co/bartowski/Nanbeige_Nanbeige4.2-3B-GGUF/resolve/17562eefe9752007209148d5f7a6e275fc8d8077/Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf"
+        ],
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+        "source_sha256": {
+          "01-cost-estimate.md": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+          "02-application.log": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+          "08-public-reference.md": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+        },
+        "settings": {
+          "model": "nanbeige42-3b",
+          "hf_url": null,
+          "documents": [
+            "01-cost-estimate.md",
+            "02-application.log",
+            "08-public-reference.md"
+          ],
+          "schemes": [
+            "free",
+            "point",
+            "regions",
+            "double"
+          ],
+          "batch_size": 8,
+          "context_tokens": 4096,
+          "output_tokens": 1600,
+          "reserve_tokens": 64,
+          "hint_tokens": 256,
+          "response_format": "auto",
+          "max_candidates": 24,
+          "max_fragments": 256,
+          "timeout": 1200
+        },
+        "prompts": {
+          "primary": "a8ad2fb6804256a45c1effe84edddd6c4364ba9fd8aacd49edcc8301fe3c6d83",
+          "audit": "7bb3d73a5d8a818215d141e5b675f47503c9ec1aac2b6e868c1ef28938f49a3b",
+          "region": "04be0641bcf7abbb59104e61c749a3b30e8ada80f16663ed2546f87b601beead"
+        }
+      },
+      "calls": 5,
+      "shadow": true,
+      "rules_changed": 0,
+      "inference_errors": {},
+      "finish_reasons": {
+        "stop": 5
+      }
     },
     "granite42-3b": {
       "status": "not_run"
