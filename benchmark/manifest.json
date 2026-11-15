@@ -1,7 +1,7 @@
 {
   "version": 1,
   "source_revision": "627f58d015f3f7c2ee4a242b9c05b89e4e91cc6c",
-  "generated_utc": "2026-11-15T13:32:13.837837+00:00",
+  "generated_utc": "2026-11-15T13:37:58.969605+00:00",
   "description": "Immutable research snapshot, human report and agent handoff. No new model inference during packaging. Only the root manifest.json is excluded from its own inventory.",
   "files": {
     ".gitattributes": {
@@ -9,12 +9,12 @@
       "bytes": 123
     },
     "AGENT_HANDOFF.md": {
-      "sha256": "b085247601d8787d22eae1fc91ceea787ab2dfe9671a3315d01dbaa1034c0178",
-      "bytes": 14123
+      "sha256": "51d75f2c1d68e9c91b4d44f31209fc25007648059750915f76b6893ce4776266",
+      "bytes": 14063
     },
     "DELIVERY.md": {
-      "sha256": "e27b2498d47c4d83afa460605ab7bed1e65275fbf3697652b742c2c1e11792ac",
-      "bytes": 3560
+      "sha256": "9db0d2a8e8a003bdd420b2218650674e7dda7d277032986db91026ebf53aa0bf",
+      "bytes": 3034
     },
     "EVIDENCE.md": {
       "sha256": "0ff8d0c34f3d444300a26fcb8aec7f40296be68ecb6f0249c9a201b31597bc32",
@@ -33,8 +33,8 @@
       "bytes": 11722
     },
     "PACKAGE_CHECKS.json": {
-      "sha256": "aef4b46a5813eda50debea407aa5f9a3861812b2ab45ece48dbee4c078461d65",
-      "bytes": 2919
+      "sha256": "57133166e2812b0577d00b6a47f722bf1496dc6d8736951d36ea78176d1599d7",
+      "bytes": 3174
     },
     "README.md": {
       "sha256": "ba4a4eeb4262b42b1c4865d06c4642995f58b6390f2ae33612044555c0706222",
@@ -53,12 +53,12 @@
       "bytes": 4719
     },
     "SESSION_LOG.md": {
-      "sha256": "5796013b788cdf8fc94d1116264d6b0aec2e42c56ce83331315780f0519796ae",
-      "bytes": 10190
+      "sha256": "8b8a1ff7b845b2f93c97b78ee75d2fa2c1d8b0cf9d4cfc7460b6521958f8b485",
+      "bytes": 10498
     },
     "STATE.json": {
-      "sha256": "1916a8eeb4148663f707e889cf7873738c5a79b5f59cc4064845496f8f1e5ef9",
-      "bytes": 5280
+      "sha256": "e7f054d8b1633bff092c02b25d6123dc8d5b8acc439fae320f34f7f1a132a652",
+      "bytes": 5339
     },
     "STRATEGY_GUIDE.md": {
       "sha256": "f1b7ced1caef59bba5be82833d20946e15912c02c3543729004d1406258790ee",
