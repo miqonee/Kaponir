@@ -118,6 +118,28 @@ class CompleteResearchTests(unittest.TestCase):
             self.assertEqual((rows[0]['variant'], rows[0]['http_seconds']), ('A', '10.0'))
             self.assertTrue((Path(report['output']) / 'transport-recovery.md').exists())
 
+    def test_completed_fresh_run_has_languages_and_measured_resource_rows(self):
+        from test_summarize_privacy_holdout import FreshPrivacySummaryTests
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            config = self.config(root)
+            jobs = complete.build_jobs(config)
+            job = jobs[0]
+            destination = Path(job['output'])
+            destination.mkdir(parents=True)
+            FreshPrivacySummaryTests().fixture(destination)
+            result = write_reports(config, {'status': 'running', 'jobs': {}}, jobs)
+            output = Path(result['output'])
+            self.assertFalse(result['rejected_inputs'])
+            with (output / 'resources.csv').open() as handle:
+                rows = [row for row in csv.DictReader(handle) if row['series'] == 'fresh-native']
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]['variant'], 'D')
+            with (output / 'languages.csv').open() as handle:
+                languages = list(csv.DictReader(handle))
+            self.assertEqual(len(languages), 8)
+            self.assertIn('Private mask / 14', (output / 'fresh-native.md').read_text())
+
     def test_serial_execution_records_context_na_and_does_not_replay_terminal_jobs(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

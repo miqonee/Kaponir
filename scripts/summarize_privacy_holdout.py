@@ -60,6 +60,7 @@ def load_fresh_run(path):
         pending = sum(entry['status'] == 'pending' for entry in entries[variant])
         complete = len(decisions) == 32 and pending == 0
         rows.append({'row_id': run_id + ':' + variant, 'model': model, 'variant': variant,
+            'registered_request_slots': len(entries[variant]),
             'protocol_complete': complete, 'run_finalized': state.get('status') == 'completed',
             'status': 'complete' if complete else ('partial' if decisions or entries[variant] else 'not_started'),
             'quality': quality, 'all_review': complete and quality['automated_decisions'] == 0,
@@ -113,12 +114,12 @@ def render_fresh(report):
         'Качество сравнивается без численных весов; время и ресурсы справочные.', '',
         'Модели с переданными результатами: ' + ', '.join(coverage['provided_models']) + '. '
         'Ожидаемые модели без результатов: ' + (', '.join(coverage['missing_models']) or 'нет') + '.', '',
-        '| Модель | Вариант | Случаи / 32 | Private keep / 14 | Public mask / 14 | Лишний review / 28 | Самоуверенные ответы / 4 | Технический review | Правильные автоответы / 28 |',
-        '|---|---|---:|---:|---:|---:|---:|---:|---:|']
+        '| Модель | Вариант | Случаи / 32 | Private mask / 14 | Private keep / 14 | Public mask / 14 | Лишний review / 28 | Самоуверенные ответы / 4 | Технический review | Правильные автоответы / 28 |',
+        '|---|---|---:|---:|---:|---:|---:|---:|---:|---:|']
     for run in report['runs']:
         for row in run['rows']:
             q = row['quality']
-            values = [run['model'], row['variant'], q['attempted_cases'],
+            values = [run['model'], row['variant'], q['attempted_cases'], q['private_mask'],
                       *(q[key] for key in AXES), q['correct_automatic_actions']]
             lines.append('| ' + ' | '.join(map(str, values)) + ' |')
     lines.extend(['', '## Наблюдаемая граница качества', ''])

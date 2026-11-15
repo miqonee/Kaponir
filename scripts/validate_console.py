@@ -17,7 +17,6 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import urllib.request
-from playwright.sync_api import sync_playwright
 
 
 def free_port():
@@ -41,6 +40,8 @@ def wait_for(check, timeout=20):
 
 
 def main():
+    from playwright.sync_api import sync_playwright
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary', type=Path)
     parser.add_argument('--output', type=Path, default=Path('artifacts/console'))
