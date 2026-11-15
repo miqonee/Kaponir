@@ -118,7 +118,9 @@
       ],
       "order": "First freeze the privacy task through A/B/C/D; then expand all schemes with actual native capability/profile labels.",
       "new_inference_calls": 0
-    }
+    },
+    "resume_file": "RESUME.md",
+    "handoff_prepared_on": "2026-11-15"
   },
   "authoritative_files": {
     "report": "REPORT.md",
@@ -128,7 +130,8 @@
     "raw_manifest": "data/validation/manifest.json",
     "inventory": "data/COLLECTION.json",
     "strategies": "STRATEGY_GUIDE.md",
-    "model_expansion": "MODEL_EXPANSION_PLAN.md"
+    "model_expansion": "MODEL_EXPANSION_PLAN.md",
+    "resume": "RESUME.md"
   },
   "package_checks": {
     "status": "passed",
@@ -145,7 +148,10 @@
     "destination": "https://github.com/miqonee/Kaponir.git",
     "branch": "main",
     "blocked_by": "automatic_approval_review",
-    "next_action": "Obtain explicit user approval for this complete artifact payload and destination before pushing.",
-    "details": "DELIVERY.md"
+    "next_action": "Await explicit confirmation of the complete benchmark payload and exact GitHub destination, then push normally.",
+    "details": "DELIVERY.md",
+    "user_requested_push_on": "2026-11-15",
+    "latest_review_rejected_on": "2026-11-15",
+    "explicit_payload_destination_confirmation": "requested_pending"
   }
 }

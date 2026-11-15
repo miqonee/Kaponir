@@ -1,7 +1,7 @@
 {
   "version": 1,
   "source_revision": "627f58d015f3f7c2ee4a242b9c05b89e4e91cc6c",
-  "generated_utc": "2026-11-15T13:00:28.252345+00:00",
+  "generated_utc": "2026-11-15T13:32:13.837837+00:00",
   "description": "Immutable research snapshot, human report and agent handoff. No new model inference during packaging. Only the root manifest.json is excluded from its own inventory.",
   "files": {
     ".gitattributes": {
@@ -9,12 +9,12 @@
       "bytes": 123
     },
     "AGENT_HANDOFF.md": {
-      "sha256": "2541792f705c13d41ad994e7a2cab29033483faf1567b500aa77a0cd26f97b18",
-      "bytes": 13896
+      "sha256": "b085247601d8787d22eae1fc91ceea787ab2dfe9671a3315d01dbaa1034c0178",
+      "bytes": 14123
     },
     "DELIVERY.md": {
-      "sha256": "0b1ff24a07ea5844df94cc785c31889250db85bb89f36e1493fe470a44a6fd43",
-      "bytes": 2961
+      "sha256": "e27b2498d47c4d83afa460605ab7bed1e65275fbf3697652b742c2c1e11792ac",
+      "bytes": 3560
     },
     "EVIDENCE.md": {
       "sha256": "0ff8d0c34f3d444300a26fcb8aec7f40296be68ecb6f0249c9a201b31597bc32",
@@ -33,12 +33,12 @@
       "bytes": 11722
     },
     "PACKAGE_CHECKS.json": {
-      "sha256": "5cb0e6994fe4ab9dc2da0547cee10c01d279444ee54cefb89fa4acdb6820679b",
-      "bytes": 2711
+      "sha256": "aef4b46a5813eda50debea407aa5f9a3861812b2ab45ece48dbee4c078461d65",
+      "bytes": 2919
     },
     "README.md": {
-      "sha256": "3a2c37b0a9ddbe9fe0c03ef94c9586e956370a9cfc0683a68b1d5786e3633070",
-      "bytes": 5178
+      "sha256": "ba4a4eeb4262b42b1c4865d06c4642995f58b6390f2ae33612044555c0706222",
+      "bytes": 5435
     },
     "REPORT.md": {
       "sha256": "287d2215a948a85ba735e576f4734f2a5dce4637428eae29e30e13b27da6d5c3",
@@ -48,13 +48,17 @@
       "sha256": "0af1cdfd849f161e8f713ac32976e581f7cf64f8abae1c81c5ceea7d4180f026",
       "bytes": 6345
     },
+    "RESUME.md": {
+      "sha256": "889fe26103e073fa6989281698427a6def306cbd6f4d18ca7bfd468dc8d24925",
+      "bytes": 4719
+    },
     "SESSION_LOG.md": {
       "sha256": "5796013b788cdf8fc94d1116264d6b0aec2e42c56ce83331315780f0519796ae",
       "bytes": 10190
     },
     "STATE.json": {
-      "sha256": "30f5bfd4ce7a6e0b709e6a5c970a8fa5856e03a9a6eaac153b02bd253e857b53",
-      "bytes": 5004
+      "sha256": "1916a8eeb4148663f707e889cf7873738c5a79b5f59cc4064845496f8f1e5ef9",
+      "bytes": 5280
     },
     "STRATEGY_GUIDE.md": {
       "sha256": "f1b7ced1caef59bba5be82833d20946e15912c02c3543729004d1406258790ee",

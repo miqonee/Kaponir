@@ -37,7 +37,7 @@
   "all_captured_artifact_sources_restored": true,
   "documented_cli_flags_checked": true,
   "decoded_package_credential_scan": "passed",
-  "final_snapshot_files": 525,
+  "final_snapshot_files": 526,
   "continuation_documentation_update": {
     "date": "2026-11-15",
     "status": "passed",
@@ -57,5 +57,12 @@
     "new_inference_calls": 0,
     "model_weights_downloaded": false,
     "historical_evidence_hashes_unchanged": true
+  },
+  "resume_handoff_update": {
+    "status": "passed",
+    "checked_utc": "2026-11-15T13:32:13.750971+00:00",
+    "markdown_files_checked": 95,
+    "new_inference_calls": 0,
+    "resume_file": "RESUME.md"
   }
 }
