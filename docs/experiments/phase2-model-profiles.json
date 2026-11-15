@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "purpose": "Fresh A/B/C/D privacy controls on all seven previously tested model variants. Sampling and budgets stay fixed within each model.",
+  "common": {
+    "context_tokens": 16384,
+    "output_tokens": 4096,
+    "retry_output_tokens": 8192,
+    "reserve_tokens": 64,
+    "reasoning_budget": 2048,
+    "thinking": "bounded",
+    "batch_size": 8,
+    "top_p": 0.95,
+    "min_p": 0.0,
+    "seed": 42,
+    "threads": 2,
+    "slots": 1,
+    "gpu_layers": 0,
+    "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934"
+  },
+  "models": [
+    {
+      "model": "gemma4-e4b-qat",
+      "temperature": 1.0,
+      "top_k": 64,
+      "timeout": 1200,
+      "response_format": "grammar",
+      "baseline_archive": "context-controls--gemma-card-document--result.json.gz",
+      "profile_origin": "archived_card_full_document_bounded"
+    },
+    {
+      "model": "qwen3.5-2b",
+      "temperature": 0.0,
+      "top_k": 40,
+      "timeout": 600,
+      "response_format": "grammar",
+      "baseline_archive": "context-controls--qwen2-common--result.json.gz",
+      "profile_origin": "archived_common_greedy_full_document_bounded"
+    },
+    {
+      "model": "qwen3.5-0.8b",
+      "temperature": 0.0,
+      "top_k": 40,
+      "timeout": 600,
+      "response_format": "grammar",
+      "baseline_archive": "context-controls--qwen08-common--result.json.gz",
+      "profile_origin": "archived_common_greedy_full_document_bounded"
+    },
+    {
+      "model": "huihui-qwen3.5-2b-abliterated",
+      "temperature": 0.0,
+      "top_k": 40,
+      "timeout": 600,
+      "response_format": "grammar",
+      "baseline_archive": null,
+      "profile_origin": "new_full_document_common_greedy_profile_no_historical_baseline"
+    },
+    {
+      "model": "minicpm5-2b",
+      "temperature": 0.0,
+      "top_k": 40,
+      "timeout": 600,
+      "response_format": "grammar",
+      "baseline_archive": "context-controls--minicpm-common--result.json.gz",
+      "profile_origin": "archived_common_greedy_full_document_bounded"
+    },
+    {
+      "model": "granite42-3b",
+      "temperature": 1.0,
+      "top_k": 40,
+      "timeout": 1200,
+      "response_format": "grammar",
+      "baseline_archive": "context-controls--granite-card-document--result.json.gz",
+      "profile_origin": "archived_card_full_document_bounded"
+    },
+    {
+      "model": "nanbeige42-3b",
+      "temperature": 0.6,
+      "top_k": 20,
+      "timeout": 1200,
+      "response_format": "prompt",
+      "baseline_archive": "context-controls--nanbeige-card-document--result.json.gz",
+      "profile_origin": "archived_card_full_document_bounded_prompt_json"
+    }
+  ]
+}

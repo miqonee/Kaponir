@@ -5,6 +5,7 @@ Runs locally in shadow mode. Every answered batch is checkpointed atomically.
 No rules, user vaults, training labels, or external providers are touched.
 """
 import argparse
+import gzip
 import hashlib
 import json
 from pathlib import Path
@@ -21,6 +22,11 @@ from kaponir_worker import Worker, configuration
 from validation_pipeline import (Candidate, PRIMARY_PROMPT, AUDIT_PROMPT, REGION_PROMPT,
     byte_to_char, candidate_context, check_decisions, combine, opaque_id,
     record_span, review_schema, score, uncertain, validation_hint)
+
+
+def file_sha(path):
+    with path.open('rb') as handle:
+        return hashlib.file_digest(handle, 'sha256').hexdigest()
 
 
 def atomic_json(path, value):
@@ -45,10 +51,20 @@ def detector_pool(binary, sources):
     reply = subprocess.run([str(binary.resolve())], input=json.dumps(payload),
                            text=True, capture_output=True, check=True)
     data = json.loads(reply.stdout)
-    if data.get('s1') is not False or data.get('rules') is not False:
+    return detector_pool_from_export(data, sources)
+
+
+def detector_pool_from_export(data, sources):
+    """Ground an actual export, including a declared frozen baseline export."""
+    if data.get('version') != 1 or data.get('s1') is not False or data.get('rules') is not False:
         raise ValueError('detector_export_must_be_local_and_rule_free')
+    documents = data.get('documents')
+    if (not isinstance(documents, list) or any(not isinstance(doc, dict) for doc in documents)
+            or len(documents) != len(sources)
+            or {doc.get('file') for doc in documents} != set(sources)):
+        raise ValueError('detector_export_document_mismatch')
     candidates = []
-    for doc in data['documents']:
+    for doc in documents:
         text = sources[doc['file']]
         if doc['suggestions_truncated']:
             raise ValueError('detector_proposals_truncated')
@@ -56,6 +72,9 @@ def detector_pool(binary, sources):
         # preferring protected/applied evidence. Repeated contexts are not averaged.
         unique = {}
         for row in doc['candidates']:
+            if (type(row.get('protected')) is not bool or type(row.get('applied')) is not bool
+                    or not isinstance(row.get('kind'), str) or not row['kind']):
+                raise ValueError('invalid_detector_candidate')
             a, b = byte_to_char(text, row['start']), byte_to_char(text, row['end'])
             if text[a:b] != row['value']:
                 raise ValueError('detector_offset_mismatch')
@@ -67,6 +86,13 @@ def detector_pool(binary, sources):
                 unique[c.value] = c
         candidates.extend(unique.values())
     return candidates, data
+
+
+def frozen_detector_pool(path, sources):
+    raw = path.read_bytes()
+    if path.suffix == '.gz':
+        raw = gzip.decompress(raw)
+    return detector_pool_from_export(json.loads(raw), sources)
 
 
 class Experiment:
@@ -91,6 +117,7 @@ class Experiment:
         try:
             if not self.fits(prompt, value, schema):
                 raise ValueError('model_context_budget_exceeded')
+            self.client.measurement_stage = stage
             result = {'reply': self.client.infer(prompt, value, schema, self.args.output_tokens)}
         except Exception as exc:
             # Never expose provider bodies or accidentally treat errors as KEEP.
@@ -238,13 +265,16 @@ class Experiment:
         return {'rows': rows, 'summary': summary}
 
 
-def main():
+def main(argv=None, client_factory=None, worker_hook=None, checkpoint_hook=None,
+         experiment_lineage=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--model', required=True)
     p.add_argument('--hf-url', help='Pinned public GGUF URL; registers a custom artifact before evaluation')
     p.add_argument('--model-dir', type=Path, required=True)
     p.add_argument('--runtime', type=Path, required=True)
     p.add_argument('--detectors', type=Path, default=ROOT/'target/debug/examples/detector_candidates')
+    p.add_argument('--frozen-detectors', type=Path,
+                   help='Explicit recorded detector export; no detector executable is run')
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--documents', nargs='+', default=DOCUMENTS)
     p.add_argument('--schemes', nargs='+', choices=['free', 'point', 'regions', 'double'],
@@ -268,7 +298,7 @@ def main():
     p.add_argument('--seed',type=int)
     p.add_argument('--probe-file', type=Path)
     p.add_argument('--review-input', type=Path, help='Completed primary experiment: independently audit its frozen union with this model')
-    args = p.parse_args()
+    args = p.parse_args(argv)
     try:
         generation=sampling_settings({'temperature':args.temperature,'top_p':args.top_p,'top_k':args.top_k,'min_p':args.min_p,'seed':args.seed})
     except ValueError as exc:p.error(str(exc))
@@ -283,10 +313,11 @@ def main():
     sources = {name: sources[name] for name in args.documents}
     expected = {key: value for key, value in expected.items() if key[0] in sources}
     public = {name: public[name] for name in sources}
-    pool, detector_data = detector_pool(args.detectors, sources)
+    pool, detector_data = (frozen_detector_pool(args.frozen_detectors, sources) if args.frozen_detectors
+                           else detector_pool(args.detectors, sources))
     args.output.mkdir(parents=True, exist_ok=True)
     atomic_json(args.output/'detectors.json', detector_data)
-    runtime_hash = hashlib.file_digest(args.runtime.open('rb'), 'sha256').hexdigest()
+    runtime_hash = file_sha(args.runtime)
     state_path = args.output/'result.json'
     with tempfile.TemporaryDirectory(prefix='kaponir-validation-') as temporary:
         home = Path(temporary)
@@ -294,6 +325,8 @@ def main():
                         'runtime': str(args.runtime.resolve()), 'threads': 2,
                         'ocr_timeout_seconds': args.timeout}), 'unused')
         try:
+            if worker_hook:
+                worker_hook(worker)
             model = args.model
             if args.hf_url:
                 record = worker.register_model(args.hf_url)
@@ -303,9 +336,15 @@ def main():
             artifact = worker.model_files()[worker.canonical_model(model)]
             signature = {'model': args.model, 'artifact': list(artifact), 'runtime_sha256': runtime_hash,
                          'source_sha256': {n: hashlib.sha256(t.encode()).hexdigest() for n, t in sources.items()},
-                         'settings': {k: v for k, v in vars(args).items() if k not in ['output', 'model_dir', 'runtime', 'detectors', 'probe_file', 'probes_only', 'review_input']},
+                         'settings': {k: v for k, v in vars(args).items() if k not in ['output', 'model_dir', 'runtime', 'detectors', 'frozen_detectors', 'probe_file', 'probes_only', 'review_input']},
                          'prompts': {k: hashlib.sha256(v.encode()).hexdigest() for k, v in
                                      {'primary': PRIMARY_PROMPT, 'audit': AUDIT_PROMPT, 'region': REGION_PROMPT}.items()}}
+            if experiment_lineage is not None:
+                signature['experiment_lineage'] = experiment_lineage
+            if args.frozen_detectors:
+                signature['detector_pool_source'] = {'mode': 'frozen_export_not_new_detector_execution',
+                    'path': str(args.frozen_detectors.resolve()),
+                    'file_sha256': file_sha(args.frozen_detectors)}
             for key,default in {**sampling_settings(),'seed':None,'probe_passes':2}.items():
                 if signature['settings'].get(key)==default:signature['settings'].pop(key,None)
             if args.response_format == 'grammar':
@@ -334,7 +373,8 @@ def main():
             provenance = {
                 'extraction_prompt_sha256': hashlib.sha256(frozen_extract.encode()).hexdigest(),
                 'kind_schema_sha256': hashlib.sha256(json.dumps(frozen_kinds).encode()).hexdigest(),
-                'detector_binary_sha256': hashlib.file_digest(args.detectors.open('rb'), 'sha256').hexdigest(),
+                'detector_binary_sha256': (None if args.frozen_detectors else
+                    file_sha(args.detectors)),
                 'detector_export_sha256': hashlib.sha256(json.dumps(detector_data, sort_keys=True).encode()).hexdigest(),
                 'annotations_sha256': hashlib.sha256((ROOT/'tests/docs/expected.json').read_bytes()).hexdigest(),
             }
@@ -344,12 +384,16 @@ def main():
                 if key in state and state[key] != value:
                     raise ValueError('resume_provenance_changed')
                 state[key] = value
-            def save(): atomic_json(state_path, state)
+            def save():
+                if checkpoint_hook:
+                    checkpoint_hook(state)
+                atomic_json(state_path, state)
             state.setdefault('resources_before', resources())
             save()
             if state['status'] == 'completed':
                 print(json.dumps(state['metrics'])); return
-            client = LocalClient(worker, model, args.context_tokens, args.output_tokens, args.response_format, generation)
+            client = (client_factory or LocalClient)(worker, model, args.context_tokens,
+                args.output_tokens, args.response_format, generation)
             state['active_runtime_memory_policy'] = {
                 'cache_ram_mib': 0, 'cache_idle_slots': False, 'request_cache_prompt': False}
             state['generation'] = client.sampling
@@ -395,6 +439,7 @@ def main():
                 for name, text in sources.items():
                     key = 'discovery:'+name
                     if key not in state['stages']:
+                        client.measurement_stage = key
                         settings = argparse.Namespace(**{**vars(args), 'candidate_mode': 'typed', 'strategy': 'auto', 'target_input_tokens': 0})
                         progress=state.setdefault('discovery_progress',{}).setdefault(name,{})
                         state['stages'][key] = discover(client, text, extract_prompt, kinds, settings, save,progress)

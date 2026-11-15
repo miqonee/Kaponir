@@ -1,0 +1,322 @@
+{
+  "version": 1,
+  "dataset_id": "privacy-policy-holdout-v1",
+  "task": "contextual_external_disclosure",
+  "policy_sha256": "a6ce52bb481ae186d81c00e1df0d1171ebac91834e16c59b45fce0e2f1d6a144",
+  "offset_convention": "Python Unicode code point indices, UTF-8 LF source; end exclusive",
+  "id_algorithm": "first 24 hex characters of SHA-256(UTF8(file + NUL + value + NUL + str(start) + NUL + str(end))); independent of expected verdict",
+  "selection": "All 32 manually declared cases in four new documents; no random selection or seed; sorted by opaque id.",
+  "expected_verdict_classes": [
+    "mask",
+    "keep",
+    "review"
+  ],
+  "scoring_metadata_is_not_model_input": true,
+  "model_input_candidate_field_whitelist": [
+    "id",
+    "value",
+    "record"
+  ],
+  "type_scope_annotations": "not_provided",
+  "source_sha256": {
+    "input/01-internal-offer-ru.md": "cbacc9d1007b18e1a953ada80f8d55a4b558ec9175d456046467adee33e663bd",
+    "input/02-public-guide-ru.md": "3730aafac4001a65df862576c3bfee909d4e104ed9979910ef86f56edcaa83d2",
+    "input/03-internal-handover-en.md": "251e54ddbb0c570febe33fcf027be893e4374bcc5140ddbb9bc3b6b28584dab6",
+    "input/04-public-reference-en.md": "105690c793061339c97e4d80af0bc57c9ccc589c07d6b8e07dd9ddada76a08b6"
+  },
+  "verdict_counts": {
+    "keep": 14,
+    "mask": 14,
+    "review": 4
+  },
+  "cases": [
+    {
+      "id": "029a8f1d10756f930ecd0e51",
+      "file": "input/01-internal-offer-ru.md",
+      "value": "Звено-47",
+      "start": 962,
+      "end": 970,
+      "expected_verdict": "review",
+      "rationale": "The source does not establish whether this unattributed label identifies a live private project or a fictional example."
+    },
+    {
+      "id": "0f11be4d104ba30f5fb4f112",
+      "file": "input/04-public-reference-en.md",
+      "value": "acct-unknown-118",
+      "start": 1081,
+      "end": 1097,
+      "expected_verdict": "review",
+      "rationale": "The imported row does not establish whether the identifier belongs to a live private account or an invented example."
+    },
+    {
+      "id": "0f96621fba1c7cffdfa93d4d",
+      "file": "input/02-public-guide-ru.md",
+      "value": "nk_74fA09b2Qa8L",
+      "start": 386,
+      "end": 401,
+      "expected_verdict": "keep",
+      "rationale": "This similarly shaped key is explicitly non-authenticating and has never been installed."
+    },
+    {
+      "id": "14f5d5dc958a9c7d743841c9",
+      "file": "input/02-public-guide-ru.md",
+      "value": "contact+notice@bridge.example",
+      "start": 1083,
+      "end": 1112,
+      "expected_verdict": "review",
+      "rationale": "The imported address has no established owner, purpose or publication status and is outside the approved public contact list."
+    },
+    {
+      "id": "1d1e08937a347a5adf65172f",
+      "file": "input/01-internal-offer-ru.md",
+      "value": "31.12.2035",
+      "start": 806,
+      "end": 816,
+      "expected_verdict": "keep",
+      "rationale": "This is an example date format with no represented payment or delivery deadline."
+    },
+    {
+      "id": "290ceb0f8b0ead7a156f5486",
+      "file": "input/04-public-reference-en.md",
+      "value": "USD 49.00",
+      "start": 172,
+      "end": 181,
+      "expected_verdict": "keep",
+      "rationale": "The exact subscription price has been approved and published for unrestricted use."
+    },
+    {
+      "id": "2a2c31ec008014255f565b4c",
+      "file": "input/04-public-reference-en.md",
+      "value": "USD 37.25",
+      "start": 765,
+      "end": 774,
+      "expected_verdict": "mask",
+      "rationale": "The amount is a nonpublic negotiated customer condition outside the approved public reference."
+    },
+    {
+      "id": "2d01ecc3355e516bc9eeaf80",
+      "file": "input/01-internal-offer-ru.md",
+      "value": "0.20",
+      "start": 716,
+      "end": 720,
+      "expected_verdict": "keep",
+      "rationale": "The context explicitly identifies an illustrative format coefficient unrelated to the transaction."
+    },
+    {
+      "id": "2f445a7f33dca0f5459bce33",
+      "file": "input/02-public-guide-ru.md",
+      "value": "nk_39dP82m6Ct4R",
+      "start": 727,
+      "end": 742,
+      "expected_verdict": "mask",
+      "rationale": "The working card supplies the current active credential for a represented operational resource."
+    },
+    {
+      "id": "3f9bb8813adf33c9aa279e75",
+      "file": "input/03-internal-handover-en.md",
+      "value": "4096 bytes",
+      "start": 857,
+      "end": 867,
+      "expected_verdict": "keep",
+      "rationale": "The value demonstrates a quantity and unit rather than reporting a private system limit."
+    },
+    {
+      "id": "40b64f3c6af544f1b77a74f1",
+      "file": "input/04-public-reference-en.md",
+      "value": "prod-notify-cred-R8n4qT6",
+      "start": 666,
+      "end": 690,
+      "expected_verdict": "mask",
+      "rationale": "The subsequently appended working extract reveals a currently configured access secret."
+    },
+    {
+      "id": "42493e739a4ebef6ee516c8a",
+      "file": "input/04-public-reference-en.md",
+      "value": "/var/lib/notify/subscribers.csv",
+      "start": 870,
+      "end": 901,
+      "expected_verdict": "mask",
+      "rationale": "The path locates a subscriber export in the live internal environment."
+    },
+    {
+      "id": "4429def541eb91b56944d954",
+      "file": "input/01-internal-offer-ru.md",
+      "value": "ООО «Мостовой Контур»",
+      "start": 298,
+      "end": 319,
+      "expected_verdict": "mask",
+      "rationale": "A customer relationship in an unannounced internal deal is not authorized for external disclosure."
+    },
+    {
+      "id": "4675835aa66faeff8929d780",
+      "file": "input/01-internal-offer-ru.md",
+      "value": "/srv/quotes/faraday/revisions/final.xlsx",
+      "start": 559,
+      "end": 599,
+      "expected_verdict": "mask",
+      "rationale": "The path identifies an actual internal workbook holding nonpublic negotiation history."
+    },
+    {
+      "id": "57f157542d4045cc190d4fa2",
+      "file": "input/03-internal-handover-en.md",
+      "value": "queue-canary.ops.internal",
+      "start": 354,
+      "end": 379,
+      "expected_verdict": "mask",
+      "rationale": "The private DNS name belongs to the live internal worker queue."
+    },
+    {
+      "id": "6871e1bad7ed5fc4c9584d34",
+      "file": "input/01-internal-offer-ru.md",
+      "value": "contract.editor04",
+      "start": 459,
+      "end": 476,
+      "expected_verdict": "mask",
+      "rationale": "This is the actual employee account used for internal approvals."
+    },
+    {
+      "id": "7e95c3a736867431f156497f",
+      "file": "input/04-public-reference-en.md",
+      "value": "support@open-sample.example",
+      "start": 213,
+      "end": 240,
+      "expected_verdict": "keep",
+      "rationale": "The target is an intentionally public support mailbox."
+    },
+    {
+      "id": "7f7395e52af0a30946dbd6a4",
+      "file": "input/03-internal-handover-en.md",
+      "value": "TLS 1.3",
+      "start": 663,
+      "end": 670,
+      "expected_verdict": "keep",
+      "rationale": "The value names a public standard in reference material."
+    },
+    {
+      "id": "8562cc948b2270f0a9661431",
+      "file": "input/03-internal-handover-en.md",
+      "value": "mara.unit@staff.example",
+      "start": 539,
+      "end": 562,
+      "expected_verdict": "mask",
+      "rationale": "The private employee address comes from a restricted staff directory."
+    },
+    {
+      "id": "892b1a83d91f9fd365c111b7",
+      "file": "input/02-public-guide-ru.md",
+      "value": "2 490 ₽",
+      "start": 238,
+      "end": 245,
+      "expected_verdict": "keep",
+      "rationale": "This is the approved price in an unrestricted public catalog."
+    },
+    {
+      "id": "8ee346859bf63a3fba3aa504",
+      "file": "input/01-internal-offer-ru.md",
+      "value": "ISO 8601",
+      "start": 700,
+      "end": 708,
+      "expected_verdict": "keep",
+      "rationale": "A public standard designation in a reference section does not reveal an internal fact."
+    },
+    {
+      "id": "93372fd424f5db4159635a4e",
+      "file": "input/02-public-guide-ru.md",
+      "value": "+7 000 123-45-67",
+      "start": 919,
+      "end": 935,
+      "expected_verdict": "mask",
+      "rationale": "The exact phone number comes from a restricted personal staff record with no release authorization."
+    },
+    {
+      "id": "97e63c7ec6cd2b2f01530a9d",
+      "file": "input/02-public-guide-ru.md",
+      "value": "staging-index.ops.internal",
+      "start": 826,
+      "end": 852,
+      "expected_verdict": "mask",
+      "rationale": "The private DNS name identifies an actual internal staging service, independently of the surrounding public guide."
+    },
+    {
+      "id": "9d59841c1773bd264fc12ffd",
+      "file": "input/03-internal-handover-en.md",
+      "value": "route-sable",
+      "start": 1045,
+      "end": 1056,
+      "expected_verdict": "review",
+      "rationale": "The missing owner, environment and example status prevent a supported disclosure decision about the imported identifier."
+    },
+    {
+      "id": "a532d8db27fadd3cbbbe7374",
+      "file": "input/02-public-guide-ru.md",
+      "value": "HTTP/2",
+      "start": 371,
+      "end": 377,
+      "expected_verdict": "keep",
+      "rationale": "The target is a general public protocol designation."
+    },
+    {
+      "id": "b4fe9c881bde773c1cbbe046",
+      "file": "input/03-internal-handover-en.md",
+      "value": "svc_live_hdo_6f93xP2",
+      "start": 288,
+      "end": 308,
+      "expected_verdict": "mask",
+      "rationale": "The target is a currently configured service access secret."
+    },
+    {
+      "id": "bb7fe833b84eae0dfc669a53",
+      "file": "input/04-public-reference-en.md",
+      "value": "Avery Example",
+      "start": 360,
+      "end": 373,
+      "expected_verdict": "keep",
+      "rationale": "The name denotes an invented person in an approved illustrative sample, not a private participant."
+    },
+    {
+      "id": "beb83c3aadf48796616e19e5",
+      "file": "input/03-internal-handover-en.md",
+      "value": "/path/to/example.yaml",
+      "start": 760,
+      "end": 781,
+      "expected_verdict": "keep",
+      "rationale": "The document establishes a template illustration with no deployed resource at that path."
+    },
+    {
+      "id": "c4a722f4879f9fcbfea0340b",
+      "file": "input/03-internal-handover-en.md",
+      "value": "deploy.reviewer17",
+      "start": 437,
+      "end": 454,
+      "expected_verdict": "mask",
+      "rationale": "The target identifies an actual employee release-approval account."
+    },
+    {
+      "id": "d1002068a7cbd7409140fdf3",
+      "file": "input/04-public-reference-en.md",
+      "value": "demo-console.example",
+      "start": 263,
+      "end": 283,
+      "expected_verdict": "keep",
+      "rationale": "The hostname is explicitly a non-live illustration and identifies no deployed service."
+    },
+    {
+      "id": "d20e9d4cdc890b49518a8c09",
+      "file": "input/01-internal-offer-ru.md",
+      "value": "287 450 ₽",
+      "start": 380,
+      "end": 389,
+      "expected_verdict": "mask",
+      "rationale": "The exact amount is a privately negotiated customer price, not a public catalog price."
+    },
+    {
+      "id": "d8ed6a34ff52968e62de305d",
+      "file": "input/02-public-guide-ru.md",
+      "value": "help@public-workshop.example",
+      "start": 286,
+      "end": 314,
+      "expected_verdict": "keep",
+      "rationale": "The mailbox is an approved general support contact for public visitors."
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "dataset_id": "privacy-policy-holdout-v1",
+  "frozen_date_utc": "2026-11-15",
+  "policy": {
+    "path": "../../../docs/experiments/privacy-policy-v1.txt",
+    "sha256": "a6ce52bb481ae186d81c00e1df0d1171ebac91834e16c59b45fce0e2f1d6a144"
+  },
+  "provenance": {
+    "creation": "New synthetic RU/EN disclosure controls, created from the frozen policy and sharing scenario before the first model call on these documents.",
+    "author_relation": "Same assistant system as benchmark preparation; policy known, not an external independent evaluation.",
+    "construction_access": "No deliberate reading of prior calibration fixture/gold or raw model responses while constructing this dataset. Prior project context was inherited.",
+    "model_output_access": "No outputs on this fresh dataset existed or were inspected during construction.",
+    "real_data": "All names, organizations, accounts, numbers, credentials and resources are invented; no live credentials or user documents.",
+    "use": "Transfer check after calibration; score all three expected verdict classes separately.",
+    "change_rule": "Content edits after first model invocation require a new dataset version/id and new result profile."
+  },
+  "documents": 4,
+  "cases": 32,
+  "verdict_counts": {
+    "keep": 14,
+    "mask": 14,
+    "review": 4
+  },
+  "offset_convention": "Python Unicode code point indices, UTF-8 LF source; end exclusive",
+  "id_algorithm": "first 24 hex characters of SHA-256(UTF8(file + NUL + value + NUL + str(start) + NUL + str(end))); independent of expected verdict",
+  "files": {
+    "README.md": {
+      "bytes": 8032,
+      "sha256": "5c6e716caff89dbb8cf8b6d82fcfe971778b7430ea948a9ceb879a887e931470",
+      "role": "documentation_not_model_input"
+    },
+    "cases.json": {
+      "bytes": 11493,
+      "sha256": "b1b1cb939c4a362d570c3168a406ecfe6c94b2e42f0a9829a5b4b7b40a728539",
+      "role": "evaluator_only"
+    },
+    "input/01-internal-offer-ru.md": {
+      "bytes": 1935,
+      "sha256": "cbacc9d1007b18e1a953ada80f8d55a4b558ec9175d456046467adee33e663bd",
+      "role": "model_input_source"
+    },
+    "input/02-public-guide-ru.md": {
+      "bytes": 2177,
+      "sha256": "3730aafac4001a65df862576c3bfee909d4e104ed9979910ef86f56edcaa83d2",
+      "role": "model_input_source"
+    },
+    "input/03-internal-handover-en.md": {
+      "bytes": 1196,
+      "sha256": "251e54ddbb0c570febe33fcf027be893e4374bcc5140ddbb9bc3b6b28584dab6",
+      "role": "model_input_source"
+    },
+    "input/04-public-reference-en.md": {
+      "bytes": 1235,
+      "sha256": "105690c793061339c97e4d80af0bc57c9ccc589c07d6b8e07dd9ddada76a08b6",
+      "role": "model_input_source"
+    },
+    "verify.py": {
+      "bytes": 3068,
+      "sha256": "87efddd9eacfc796457ce0dd2e34b2d5f19a4d156769cd837317639f03c946c2",
+      "role": "verifier"
+    }
+  }
+}

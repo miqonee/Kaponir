@@ -1,0 +1,227 @@
+{
+  "version": 1,
+  "pinned_at_utc": "2026-11-15T16:00:04Z",
+  "status": "metadata_pinned_and_inspected_not_loaded",
+  "source_path": "benchmark/data/planned-models.json",
+  "source_sha256": "70c1754fd33064a98d7edb510186aee416f97dc8be246df56bfbd702ec20e1ea",
+  "new_inference_calls": 0,
+  "models": [
+    {
+      "id": "lfm2.5-1.2b-instruct",
+      "name": "LFM2.5-1.2B-Instruct",
+      "license_reported": "lfm1.0",
+      "context_card_note": "32768 tokens reported; validate GGUF and runtime.",
+      "native_reasoning_card_note": "Instruct checkpoint; the separately published Thinking checkpoint is a different model.",
+      "author_sampling_card": {
+        "temperature": 0.1,
+        "top_k": 50,
+        "repetition_penalty": 1.05
+      },
+      "upstream_repo": "LiquidAI/LFM2.5-1.2B-Instruct",
+      "artifact": {
+        "repo": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF",
+        "revision": "8ed288026e23958ad9dfa92d53ed773a8eee7125",
+        "filename": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+        "bytes": 730895168,
+        "sha256": "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5",
+        "url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/8ed288026e23958ad9dfa92d53ed773a8eee7125/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+        "quantization": "Q4_K_M"
+      },
+      "planned_publisher_sha_matches": true,
+      "local_sha256_verified": false,
+      "runtime_compatibility": "not_tested",
+      "quality_status": "not_benchmarked",
+      "gguf_metadata_inspection": {
+        "result_path": "artifacts/model-expansion-phase2/pinned-metadata/lfm2.5-1.2b-instruct.json",
+        "architecture": "lfm2",
+        "context": {
+          "lfm2.context_length": 128000
+        },
+        "chat_template_sha256": "f05bf4b967dc993bdc7a2fe6e43759ee218eb0eb340d68b063e1c4f8ad148176",
+        "native_runtime_verified": false
+      }
+    },
+    {
+      "id": "lfm2.5-2.6b",
+      "name": "LFM2.5-2.6B",
+      "license_reported": "lfm1.0",
+      "context_card_note": "131072 tokens reported; validate GGUF and runtime.",
+      "native_reasoning_card_note": "Card explicitly says pure reasoning and always thinks; template injects think. Do not label an unsupported switch as thinking off.",
+      "author_sampling_card": {
+        "temperature": 0.1,
+        "top_k": 50,
+        "repetition_penalty": 1.1
+      },
+      "upstream_repo": "LiquidAI/LFM2.5-2.6B",
+      "artifact": {
+        "repo": "LiquidAI/LFM2.5-2.6B-GGUF",
+        "revision": "e7caca5d835a3901a8e0d63e94009429bafafdfc",
+        "filename": "LFM2.5-2.6B-Q4_K_M.gguf",
+        "bytes": 1674455040,
+        "sha256": "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
+        "url": "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q4_K_M.gguf",
+        "quantization": "Q4_K_M"
+      },
+      "planned_publisher_sha_matches": true,
+      "local_sha256_verified": false,
+      "runtime_compatibility": "not_tested",
+      "quality_status": "not_benchmarked",
+      "gguf_metadata_inspection": {
+        "result_path": "artifacts/model-expansion-phase2/pinned-metadata/lfm2.5-2.6b.json",
+        "architecture": "lfm2",
+        "context": {
+          "lfm2.context_length": 131072
+        },
+        "chat_template_sha256": "ea663864491de7ade391839479860ca95541f892f72665c73251fbd4643b1bef",
+        "native_runtime_verified": false
+      }
+    },
+    {
+      "id": "tiny-aya-global",
+      "name": "Tiny Aya Global",
+      "license_reported": "cc-by-nc-4.0",
+      "context_card_note": "Card lists 8K input and 8K output; do not assume a 16K combined window. Validate artifact/runtime accounting before full-document tests.",
+      "native_reasoning_card_note": "Instruction-tuned global checkpoint; do not substitute base or thinker variants. Supported reasoning controls must be probed.",
+      "author_sampling_card": null,
+      "upstream_repo": "CohereLabs/tiny-aya-global",
+      "artifact": {
+        "repo": "CohereLabs/tiny-aya-global-GGUF",
+        "revision": "a602ea7eeec3a4ad6f77a1b8cf6a53512824922b",
+        "filename": "tiny-aya-global-q4_k_m.gguf",
+        "bytes": 2143977056,
+        "sha256": "d01d995272af305b2b843efcff8a10cf9869cf53e764cb72b0e91b777484570a",
+        "url": "https://huggingface.co/CohereLabs/tiny-aya-global-GGUF/resolve/a602ea7eeec3a4ad6f77a1b8cf6a53512824922b/tiny-aya-global-q4_k_m.gguf",
+        "quantization": "Q4_K_M"
+      },
+      "planned_publisher_sha_matches": true,
+      "local_sha256_verified": false,
+      "runtime_compatibility": "not_tested",
+      "quality_status": "not_benchmarked",
+      "gguf_metadata_inspection": {
+        "result_path": "artifacts/model-expansion-phase2/pinned-metadata/tiny-aya-global.json",
+        "architecture": "cohere2",
+        "context": {
+          "cohere2.context_length": 500000
+        },
+        "chat_template_sha256": "2147c474f41b522b7296f74692b9f31e45f49a31465960576a9d321339c5915a",
+        "native_runtime_verified": false
+      }
+    },
+    {
+      "id": "qwen3.5-4b",
+      "name": "Qwen3.5-4B",
+      "license_reported": "apache-2.0",
+      "context_card_note": "262144 native context tokens reported; benchmark budgets remain separately fixed.",
+      "native_reasoning_card_note": "Official card provides enable_thinking=False through the serving API; verify the rendered native template and runtime behavior.",
+      "author_sampling_card": {
+        "non_thinking": {
+          "temperature": 0.7,
+          "top_p": 0.8,
+          "top_k": 20,
+          "presence_penalty": 1.5
+        },
+        "thinking_general": {
+          "temperature": 1.0,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0,
+          "presence_penalty": 1.5,
+          "repetition_penalty": 1.0
+        }
+      },
+      "upstream_repo": "Qwen/Qwen3.5-4B",
+      "artifact": {
+        "repo": "unsloth/Qwen3.5-4B-GGUF",
+        "revision": "e87f176479d0855a907a41277aca2f8ee7a09523",
+        "filename": "Qwen3.5-4B-Q4_K_M.gguf",
+        "bytes": 2740937888,
+        "sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+        "url": "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
+        "quantization": "Q4_K_M"
+      },
+      "planned_publisher_sha_matches": true,
+      "local_sha256_verified": false,
+      "runtime_compatibility": "not_tested",
+      "quality_status": "not_benchmarked",
+      "gguf_metadata_inspection": {
+        "result_path": "artifacts/model-expansion-phase2/pinned-metadata/qwen3.5-4b.json",
+        "architecture": "qwen35",
+        "context": {
+          "qwen35.context_length": 262144
+        },
+        "chat_template_sha256": "7f0e529032c25183bcd66c7f238da2d377f43be754a94e2725a58c4e16d2ed67",
+        "native_runtime_verified": false
+      }
+    },
+    {
+      "id": "spark-x2.6-4b",
+      "name": "Spark-X2.6-4B",
+      "license_reported": "apache-2.0",
+      "context_card_note": "Resolve native GGUF/runtime limits before choosing a full-document profile.",
+      "native_reasoning_card_note": "Official card advertises none/low/high thinking levels. Probe mapping to our runtime rather than treating them as interchangeable with other families.",
+      "author_sampling_card": {
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 0
+      },
+      "upstream_repo": "XHToken/Spark-X2.6-4B",
+      "artifact": {
+        "repo": "XHToken/Spark-X2.6-4B-GGUF",
+        "revision": "9d716770ac7477776de5f891f70cdf98b003a5cd",
+        "filename": "Spark-X2.6-4B-Q4_K_M.gguf",
+        "bytes": 3543441312,
+        "sha256": "91cb2811aebb47ac916aa619d27d4cdd7f4143106b7917accb8ead4cd7f5cbd9",
+        "url": "https://huggingface.co/XHToken/Spark-X2.6-4B-GGUF/resolve/9d716770ac7477776de5f891f70cdf98b003a5cd/Spark-X2.6-4B-Q4_K_M.gguf",
+        "quantization": "Q4_K_M"
+      },
+      "planned_publisher_sha_matches": null,
+      "local_sha256_verified": false,
+      "runtime_compatibility": "not_tested",
+      "quality_status": "not_benchmarked",
+      "gguf_metadata_inspection": {
+        "result_path": "artifacts/model-expansion-phase2/pinned-metadata/spark-x2.6-4b.json",
+        "architecture": "spark2_5",
+        "context": {
+          "spark2_5.context_length": 1048576
+        },
+        "chat_template_sha256": "93d6aa906ec72365efcab3c0109dba83148bdc9bec7c55848623d17483693eda",
+        "native_runtime_verified": false
+      }
+    },
+    {
+      "id": "lfm2.5-8b-a1b",
+      "name": "LFM2.5-8B-A1B",
+      "license_reported": "lfm1.0",
+      "context_card_note": "128000 tokens reported in model card; validate GGUF and runtime.",
+      "native_reasoning_card_note": "Reasoning-tuned checkpoint; assistant turns contain reasoning. Off/bounded support in our runtime is not yet confirmed.",
+      "author_sampling_card": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "upstream_repo": "LiquidAI/LFM2.5-8B-A1B",
+      "artifact": {
+        "repo": "LiquidAI/LFM2.5-8B-A1B-GGUF",
+        "revision": "49c14831707011e64d70b2ebd8462ba08d608434",
+        "filename": "LFM2.5-8B-A1B-Q4_K_M.gguf",
+        "bytes": 5155564768,
+        "sha256": "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0",
+        "url": "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/49c14831707011e64d70b2ebd8462ba08d608434/LFM2.5-8B-A1B-Q4_K_M.gguf",
+        "quantization": "Q4_K_M"
+      },
+      "planned_publisher_sha_matches": true,
+      "local_sha256_verified": false,
+      "runtime_compatibility": "not_tested",
+      "quality_status": "not_benchmarked",
+      "gguf_metadata_inspection": {
+        "result_path": "artifacts/model-expansion-phase2/pinned-metadata/lfm2.5-8b-a1b.json",
+        "architecture": "lfm2moe",
+        "context": {
+          "lfm2moe.context_length": 128000
+        },
+        "chat_template_sha256": "6d65c8804847ad74eea912dd7eca3dc1cf7a457b53a77f47d841a14121910963",
+        "native_runtime_verified": false
+      }
+    }
+  ]
+}
