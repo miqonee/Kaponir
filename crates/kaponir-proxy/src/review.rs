@@ -496,6 +496,33 @@ fn schema(ids: &[String]) -> Value {
         "scope":{"type":"string","enum":["personal","team","global"]},"confidence":{"type":"number","minimum":0,"maximum":1},"reason":{"type":"string","minLength":1,"maxLength":400}},
         "required":["id","action","kind","scope","confidence","reason"],"additionalProperties":false}}},"required":["decisions"],"additionalProperties":false})
 }
+
+fn validate_decision(decision: &Value, value: &str) -> anyhow::Result<()> {
+    let kind = decision["kind"].as_str().unwrap_or_default();
+    anyhow::ensure!(
+        kaponir_core::kinds::STANDARD.contains(&kind)
+            && matches!(
+                decision["action"].as_str(),
+                Some("mask" | "keep" | "review")
+            )
+            && decision["confidence"]
+                .as_f64()
+                .is_some_and(|p| p.is_finite() && (0.0..=1.0).contains(&p))
+            && decision["scope"]
+                .as_str()
+                .is_some_and(|s| s.parse::<Scope>().is_ok())
+            && decision["reason"]
+                .as_str()
+                .is_some_and(|s| !s.is_empty() && s.len() <= 1600),
+        "invalid_classification_response"
+    );
+    anyhow::ensure!(
+        decision["action"] == "review" || !kaponir_core::kinds::type_conflict(kind, value),
+        "type_format_conflict"
+    );
+    Ok(())
+}
+
 async fn run(st: Shared, mut job: Value) {
     let id = job["id"].as_str().unwrap().to_string();
     job["state"] = json!("running");
@@ -531,6 +558,7 @@ async fn run(st: Shared, mut job: Value) {
 }
 async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
     let targets: Vec<Target> = serde_json::from_value(job["targets"].clone())?;
+    let mut first_row_error = None;
     let settings = st.learning.snapshot();
     let batch_size = if job["source"]["role"] == "analysis" {
         settings.analysis.inference.batch_size
@@ -578,42 +606,39 @@ async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
             decisions.len() == batch.len(),
             "invalid_classification_response"
         );
+        // Uncertain identity invalidates the packet. Once every ID is unique and
+        // expected, a row's type/shape error must not discard its neighbors.
+        for target in batch {
+            let id = model_id(target);
+            anyhow::ensure!(
+                decisions.iter().filter(|d| d["id"] == id).count() == 1,
+                "invalid_classification_response"
+            );
+        }
         let mut validated = Vec::new();
         for target in batch {
             let id = model_id(target);
-            let found: Vec<_> = decisions.iter().filter(|d| d["id"] == id).collect();
-            anyhow::ensure!(found.len() == 1, "invalid_classification_response");
-            let d = found[0];
-            let kind = d["kind"].as_str().unwrap_or_default();
-            anyhow::ensure!(
-                kaponir_core::kinds::STANDARD.contains(&kind)
-                    && matches!(d["action"].as_str(), Some("mask" | "keep" | "review"))
-                    && d["confidence"]
-                        .as_f64()
-                        .is_some_and(|p| p.is_finite() && (0.0..=1.0).contains(&p))
-                    && d["scope"]
-                        .as_str()
-                        .is_some_and(|s| s.parse::<Scope>().is_ok())
-                    && d["reason"]
-                        .as_str()
-                        .is_some_and(|s| !s.is_empty() && s.len() <= 1600),
-                "invalid_classification_response"
-            );
+            let d = decisions.iter().find(|d| d["id"] == id).unwrap();
             let item = current.iter().find(|i| i["key"] == target.key).unwrap();
-            anyhow::ensure!(
-                d["action"] == "review"
-                    || !kaponir_core::kinds::type_conflict(
-                        kind,
-                        item["value"].as_str().unwrap_or_default()
-                    ),
-                "type_format_conflict"
-            );
-            let mut rec = d.clone();
-            rec["state"] = json!(if d["action"] == "review" {
-                "needs_review"
-            } else {
-                "succeeded"
-            });
+            let mut rec = match validate_decision(d, item["value"].as_str().unwrap_or_default()) {
+                Ok(()) => {
+                    let mut rec = d.clone();
+                    rec["state"] = json!(if d["action"] == "review" {
+                        "needs_review"
+                    } else {
+                        "succeeded"
+                    });
+                    rec
+                }
+                Err(error) => {
+                    let code = learning::safe_error(&error);
+                    first_row_error.get_or_insert_with(|| code.clone());
+                    job["failed"] = json!(job["failed"].as_u64().unwrap_or(0) + 1);
+                    // Do not retain a malformed action, type or confidence as a
+                    // usable recommendation. Applying this row remains blocked.
+                    json!({"state":"failed","error":code})
+                }
+            };
             rec["job_id"] = job["id"].clone();
             rec["revision"] = job["revision"].clone();
             rec["fingerprint"] = json!(target.fingerprint);
@@ -636,6 +661,13 @@ async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
             "review-job-running",
             job,
         )?;
+    }
+    if let Some(error) = first_row_error {
+        anyhow::bail!(if job["failed"].as_u64() == job["completed"].as_u64() {
+            error
+        } else {
+            "review_partial_failure".into()
+        });
     }
     Ok(())
 }

@@ -27,7 +27,7 @@ def main():
                 if 'items' in content:
                     release.wait(timeout=10)
                     if fail.is_set():self.respond({'error':'RAW_BODY_MUST_NOT_LEAK'},503);return
-                    result={'decisions':[{'id':item['id'],'action':'review' if 'uncertain' in item['value'] else 'keep' if 'publictool' in item['value'] else 'mask','kind':'PROJ','scope':'team','confidence':.97,'reason':'Not enough context to establish confidentiality.' if 'uncertain' in item['value'] else 'Confirmed private project in source context.'} for item in content['items']]}
+                    result={'decisions':[{'id':item['id'],'action':'review' if 'uncertain' in item['value'] else 'keep' if 'publictool' in item['value'] else 'mask','kind':'NOT_A_KIND' if 'invalidanswer' in item['value'] else 'PROJ','scope':'team','confidence':.97,'reason':'Not enough context to establish confidentiality.' if 'uncertain' in item['value'] else 'Confirmed private project in source context.'} for item in content['items']]}
                 else:result={'candidates':[{'value':'40%','kind':'PERSON','confidence':.90},{'value':'1 320,00 ₽','kind':'SVC','confidence':.78}]}
                 self.respond({'choices':[{'finish_reason':'stop','message':{'content':json.dumps(result,ensure_ascii=False)}}]});return
             self.respond({'choices':[{'message':{'role':'assistant','content':'ready'}}]})
@@ -109,13 +109,30 @@ def main():
                     assert uncertain_card.get_by_role('button',name='Применить рекомендацию',exact=True).count()==0
                     assert uncertain_card.locator('option[value="auto"]').is_disabled()
                     assert json.dumps(api('/api/v1/rules'))==before
+                    # One invalid row must not erase a usable neighboring recommendation.
+                    seed('zorgreviewvalidanswer');seed('zorgreviewinvalidanswer');page.locator('#review-refresh').click()
+                    mixed=[i for i in rows() if i['value'] in ['zorgreviewvalidanswer','zorgreviewinvalidanswer']]
+                    assert len(mixed)==2
+                    for item in mixed:
+                        page.locator('[data-review-key="'+item['key']+'"]').locator('input[type=checkbox]').check()
+                    page.locator('#review-selection').get_by_role('button',name='Пересмотреть моделью',exact=True).click()
+                    page.locator('#review-confirm-run').click()
+                    wait_for(lambda:all(any(i['key']==item['key'] and i.get('recommendation',{}).get('state')==('failed' if 'invalidanswer' in item['value'] else 'succeeded') for i in rows()) for item in mixed))
+                    page.locator('#review-refresh').click()
+                    wait_for(lambda:'Часть ответов модели некорректна' in page.locator('#review-result').inner_text())
+                    for item in mixed:
+                        mixed_card=page.locator('[data-review-key="'+item['key']+'"]')
+                        assert mixed_card.get_by_role('button',name='Применить рекомендацию',exact=True).count()==(0 if 'invalidanswer' in item['value'] else 1)
+                    assert page.locator('#review-selection').get_by_role('button',name='Применить рекомендации',exact=True).is_disabled()
+                    assert json.dumps(api('/api/v1/rules'))==before
+                    page.locator('#review-selection').get_by_role('button',name='Снять выбор',exact=True).click()
                     # The event exposes a concrete reason and stable links, without leaking values in summaries.
                     api('/v1/chat/completions',{'model':'fixture-review','messages':[{'role':'user','content':'Read /srv/zorgrevieweventalpha/config.toml'}]})
                     event=wait_for(lambda:next((e for e in api('/api/v1/metrics')['traffic']['events'] if e['usage']['uncertain']),None))
                     assert 'zorgrevieweventalpha' not in json.dumps(api('/api/v1/metrics')['traffic'])
                     page.evaluate('(id)=>openInspector(id,"review")',event['id']);page.locator('#inspector-dialog[open]').wait_for();assert 'zorgrevieweventalpha' in page.locator('#inspector-dialog').inner_text()
                     page.locator('#inspector-dialog').get_by_role('button',name='Открыть связанные решения').first.click();page.locator('#review-list').filter(has_text='zorgrevieweventalpha').wait_for()
-                    assert 'zorgreviewhidden' not in page.locator('#review-list').inner_text()
+                    wait_for(lambda:'zorgreviewhidden' not in page.locator('#review-list').inner_text())
                     page.locator('#review-list').get_by_role('button',name='Показать все',exact=True).click()
                     # Confident builtin replacements can also be explicitly sent to review.
                     api('/v1/chat/completions',{'model':'fixture-review','messages':[{'role':'user','content':'Логин: m.reviewfixture'}]})
@@ -156,7 +173,7 @@ def main():
                     page.screenshot(path=str(args.output/'failure.png'),full_page=True);(args.output/'browser-errors.json').write_text(json.dumps(errors))
                     (args.output/'failure-state.json').write_text(json.dumps({'learning':api('/api/v1/ui/learning'),'review':rows('all')},ensure_ascii=False,indent=2));raise
                 finally:browser.close()
-            report={'passed':True,'checks':['help popup','honest category stages','async model review','prompt JSON profile roundtrip and API payload','explicit apply','rollback and restore','close and reopen','KEEP exception','no heuristic fallback','inconclusive review stays pending','event links and privacy','explicit review from event','numeric corrections require confirmation','selection and grouping','RU/EN themes and mobile']};(args.output/'result.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
+            report={'passed':True,'checks':['help popup','honest category stages','async model review','prompt JSON profile roundtrip and API payload','explicit apply','rollback and restore','close and reopen','KEEP exception','no heuristic fallback','inconclusive review stays pending','invalid rows preserve valid neighbors','event links and privacy','explicit review from event','numeric corrections require confirmation','selection and grouping','RU/EN themes and mobile']};(args.output/'result.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
         finally:release.set();process.terminate();process.wait(timeout=20);log.close();provider.shutdown();provider.server_close()
 
 if __name__=='__main__':main()

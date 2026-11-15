@@ -338,6 +338,15 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(failure.exception.telemetry['max_output_tokens'],1600)
             self.assertFalse(self.worker.evaluations)
 
+    def test_ambiguous_model_json_is_rejected_and_releases_the_slot(self):
+        self.worker.ocr_base = 'http://fixture'
+        for content in ['{"decisions":[{"action":"mask","action":"keep"}]}', '{"confidence":NaN}', '{"confidence":1e9999}']:
+            reply = {'choices': [{'finish_reason': 'stop', 'message': {'content': content}}]}
+            with patch.object(self.worker, 'start_runtime'), patch.object(self.worker, 'prompt_token_count', return_value=1), patch('kaponir_worker.http_json', return_value=reply):
+                with self.assertRaisesRegex(ValueError, '^invalid_model_json$'):
+                    self.worker.evaluate({'prompt': 'fixture', 'schema': {}, 'input': {}})
+            self.assertFalse(self.worker.evaluations)
+
     def test_input_size_uses_utf8_bytes_instead_of_ascii_escape_expansion(self):
         self.worker.ocr_base='http://fixture'
         body={'prompt':'fixture','schema':{},'input':{'source':'я'*400000}}

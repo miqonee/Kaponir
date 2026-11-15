@@ -451,14 +451,14 @@ fn run(cli: Cli) -> Result<ExitCode> {
                 setup_wizard(&home, &setup_language)?;
             }
             if !learn.is_empty() {
-                discover(
+                return discover(
                     &home,
                     &DiscoverArgs {
                         files: learn,
                         select,
                         ..Default::default()
                     },
-                )?;
+                );
             }
             Ok(code)
         }

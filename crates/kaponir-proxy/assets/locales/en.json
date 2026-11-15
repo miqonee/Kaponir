@@ -1270,5 +1270,6 @@
   "JSON по инструкции": "JSON from instructions",
   "Режим для обращений к LLM. Авто проверяет поддержку JSON Schema у локальной среды. «JSON по инструкции» передаёт схему в подсказке без ограничителя; ответ всё равно проверяется. Нативный S1 использует собственный протокол.": "Mode for LLM requests. Auto checks JSON Schema support in the local runtime. JSON from instructions places the schema in the prompt without a decoder constraint; the response is still validated. Native S1 uses its own protocol.",
   "Сколько значений проверять за одно обращение. 1 — отдельный запрос для каждой находки. Большему пакету нужны контекст, лимит ответа и время; при обрывах уменьшите пакет.": "How many values to check in one request. 1 sends a separate request for each finding. Larger batches require context, output tokens and time; reduce the batch if responses are interrupted.",
-  "Проверьте контекст, лимит ответа, резерв, размер пакета и формат JSON.": "Check context, output limit, reserve, batch size and JSON format."
+  "Проверьте контекст, лимит ответа, резерв, размер пакета и формат JSON.": "Check context, output limit, reserve, batch size and JSON format.",
+  "Часть ответов модели некорректна. Остальные рекомендации сохранены; записи с ошибками можно пересмотреть отдельно.": "Some model answers are invalid. Other recommendations were saved; failed entries can be reviewed separately."
 }

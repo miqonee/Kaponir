@@ -4,7 +4,28 @@ All budgets come from the caller. A tokenizer callback decides whether a complet
 request fits; no model names, language-specific words or characters/token ratios.
 """
 import re
+import json
+import math
 from collections import deque
+
+
+def strict_json(text):
+    """Reject ambiguous model JSON instead of accepting a later duplicate key."""
+    def pairs(items):
+        value = {}
+        for key, item in items:
+            if key in value:
+                raise ValueError('duplicate_json_key')
+            value[key] = item
+        return value
+    def constant(_):
+        raise ValueError('invalid_json_constant')
+    def decimal(text):
+        value = float(text)
+        if not math.isfinite(value):
+            raise ValueError('invalid_json_number')
+        return value
+    return json.loads(text, object_pairs_hook=pairs, parse_constant=constant, parse_float=decimal)
 
 
 def paragraph_spans(text):

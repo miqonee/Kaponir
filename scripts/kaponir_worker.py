@@ -34,8 +34,9 @@ import uuid
 from collections import OrderedDict
 try:
     plan_text
+    strict_json
 except NameError:
-    from kaponir_inference import plan_text, document_hint
+    from kaponir_inference import plan_text, document_hint, strict_json
 
 
 def inference_settings(value):
@@ -925,7 +926,7 @@ class Worker:
             for name in ['prompt_tokens','completion_tokens','total_tokens']:
                 if type(usage.get(name)) is int:telemetry[name]=usage[name]
             if choice.get('finish_reason') != 'stop': raise ValueError('model_response_truncated')
-            value = json.loads(choice['message']['content'])
+            value = strict_json(choice['message']['content'])
             if not isinstance(value, dict): raise ValueError('invalid_model_response')
             self.last_inference_at = time.time()
             self.update(ident, state='succeeded')
@@ -940,7 +941,7 @@ class Worker:
             self.update(ident, state=self.get(ident).get('control') or 'failed')
             if isinstance(exc,(TimeoutError,)):
                 code='model_timeout'
-            elif isinstance(exc,json.JSONDecodeError):code='invalid_model_json'
+            elif isinstance(exc,json.JSONDecodeError) or str(exc) in ['duplicate_json_key','invalid_json_constant','invalid_json_number']:code='invalid_model_json'
             elif isinstance(exc,urllib.error.URLError):code='model_connection_failed'
             elif str(exc)=='model_fragment_cannot_split' and body.get('operation')=='plan':
                 code='model_input_budget_too_small' if body.get('chunking',{}).get('target_input_tokens') else 'model_context_budget_exceeded'

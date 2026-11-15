@@ -12,6 +12,7 @@ pub mod anthropic;
 pub mod discovery;
 mod learning;
 mod metrics;
+mod model_json;
 pub mod openai;
 pub mod providers;
 mod review;

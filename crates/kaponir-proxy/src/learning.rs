@@ -1088,7 +1088,7 @@ fn parse_model_json(text: &str) -> Option<Value> {
     } else {
         text
     };
-    serde_json::from_str(text).ok()
+    crate::model_json::parse(text).ok()
 }
 fn api_prompt(prompt: &str, schema: &Value) -> String {
     format!(

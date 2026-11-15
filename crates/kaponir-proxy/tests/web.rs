@@ -489,6 +489,182 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
 }
 
 #[tokio::test]
+async fn model_review_isolates_bad_rows_but_rejects_ambiguous_packet_identity() {
+    async fn model(axum::Json(body): axum::Json<Value>) -> axum::Json<Value> {
+        let input: Value =
+            serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
+        let items = input["items"].as_array().unwrap();
+        let duplicate = items
+            .iter()
+            .any(|item| item["value"] == "zorgduplicatefirst");
+        let decisions: Vec<_> = items
+            .iter()
+            .map(|item| {
+                json!({"id":if duplicate {&items[0]["id"]} else {&item["id"]},
+                "action":"mask","kind":if item["value"] == "zorginvalidrow" {"NOT_A_KIND"} else {"PROJ"},
+                "scope":"team","confidence":0.97,"reason":"A private project in this deployment path."})
+            })
+            .collect();
+        axum::Json(json!({"choices":[{"finish_reason":"stop","message":{
+            "content":json!({"decisions":decisions}).to_string()}}]}))
+    }
+    async fn finished(base: &str, id: &Value) -> Value {
+        for _ in 0..100 {
+            let state = call(
+                "GET",
+                format!("{base}/api/v1/ui/review/jobs/{}", id.as_str().unwrap()),
+                None,
+            )
+            .await
+            .1;
+            if matches!(state["state"].as_str(), Some("succeeded" | "failed")) {
+                return state;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        panic!("review job did not finish")
+    }
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        axum::serve(
+            listener,
+            axum::Router::new().route("/v1/chat/completions", axum::routing::post(model)),
+        )
+        .await
+        .unwrap()
+    });
+    let base = spawn(None).await;
+    let mut settings = call("GET", format!("{base}/api/v1/ui/analysis"), None)
+        .await
+        .1["settings"]
+        .clone();
+    settings["provider"] = json!("api");
+    settings["url"] = json!(format!("http://{addr}/v1/chat/completions"));
+    settings["model"] = json!("fixture-review");
+    settings["inference"]["batch_size"] = json!(2);
+    assert_eq!(
+        call(
+            "PUT",
+            format!("{base}/api/v1/ui/analysis"),
+            Some(json!({"settings":settings})),
+        )
+        .await
+        .0,
+        200
+    );
+    let rules = call("GET", format!("{base}/api/v1/rules"), None).await.1;
+    mask(
+        &base,
+        "deploy /srv/zorgvalidfirst/releases and /srv/zorginvalidrow/releases and /srv/zorgvalidlater/releases",
+        json!({"commit":true}),
+    )
+    .await;
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    let names = ["zorgvalidfirst", "zorginvalidrow", "zorgvalidlater"];
+    let selected: Vec<_> = names
+        .iter()
+        .map(|name| {
+            list["items"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|item| item["value"] == *name)
+                .unwrap_or_else(|| panic!("missing review item {name}: {list}"))
+                .clone()
+        })
+        .collect();
+    let (_, job) = call(
+        "POST",
+        format!("{base}/api/v1/ui/review/jobs"),
+        Some(json!({"keys":selected.iter().map(|i|&i["key"]).collect::<Vec<_>>(),"model_source":"analysis"})),
+    )
+    .await;
+    let state = finished(&base, &job["id"]).await;
+    assert_eq!(state["state"], "failed", "{state}");
+    assert_eq!(state["completed"], 3);
+    assert_eq!(state["failed"], 1);
+    assert_eq!(state["error"], "review_partial_failure");
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    for item in &selected {
+        let rec = &list["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["key"] == item["key"])
+            .unwrap()["recommendation"];
+        if item["value"] == "zorginvalidrow" {
+            assert_eq!(rec["state"], "failed");
+            assert_eq!(rec["error"], "invalid_classification_response");
+            assert!(rec.get("action").is_none());
+            assert!(rec.get("kind").is_none());
+            assert_eq!(
+                call(
+                    "POST",
+                    format!(
+                        "{base}/api/v1/ui/review/detector/{}/apply",
+                        item["id"].as_str().unwrap()
+                    ),
+                    Some(json!({"use_recommendation":true})),
+                )
+                .await
+                .0,
+                400
+            );
+        } else {
+            assert_eq!(rec["state"], "succeeded");
+            assert_eq!(rec["kind"], "PROJ");
+        }
+    }
+    assert_eq!(
+        call("GET", format!("{base}/api/v1/rules"), None).await.1,
+        rules
+    );
+
+    mask(
+        &base,
+        "deploy /srv/zorgduplicatefirst/releases and /srv/zorgduplicatesecond/releases",
+        json!({"commit":true}),
+    )
+    .await;
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    let selected: Vec<_> = list["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| {
+            matches!(
+                item["value"].as_str(),
+                Some("zorgduplicatefirst" | "zorgduplicatesecond")
+            )
+        })
+        .collect();
+    assert_eq!(selected.len(), 2);
+    let (_, job) = call(
+        "POST", format!("{base}/api/v1/ui/review/jobs"),
+        Some(json!({"keys":selected.iter().map(|i|&i["key"]).collect::<Vec<_>>(),"model_source":"analysis"})),
+    ).await;
+    let state = finished(&base, &job["id"]).await;
+    assert_eq!(state["state"], "failed");
+    assert_eq!(state["completed"], 0);
+    assert_eq!(state["error"], "invalid_classification_response");
+    let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    for item in selected {
+        let rec = &list["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["key"] == item["key"])
+            .unwrap()["recommendation"];
+        assert_eq!(rec["state"], "failed");
+    }
+    assert_eq!(
+        call("GET", format!("{base}/api/v1/rules"), None).await.1,
+        rules
+    );
+}
+
+#[tokio::test]
 async fn preview_does_not_persist_commit_does() {
     let base = spawn(None).await;
     let v = mask(&base, PATH_TEXT, json!({})).await;
