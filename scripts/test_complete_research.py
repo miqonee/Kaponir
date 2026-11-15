@@ -101,6 +101,23 @@ class CompleteResearchTests(unittest.TestCase):
             else:
                 self.assertEqual((row['attempted_cases'], row['unattempted_cases']), (0, 16))
 
+    def test_resources_include_attempted_calibration_without_inventing_unsent_costs(self):
+        from test_summarize_privacy_policy import PrivacySummaryTests
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            helper = PrivacySummaryTests()
+            path, result, plan = helper.fixture(root / 'calibration')
+            helper.add_batch(result, plan, 'A', 0)
+            helper.save(path, result, plan)
+            config = self.config(root)
+            config['reference_results'] = {'gemma4-e4b-qat': str(path)}
+            report = write_reports(config, {'status': 'running', 'jobs': {}}, complete.build_jobs(config))
+            with (Path(report['output']) / 'resources.csv').open() as handle:
+                rows = [row for row in csv.DictReader(handle) if row['series'] == 'calibration-original']
+            self.assertEqual(len(rows), 1)
+            self.assertEqual((rows[0]['variant'], rows[0]['http_seconds']), ('A', '10.0'))
+            self.assertTrue((Path(report['output']) / 'transport-recovery.md').exists())
+
     def test_serial_execution_records_context_na_and_does_not_replay_terminal_jobs(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

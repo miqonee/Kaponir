@@ -21,6 +21,7 @@ from report_validation_results import ADDITIONAL
 from run_privacy_policy_suite import MODEL_ORDER, atomic_json, file_sha, utc
 from summarize_privacy_holdout import build_fresh_report, load_fresh_run, render_fresh
 from summarize_privacy_policy import build_report, digest, render_markdown, require, strict_json
+from summarize_privacy_recovery import load_supplement
 from validation_pipeline import Candidate, score
 
 
@@ -173,6 +174,59 @@ def _csv(path, rows, fields):
         writer.writerows(rows)
 
 
+def privacy_resources(run, rows, series):
+    return [{'model': run['model'], 'series': series, 'variant': row['variant'],
+        'http_seconds': row['performance']['http_wall_seconds_including_retries'],
+        'model_peak_rss_bytes': row['performance']['model_observed_peak_rss_bytes'],
+        'model_cpu_seconds': row['performance']['known_model_cpu_seconds'],
+        'weight_bytes': row['performance']['model_disk_bytes'],
+        'context_tokens': row['performance']['settings']['context_tokens'], 'reference_only': True}
+        for row in rows if row['registered_request_slots']]
+
+
+def recovery_reports(config):
+    runs, pending, rejected = [], [], []
+    root = config.get('reference_recovery_output')
+    queue = Path(root) / 'queue.json' if root else None
+    if queue is None or not queue.is_file():
+        return {'runs': runs, 'pending': pending, 'rejected_inputs': rejected}
+    for item in strict_json(queue.read_text())['runs']:
+        path = Path(item['output']) / 'recovery-result.json'
+        if not path.is_file():
+            plan = Path(item['output']) / 'recovery-plan.json'
+            no_timeouts = plan.is_file() and not strict_json(plan.read_text())['requests']
+            pending.append({'original_result': item['result'],
+                            'status': 'no_eligible_timeouts' if no_timeouts else 'pending'})
+            continue
+        try:
+            run = load_supplement(path, item['result'])
+            runs.append(run)
+        except (ValueError, KeyError, TypeError, OSError) as exc:
+            rejected.append({'path': str(path), 'error': str(exc)})
+    return {'runs': runs, 'pending': pending, 'rejected_inputs': rejected}
+
+
+def render_recovery(report):
+    lines = ['# Отдельное дополнение транспорта', '',
+        'Исходные результаты сохранены. Дополнены только подтверждённые тайм-ауты без байтов ответа; '
+        'завершённые неверные типы, усечения и неопределённые отправки не повторялись. '
+        'Эффективная колонка заменяет только эти пропуски новыми строгими решениями. '
+        'Время включает исходные неудачные попытки и дополнение. Это калибровка, не свежая проверка.', '']
+    rows = []
+    for run in report['runs']:
+        originals = {row['variant']: row for row in run['original_rows']}
+        for row in run['effective_rows']:
+            old, new = originals[row['variant']]['quality'], row['quality']
+            rows.append([run['model'], run['status'], row['variant'], old['private_keep'], new['private_keep'],
+                new['public_mask'], new['explicit_review'], old['technical_review'], new['technical_review'],
+                row['outcome_evidence']['unobserved_scored_cases'], new['correct_actions']])
+    lines += table(['Модель', 'Статус дополнения', 'Вариант', 'Private keep: исходно', 'Private keep: с дополнением',
+        'Public mask', 'Явный review', 'Тех. review: исходно', 'Тех. review: с дополнением',
+        'Осталось без ответа', 'Правильных автоматических'], rows)
+    lines += ['', 'Ожидают или не требуют дополнения: ' + str(len(report['pending'])) + '.', '']
+    return '\n'.join(lines)
+
+
 def write_reports(config, state, jobs):
     output = Path(config['output']) / 'reports'
     output.mkdir(parents=True, exist_ok=True)
@@ -194,14 +248,7 @@ def write_reports(config, state, jobs):
                 languages.extend(language_rows(run['result_path'], profile))
             except (ValueError, KeyError, TypeError, OSError) as exc:
                 rejected.append({'path': run['result_path'], 'error': str(exc)})
-            for row in run['rows']:
-                performance = row['performance']
-                resources.append({'model': run['model'], 'series': 'fresh-' + profile, 'variant': row['variant'],
-                    'http_seconds': performance['http_wall_seconds_including_retries'],
-                    'model_peak_rss_bytes': performance['model_observed_peak_rss_bytes'],
-                    'model_cpu_seconds': performance['known_model_cpu_seconds'],
-                    'weight_bytes': performance['model_disk_bytes'],
-                    'context_tokens': run['profile']['context_tokens'], 'reference_only': True})
+            resources.extend(privacy_resources(run, run['rows'], 'fresh-' + profile))
     calibration_paths = [Path(path) for path in config.get('reference_results', {}).values() if Path(path).is_file()]
     calibration_paths.extend(Path(job['output']) / 'result.json' for job in jobs
         if job.get('dataset') == 'calibration' and (Path(job['output']) / 'result.json').is_file())
@@ -209,6 +256,15 @@ def write_reports(config, state, jobs):
     atomic_json(output / 'calibration.json', calibration)
     (output / 'calibration.md').write_text(render_markdown(calibration), encoding='utf-8')
     rejected.extend(calibration['rejected_inputs'])
+    for run in calibration['runs']:
+        resources.extend(privacy_resources(run, run['rows'], 'calibration-original'))
+    recovery = recovery_reports(config)
+    atomic_json(output / 'transport-recovery.json', recovery)
+    (output / 'transport-recovery.md').write_text(render_recovery(recovery), encoding='utf-8')
+    rejected.extend(recovery['rejected_inputs'])
+    for run in recovery['runs']:
+        # This is a separate total, not an additive row to sum with original costs.
+        resources.extend(privacy_resources(run, run['effective_rows'], 'calibration-with-transport-supplement-total'))
     legacy = []
     for model, name in {**COHORT, **ADDITIONAL}.items():
         path = ROOT / 'benchmark/data/validation' / (name + '--result.json.gz')
@@ -285,6 +341,7 @@ def write_reports(config, state, jobs):
         '- [Свежие документы, нативные профили](fresh-native.md).',
         '- [Свежие документы, общий запрошенный профиль](fresh-common.md).',
         '- [Калибровка A/B/C/D: отдельная серия](calibration.md).',
+        '- [Дополнение тайм-аутов: исходный и эффективный результат](transport-recovery.md).',
         '- [Поиск и шесть прежних схем](schemes.md).',
         '- [RU/EN по отдельности, CSV](languages.csv).',
         '- [Время и ресурсы, CSV](resources.csv).', '',
