@@ -1,0 +1,2 @@
+# Preserve the original plotting-tool output, including its whitespace.
+evidence/figures/validation-memory.svg -whitespace

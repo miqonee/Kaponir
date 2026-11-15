@@ -1,0 +1,185 @@
+{
+  "head": "627f58d015f3f7c2ee4a242b9c05b89e4e91cc6c",
+  "commits": [
+    {
+      "commit": "627f58d015f3f7c2ee4a242b9c05b89e4e91cc6c",
+      "date": "2026-11-14T22:43:29Z",
+      "subject": "Complete seven model evaluation with Gemma controls and practical findings"
+    },
+    {
+      "commit": "bbc30021a19b42b41bd7dc23d32137204fc96a08",
+      "date": "2026-11-14T21:12:48Z",
+      "subject": "Publish seven model matrix and Gemma privacy context evidence"
+    },
+    {
+      "commit": "12dc657645d6034f4f400db21b578d39b8bd193f",
+      "date": "2026-11-14T19:06:39Z",
+      "subject": "Publish completed Granite context and reasoning controls"
+    },
+    {
+      "commit": "eefb54270cdfca685426484243403316887a085d",
+      "date": "2026-11-14T17:22:03Z",
+      "subject": "Publish all six Granite benchmark schemes and validation failures"
+    },
+    {
+      "commit": "e277a3a3b54ba26cdf35611192562f6d29d816a4",
+      "date": "2026-11-14T15:42:15Z",
+      "subject": "Publish completed Nanbeige full context and thinking controls"
+    },
+    {
+      "commit": "65d9f2bd035055a0fcc27ba1ef88c7ade0fa22fd",
+      "date": "2026-11-14T14:31:26Z",
+      "subject": "Report Nanbeige full document review outcomes and unanswered cases"
+    },
+    {
+      "commit": "079b86484ecd7b6699d161d987e2b0296a6e9ba3",
+      "date": "2026-11-14T13:07:33Z",
+      "subject": "Document Nanbeige full context CPU timeouts with live token counters"
+    },
+    {
+      "commit": "111bab5502a701bfcd060ba24f2594818a78f795",
+      "date": "2026-11-14T12:15:04Z",
+      "subject": "Expose timeout and failed batch diagnostics in control tables"
+    },
+    {
+      "commit": "e9bcd88c3fa47a3ab544dffdd6bc65475a6d25a3",
+      "date": "2026-11-14T11:54:27Z",
+      "subject": "Publish all six Nanbeige benchmark schemes and raw evidence"
+    },
+    {
+      "commit": "80087d39b57aabc7ed197d7ddd2b311f70be9779",
+      "date": "2026-11-14T10:22:45Z",
+      "subject": "Record completed Nanbeige union validation and resume provenance"
+    },
+    {
+      "commit": "2a3cc713ea1c9cd9b88ff8fc814cf3f49afa5ee7",
+      "date": "2026-11-14T07:45:57Z",
+      "subject": "Compare additive regional candidate pools without new inference"
+    },
+    {
+      "commit": "d1f175d2992326ee30b60f55b51e317e97b8baaf",
+      "date": "2026-11-14T07:18:33Z",
+      "subject": "Document Nanbeige context truncation and first validation results"
+    },
+    {
+      "commit": "d8685ab1041fcee061f8ba2e2892629640d65767",
+      "date": "2026-11-14T05:59:14Z",
+      "subject": "Expose request parsing failures separately in benchmark reports"
+    },
+    {
+      "commit": "da1f653fcefabecade02e940f6ca18053cd99652",
+      "date": "2026-11-14T05:04:44Z",
+      "subject": "Persist discovery responses before recursive benchmark requests"
+    },
+    {
+      "commit": "40d47a06b4040d1a555ad4f861cef9a826092794",
+      "date": "2026-11-14T01:09:48Z",
+      "subject": "Compare individual candidate validation across all light models"
+    },
+    {
+      "commit": "b7bc08a1f07529cfcab006827299c8c7f03adf42",
+      "date": "2026-11-14T00:41:54Z",
+      "subject": "Finish MiniCPM native and recommended sampling controls"
+    },
+    {
+      "commit": "6a9a570eedf879684f0944e071d6a2342116eeeb",
+      "date": "2026-11-13T23:03:37Z",
+      "subject": "Document MiniCPM context controls and raw output limitations"
+    },
+    {
+      "commit": "3d2664664314aea96cf0732bb35417d2f65297b3",
+      "date": "2026-11-13T21:37:23Z",
+      "subject": "test: publish held-out coverage and separate output-contract failures"
+    },
+    {
+      "commit": "243f246cec1ff4ce934bf4b49543311fe7aa1be6",
+      "date": "2026-11-13T18:20:11Z",
+      "subject": "docs: generate comparable model tables and preserve context visibility proof"
+    },
+    {
+      "commit": "56037b0ef526966d52fc8a8e69e39226585146e4",
+      "date": "2026-11-13T17:24:40Z",
+      "subject": "test: record Qwen 0.8 context controls and independent failure evidence"
+    },
+    {
+      "commit": "08c73585d6f0f0d5d97de9493609e5a694e9f058",
+      "date": "2026-11-13T16:32:49Z",
+      "subject": "docs: publish reproducible benchmark evidence and coverage by data type"
+    },
+    {
+      "commit": "87e8462c10ade8989d97630d23bda5c95485309a",
+      "date": "2026-11-13T16:17:34Z",
+      "subject": "test: complete four-model scheme matrix and isolate classifier failures"
+    },
+    {
+      "commit": "8fbed2d1cb8a5df24d6b612797be23699803ab11",
+      "date": "2026-11-13T20:15:46+07:00",
+      "subject": "docs: record scheme results and interrupted cohort status"
+    },
+    {
+      "commit": "4c1b178933c760b58a28257b497917690c73f31f",
+      "date": "2026-11-13T12:11:49Z",
+      "subject": "fix(worker): bound runtime memory and preserve inconclusive reviews"
+    },
+    {
+      "commit": "b7bb73545053412dbd8aba6e68ce26295782c12e",
+      "date": "2026-11-12T18:50:22Z",
+      "subject": "Budget model inference and improve independent review"
+    },
+    {
+      "commit": "36b85671f3a81bb823599f312c0eed854aa36e13",
+      "date": "2026-11-12T17:02:15Z",
+      "subject": "Clarify context truncation and OOM evidence in model comparison"
+    },
+    {
+      "commit": "9412eaf471e163db980bd288b95d296f0f7c360e",
+      "date": "2026-11-12T16:52:43Z",
+      "subject": "Improve decision review and add Hugging Face model catalog"
+    },
+    {
+      "commit": "9af24ee43bac66144c7b521da9d5222691f15af3",
+      "date": "2026-11-12T06:41:11Z",
+      "subject": "Improve model installation diagnostics and background analysis UI"
+    },
+    {
+      "commit": "291fbe4bdc0d2d7eb585aa05695ff08f6c58531b",
+      "date": "2026-11-11T17:00:46Z",
+      "subject": "Add realistic synthetic document corpus and evaluation tools"
+    },
+    {
+      "commit": "24c2e36196d73c00c070dcf26619d1bc5410bdbf",
+      "date": "2026-11-11T16:32:13Z",
+      "subject": "Add background learning, categorization, and reversible rule automation"
+    },
+    {
+      "commit": "3dc4705203356ba37470093136ce430c2984e42d",
+      "date": "2026-11-11T18:46:39+07:00",
+      "subject": "feat: separate LLM analysis and S1 choice rule classification, add Qwen3.5-0.8B, enhance worker management and style dropdowns"
+    },
+    {
+      "commit": "1633b7d36345aa01fa71bcb446bcfd150052c0f6",
+      "date": "2026-11-11T06:39:44Z",
+      "subject": "Redesign console, group sessions, and improve detection accuracy"
+    },
+    {
+      "commit": "4d9e913b6314d8da4e405a29b1d15604ec969e3d",
+      "date": "2026-11-11T00:11:37+07:00",
+      "subject": "feat: implement full UI/UX, detector, Request Inspector, Qwen3 worker & telemetry overhaul"
+    },
+    {
+      "commit": "01c7b4aefa5bfec6a7fe1a63dfce3081678e91cc",
+      "date": "2026-11-02T20:16:50-05:00",
+      "subject": "docs: refresh bilingual READMEs and clarify Kaponir comparison"
+    },
+    {
+      "commit": "1d6d0cfff447d4a81f7ce794f94140f23a98c721",
+      "date": "2026-11-02T18:08:44-05:00",
+      "subject": "Add Xiaomi candidate discovery and clarify product documentation"
+    },
+    {
+      "commit": "4f1bdbe86bd1e962d65c915f811b9dc4e89392db",
+      "date": "2026-11-02T12:54:40-05:00",
+      "subject": "Initial public release of Kaponir"
+    }
+  ]
+}

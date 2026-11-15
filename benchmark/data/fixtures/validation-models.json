@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "models": [
+    {
+      "id": "qwen3.5-0.8b",
+      "builtin": true,
+      "cohort": "baseline",
+      "file": "Qwen3.5-0.8B-Q4_K_M.gguf",
+      "bytes": 532517120,
+      "sha": "bd258782e35f7f458f8aced1adc053e6e92e89bc735ba3be89d38a06121dc517",
+      "url": "https://huggingface.co/unsloth/Qwen3.5-0.8B-GGUF/resolve/6ab461498e2023f6e3c1baea90a8f0fe38ab64d0/Qwen3.5-0.8B-Q4_K_M.gguf"
+    },
+    {
+      "id": "minicpm5-2b",
+      "builtin": true,
+      "cohort": "baseline",
+      "file": "MiniCPM5-2B-Q4_K_M.gguf",
+      "bytes": 1561318368,
+      "sha": "ec2d5801640099e97d8d7e8003ad4d81f336e757811f03a26173dddf386602fd",
+      "url": "https://huggingface.co/openbmb/MiniCPM5-2B-GGUF/resolve/8ad02b786ab81e33d465e1c80562640c55ab2877/MiniCPM5-2B-Q4_K_M.gguf"
+    },
+    {
+      "id": "qwen3.5-2b",
+      "builtin": true,
+      "cohort": "baseline",
+      "file": "Qwen3.5-2B-Q4_K_M.gguf",
+      "bytes": 1280835840,
+      "sha": "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223",
+      "url": "https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf"
+    },
+    {
+      "id": "huihui-qwen3.5-2b-abliterated",
+      "builtin": true,
+      "cohort": "baseline",
+      "file": "Huihui-Qwen3.5-2B-abliterated.Q4_K_M.gguf",
+      "bytes": 1270809024,
+      "sha": "aa25eea787afe56a097268f7ed3460cb623e1901d2e89cd2b654cabb42f80636",
+      "url": "https://huggingface.co/mradermacher/Huihui-Qwen3.5-2B-abliterated-GGUF/resolve/7f5aee7d2dc4df18bd67eab85ea81e0bc2e98a2c/Huihui-Qwen3.5-2B-abliterated.Q4_K_M.gguf"
+    },
+    {
+      "id": "nanbeige42-3b",
+      "repo": "bartowski/Nanbeige_Nanbeige4.2-3B-GGUF",
+      "revision": "17562eefe9752007209148d5f7a6e275fc8d8077",
+      "file": "Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf",
+      "bytes": 2684023968,
+      "sha": "b92d2e35c9876b0c4bc671996360204f4149d0546c23d5954d5eb3b106c81f24",
+      "url": "https://huggingface.co/bartowski/Nanbeige_Nanbeige4.2-3B-GGUF/blob/17562eefe9752007209148d5f7a6e275fc8d8077/Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf",
+      "cohort": "additional"
+    },
+    {
+      "id": "granite42-3b",
+      "repo": "ibm-granite/granite-4.2-3b-GGUF",
+      "revision": "c40945d71cd90f249a56985e8155551a9188dc30",
+      "file": "granite-4.2-3b-Q4_K_M.gguf",
+      "bytes": 2244011552,
+      "sha": "e0406663965846ae22a403456eb826ccce5f450840491f71952f18a7cb78e7d5",
+      "url": "https://huggingface.co/ibm-granite/granite-4.2-3b-GGUF/blob/c40945d71cd90f249a56985e8155551a9188dc30/granite-4.2-3b-Q4_K_M.gguf",
+      "cohort": "additional"
+    },
+    {
+      "id": "gemma4-e4b-qat",
+      "repo": "google/gemma-4-E4B-it-qat-q4_0-gguf",
+      "revision": "4b4a2c1d584be7264f87aac328a1bc739ce81b6c",
+      "file": "gemma-4-E4B_q4_0-it.gguf",
+      "bytes": 5154941280,
+      "sha": "676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee",
+      "url": "https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/blob/4b4a2c1d584be7264f87aac328a1bc739ce81b6c/gemma-4-E4B_q4_0-it.gguf",
+      "cohort": "additional"
+    }
+  ]
+}

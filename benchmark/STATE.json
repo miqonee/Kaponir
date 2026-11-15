@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "status": "completed",
+  "packaged_date": "2026-11-15",
+  "research_dates": [
+    "2026-11-11",
+    "2026-11-14"
+  ],
+  "source_revision": "627f58d015f3f7c2ee4a242b9c05b89e4e91cc6c",
+  "repo": "https://github.com/miqonee/Kaponir",
+  "source_ref_in_bundle": "refs/heads/main",
+  "new_inference_calls_during_packaging": 0,
+  "primary_models": 7,
+  "primary_schemes": 6,
+  "primary_model_method_cells": 42,
+  "published_archives": 41,
+  "copied_evidence_files": 503,
+  "source_aliases": 72,
+  "omissions_recorded": 34,
+  "redacted_files": 1,
+  "calibration": {
+    "documents": [
+      "01-cost-estimate.md",
+      "02-application.log",
+      "08-public-reference.md"
+    ],
+    "unique_values": 92,
+    "amount_values": 51,
+    "other_values": 41
+  },
+  "full_corpus": {
+    "documents": 8,
+    "unique_values": 219,
+    "occurrences": 363
+  },
+  "oracle_controls": {
+    "cases": 32,
+    "private": 16,
+    "public": 16,
+    "protected_credential_bypass": false
+  },
+  "historical_resources": {
+    "cpu_threads": 2,
+    "cpu_quota": 2,
+    "memory_bytes": 8589934592,
+    "disk_bytes": 8417406976,
+    "runtime": "llama.cpp b12038",
+    "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934"
+  },
+  "checks_at_research_completion": {
+    "python_tests": 117,
+    "python_status": "passed",
+    "rust_tests": 190,
+    "rust_status": "passed_at_prior_code_checkpoint",
+    "clippy": "passed_at_prior_code_checkpoint",
+    "rescored_cells": 42,
+    "archive_hashes_verified": 41
+  },
+  "operational_end_state": {
+    "light_queue": "completed",
+    "heavy_queue": "completed",
+    "benchmark_processes_running": false,
+    "scratch_model_weights": "removed_after_completed_runs",
+    "task_toolchain": "restored_from_verified_backup",
+    "persistent_user_rules_changed": 0,
+    "s1": "disabled_no_trained_user_model_supplied"
+  },
+  "next_phase": {
+    "status": "not_started",
+    "first_task": "Specify trusted anonymization policy and a paired privacy-only experiment; preserve old inputs and results.",
+    "primary_verifier_profile": "Gemma full document, bounded thinking, author sampling",
+    "finder_shortlist": [
+      "Gemma full document off",
+      "Nanbeige full document off",
+      "Granite common main"
+    ],
+    "low_memory_alternative": "MiniCPM common full document off"
+  },
+  "authoritative_files": {
+    "report": "REPORT.md",
+    "tables": "TABLES.md",
+    "handoff": "AGENT_HANDOFF.md",
+    "next_steps": "NEXT_STEPS.md",
+    "raw_manifest": "data/validation/manifest.json",
+    "inventory": "data/COLLECTION.json"
+  },
+  "package_checks": {
+    "status": "passed",
+    "record": "PACKAGE_CHECKS.json",
+    "offline_report_regenerated_identically": true,
+    "offline_tables_regenerated_identically": true,
+    "tamper_detected": true,
+    "restore_overwrite_rejected": true,
+    "new_inference_calls": 0
+  },
+  "delivery": {
+    "status": "local_commit_only",
+    "pushed": false,
+    "destination": "https://github.com/miqonee/Kaponir.git",
+    "branch": "main",
+    "blocked_by": "automatic_approval_review",
+    "next_action": "Obtain explicit user approval for this complete artifact payload and destination before pushing.",
+    "details": "DELIVERY.md"
+  }
+}

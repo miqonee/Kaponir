@@ -1,0 +1,41 @@
+{
+  "restore": {
+    "files_restored": 127,
+    "output": "/tmp/kaponir-benchmark-check-bpzhfwgi/restored",
+    "new_inference_calls": 0
+  },
+  "offline_source_revision": "627f58d015f3f7c2ee4a242b9c05b89e4e91cc6c",
+  "offline_git_commits": 36,
+  "historical_implementations_present": true,
+  "offline_regenerated_json_identical": true,
+  "offline_regenerated_json_sha256": "5e46781c304aa5cf5b7ae91509ae41c1982ec290595df6ada2e64e848640cfe9",
+  "offline_regenerated_tables_identical": true,
+  "tamper_detected": true,
+  "restore_overwrite_rejected": true,
+  "restore_inside_package_rejected": true,
+  "documentation": "Документация: локальные ссылки и якоря проверены в 92 Markdown-файлах.",
+  "work_directory": "/tmp/kaponir-benchmark-check-bpzhfwgi",
+  "verified_snapshot_files_at_integration_run": 519,
+  "new_inference_calls_during_packaging": 0,
+  "status": "passed",
+  "checked_utc": "2026-11-15T10:02:45.116431+00:00",
+  "source_revision": "627f58d015f3f7c2ee4a242b9c05b89e4e91cc6c",
+  "notes": [
+    "All integration checks use frozen evidence; no model calls.",
+    "Snapshot file count above describes the integration run, before adding this record. Run verify.py for the final file count.",
+    "Python 117 / Rust 190 / clippy are historical checks, not rerun during packaging.",
+    "Restoration includes all captured artifact text; UI screenshots are optional.",
+    "Temporary work-directory paths are provenance, not required dependencies.",
+    "Original SVG plotting-tool whitespace preserved byte-for-byte; file-specific Git whitespace attribute. Authored CSV uses LF."
+  ],
+  "restore_including_ui": {
+    "files_restored": 307,
+    "output": "/tmp/kaponir-benchmark-ui-restore-nuwbl43r",
+    "new_inference_calls": 0
+  },
+  "restored_ui_images": 180,
+  "all_captured_artifact_sources_restored": true,
+  "documented_cli_flags_checked": true,
+  "decoded_package_credential_scan": "passed",
+  "final_snapshot_files": 522
+}
