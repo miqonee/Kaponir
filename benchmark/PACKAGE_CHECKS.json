@@ -37,7 +37,7 @@
   "all_captured_artifact_sources_restored": true,
   "documented_cli_flags_checked": true,
   "decoded_package_credential_scan": "passed",
-  "final_snapshot_files": 523,
+  "final_snapshot_files": 525,
   "continuation_documentation_update": {
     "date": "2026-11-15",
     "status": "passed",
@@ -47,5 +47,15 @@
     "markdown_files_checked": 93,
     "rescored_cells": 42,
     "raw_evidence_unchanged": true
+  },
+  "future_model_plan_update": {
+    "status": "passed",
+    "checked_utc": "2026-11-15T13:00:28.179765+00:00",
+    "markdown_files_checked": 94,
+    "planned_candidates": 6,
+    "target_variants": 13,
+    "new_inference_calls": 0,
+    "model_weights_downloaded": false,
+    "historical_evidence_hashes_unchanged": true
   }
 }

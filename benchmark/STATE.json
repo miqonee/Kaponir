@@ -99,7 +99,26 @@
       "B: A plus trusted anonymization policy",
       "C: B plus explicit target-span marking",
       "D: C plus privacy-only output, with its own validator"
-    ]
+    ],
+    "model_expansion": {
+      "status": "planned_not_started",
+      "requested_on": "2026-11-15",
+      "plan": "MODEL_EXPANSION_PLAN.md",
+      "catalog": "data/planned-models.json",
+      "historical_models": 7,
+      "new_candidates": 6,
+      "target_variants": 13,
+      "candidate_ids": [
+        "lfm2.5-1.2b-instruct",
+        "lfm2.5-2.6b",
+        "tiny-aya-global",
+        "qwen3.5-4b",
+        "spark-x2.6-4b",
+        "lfm2.5-8b-a1b"
+      ],
+      "order": "First freeze the privacy task through A/B/C/D; then expand all schemes with actual native capability/profile labels.",
+      "new_inference_calls": 0
+    }
   },
   "authoritative_files": {
     "report": "REPORT.md",
@@ -108,7 +127,8 @@
     "next_steps": "NEXT_STEPS.md",
     "raw_manifest": "data/validation/manifest.json",
     "inventory": "data/COLLECTION.json",
-    "strategies": "STRATEGY_GUIDE.md"
+    "strategies": "STRATEGY_GUIDE.md",
+    "model_expansion": "MODEL_EXPANSION_PLAN.md"
   },
   "package_checks": {
     "status": "passed",

@@ -1,0 +1,239 @@
+{
+  "version": 1,
+  "checked_date": "2026-11-15",
+  "status": "planning_only",
+  "metadata_source": "Public primary model cards and Hugging Face file metadata checked with browsing; no model weights downloaded.",
+  "new_inference_calls": 0,
+  "historical_benchmarked_ids": [
+    "minicpm5-2b",
+    "qwen3.5-2b",
+    "huihui-qwen3.5-2b-abliterated",
+    "qwen3.5-0.8b",
+    "nanbeige42-3b",
+    "granite42-3b",
+    "gemma4-e4b-qat"
+  ],
+  "historical_benchmarked_models": 7,
+  "planned_new_models": 6,
+  "target_model_variants": 13,
+  "evaluation_plan": "MODEL_EXPANSION_PLAN.md",
+  "first_task_remains": "Clarify the privacy-validation policy and A/B/C/D protocol before expanding the benchmark.",
+  "notes": [
+    "Publisher-reported file SHA is metadata, not a locally verified checksum.",
+    "All revisions must be resolved to immutable commits and files verified before inference.",
+    "Rounded display sizes are decimal MB/GB, not exact byte counts or measured RAM.",
+    "Missing reasoning controls or context capacity are N/A with a reason, not zero quality.",
+    "Do not add planned models to completed result tables or the product default based on model-card claims."
+  ],
+  "models": [
+    {
+      "id": "lfm2.5-1.2b-instruct",
+      "name": "LFM2.5-1.2B-Instruct",
+      "status": "planned_not_benchmarked",
+      "nominal_size": "1.2B",
+      "total_parameters_b_reported": 1.17,
+      "upstream_repo": "LiquidAI/LFM2.5-1.2B-Instruct",
+      "model_card_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct",
+      "license_reported": "lfm1.0",
+      "why_test": "Small-model alternative for extraction and classification.",
+      "native_reasoning_card_note": "Instruct checkpoint; the separately published Thinking checkpoint is a different model.",
+      "russian_card_note": "Russian absent from the listed eight languages; actual RU capability unmeasured.",
+      "context_card_note": "32768 tokens reported; validate GGUF and runtime.",
+      "author_sampling_card": {
+        "temperature": 0.1,
+        "top_k": 50,
+        "repetition_penalty": 1.05
+      },
+      "artifact": {
+        "gguf_repo": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF",
+        "filename": "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+        "quantization": "Q4_K_M",
+        "reported_display_size_decimal": "731 MB",
+        "file_page_url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/blob/main/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+        "hf_reported_sha256": "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5",
+        "sha256_verified_locally": false,
+        "pinned_revision": null,
+        "pin_revision_and_verify_file_before_inference": true
+      },
+      "runtime_compatibility": "not_tested",
+      "memory_and_speed_results": null,
+      "quality_results": null
+    },
+    {
+      "id": "lfm2.5-2.6b",
+      "name": "LFM2.5-2.6B",
+      "status": "planned_not_benchmarked",
+      "nominal_size": "2.6B",
+      "total_parameters_b_reported": 2.69,
+      "upstream_repo": "LiquidAI/LFM2.5-2.6B",
+      "model_card_url": "https://huggingface.co/LiquidAI/LFM2.5-2.6B",
+      "license_reported": "lfm1.0",
+      "why_test": "Hybrid model between the existing 2B and 4B candidates, with Russian listed.",
+      "native_reasoning_card_note": "Card explicitly says pure reasoning and always thinks; template injects think. Do not label an unsupported switch as thinking off.",
+      "russian_card_note": "Russian explicitly listed.",
+      "context_card_note": "131072 tokens reported; validate GGUF and runtime.",
+      "author_sampling_card": {
+        "temperature": 0.1,
+        "top_k": 50,
+        "repetition_penalty": 1.1
+      },
+      "artifact": {
+        "gguf_repo": "LiquidAI/LFM2.5-2.6B-GGUF",
+        "filename": "LFM2.5-2.6B-Q4_K_M.gguf",
+        "quantization": "Q4_K_M",
+        "reported_display_size_decimal": "1.67 GB",
+        "file_page_url": "https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/blob/main/LFM2.5-2.6B-Q4_K_M.gguf",
+        "hf_reported_sha256": "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
+        "sha256_verified_locally": false,
+        "pinned_revision": null,
+        "pin_revision_and_verify_file_before_inference": true
+      },
+      "runtime_compatibility": "not_tested",
+      "memory_and_speed_results": null,
+      "quality_results": null
+    },
+    {
+      "id": "tiny-aya-global",
+      "name": "Tiny Aya Global",
+      "status": "planned_not_benchmarked",
+      "nominal_size": "3.35B",
+      "total_parameters_b_reported": 3.35,
+      "upstream_repo": "CohereLabs/tiny-aya-global",
+      "model_card_url": "https://huggingface.co/CohereLabs/tiny-aya-global",
+      "license_reported": "cc-by-nc-4.0",
+      "why_test": "Multilingual candidate for RU/EN extraction and privacy validation.",
+      "native_reasoning_card_note": "Instruction-tuned global checkpoint; do not substitute base or thinker variants. Supported reasoning controls must be probed.",
+      "russian_card_note": "Russian explicitly listed among 70+ languages.",
+      "context_card_note": "Card lists 8K input and 8K output; do not assume a 16K combined window. Validate artifact/runtime accounting before full-document tests.",
+      "author_sampling_card": null,
+      "artifact": {
+        "gguf_repo": "CohereLabs/tiny-aya-global-GGUF",
+        "filename": "tiny-aya-global-q4_k_m.gguf",
+        "quantization": "Q4_K_M",
+        "reported_display_size_decimal": "2.14 GB",
+        "file_page_url": "https://huggingface.co/CohereLabs/tiny-aya-global-GGUF/blob/main/tiny-aya-global-q4_k_m.gguf",
+        "hf_reported_sha256": "d01d995272af305b2b843efcff8a10cf9869cf53e764cb72b0e91b777484570a",
+        "sha256_verified_locally": false,
+        "pinned_revision": null,
+        "pin_revision_and_verify_file_before_inference": true
+      },
+      "runtime_compatibility": "not_tested",
+      "memory_and_speed_results": null,
+      "quality_results": null
+    },
+    {
+      "id": "qwen3.5-4b",
+      "name": "Qwen3.5-4B",
+      "status": "planned_not_benchmarked",
+      "nominal_size": "4B",
+      "total_parameters_b_reported": null,
+      "upstream_repo": "Qwen/Qwen3.5-4B",
+      "model_card_url": "https://huggingface.co/Qwen/Qwen3.5-4B",
+      "license_reported": "apache-2.0",
+      "why_test": "Within-family comparison against completed Qwen3.5-0.8B and 2B results.",
+      "native_reasoning_card_note": "Official card provides enable_thinking=False through the serving API; verify the rendered native template and runtime behavior.",
+      "russian_card_note": "Evaluate RU/EN on the same corpus; no quality result inferred from family size.",
+      "context_card_note": "262144 native context tokens reported; benchmark budgets remain separately fixed.",
+      "author_sampling_card": {
+        "non_thinking": {
+          "temperature": 0.7,
+          "top_p": 0.8,
+          "top_k": 20,
+          "presence_penalty": 1.5
+        },
+        "thinking_general": {
+          "temperature": 1.0,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0,
+          "presence_penalty": 1.5,
+          "repetition_penalty": 1.0
+        }
+      },
+      "artifact": {
+        "gguf_repo": "unsloth/Qwen3.5-4B-GGUF",
+        "filename": "Qwen3.5-4B-Q4_K_M.gguf",
+        "quantization": "Q4_K_M",
+        "reported_display_size_decimal": "2.74 GB",
+        "file_page_url": "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/blob/main/Qwen3.5-4B-Q4_K_M.gguf",
+        "hf_reported_sha256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+        "sha256_verified_locally": false,
+        "pinned_revision": null,
+        "pin_revision_and_verify_file_before_inference": true
+      },
+      "runtime_compatibility": "not_tested",
+      "memory_and_speed_results": null,
+      "quality_results": null
+    },
+    {
+      "id": "spark-x2.6-4b",
+      "name": "Spark-X2.6-4B",
+      "status": "planned_not_benchmarked",
+      "nominal_size": "4B",
+      "total_parameters_b_reported": null,
+      "upstream_repo": "XHToken/Spark-X2.6-4B",
+      "model_card_url": "https://huggingface.co/XHToken/Spark-X2.6-4B",
+      "license_reported": "apache-2.0",
+      "why_test": "Additional 4B family and controllable reasoning comparison.",
+      "native_reasoning_card_note": "Official card advertises none/low/high thinking levels. Probe mapping to our runtime rather than treating them as interchangeable with other families.",
+      "russian_card_note": "Card is tagged English/Chinese; actual RU quality must be measured.",
+      "context_card_note": "Resolve native GGUF/runtime limits before choosing a full-document profile.",
+      "author_sampling_card": {
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 0
+      },
+      "artifact": {
+        "gguf_repo": "XHToken/Spark-X2.6-4B-GGUF",
+        "filename": "Spark-X2.6-4B-Q4_K_M.gguf",
+        "quantization": "Q4_K_M",
+        "reported_display_size_decimal": "3.54 GB",
+        "file_page_url": "https://huggingface.co/XHToken/Spark-X2.6-4B-GGUF/blob/main/Spark-X2.6-4B-Q4_K_M.gguf",
+        "hf_reported_sha256": null,
+        "sha256_verified_locally": false,
+        "pinned_revision": null,
+        "pin_revision_and_verify_file_before_inference": true,
+        "metadata_limit": "Filename and rounded size confirmed in official file tree; file-page SHA unavailable through the browsing tool and must be resolved before download.",
+        "file_tree_url": "https://huggingface.co/XHToken/Spark-X2.6-4B-GGUF/tree/main"
+      },
+      "runtime_compatibility": "not_tested",
+      "memory_and_speed_results": null,
+      "quality_results": null
+    },
+    {
+      "id": "lfm2.5-8b-a1b",
+      "name": "LFM2.5-8B-A1B",
+      "status": "planned_not_benchmarked",
+      "nominal_size": "8B-A1B",
+      "total_parameters_b_reported": 8.3,
+      "upstream_repo": "LiquidAI/LFM2.5-8B-A1B",
+      "model_card_url": "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B",
+      "license_reported": "lfm1.0",
+      "why_test": "MoE candidate to test compute/quality tradeoff; total weights and actual memory remain relevant.",
+      "native_reasoning_card_note": "Reasoning-tuned checkpoint; assistant turns contain reasoning. Off/bounded support in our runtime is not yet confirmed.",
+      "russian_card_note": "Russian absent from the feature-language list; actual RU capability unmeasured.",
+      "context_card_note": "128000 tokens reported in model card; validate GGUF and runtime.",
+      "author_sampling_card": {
+        "temperature": 0.2,
+        "top_k": 80,
+        "repetition_penalty": 1.05
+      },
+      "artifact": {
+        "gguf_repo": "LiquidAI/LFM2.5-8B-A1B-GGUF",
+        "filename": "LFM2.5-8B-A1B-Q4_K_M.gguf",
+        "quantization": "Q4_K_M",
+        "reported_display_size_decimal": "5.16 GB",
+        "file_page_url": "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/blob/main/LFM2.5-8B-A1B-Q4_K_M.gguf",
+        "hf_reported_sha256": "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0",
+        "sha256_verified_locally": false,
+        "pinned_revision": null,
+        "pin_revision_and_verify_file_before_inference": true
+      },
+      "runtime_compatibility": "not_tested",
+      "memory_and_speed_results": null,
+      "quality_results": null,
+      "active_parameters_b_reported": 1.5,
+      "architecture_card_note": "MoE hybrid convolution/attention; active parameters are not a RAM estimate."
+    }
+  ]
+}

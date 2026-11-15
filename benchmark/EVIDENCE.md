@@ -11,6 +11,7 @@
 | Исходники/разметка | [data/corpus/expected.json](data/corpus/expected.json), соседняя input/; оригинальный README сохранён в gzip |
 | Четыре фикстуры проб | [context-control-candidates.json](data/fixtures/context-control-candidates.json), [20 проб](data/fixtures/validation-review-heldout.json), [12 проб](data/fixtures/local-model-review.json), [каталог моделей](data/fixtures/validation-models.json) |
 | Семь закреплённых GGUF | [data/models.json](data/models.json), включая SHA и HF URL |
+| Будущие кандидаты: только метаданные, без результатов | [data/planned-models.json](data/planned-models.json): шесть моделей, первоисточники, ограничения и опубликованные SHA; локальная проверка весов ещё не выполнена |
 | Старое исследование/внешний маршрут | [data/inference-results.json](data/inference-results.json) и raw results из индекса |
 | Исходный код и история | [repository.bundle](evidence/source/repository.bundle) + [git-history.json](data/git-history.json) |
 | Прежние тексты отчётов | reference/*.md.gz, byte-exact, включая MODEL_COMPARISON, REVIEW_QUALITY, INFERENCE_EXPERIMENTS, VALIDATION_EXPERIMENTS и SCHEME_COMPARISON |
