@@ -37,5 +37,15 @@
   "all_captured_artifact_sources_restored": true,
   "documented_cli_flags_checked": true,
   "decoded_package_credential_scan": "passed",
-  "final_snapshot_files": 522
+  "final_snapshot_files": 523,
+  "continuation_documentation_update": {
+    "date": "2026-11-15",
+    "status": "passed",
+    "new_inference_calls": 0,
+    "description": "User-confirmed starting direction and measured strategy recommendations; original evidence unchanged.",
+    "checked_utc": "2026-11-15T11:20:52.125857+00:00",
+    "markdown_files_checked": 93,
+    "rescored_cells": 42,
+    "raw_evidence_unchanged": true
+  }
 }

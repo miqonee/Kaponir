@@ -1,7 +1,7 @@
 {
   "version": 1,
   "source_revision": "627f58d015f3f7c2ee4a242b9c05b89e4e91cc6c",
-  "generated_utc": "2026-11-15T10:02:45.194504+00:00",
+  "generated_utc": "2026-11-15T11:20:52.204083+00:00",
   "description": "Immutable research snapshot, human report and agent handoff. No new model inference during packaging. Only the root manifest.json is excluded from its own inventory.",
   "files": {
     ".gitattributes": {
@@ -9,8 +9,8 @@
       "bytes": 123
     },
     "AGENT_HANDOFF.md": {
-      "sha256": "7ca740d75e3bf0927368e4472ab07d400a9c8b5f79f428948bbc70ecef66daec",
-      "bytes": 12457
+      "sha256": "7f8dc5b48f266260c1c7df755fb40cd1bf7797be3cb198370946939c7c8a3d4f",
+      "bytes": 13163
     },
     "DELIVERY.md": {
       "sha256": "0b1ff24a07ea5844df94cc785c31889250db85bb89f36e1493fe470a44a6fd43",
@@ -25,16 +25,16 @@
       "bytes": 10772
     },
     "NEXT_STEPS.md": {
-      "sha256": "8e80b0b1f88aa6275f997d52cc593fce2f59a1fdc6c445f6afef481642fee7b1",
-      "bytes": 8964
+      "sha256": "111cf6f2f67c20f9100589f1ae32682c9a8907c2124f33d4ed9256515c2e8a92",
+      "bytes": 10572
     },
     "PACKAGE_CHECKS.json": {
-      "sha256": "7c816ea76c53f42c70c379348f59b2996ccf4512bd54324cb9a69fa9e2adda5c",
-      "bytes": 1987
+      "sha256": "f1ffdad06a0724c7898e770a32b7a54ca3c89626bf6f04d78e9f86b023973dfc",
+      "bytes": 2387
     },
     "README.md": {
-      "sha256": "b404164ceb8ced62732156d1d9f282fb64be132af770c129f622fd139d572215",
-      "bytes": 4795
+      "sha256": "29f50a025b8106e8ca69bd01e39aba7e0544ffa3bcd2cbd0faf4604d0e906145",
+      "bytes": 4985
     },
     "REPORT.md": {
       "sha256": "287d2215a948a85ba735e576f4734f2a5dce4637428eae29e30e13b27da6d5c3",
@@ -45,12 +45,16 @@
       "bytes": 6345
     },
     "SESSION_LOG.md": {
-      "sha256": "f517ff17c5ef5a85477d4096797e2297748258125e9de580cb32a3ef134b83ea",
-      "bytes": 9401
+      "sha256": "4a178ad898f02e31f31be403ae29caca0b90e0286973f46952c0c73b92301528",
+      "bytes": 9815
     },
     "STATE.json": {
-      "sha256": "db80754968756f45b8551103a513480ad4151dbeb2dd86d220f0d2dd7f506780",
-      "bytes": 3240
+      "sha256": "87cc49b188048a2a9ae1b340275c541a3f342b6f21508f4effdf03abf27e55de",
+      "bytes": 4322
+    },
+    "STRATEGY_GUIDE.md": {
+      "sha256": "b1cfbe4c9bbd7e1dd49507107526461cad52101d3be54a914aa0e5ec2d499cb3",
+      "bytes": 15657
     },
     "TABLES.md": {
       "sha256": "6aa62edd1a2f7b8bc55965a7cd502fe478919631db8921bf3772e1d5e6c182b7",

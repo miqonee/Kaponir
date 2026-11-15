@@ -74,7 +74,32 @@
       "Nanbeige full document off",
       "Granite common main"
     ],
-    "low_memory_alternative": "MiniCPM common full document off"
+    "low_memory_alternative": "MiniCPM common full document off",
+    "user_confirmed_direction_on": "2026-11-15",
+    "user_confirmed_direction": "Clarify the privacy-validation task before running more model comparisons.",
+    "strategy_guide": "STRATEGY_GUIDE.md",
+    "first_session_deliverables": [
+      "Versioned anonymization policy without gold labels or file-specific conditions",
+      "Prepared paired A/B/C/D protocol for the same 32 control cases",
+      "Separate private-keep, public-mask, review and contract-validity metrics"
+    ],
+    "initial_validation_reference": {
+      "model": "gemma4-e4b-qat",
+      "profile": "gemma-card-document/review-document-bounded",
+      "cases": 32,
+      "private_cases": 16,
+      "public_cases": 16,
+      "wrong_private_keep": 9,
+      "public_mask": 0,
+      "review": 0,
+      "protected_bypass": false
+    },
+    "experiment_sequence": [
+      "A: frozen joint-contract baseline",
+      "B: A plus trusted anonymization policy",
+      "C: B plus explicit target-span marking",
+      "D: C plus privacy-only output, with its own validator"
+    ]
   },
   "authoritative_files": {
     "report": "REPORT.md",
@@ -82,7 +107,8 @@
     "handoff": "AGENT_HANDOFF.md",
     "next_steps": "NEXT_STEPS.md",
     "raw_manifest": "data/validation/manifest.json",
-    "inventory": "data/COLLECTION.json"
+    "inventory": "data/COLLECTION.json",
+    "strategies": "STRATEGY_GUIDE.md"
   },
   "package_checks": {
     "status": "passed",
