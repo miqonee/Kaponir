@@ -13,10 +13,10 @@ from summarize_privacy_policy import compare_quality, digest
 
 
 class FreshPrivacySummaryTests(unittest.TestCase):
-    def fixture(self, directory, model='gemma4-e4b-qat'):
+    def fixture(self, directory, model='gemma4-e4b-qat', extra_args=()):
         """Synthetic parser records, not measurements; always in a temporary dir."""
         with redirect_stdout(StringIO()):
-            prepare(['--prepare-only', '--model', model, '--output', str(directory)])
+            prepare(['--prepare-only', '--model', model, '--output', str(directory)] + list(extra_args))
         path = directory / 'result.json'
         plan = json.loads(path.with_name('plan.json').read_text())
         plan.update(model_sha256_verified=True, token_budget_validation='verified_runtime',

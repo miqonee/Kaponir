@@ -109,11 +109,13 @@ def terminal_result(job):
 
 
 class Controller:
-    def __init__(self, config, resume=False):
+    def __init__(self, config, resume=False, jobs=None, result_function=None):
         self.config, self.root = config, Path(config['runner_root']).resolve()
         self.output = Path(config['output']).resolve()
         self.output.mkdir(parents=True, exist_ok=True)
-        self.path, self.jobs = self.output / 'status.json', build_jobs(config)
+        self.path = self.output / 'status.json'
+        self.jobs = build_jobs(config) if jobs is None else jobs
+        self.result_function = result_function or terminal_result
         self.signature = digest(config)
         if self.path.exists():
             require(resume, 'complete_queue_exists_use_explicit_resume_after_inspection')
@@ -179,7 +181,7 @@ class Controller:
                 last_report = time.monotonic()
         require(not process_group_alive(row['pid']) and not runtime_processes(self.config['runtime']),
                 'child_exited_with_live_runtime_no_automatic_kill')
-        result = terminal_result(job)
+        result = self.result_function(job)
         row.update(result, exit_code=code, finished_at_utc=utc())
         self.save()
         self.refresh_reports(force=True)

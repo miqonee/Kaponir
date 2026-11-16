@@ -60,12 +60,14 @@ def catalog_models():
     return {row['id']: row for row in old + planned}
 
 
-def _validate_source(state, plan, catalog, control_validator=None):
+def _validate_source(state, plan, catalog, control_validator=None, variants=VARIANTS):
     require(isinstance(state, dict) and state.get('version') == 1
             and isinstance(state.get('stages'), dict)
             and isinstance(state.get('responses'), dict)
             and isinstance(state.get('calls'), list), 'not_phase2_result')
-    require(isinstance(plan, dict) and plan.get('version') == 1 and plan.get('variant_order') == list(VARIANTS),
+    require(bool(variants) and len(set(variants)) == len(variants) and set(variants) <= set(VARIANTS),
+            'invalid_expected_variants')
+    require(isinstance(plan, dict) and plan.get('version') == 1 and plan.get('variant_order') == list(variants),
             'not_phase2_plan')
     require(not any(source.get(key) for source in (state, plan)
                     for key in ('mock', 'test_only', 'mocked', 'fixture')),
@@ -115,7 +117,7 @@ def _validate_source(state, plan, catalog, control_validator=None):
     indexed = {}
     for row in plan['requests']:
         variant, index = row['variant'], row['batch_index']
-        require(variant in VARIANTS and type(index) is int and 0 <= index < len(plan['batches']),
+        require(variant in variants and type(index) is int and 0 <= index < len(plan['batches']),
                 'invalid_request_batch')
         require(row['case_ids'] == plan['batches'][index], 'unmatched_batch_plan')
         require(row['request'].get('model') == model
@@ -123,7 +125,7 @@ def _validate_source(state, plan, catalog, control_validator=None):
         key = (variant, index)
         require(key not in indexed, 'duplicate_planned_batch')
         indexed[key] = row
-    for variant in VARIANTS:
+    for variant in variants:
         flattened = [ident for row in plan['requests'] if row['variant'] == variant for ident in row['case_ids']]
         require(len(flattened) == 32 and set(flattened) == set(ids), 'incomplete_variant_plan')
     return model, ids, indexed

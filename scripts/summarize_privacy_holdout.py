@@ -18,7 +18,7 @@ AXES = ('private_keep', 'public_mask', 'unnecessary_explicit_review',
         'overconfident_on_reference_review', 'technical_review')
 
 
-def load_fresh_run(path):
+def _load_pinned_fresh_run(path, variants, quality_contract, policy_sha256):
     path = Path(path).resolve()
     if path.is_dir():
         path = path / 'result.json'
@@ -28,19 +28,20 @@ def load_fresh_run(path):
     plan_raw = path.with_name('plan.json').read_bytes()
     plan = strict_json(plan_raw.decode('utf-8'))
     holdout = load_holdout()
-    require(plan['signature']['quality_contract'] == holdout.quality_contract
+    require(plan['signature']['quality_contract'] == quality_contract
             and plan['signature']['annotations_sha256'] == holdout.quality_contract['annotations_sha256'],
             'not_frozen_three_way_holdout')
+    require(plan['signature']['policy_sha256'] == policy_sha256, 'unexpected_fresh_policy')
     catalog = catalog_models()
     pinned, _ = pinned_models()
     for model in pinned['models']:
         catalog[model['id']] = model
     model, ids, indexed = _validate_source(state, plan, catalog,
-        control_validator=lambda cases: cases == holdout.case_data)
+        control_validator=lambda cases: cases == holdout.case_data, variants=variants)
     entries = _attempts(state, plan, indexed)
     run_id = digest(str(path))[:12]
     rows = []
-    for variant in VARIANTS:
+    for variant in variants:
         decisions = state['stages'].get(variant, {}).get('decisions', {})
         quality = score_holdout(holdout.cases, decisions, holdout.expected_by_id)
         attempted = {ident for entry in entries[variant] for ident in entry['case_ids']}
@@ -74,6 +75,11 @@ def load_fresh_run(path):
         'result_path': str(path), 'result_sha256': hashlib.sha256(raw).hexdigest(),
         'plan_sha256': plan['plan_sha256'], 'plan_file_sha256': hashlib.sha256(plan_raw).hexdigest(),
         'cohort_sha256': digest(cohort), 'profile': plan['signature']['settings'], 'rows': rows}
+
+
+def load_fresh_run(path):
+    holdout = load_holdout()
+    return _load_pinned_fresh_run(path, VARIANTS, holdout.quality_contract, holdout.policy_sha256)
 
 
 def build_fresh_report(paths, expected_models=None):
