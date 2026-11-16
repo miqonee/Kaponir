@@ -121,6 +121,75 @@ fn lowercase_name_needs_morphology_and_person_context() {
 }
 
 #[test]
+fn technical_adjectives_are_not_surnames_in_ordinary_text() {
+    let e = engine();
+    for text in [
+        "Технический директор проверил межсетевой экран.",
+        "Оптический кабель и оптическое волокно готовы.",
+        "Заказчик проверяет физическую комплектацию.",
+        "Управление межсетевым экраном и проверка оптического кабеля.",
+        "Проверка техническому директору: физическая комплектация готова.",
+    ] {
+        let mut vault = MemoryVault::new();
+        let masked = e.mask(&Input::text(text), &opts(), &mut vault).unwrap();
+        assert_eq!(masked.text, text, "{:#?}", masked.replacements);
+    }
+}
+
+#[test]
+fn technical_word_collisions_keep_full_names_and_explicit_private_rules() {
+    use kaponir_core::rules::{Rule, RuleFile, ScopedRules};
+    use kaponir_core::{Scope, UncertainAction};
+
+    let mut cfg = Config::default();
+    cfg.policy.uncertain = Some(UncertainAction::Keep);
+    let e = build_engine(&cfg, load_packs(&cfg).unwrap(), &[], [3; 32], None).unwrap();
+    let mut vault = MemoryVault::new();
+    let text = concat!(
+        "Иван Иванович Технический согласовал. Анна Сергеевна Физическая подписала. ",
+        "Павел Олегович Оптический проверил. Андрей Сергеевич Межсетевой ответил."
+    );
+    let masked = e.mask(&Input::text(text), &opts(), &mut vault).unwrap();
+    assert_eq!(masked.replacements.len(), 12);
+    for surname in ["Технический", "Физическая", "Оптический", "Межсетевой"]
+    {
+        assert!(!masked.text.contains(surname), "{surname}: {}", masked.text);
+    }
+    assert_eq!(
+        e.restore(&masked.text, &Principal::local("me"), &vault, Escape::None)
+            .unwrap()
+            .text,
+        text
+    );
+
+    let rules = [ScopedRules {
+        scope: Scope::Personal,
+        file: RuleFile {
+            rules: vec![Rule {
+                kind: "PROJ".into(),
+                value: Some("Оптический".into()),
+                ..Rule::default()
+            }],
+            ..RuleFile::default()
+        },
+    }];
+    let explicit = build_engine(&cfg, load_packs(&cfg).unwrap(), &rules, [3; 32], None).unwrap();
+    let source = "Оптический кабель";
+    let mut vault = MemoryVault::new();
+    let masked = explicit
+        .mask(&Input::text(source), &opts(), &mut vault)
+        .unwrap();
+    assert!(!masked.text.contains("Оптический"));
+    assert_eq!(
+        explicit
+            .restore(&masked.text, &Principal::local("me"), &vault, Escape::None)
+            .unwrap()
+            .text,
+        source
+    );
+}
+
+#[test]
 fn name_before_json_escape_is_not_a_windows_path() {
     let e = engine();
     let mut v = MemoryVault::new();
