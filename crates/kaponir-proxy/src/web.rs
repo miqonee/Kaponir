@@ -512,7 +512,7 @@ async fn mask(State(st): State<Shared>, headers: HeaderMap, Json(req): Json<Mask
     let m = st
         .with_vault(|engine, vault| {
             vault.begin()?;
-            match engine.mask(
+            match engine.mask_selected(
                 &Input {
                     text: &req.text,
                     format: req.format,

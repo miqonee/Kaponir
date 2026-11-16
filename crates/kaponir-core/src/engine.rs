@@ -336,7 +336,18 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
     ) -> Result<Masked, EngineError> {
-        self.mask_measured(input, opts, vault, true)
+        self.mask_measured(input, opts, vault, true, MIN_KNOWN_LEN)
+    }
+
+    /// Значения `opts.known` явно выбраны для этого текста, а не взяты из памяти
+    /// сессии. Короткие значения разрешены; границы идентификаторов сохраняются.
+    pub fn mask_selected(
+        &self,
+        input: &Input<'_>,
+        opts: &MaskOptions,
+        vault: &mut dyn Vault,
+    ) -> Result<Masked, EngineError> {
+        self.mask_measured(input, opts, vault, true, 1)
     }
 
     fn mask_measured(
@@ -345,9 +356,10 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
         use_s1: bool,
+        minimum_known_length: usize,
     ) -> Result<Masked, EngineError> {
         let started = Instant::now();
-        let result = self.mask_impl(input, opts, vault, use_s1);
+        let result = self.mask_impl(input, opts, vault, use_s1, minimum_known_length);
         self.metrics
             .mask
             .observe(started.elapsed(), result.is_err());
@@ -367,7 +379,7 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
     ) -> Result<Masked, EngineError> {
-        self.mask_measured(input, opts, vault, false)
+        self.mask_measured(input, opts, vault, false, MIN_KNOWN_LEN)
     }
 
     fn mask_impl(
@@ -376,6 +388,7 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
         use_s1: bool,
+        minimum_known_length: usize,
     ) -> Result<Masked, EngineError> {
         let text = input.text;
         let mut result = Masked::default();
@@ -392,7 +405,12 @@ impl Engine {
 
         // 2–3. Кандидаты и контекст.
         let mut cands = self.analyze(input);
-        cands.extend(known_candidates(text, &opts.known, &self.packs));
+        cands.extend(known_candidates(
+            text,
+            &opts.known,
+            &self.packs,
+            minimum_known_length,
+        ));
         cands.retain(|c| !protected.iter().any(|&(a, b)| c.start < b && a < c.end));
         let mut own_surrogates = Vec::new();
         for (i, c) in cands.iter().enumerate() {
@@ -1188,11 +1206,16 @@ impl KeepIndex {
 /// Вхождения значений из памяти сессии — по границам идентификатора, с учётом регистра.
 /// Форма токена — по месту: внутри хостнейма или имени пода всегда `anon-x-1`, иначе как
 /// при первом маскировании. Словоформы (`Голошанову` для `Голошанов`) берутся у пакетов.
-fn known_candidates(text: &str, known: &[Known], packs: &[Arc<dyn Pack>]) -> Vec<Candidate> {
+fn known_candidates(
+    text: &str,
+    known: &[Known],
+    packs: &[Arc<dyn Pack>],
+    minimum_length: usize,
+) -> Vec<Candidate> {
     let is_ident = |c: char| c.is_alphanumeric() || c == '_';
     let mut out = Vec::new();
     for k in known {
-        if k.text.chars().count() < MIN_KNOWN_LEN {
+        if k.text.chars().count() < minimum_length {
             continue;
         }
         let dns_like = k
@@ -1423,6 +1446,46 @@ mod tests {
             known,
             ..MaskOptions::default()
         }
+    }
+
+    #[test]
+    fn explicit_short_values_roundtrip_without_weakening_automatic_session_memory() {
+        let engine = engine("zorg");
+        let mut vault = MemoryVault::new();
+        let known = Known {
+            text: "q7".into(),
+            kind: "CUSTOM".into(),
+            canonical: "q7".into(),
+            scope: Scope::Personal,
+            strategy: Strategy::Variable,
+            form: TokenForm::Snake,
+        };
+        let text = "q7 q73 -q7 q7_1 q7";
+        let automatic = engine
+            .mask(&Input::text(text), &opts(vec![known.clone()]), &mut vault)
+            .unwrap();
+        assert_eq!(automatic.text, text);
+        let selected = engine
+            .mask_selected(&Input::text(text), &opts(vec![known]), &mut vault)
+            .unwrap();
+        assert_eq!(selected.replacements.len(), 3);
+        assert!(selected.text.contains("q73") && selected.text.contains("q7_1"));
+        let restored = engine
+            .restore(
+                &selected.text,
+                &Principal::local("me"),
+                &vault,
+                Escape::None,
+            )
+            .unwrap();
+        assert_eq!(restored.text, text);
+        assert_eq!(
+            engine
+                .mask(&Input::text("q7"), &opts(restored.known), &mut vault)
+                .unwrap()
+                .text,
+            "q7"
+        );
     }
 
     #[test]

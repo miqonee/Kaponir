@@ -715,6 +715,29 @@ async fn adhoc_values_apply_to_one_request() {
 }
 
 #[tokio::test]
+async fn explicit_short_selections_apply_only_to_whole_values_in_this_text() {
+    let base = spawn(None).await;
+    let text = "q7 q73 q7_1 q7";
+    let masked = mask(
+        &base,
+        text,
+        json!({"adhoc":[{"value":"q7","kind":"CUSTOM"}],"commit":true}),
+    )
+    .await;
+    assert_eq!(masked["replacements"].as_array().unwrap().len(), 2);
+    assert!(masked["text"].as_str().unwrap().contains("q73"));
+    assert!(masked["text"].as_str().unwrap().contains("q7_1"));
+    let (_, restored) = call(
+        "POST",
+        format!("{base}/api/v1/ui/restore"),
+        Some(json!({"text":masked["text"]})),
+    )
+    .await;
+    assert_eq!(restored["text"], text);
+    assert_eq!(mask(&base, text, json!({})).await["text"], text);
+}
+
+#[tokio::test]
 async fn rules_reload_engine() {
     let base = spawn(None).await;
     let text = "billing talks to api.acme-corp.io";
