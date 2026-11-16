@@ -147,7 +147,7 @@ def load_supplement(path, original_path=None):
         'recovery_plan_sha256': plan['recovery_plan_sha256'],
         'original_result_path': str(source), 'original_result_sha256': sha(source),
         'original_plan_sha256': original['plan_sha256'], 'original_rows': original['rows'],
-        'supplement_batches': batch_rows, 'effective_rows': rows,
+        'supplement_batches': batch_rows, 'effective_rows': rows, 'effective_stages': effective,
         'effective_comparison': compare_quality(rows), 'automatic_production_approval': False,
         'cost_includes_original_failures': True, 'reinterpreted_received_failures': 0,
         'scope': 'original 32 calibration controls plus separately observed transport supplement'}

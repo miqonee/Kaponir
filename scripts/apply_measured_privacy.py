@@ -21,6 +21,7 @@ from privacy_policy_holdout import load_holdout
 from run_privacy_policy_suite import atomic_json, file_sha, utc
 from summarize_privacy_holdout import load_fresh_run
 from summarize_privacy_policy import load_run, require, strict_json
+from summarize_privacy_recovery import load_supplement
 from validate_console import free_port, wait_for
 
 
@@ -167,7 +168,7 @@ def apply_documents(binary, output, source_hashes, sources, private, public, sel
     return report
 
 
-def run(result, binary, output, variant='D'):
+def run(result, binary, output, variant='D', *, transport_supplement=None):
     result, binary, output = Path(result).resolve(), Path(binary).resolve(), Path(output).resolve()
     require(not output.exists(), 'application_output_exists_no_overwrite')
     plan = strict_json(result.with_name('plan.json').read_text())
@@ -177,9 +178,34 @@ def run(result, binary, output, variant='D'):
     verified = loader(result)
     row = next(row for row in verified['rows'] if row['variant'] == variant)
     require(verified['run_status'] == 'completed' and row['protocol_complete'], 'completed_measured_variant_required')
-    state = strict_json(result.read_text())
+    raw = result.read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == verified['result_sha256'], 'application_source_result_changed')
+    state = strict_json(raw.decode('utf-8'))
     sources, private, public, oracle_scope = reference_data(plan)
     decisions = state['stages'][variant]['decisions']
+    supplement_metadata = {'decision_view': 'original'}
+    if transport_supplement is not None:
+        require(phase not in ('fresh_holdout', 'fresh_holdout_policy_clarification'),
+                'transport_application_requires_calibration_source')
+        supplement_path = Path(transport_supplement).resolve()
+        supplement = load_supplement(supplement_path, result)
+        require(supplement['status'] == 'completed', 'completed_transport_supplement_required')
+        supplement_raw = supplement_path.read_bytes()
+        require(hashlib.sha256(supplement_raw).hexdigest() == supplement['result_sha256'],
+                'application_transport_supplement_changed')
+        supplement_state = strict_json(supplement_raw.decode('utf-8'))
+        cleanup = supplement_state.get('runtime_cleanup_seconds')
+        require(bool(supplement_state.get('finished_at_utc')) and type(cleanup) in (int, float)
+                and cleanup >= 0, 'transport_application_requires_durable_cleanup')
+        supplement_metadata = {'decision_view': 'original_plus_transport_supplement',
+            'transport_supplement_result_sha256': supplement['result_sha256'],
+            'transport_supplement_plan_sha256': supplement['recovery_plan_sha256'],
+            'transport_supplement_plan_file_sha256': supplement['recovery_plan_file_sha256'],
+            'original_measured_decision_quality': row['quality'],
+            'reinterpreted_received_failures': supplement['reinterpreted_received_failures']}
+        row = next(row for row in supplement['effective_rows'] if row['variant'] == variant)
+        require(row['protocol_complete'], 'completed_effective_variant_required')
+        decisions = supplement['effective_stages'][variant]['decisions']
     selected = {}
     for case in plan['control_cases']['candidates']:
         require(sources[case['file']][case['start']:case['end']] == case['value'], 'application_target_not_grounded')
@@ -191,7 +217,7 @@ def run(result, binary, output, variant='D'):
         'source_result_sha256': verified['result_sha256'], 'source_plan_sha256': verified['plan_sha256'],
         'policy_sha256': plan['signature']['policy_sha256'],
         'scheme': 'existing detectors plus valid model MASK values for this document; no automatic KEEP exceptions',
-        'oracle_scope': oracle_scope, 'measured_decision_quality': row['quality']}
+        'oracle_scope': oracle_scope, 'measured_decision_quality': row['quality'], **supplement_metadata}
     return apply_documents(binary, output, plan['signature']['source_sha256'],
                            sources, private, public, selected, metadata)
 
@@ -202,8 +228,10 @@ def main():
     parser.add_argument('--binary', type=Path, required=True)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--variant', choices=['A', 'B', 'C', 'D'], default='D')
+    parser.add_argument('--transport-supplement', type=Path)
     args = parser.parse_args()
-    report = run(args.result, args.binary, args.output, args.variant)
+    report = run(args.result, args.binary, args.output, args.variant,
+                 transport_supplement=args.transport_supplement)
     print(json.dumps({key: report[key] for key in ('status', 'model', 'variant', 'new_inference_calls',
                                                  'exact_roundtrips', 'user_rules_changed')}))
 

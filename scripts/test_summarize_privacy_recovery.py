@@ -35,7 +35,7 @@ class RecoverySummaryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cached_supplement_reply_mismatch'):
             report.rescore_entry(entry, selected, [case], {'doc': text}, {}, ['AMOUNT', 'PERSON'])
 
-    def fixture(self, root):
+    def fixture(self, root, missing_batch=('D', 2), recovered_verdict='keep'):
         from test_summarize_privacy_policy import PrivacySummaryTests
         helper = PrivacySummaryTests()
         original, original_state, original_plan = helper.fixture(root / 'original')
@@ -60,7 +60,7 @@ class RecoverySummaryTests(unittest.TestCase):
         for variant in ('A', 'B', 'C', 'D'):
             for index in range(4):
                 entry = helper.add_batch(original_state, original_plan, variant, index,
-                    status='failed' if (variant, index) == ('D', 2) else 'received')
+                    status='failed' if (variant, index) == missing_batch else 'received')
                 if entry['status'] == 'failed':
                     entry.update(error='TimeoutError', record={'http_wall_seconds': 1200.1})
         helper.save(original, original_state, original_plan)
@@ -77,7 +77,7 @@ class RecoverySummaryTests(unittest.TestCase):
             'shadow': True, 'rules_changed': 0}
         plan['recovery_plan_sha256'] = digest(plan)
         selected = requests[0]
-        rows = [{'id': ident, 'verdict': 'keep', 'reason': 'Observed public reference.'}
+        rows = [{'id': ident, 'verdict': recovered_verdict, 'reason': 'Observed transport supplement.'}
                 for ident in selected['case_ids']]
         entry = {**self.response(rows), **{key: selected[key] for key in
             ('variant', 'batch_index', 'case_ids', 'request', 'request_sha256')},
