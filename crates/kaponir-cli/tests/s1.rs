@@ -5,6 +5,9 @@ use kaponir_vault::SqliteVault;
 use serde_json::Value;
 use std::path::Path;
 use std::process::{Command, Output};
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
 struct Temp(std::path::PathBuf);
 impl Temp {
@@ -13,9 +16,14 @@ impl Temp {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_nanos();
-        let path =
-            std::env::temp_dir().join(format!("kaponir-cli-s1-{}-{stamp}", std::process::id()));
-        std::fs::create_dir_all(&path).unwrap();
+        let sequence = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
+        let path = std::env::temp_dir().join(format!(
+            "kaponir-cli-s1-{}-{stamp}-{sequence}",
+            std::process::id()
+        ));
+        // SystemTime can have the same value in concurrent macOS tests. Never
+        // share their vault or silently reuse a directory left by another run.
+        std::fs::create_dir(&path).unwrap();
         Self(path)
     }
 }
