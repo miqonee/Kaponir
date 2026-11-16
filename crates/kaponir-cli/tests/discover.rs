@@ -2,20 +2,13 @@ use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+mod common;
+
 struct Temp(PathBuf);
 
 impl Temp {
     fn new(name: &str) -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let path = std::env::temp_dir().join(format!(
-            "kaponir-cli-discover-{name}-{}-{stamp}",
-            std::process::id()
-        ));
-        std::fs::create_dir_all(&path).unwrap();
-        Self(path)
+        Self(common::temp_dir(&format!("cli-discover-{name}")))
     }
 }
 

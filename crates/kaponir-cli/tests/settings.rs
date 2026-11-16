@@ -4,15 +4,12 @@ use kaponir_vault::SqliteVault;
 use serde_json::{Value, json};
 use std::{path::PathBuf, process::Command};
 
+mod common;
+
 struct Temp(Home);
 impl Temp {
     fn new() -> Self {
-        let stamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos();
-        let dir =
-            std::env::temp_dir().join(format!("kaponir-settings-{}-{stamp}", std::process::id()));
+        let dir = common::temp_dir("settings");
         assert!(
             Command::new(env!("CARGO_BIN_EXE_kaponir"))
                 .arg("--home")
