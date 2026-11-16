@@ -6,10 +6,34 @@ from unittest.mock import Mock, patch
 
 from compare_local_models import DOCUMENTS
 from evaluate_context_controls import ControlledClient, prepare_cases, review_payload
+from experiment_inference import LocalClient
 from validation_pipeline import Candidate
 
 
 class ContextControlTests(unittest.TestCase):
+    def test_clients_wait_for_verified_files_beyond_thirty_seconds_before_starting(self):
+        args=argparse.Namespace(model='fixture',temperature=0.0,top_p=.95,top_k=40,
+            min_p=0.0,seed=42,context_tokens=16384,response_format='grammar')
+        for client_type in (ControlledClient,LocalClient):
+            with self.subTest(client=client_type.__name__):
+                worker=Mock()
+                worker.submit.return_value={'id':'job'}
+                worker.process_supports_json_schema=True
+                def status():
+                    worker.submit.assert_not_called()
+                    worker.start_runtime.assert_not_called()
+                    return {'models':{'fixture':{'downloaded':worker.status.call_count==3}}}
+                worker.status.side_effect=status
+                module='evaluate_context_controls' if client_type is ControlledClient else 'experiment_inference'
+                with patch(module+'.time.monotonic',side_effect=[0,31,45]), patch(module+'.time.sleep') as sleep:
+                    if client_type is ControlledClient: client_type(worker,args)
+                    else: client_type(worker,'fixture',16384,4096)
+                self.assertEqual(worker.status.call_count,3)
+                self.assertEqual(sleep.call_count,2)
+                worker.submit.assert_called_once_with('evaluate',model='fixture')
+                worker.start_runtime.assert_called_once()
+                self.assertEqual(worker.start_runtime.call_args.kwargs['context_tokens'],16384)
+
     def client(self):
         client=ControlledClient.__new__(ControlledClient)
         client.args=argparse.Namespace(model='fixture',context_tokens=1000,output_tokens=100,

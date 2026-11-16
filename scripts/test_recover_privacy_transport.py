@@ -8,12 +8,32 @@ import tempfile
 import threading
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import recover_privacy_transport as recovery
 
 
 class TransportRecoveryTests(unittest.TestCase):
+    def test_frozen_client_preparation_waits_for_background_verification_without_inference(self):
+        worker=Mock()
+        worker.status.side_effect=[{'models':{'test':{'downloaded':value}}} for value in (False,False,True)]
+        with patch.object(recovery.time,'monotonic',side_effect=[0,31,45,46]), \
+                patch.object(recovery.time,'sleep') as sleep:
+            self.assertEqual(recovery.wait_for_verified_model(worker,'test'),46)
+        self.assertEqual(sleep.call_count,2)
+        worker.submit.assert_not_called()
+        worker.start_runtime.assert_not_called()
+
+    def test_verification_wait_remains_bounded_without_starting_a_runtime(self):
+        worker=Mock()
+        worker.status.return_value={'models':{'test':{'downloaded':False}}}
+        with patch.object(recovery.time,'monotonic',side_effect=[0,601]), \
+                patch.object(recovery.time,'sleep') as sleep:
+            with self.assertRaisesRegex(ValueError,'model_not_ready'):
+                recovery.wait_for_verified_model(worker,'test')
+        sleep.assert_not_called()
+        worker.start_runtime.assert_not_called()
+
     def records(self):
         request = {'model': 'test', 'max_tokens': 4096,
                    'messages': [{'role': 'user', 'content': 'synthetic source'}],
@@ -180,6 +200,8 @@ class TransportRecoveryTests(unittest.TestCase):
                         self.process_supports_json_schema = True
                     def detect_json_schema(self):
                         return None
+                    def status(self):
+                        return {'models': {'test': {'downloaded': True}}}
                     def count_text_tokens(self, _):
                         return 123
                     def resources(self):

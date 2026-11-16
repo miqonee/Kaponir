@@ -87,7 +87,7 @@ class ControlledClient:
         self.worker,self.args=worker,args
         self.sampling=sampling_settings({'temperature':args.temperature,'top_p':args.top_p,
             'top_k':args.top_k,'min_p':args.min_p,'seed':args.seed})
-        deadline=time.monotonic()+30
+        deadline=time.monotonic()+600
         while not worker.status()['models'][args.model]['downloaded']:
             if time.monotonic()>deadline:raise ValueError('model_not_ready')
             time.sleep(.1)

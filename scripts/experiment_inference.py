@@ -44,7 +44,7 @@ class LocalClient:
     def __init__(self, worker, model, context_tokens, output_tokens, response_format='grammar', sampling=None):
         self.sampling=sampling_settings(sampling)
         self.worker,self.model,self.context_tokens,self.output_tokens=worker,model,context_tokens,output_tokens
-        deadline=time.monotonic()+30
+        deadline=time.monotonic()+600
         while not worker.status()['models'][model]['downloaded']:
             if time.monotonic()>deadline:raise ValueError('model_not_ready')
             time.sleep(.05)

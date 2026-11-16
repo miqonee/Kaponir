@@ -116,6 +116,21 @@ def load_producer(root):
     return core
 
 
+def wait_for_verified_model(worker, model, timeout=600):
+    """Allow background artifact hashing to finish before a frozen client starts.
+
+    Older producers allow only 30 seconds here. With several installed GGUFs,
+    the requested model can be last in the verification queue. This preparation
+    wait changes neither the saved request nor its HTTP timeout.
+    """
+    started = time.monotonic()
+    while not worker.status()['models'][model]['downloaded']:
+        if time.monotonic() - started > timeout:
+            raise ValueError('model_not_ready')
+        time.sleep(.1)
+    return time.monotonic() - started
+
+
 def execute_recovery(args, plan):
     require(not runtime_processes(args.runtime), 'runtime_busy_no_parallel_inference')
     core = load_producer(plan['producer_root'])
@@ -171,6 +186,8 @@ def execute_recovery(args, plan):
                     'seconds': time.monotonic() - before})
         worker.detect_json_schema = probe
         try:
+            state['model_verification_wait_seconds'] = wait_for_verified_model(worker, settings['model'])
+            save()
             client = core.ControlledClient(worker, local_args)
             client.configure_budget('bounded')
             require(settings['response_format'] != 'grammar'
