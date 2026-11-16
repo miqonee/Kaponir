@@ -67,7 +67,14 @@ def selected_timeouts(state, plan):
 def make_recovery_plan(result, producer_root, timeout):
     result, producer_root = Path(result).resolve(), Path(producer_root).resolve()
     # Verify the original provenance, batch registration and scored decisions.
-    verified = load_run(result)
+    # Use the pinned original catalogs without importing later inference
+    # producers through the report reader's expanded-catalog discovery.
+    root = Path(__file__).resolve().parents[1]
+    catalog = {}
+    for name in ('models.json', 'planned-models.json'):
+        rows = strict_json((root / 'benchmark/data' / name).read_text())['models']
+        catalog.update({row['id']: row for row in rows})
+    verified = load_run(result, catalog=catalog)
     state = strict_json(result.read_text())
     plan_path = result.with_name('plan.json')
     original = strict_json(plan_path.read_text())
