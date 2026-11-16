@@ -60,7 +60,7 @@ def anchors(path: Path) -> set[str]:
     return result
 
 
-def targets(line: str):
+def targets(line: str, with_spans: bool = False):
     """Извлекает inline links; ссылки в fenced code отфильтрованы вызывающим кодом."""
     for match in LINK_START.finditer(line):
         start = match.end()
@@ -77,13 +77,16 @@ def targets(line: str):
                 depth += 1
             elif char == ")":
                 if depth == 0:
-                    raw = line[start:index].strip()
+                    content = line[start:index]
+                    raw = content.strip()
+                    target_start = start + len(content) - len(content.lstrip())
                     if raw.startswith("<") and ">" in raw:
                         raw = raw[1 : raw.index(">")]
+                        target_start += 1
                     else:
                         # Необязательный Markdown title отделён пробелом.
                         raw = re.split(r"\s+[\"']", raw, maxsplit=1)[0]
-                    yield raw
+                    yield (raw, target_start, target_start + len(raw)) if with_spans else raw
                     break
                 depth -= 1
 

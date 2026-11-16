@@ -93,7 +93,9 @@ Run `python3 scripts/check_docs.py` after editing any Markdown file. It checks l
 and GitHub-style heading anchors across the published documentation tree, without network
 access. Local, ignored `artifacts/` are intentionally excluded. It intentionally skips fenced code and external URLs. `--root PATH` checks
 another documentation tree, such as an unpacked release. `scripts/release_check.py` performs
-this check automatically on every archive it creates. Also verify changed commands against
+this check automatically on every archive it creates. It first checks source links, then binds
+links to omitted repository research/code files to the exact GitHub source revision; links to
+packaged documents stay local. Also verify changed commands against
 `kaponir --help` and describe any scenario that was not actually exercised.
 
 ## Change descriptions
