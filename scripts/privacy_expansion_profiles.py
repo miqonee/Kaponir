@@ -1,4 +1,4 @@
-"""Isolated research profiles for the seven original and six pinned new models.
+"""Isolated research profiles with separately pinned, explicit extensions.
 
 Registration changes only an in-process catalog during an explicit experiment.
 It never updates the product catalog, user settings, trained rules or a Vault.
@@ -19,6 +19,8 @@ from privacy_policy_profiles import iter_profiles, profile as old_profile
 NEW_CATALOG = ROOT / 'docs/experiments/phase2-new-model-artifacts.json'
 NEW_MODELS = ('lfm2.5-1.2b-instruct', 'lfm2.5-2.6b', 'tiny-aya-global',
               'qwen3.5-4b', 'spark-x2.6-4b', 'lfm2.5-8b-a1b')
+GEMMA_IT_CATALOG = ROOT / 'docs/experiments/gemma-it-artifacts-v1.json'
+GEMMA_IT_MODELS = ('gemma4-e2b-it-q4km', 'gemma4-e4b-it-q4km')
 
 
 def pinned_models(path=NEW_CATALOG):
@@ -26,7 +28,8 @@ def pinned_models(path=NEW_CATALOG):
     raw = path.read_bytes()
     data = json.loads(raw)
     rows = data.get('models', [])
-    if data.get('version') != 1 or tuple(row.get('id') for row in rows) != NEW_MODELS:
+    expected = GEMMA_IT_MODELS if data.get('catalog_kind') == 'gemma-it-extension-v1' else NEW_MODELS
+    if data.get('version') != 1 or tuple(row.get('id') for row in rows) != expected:
         raise ValueError('invalid_expansion_catalog')
     for row in rows:
         item = row['artifact']
@@ -39,6 +42,14 @@ def pinned_models(path=NEW_CATALOG):
             raise ValueError('unpinned_expansion_artifact')
     return data, {'path': path.relative_to(ROOT).as_posix() if path.is_relative_to(ROOT) else str(path),
                   'sha256': hashlib.sha256(raw).hexdigest()}
+
+
+def all_pinned_model_rows():
+    """Readers admit the append-only extension; the original default stays13."""
+    result = list(pinned_models()[0]['models'])
+    if GEMMA_IT_CATALOG.is_file():
+        result.extend(pinned_models(GEMMA_IT_CATALOG)[0]['models'])
+    return result
 
 
 def model_ids(path=NEW_CATALOG):

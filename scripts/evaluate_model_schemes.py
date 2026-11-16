@@ -20,7 +20,7 @@ import evaluate_validation_schemes as legacy
 from experiment_inference import sampling_settings
 from experiment_inference import prompts_and_kinds
 from kaponir_worker import FILES, http_json, schema_prompt
-from privacy_expansion_profiles import expansion_profile, model_ids, research_registration
+from privacy_expansion_profiles import NEW_CATALOG, expansion_profile, model_ids, research_registration
 from run_privacy_policy_suite import atomic_json, file_sha, runtime_processes, utc
 from summarize_privacy_policy import digest, require
 
@@ -31,8 +31,8 @@ EXPORT_CANONICAL_SHA = '04a3f06ee818443560762b375ccbf5b8642ae38c7892fb80345391ff
 METHODS = ('detector_proposals', 'current_union', 'point', 'regions', 'union_point', 'double')
 
 
-def scheme_profile(model, mode):
-    native = expansion_profile(model, 'native')
+def scheme_profile(model, mode, catalog_path=NEW_CATALOG):
+    native = expansion_profile(model, 'native', catalog_path)
     common = {'context_tokens': 4096, 'output_tokens': 1600, 'retry_output_tokens': 1600,
         'reserve_tokens': 64, 'batch_size': 8, 'hint_tokens': 256, 'max_candidates': 24,
         'max_fragments': 256, 'temperature': 0.0, 'top_p': .95, 'top_k': 40,
@@ -59,7 +59,7 @@ def prepare(args):
     pool, export = legacy.frozen_detector_pool(EXPORT, sources)
     require(hashlib.sha256(json.dumps(export, sort_keys=True).encode()).hexdigest() == EXPORT_CANONICAL_SHA,
             'frozen_detector_export_changed')
-    profile = scheme_profile(args.model, args.profile)
+    profile = scheme_profile(args.model, args.profile, getattr(args, 'new_catalog', NEW_CATALOG))
     if args.response_format is not None:
         profile['response_format'] = args.response_format
     producers = list(dict.fromkeys(PRODUCERS + ['evaluate_model_schemes.py', 'privacy_expansion_profiles.py']))
@@ -284,7 +284,8 @@ def execute(args, plan):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--model', choices=model_ids(), required=True)
+    parser.add_argument('--model', required=True)
+    parser.add_argument('--new-catalog', type=Path, default=NEW_CATALOG)
     parser.add_argument('--profile', choices=['common', 'native'], default='common')
     parser.add_argument('--response-format', choices=['grammar', 'prompt'])
     parser.add_argument('--model-dir', type=Path)
@@ -292,9 +293,11 @@ def main(argv=None):
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--prepare-only', action='store_true')
     args = parser.parse_args(argv)
+    if args.model not in model_ids(args.new_catalog):
+        parser.error('model is outside the explicitly selected pinned matrix')
     require(not (args.output / 'result.json').exists() and not (args.output / 'transports.json').exists(),
             'recorded_scheme_attempt_exists_no_automatic_replay')
-    with research_registration(args.model):
+    with research_registration(args.model, args.new_catalog):
         plan = prepare(args)
         args.output.mkdir(parents=True, exist_ok=True)
         destination = args.output / 'scheme-plan.json'

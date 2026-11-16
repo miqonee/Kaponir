@@ -94,6 +94,19 @@ def records(study):
             result.append({'id': 'policy-v2/' + job['model'], 'model': job['model'], 'kind': 'policy_v2',
                 'path': Path(job['output']) / 'result.json', 'producer': Path(policy['runner_root']),
                 'reference': job['reference_result']})
+    extension_config = study / 'gemma-it-v1/config.json'
+    if extension_config.is_file():
+        from run_gemma_it_research import build_jobs as gemma_jobs
+        extension = strict_json(contained(extension_config, study).read_text())
+        state_path = study / 'gemma-it-v1/status.json'
+        states = strict_json(contained(state_path, study).read_text())['jobs'] if state_path.is_file() else {}
+        for job in gemma_jobs(extension):
+            result.append({'id': 'gemma-it/' + job['id'], 'model': job['model'],
+                'kind': ('policy_v2' if job['kind'] == 'policy_clarification' else
+                         'schemes' if job['kind'] == 'schemes' else job['dataset']),
+                'path': Path(job['output']) / 'result.json', 'producer': Path(extension['runner_root']),
+                'terminal_status': states.get(job['id'], {}).get('status'),
+                **({'reference': job['reference_result']} if 'reference_result' in job else {})})
     queue = study / 'recovery-v1/queue.json'
     if queue.is_file():
         for row in strict_json(contained(queue, study).read_text())['runs']:
@@ -132,6 +145,7 @@ def producer_bundle(producer, study):
     names.update(path.relative_to(producer).as_posix() for path in (producer / 'scripts').glob('*.py'))
     for name in ('crates/kaponir-proxy/src/learning.rs', 'docs/experiments/privacy-policy-v2.txt',
                  'docs/experiments/POLICY_V2_ABLATION.md', 'docs/experiments/phase2-new-model-artifacts.json',
+                 'docs/experiments/gemma-it-artifacts-v1.json', 'docs/experiments/GEMMA_IT_EXTENSION.md',
                  'benchmark/evidence/artifacts/validation-schemes/gemma-calibration/detectors.json.gz'):
         if (producer / name).is_file():
             names.add(name)

@@ -51,7 +51,7 @@ def parser():
 
 def configure(args, command):
     if args.model not in model_ids(args.new_catalog):
-        command.error('model is outside the reviewed thirteen-model matrix')
+        command.error('model is outside the explicitly selected pinned matrix')
     profile = expansion_profile(args.model, args.profile, args.new_catalog)
     for name in PROFILE_FIELDS:
         if getattr(args, name) is None:

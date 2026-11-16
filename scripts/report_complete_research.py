@@ -15,7 +15,7 @@ from compare_local_models import DOCUMENTS, ROOT
 from evaluate_model_schemes import EXPORT_CANONICAL_SHA, METHODS
 from evaluate_scheme_matrix import COHORT, validation_quality
 from kaponir_worker import FILES
-from privacy_expansion_profiles import NEW_MODELS, pinned_models
+from privacy_expansion_profiles import NEW_MODELS, all_pinned_model_rows
 from privacy_policy_holdout import load_holdout, score_holdout
 from report_validation_results import ADDITIONAL
 from run_privacy_policy_suite import MODEL_ORDER, atomic_json, file_sha, utc
@@ -67,8 +67,7 @@ def legacy_summary(path, archived=False):
         state = strict_json(raw.decode('utf-8'))
         model = state['signature']['model']
         expected_artifact = FILES.get(model)
-        pinned, _ = pinned_models()
-        match = next((row for row in pinned['models'] if row['id'] == model), None)
+        match = next((row for row in all_pinned_model_rows() if row['id'] == model), None)
         if match:
             expected_artifact = [match['artifact'][key] for key in ('filename', 'bytes', 'sha256', 'url')]
         require(expected_artifact is not None and state['signature']['artifact'] == list(expected_artifact),
@@ -230,7 +229,8 @@ def render_recovery(report):
 def write_reports(config, state, jobs):
     output = Path(config['output']) / 'reports'
     output.mkdir(parents=True, exist_ok=True)
-    all_models = (*MODEL_ORDER, *NEW_MODELS)
+    all_models = tuple(config.get('expected_models', (*MODEL_ORDER, *NEW_MODELS)))
+    require(len(set(all_models)) == len(all_models), 'duplicate_expected_model')
     rows = state.get('jobs', {})
     native_jobs = [job for job in jobs if job['kind'] == 'privacy' and job['dataset'] == 'holdout' and job['profile'] == 'native']
     common_jobs = [job for job in jobs if job['kind'] == 'privacy' and job['dataset'] == 'holdout' and job['profile'] == 'common']
@@ -327,7 +327,7 @@ def write_reports(config, state, jobs):
         'models': ledger, 'rejected_inputs': rejected, 'new_inference_calls': 0,
         'implementation_in_main_complete': False, 'quality_approval': False}
     atomic_json(output / 'progress.json', progress)
-    lines = ['# Сравнение 13 моделей: ход измерений', '',
+    lines = ['# Сравнение ' + str(len(all_models)) + ' моделей: ход измерений', '',
         'Снимок: ' + progress['generated_at_utc'] + '. Закончено заданий: '
         + str(progress['terminal_jobs']) + '/' + str(len(jobs)) + '. '
         'Качество определяет выбор; время, CPU и память приведены для справки.', '',

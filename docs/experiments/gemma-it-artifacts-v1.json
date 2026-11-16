@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "catalog_kind": "gemma-it-extension-v1",
+  "pinned_at_utc": "2026-11-16T03:13:01.622255+00:00",
+  "status": "metadata_pinned_and_inspected_not_loaded",
+  "user_requested_models": [
+    "unsloth/gemma-4-E2B-it-GGUF",
+    "unsloth/gemma-4-E4B-it-GGUF"
+  ],
+  "new_inference_calls": 0,
+  "all_variants_are_instruction_tuned": true,
+  "existing_reference": {
+    "id": "gemma4-e4b-qat",
+    "repo": "google/gemma-4-E4B-it-qat-q4_0-gguf",
+    "instruction_tuned": true,
+    "quantization": "QAT Q4_0"
+  },
+  "comparison_note": "E2B/E4B size and quantized checkpoint/export comparison; not an instruction-tuned versus base experiment. Original thirteen-model producers remain unchanged.",
+  "models": [
+    {
+      "id": "gemma4-e2b-it-q4km",
+      "name": "Gemma 4 E2B-it · Unsloth Q4_K_M",
+      "license_reported": "apache-2.0",
+      "upstream_repo": "google/gemma-4-E2B-it",
+      "instruction_tuned": true,
+      "publisher": "Unsloth",
+      "context_card_note": "128K for E2B/E4B; study native window remains 16384 and common 8192. Runtime fit is checked separately.",
+      "native_reasoning_card_note": "Instruction-tuned model with configurable thinking; enable_thinking True/False and rendered template must be verified.",
+      "author_sampling_card": {
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 64
+      },
+      "author_card_sha256": "173b08337366fc43e08da282611a99cd569302b5459035037532a6e961e1fe63",
+      "artifact": {
+        "repo": "unsloth/gemma-4-E2B-it-GGUF",
+        "revision": "0314792d7f1f7e229411f620751375812bb9faf2",
+        "filename": "gemma-4-E2B-it-Q4_K_M.gguf",
+        "bytes": 3106738272,
+        "sha256": "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8",
+        "url": "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/0314792d7f1f7e229411f620751375812bb9faf2/gemma-4-E2B-it-Q4_K_M.gguf",
+        "quantization": "Q4_K_M"
+      },
+      "gguf_metadata_inspection": {
+        "result_path": "artifacts/gemma-it-expansion/metadata/gemma4-e2b-it-q4km.inspection.json",
+        "architecture": "gemma4",
+        "context": {
+          "gemma4.context_length": 131072
+        },
+        "chat_template_sha256": "241c50d86bdfe5e43307da87f559cd2416aacd67a8de46c15acc0105ef2200b7",
+        "native_runtime_verified": false
+      },
+      "local_sha256_verified": false,
+      "quality_status": "not_benchmarked"
+    },
+    {
+      "id": "gemma4-e4b-it-q4km",
+      "name": "Gemma 4 E4B-it · Unsloth Q4_K_M",
+      "license_reported": "apache-2.0",
+      "upstream_repo": "google/gemma-4-E4B-it",
+      "instruction_tuned": true,
+      "publisher": "Unsloth",
+      "context_card_note": "128K for E2B/E4B; study native window remains 16384 and common 8192. Runtime fit is checked separately.",
+      "native_reasoning_card_note": "Instruction-tuned model with configurable thinking; enable_thinking True/False and rendered template must be verified.",
+      "author_sampling_card": {
+        "temperature": 1.0,
+        "top_p": 0.95,
+        "top_k": 64
+      },
+      "author_card_sha256": "d741f0752fcf433cc3960ae20c609dbb159c25ce269da3b004246e8fd34245a3",
+      "artifact": {
+        "repo": "unsloth/gemma-4-E4B-it-GGUF",
+        "revision": "bfc15c382204943c3a8fff0c750b94ae2364d7a3",
+        "filename": "gemma-4-E4B-it-Q4_K_M.gguf",
+        "bytes": 4977171584,
+        "sha256": "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
+        "url": "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q4_K_M.gguf",
+        "quantization": "Q4_K_M"
+      },
+      "gguf_metadata_inspection": {
+        "result_path": "artifacts/gemma-it-expansion/metadata/gemma4-e4b-it-q4km.inspection.json",
+        "architecture": "gemma4",
+        "context": {
+          "gemma4.context_length": 131072
+        },
+        "chat_template_sha256": "241c50d86bdfe5e43307da87f559cd2416aacd67a8de46c15acc0105ef2200b7",
+        "native_runtime_verified": false
+      },
+      "local_sha256_verified": false,
+      "quality_status": "not_benchmarked"
+    }
+  ]
+}

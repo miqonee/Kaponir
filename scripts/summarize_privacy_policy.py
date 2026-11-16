@@ -57,7 +57,11 @@ def _number(value):
 def catalog_models():
     old = strict_json((ROOT / 'benchmark/data/models.json').read_text())['models']
     planned = strict_json((ROOT / 'benchmark/data/planned-models.json').read_text())['models']
-    return {row['id']: row for row in old + planned}
+    # Admit the separately registered Gemma variants without rewriting the
+    # original thirteen-model input or changing any frozen producer.
+    from privacy_expansion_profiles import GEMMA_IT_CATALOG, pinned_models
+    extra = pinned_models(GEMMA_IT_CATALOG)[0]['models'] if GEMMA_IT_CATALOG.is_file() else []
+    return {row['id']: row for row in old + planned + extra}
 
 
 def _validate_source(state, plan, catalog, control_validator=None, variants=VARIANTS):

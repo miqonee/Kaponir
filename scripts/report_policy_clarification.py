@@ -62,7 +62,7 @@ def write_reports(config, state, jobs):
             rejected.append({'path': str(target), 'error': str(exc)})
     all_rows = [row for pair in pairs for row in pair['rows']]
     comparison = compare_quality(all_rows, AXES)
-    expected = list(MODEL_ORDER) + list(NEW_MODELS)
+    expected = list(config.get('expected_models', (*MODEL_ORDER, *NEW_MODELS)))
     if pending or rejected or len(pairs) != len(expected):
         comparison.update(winner=None, reason='policy_pairs_incomplete', comparison_complete=False)
     report = {'version': 1, 'generated_at_utc': utc(), 'status': state['status'], 'pairs': pairs,
