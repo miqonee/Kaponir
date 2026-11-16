@@ -80,37 +80,63 @@ def coverage(original, masked, private, public):
         'public_occurrences_lost': sum(max(0, count(original, value) - count(masked, value)) for value in public)}
 
 
-def run(result, binary, output, variant='D'):
-    result, binary, output = Path(result).resolve(), Path(binary).resolve(), Path(output).resolve()
+def span_coverage(original, private, replacements, masked):
+    """Geometric coverage of annotated input spans, not a semantic privacy score."""
+    raw = original.encode()
+    offsets = [0]
+    for character in original:
+        offsets.append(offsets[-1] + len(character.encode()))
+    boundaries = set(offsets)
+    ordered = []
+    for row in replacements:
+        start, end = row['start'], row['end']
+        require(type(start) is int and type(end) is int and 0 <= start < end <= len(raw)
+                and start in boundaries and end in boundaries
+                and isinstance(row.get('token'), str), 'application_replacement_not_grounded')
+        ordered.append((start, end, row['token']))
+    ordered.sort()
+    intervals = [(a, b) for a, b, _ in ordered]
+    require(all(left[1] <= right[0] for left, right in zip(intervals, intervals[1:])),
+            'application_replacements_overlap')
+    # For inflected names, API `original` is a lemma, not the literal source
+    # substring. Validate positions by reconstructing the actual masked text.
+    reconstructed, position = [], 0
+    for start, end, token in ordered:
+        reconstructed.extend((raw[position:start], token.encode()))
+        position = end
+    reconstructed.append(raw[position:])
+    require(b''.join(reconstructed) == masked.encode(), 'application_masked_text_not_reconstructed')
+    result = {'private_occurrence_spans': 0, 'private_spans_fully_covered': 0,
+              'private_spans_partly_covered': 0, 'private_spans_untouched': 0}
+    for value in private:
+        for match in occurrences(original, value):
+            start, end = offsets[match.start()], offsets[match.end()]
+            covered = sum(max(0, min(end, b) - max(start, a)) for a, b in intervals)
+            key = ('private_spans_fully_covered' if covered == end - start else
+                   'private_spans_partly_covered' if covered else 'private_spans_untouched')
+            result[key] += 1
+            result['private_occurrence_spans'] += 1
+    return result
+
+
+def apply_documents(binary, output, source_hashes, sources, private, public, selected, metadata):
+    """Apply an explicit selection; annotations only measure its consequences."""
     require(not output.exists(), 'application_output_exists_no_overwrite')
-    plan = strict_json(result.with_name('plan.json').read_text())
-    phase = plan['signature'].get('quality_contract', {}).get('phase')
-    loader = (load_clarification_run if phase == 'fresh_holdout_policy_clarification' else
-              load_fresh_run if phase == 'fresh_holdout' else load_run)
-    verified = loader(result)
-    row = next(row for row in verified['rows'] if row['variant'] == variant)
-    require(verified['run_status'] == 'completed' and row['protocol_complete'], 'completed_measured_variant_required')
-    state = strict_json(result.read_text())
-    sources, private, public, oracle_scope = reference_data(plan)
-    for name, expected in plan['signature']['source_sha256'].items():
+    for name, expected in source_hashes.items():
         require(hashlib.sha256(sources[name].encode()).hexdigest() == expected, 'application_source_changed')
-    decisions = state['stages'][variant]['decisions']
-    selected = {}
-    for case in plan['control_cases']['candidates']:
-        require(sources[case['file']][case['start']:case['end']] == case['value'], 'application_target_not_grounded')
-        decision = decisions.get(case['id'], {})
-        if decision.get('valid') is True and decision.get('verdict') == 'mask':
-            selected.setdefault(case['file'], []).append({'value': case['value'], 'kind': 'CUSTOM'})
     output.mkdir(parents=True)
-    report = {'version': 1, 'status': 'running', 'created_at_utc': utc(), 'model': verified['model'],
-        'variant': variant, 'source_result_sha256': verified['result_sha256'],
-        'source_plan_sha256': verified['plan_sha256'], 'policy_sha256': plan['signature']['policy_sha256'],
+    report = {'version': 2, 'status': 'running', 'created_at_utc': utc(), **metadata,
+        'application_producer_sha256': {Path(__file__).name: file_sha(Path(__file__))},
         'binary_sha256': file_sha(binary), 'new_inference_calls': 0, 'user_rules_changed': 0,
         'model_predicted_type_or_scope_applied': False, 'application_kind': 'CUSTOM',
         'application_scope': 'personal in a temporary home; no persistent user rule',
-        'scheme': 'existing detectors plus valid model MASK values for this document; no automatic KEEP exceptions',
-        'oracle_scope': oracle_scope, 'measured_decision_quality': row['quality'], 'documents': []}
-    for index, name in enumerate(plan['signature']['source_sha256']):
+        'confirmation_assumption': 'all selected values explicitly confirmed for this document; not automatic model application',
+        'coverage_semantics': {
+            'exact_visibility': 'whole annotated value still present; its absence may result from partial replacement',
+            'span_coverage': 'geometric coverage of original UTF-8 input spans, not proof of zero information leakage',
+            'annotation_occurrence_spans_may_overlap': True},
+        'documents': []}
+    for index, name in enumerate(source_hashes):
         original = sources[name]
         for mode in ('baseline', 'model_masks_added'):
             folder = output / mode / (str(index + 1).zfill(2) + '-' + Path(name).stem)
@@ -126,18 +152,48 @@ def run(result, binary, output, variant='D'):
                 atomic_json(folder / 'restore.json', restored)
                 (folder / 'masked.txt').write_text(masked['text'], encoding='utf-8')
                 values = coverage(original, masked['text'], private.get(name, []), public.get(name, []))
+                spans = span_coverage(original, private.get(name, []), masked['replacements'], masked['text'])
                 requested = selected.get(name, []) if mode == 'model_masks_added' else []
                 report['documents'].append({'file': name, 'mode': mode,
                     'source_sha256': hashlib.sha256(original.encode()).hexdigest(),
-                    'model_mask_values_requested': len(requested),
-                    'model_mask_occurrences_requested': sum(len(occurrences(original, item['value'])) for item in requested),
-                    'model_mask_occurrences_still_visible': sum(len(occurrences(masked['text'], item['value'])) for item in requested),
+                    'mask_values_requested': len(requested),
+                    'mask_occurrences_requested': sum(len(occurrences(original, item['value'])) for item in requested),
+                    'mask_occurrences_still_visible': sum(len(occurrences(masked['text'], item['value'])) for item in requested),
                     'replacements': len(masked['replacements']), 'restore_exact': True,
-                    'persistent_rules_unchanged': unchanged, **values})
+                    'persistent_rules_unchanged': unchanged, **values, **spans})
                 atomic_json(output / 'result.json', report)
     report.update(status='completed', finished_at_utc=utc(), exact_roundtrips=len(report['documents']))
     atomic_json(output / 'result.json', report)
     return report
+
+
+def run(result, binary, output, variant='D'):
+    result, binary, output = Path(result).resolve(), Path(binary).resolve(), Path(output).resolve()
+    require(not output.exists(), 'application_output_exists_no_overwrite')
+    plan = strict_json(result.with_name('plan.json').read_text())
+    phase = plan['signature'].get('quality_contract', {}).get('phase')
+    loader = (load_clarification_run if phase == 'fresh_holdout_policy_clarification' else
+              load_fresh_run if phase == 'fresh_holdout' else load_run)
+    verified = loader(result)
+    row = next(row for row in verified['rows'] if row['variant'] == variant)
+    require(verified['run_status'] == 'completed' and row['protocol_complete'], 'completed_measured_variant_required')
+    state = strict_json(result.read_text())
+    sources, private, public, oracle_scope = reference_data(plan)
+    decisions = state['stages'][variant]['decisions']
+    selected = {}
+    for case in plan['control_cases']['candidates']:
+        require(sources[case['file']][case['start']:case['end']] == case['value'], 'application_target_not_grounded')
+        decision = decisions.get(case['id'], {})
+        if decision.get('valid') is True and decision.get('verdict') == 'mask':
+            selected.setdefault(case['file'], []).append({'value': case['value'], 'kind': 'CUSTOM'})
+    metadata = {'model': verified['model'], 'variant': variant,
+        'source_phase': phase or 'calibration_controls', 'source_settings': plan['signature']['settings'],
+        'source_result_sha256': verified['result_sha256'], 'source_plan_sha256': verified['plan_sha256'],
+        'policy_sha256': plan['signature']['policy_sha256'],
+        'scheme': 'existing detectors plus valid model MASK values for this document; no automatic KEEP exceptions',
+        'oracle_scope': oracle_scope, 'measured_decision_quality': row['quality']}
+    return apply_documents(binary, output, plan['signature']['source_sha256'],
+                           sources, private, public, selected, metadata)
 
 
 def main():
