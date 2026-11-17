@@ -91,12 +91,12 @@ def progress_counts(study, model, receipt):
             'status': receipt.get('status', 'pending'), 'reason': receipt.get('reason')}
 
 
-def application_summary(job, receipt, measured, binary_sha256):
+def application_summary(job, receipt, measured, binary_sha256, *, phase='six_scheme_calibration'):
     """Check receipts and recompute coverage from saved API responses only."""
     path = Path(receipt['output']) / 'result.json'
     require(file_sha(path) == receipt['result_sha256'], 'comparison_application_result_changed')
     data = strict_json(path.read_text())
-    require(data['status'] == 'completed' and data['source_phase'] == 'six_scheme_calibration',
+    require(data['status'] == 'completed' and data['source_phase'] == phase,
             'comparison_application_wrong_phase')
     require(data['model'] == measured['model'] == job['model']
             and data['variant'] == job['method'], 'comparison_application_wrong_identity')
@@ -107,12 +107,21 @@ def application_summary(job, receipt, measured, binary_sha256):
             and data['model_predicted_type_or_scope_applied'] is False,
             'comparison_application_contract_changed')
     source = Path(job['source'])
-    require(file_sha(source) == receipt['source_file_sha256'] == data['source_file_sha256'],
-            'comparison_application_source_file_changed')
+    source_sha256 = file_sha(source)
+    require(source_sha256 == receipt['source_file_sha256'], 'comparison_application_source_file_changed')
+    if phase == 'calibration_controls':
+        require(data['source_plan_sha256'] == measured['plan_sha256']
+                and data.get('decision_view', 'original') == 'original'
+                and 'transport_supplement_result_sha256' not in data,
+                'comparison_application_wrong_calibration_plan_or_view')
+        identifier = 'variant'
+    else:
+        require(source_sha256 == data['source_file_sha256'], 'comparison_application_source_file_changed')
+        identifier = 'method'
     raw = gzip.decompress(source.read_bytes()) if job['archived'] else source.read_bytes()
     require(hashlib.sha256(raw).hexdigest() == measured['result_sha256'],
             'comparison_application_source_bytes_changed')
-    row = next(row for row in measured['rows'] if row['method'] == job['method'])
+    row = next(row for row in measured['rows'] if row[identifier] == job['method'])
     require(data['measured_decision_quality'] == row['quality'],
             'comparison_application_quality_mismatch')
     evidence = receipt['evidence_files_sha256']
@@ -427,9 +436,15 @@ def main():
     args = parser.parse_args()
     require(not args.output.exists(), 'comparison_output_exists_no_overwrite')
     report = build(args.study, args.old_applications, args.new_applications)
-    args.output.mkdir(parents=True)
-    atomic_json(args.output / 'report.json', report)
-    (args.output / 'REPORT.md').write_text(render(report), encoding='utf-8')
+    write_report(report, args.output)
+    print({key: report[key] for key in ('new_models_complete', 'application_jobs_complete', 'exact_roundtrips', 'rejected_inputs')})
+
+
+def write_report(report, output):
+    require(not output.exists(), 'comparison_output_exists_no_overwrite')
+    output.mkdir(parents=True)
+    atomic_json(output / 'report.json', report)
+    (output / 'REPORT.md').write_text(render(report), encoding='utf-8')
     columns = ['model', 'group', 'method', 'documents_processed', 'candidates', 'private_proposed',
                'new_private_over_source_pool', 'private_not_proposed', 'private_mask', 'private_not_confirmed',
                'private_keep', 'technical_review',
@@ -459,12 +474,11 @@ def main():
                 'private_not_confirmed': doc['private_not_confirmed'],
                 **{key: application.get(key) for key in ('private_spans_fully_covered',
                     'private_spans_partly_covered', 'private_spans_untouched', 'public_occurrences_lost')}})
-    _csv(args.output / 'comparison.csv', rows, columns)
+    _csv(output / 'comparison.csv', rows, columns)
     document_columns = ['model', 'method', 'file', 'private_expected', 'candidates', 'private_proposed',
         'private_mask', 'private_not_proposed', 'private_not_confirmed', 'private_spans_fully_covered',
         'private_spans_partly_covered', 'private_spans_untouched', 'public_occurrences_lost']
-    _csv(args.output / 'documents.csv', documents, document_columns)
-    print({key: report[key] for key in ('new_models_complete', 'application_jobs_complete', 'exact_roundtrips', 'rejected_inputs')})
+    _csv(output / 'documents.csv', documents, document_columns)
 
 
 if __name__ == '__main__':

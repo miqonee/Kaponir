@@ -16,6 +16,8 @@ from export_privacy_snapshot import (STUDY, contained, decompress, export as exp
                                     safe_relative, verify as verify_legacy)
 from report_complete_research import _csv, legacy_summary, table
 from report_new_models_first import build, render
+from report_reference_abcd import build as build_abcd, completed_run as read_completed_abcd
+from report_reference_abcd import write_report as write_abcd_report
 from run_privacy_policy_suite import atomic_json, file_sha, utc
 from summarize_privacy_policy import load_run, require, strict_json
 from summarize_privacy_recovery import load_supplement
@@ -94,38 +96,59 @@ def create(output):
     require(not output.is_relative_to(ROOT / 'benchmark'), 'old_benchmark_must_stay_immutable')
     output.mkdir(parents=True)
     legacy = export_legacy(STUDY, output / 'legacy', STUDY / 'recovery-resume-v1/queue.json')
+    report = build(STUDY / 'new-models-reference-v2', STUDY / 'application-v2',
+                   STUDY / 'new-models-reference-v2-application')
+    require(not report['rejected_inputs'], 'checkpoint_comparison_has_rejected_sources')
+    abcd = None
+    if (STUDY / 'abcd-reference-v2-application/status.json').is_file():
+        abcd = build_abcd(STUDY / 'abcd-reference-v2', STUDY / 'abcd-reference-v2-application')
     manifest = {'version': 1, 'created_at_utc': utc(), 'writer_sha256': file_sha(Path(__file__)),
         'new_inference_calls': 0,
         'user_rules_changed': 0, 'legacy_runs': len(legacy['runs']), 'captured': [], 'closed_schemes': [],
+        'closed_abcd': [],
         'active_snapshots_are_not_completed_runs_or_resume_sources': True,
         'snapshot_files_have_individual_revisions': True, 'weights_or_binaries_or_vault_included': False}
 
-    def capture(source):
+    def capture(source, raw=None):
         relative = source.relative_to(STUDY).as_posix();safe_relative(relative)
-        raw = contained(source, STUDY).read_bytes()
+        source = contained(source, STUDY)
+        if raw is None:
+            raw = source.read_bytes()
         archive = 'evidence/' + relative + '.gz';destination = output / archive
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_bytes(gzip.compress(raw, mtime=0))
         manifest['captured'].append({'source': relative, 'archive': archive,
             'raw_sha256': hashlib.sha256(raw).hexdigest(), 'raw_bytes': len(raw), 'captured_at_utc': utc()})
 
+    # Capture owner states before copying results. A job closing while its files
+    # are being copied belongs to the following checkpoint.
+    captured_status_paths = set()
+    for series, manifest_key in (('new-models-reference-v2', 'closed_schemes'),
+                                 ('abcd-reference-v2', 'closed_abcd')):
+        status_path = STUDY / series / 'status.json'
+        if status_path.is_file():
+            status_raw = contained(status_path, STUDY).read_bytes()
+            capture(status_path, status_raw)
+            captured_status_paths.add(status_path)
+            for model, row in strict_json(status_raw.decode())['jobs'].items():
+                if row['status'].startswith('completed'):
+                    manifest[manifest_key].append({'model': model,
+                        'source': f'{series}/runs/{model}/result.json', 'result_sha256': row['result_sha256']})
     for tree in TREES:
         folder = STUDY / tree
         if folder.is_dir():
             for source in sorted(folder.rglob('*')):
-                if source.is_file() and (source.name in NAMES or source.name.startswith('session-')
-                    and source.suffix == '.json' or tree.startswith('analysis/') and source.suffix == '.json'):
+                eligible = (source.name in NAMES or source.name.startswith('session-') and source.suffix == '.json'
+                            or tree.startswith('analysis/') and source.suffix == '.json')
+                if eligible and source not in captured_status_paths and source.is_file():
                     capture(source)
     for name in EXTRA:
         if (STUDY / name).is_file():capture(STUDY / name)
-    for group in ('new-models-reference-v2', 'abcd-reference-v1'):
+    for group in ('new-models-reference-v2', 'abcd-reference-v1', 'abcd-reference-v2'):
         cfg = STUDY / group / 'config.json'
         if cfg.exists():
             config = strict_json(cfg.read_text());destination = output / 'producers' / (group + '.tar.gz')
             destination.parent.mkdir(exist_ok=True);destination.write_bytes(pack_producer(config))
-    report = build(STUDY / 'new-models-reference-v2', STUDY / 'application-v2',
-                   STUDY / 'new-models-reference-v2-application')
-    require(not report['rejected_inputs'], 'checkpoint_comparison_has_rejected_sources')
     report_dir = output / 'reports';report_dir.mkdir()
     atomic_json(report_dir / 'schemes.json', report)
     old = old_calibration();atomic_json(report_dir / 'old-abcd.json', old)
@@ -134,13 +157,8 @@ def create(output):
     csv_path = report_dir / 'old-abcd.csv'
     csv_path.write_bytes(csv_path.read_bytes().replace(b'\r\n', b'\n'))
     (report_dir / 'REPORT.md').write_text(render(report) + '\n' + text)
-    state = strict_json((STUDY / 'new-models-reference-v2/status.json').read_text())
-    for model, row in state['jobs'].items():
-        if row['status'].startswith('completed'):
-            source = STUDY / 'new-models-reference-v2/runs' / model / 'result.json'
-            require(file_sha(source) == row['result_sha256'], 'checkpoint_completed_source_changed')
-            manifest['closed_schemes'].append({'model': model,
-                'source': source.relative_to(STUDY).as_posix(), 'result_sha256': row['result_sha256']})
+    if abcd is not None:
+        write_abcd_report(abcd, report_dir / 'new-abcd')
     manifest['files'] = {p.relative_to(output).as_posix(): {'sha256': file_sha(p), 'bytes': p.stat().st_size}
                          for p in sorted(output.rglob('*')) if p.is_file()}
     atomic_json(output / 'manifest.json', manifest)
@@ -188,7 +206,7 @@ def verify(directory, rescore=False):
         require(path.stat().st_size == binding['bytes'] and file_sha(path) == binding['sha256'],
                 'checkpoint_file_changed:' + name)
     old = verify_legacy(directory/'legacy', rescore=rescore)
-    jobs, restores, closed = 0, 0, 0
+    jobs, restores, closed, abcd_closed = 0, 0, 0, 0
     with tempfile.TemporaryDirectory(prefix='kaponir-checkpoint-read-') as temporary:
         root = Path(temporary);known = set()
         legacy = strict_json((directory/'legacy/manifest.json').read_text())
@@ -205,11 +223,15 @@ def verify(directory, rescore=False):
             known.add(row['raw_sha256'])
         if rescore:
             for row in manifest['closed_schemes']:
-                path = root/row['source'];require(file_sha(path) == row['result_sha256'], 'checkpoint_closed_changed')
+                path = root/safe_relative(row['source']);require(file_sha(path) == row['result_sha256'], 'checkpoint_closed_changed')
                 run = legacy_summary(path);require(run['status'] == 'completed' and len(run['rows']) == 6,
                                                   'checkpoint_closed_incomplete');closed += 1
+            for row in manifest.get('closed_abcd', []):
+                read_completed_abcd(root/safe_relative(row['source']), row['model'], row['result_sha256'])
+                abcd_closed += 1
             jobs, restores = verify_applications(root, known)
     return {'files': len(manifest['files']), 'legacy_runs': old['runs'], 'closed_new_scheme_models': closed,
+            'closed_new_abcd_models': abcd_closed,
             'verified_application_jobs': jobs, 'exact_roundtrips': restores,
             'new_inference_calls': 0, 'rescored': rescore}
 

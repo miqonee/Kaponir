@@ -83,6 +83,33 @@ class AppliedComparisonTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'coverage_mismatch'):
                 application_summary(job, receipt, measured, 'fixture-binary')
 
+    def test_calibration_application_requires_the_measured_plan_and_original_view(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            folder = Path(temporary)
+            job, receipt, measured, data = self.fixture(folder)
+            measured['plan_sha256'] = 'calibration-plan'
+            measured['rows'][0]['variant'] = 'D'
+            job['method'] = 'D'
+            data.update(source_phase='calibration_controls', variant='D',
+                        source_plan_sha256='calibration-plan', decision_view='original')
+            data.pop('source_file_sha256')
+            result = folder / 'result.json'
+            result.write_text(json.dumps(data))
+            receipt['result_sha256'] = file_sha(result)
+            phase = 'calibration_controls'
+            verified = application_summary(job, receipt, measured, 'fixture-binary', phase=phase)
+            self.assertEqual(verified['exact_roundtrips'], 6)
+            data.pop('decision_view')
+            result.write_text(json.dumps(data))
+            receipt['result_sha256'] = file_sha(result)
+            self.assertEqual(application_summary(job, receipt, measured, 'fixture-binary',
+                                                 phase=phase)['exact_roundtrips'], 6)
+            data['source_plan_sha256'] = 'other-plan'
+            result.write_text(json.dumps(data))
+            receipt['result_sha256'] = file_sha(result)
+            with self.assertRaisesRegex(ValueError, 'calibration_plan_or_view'):
+                application_summary(job, receipt, measured, 'fixture-binary', phase=phase)
+
     def test_partial_mask_of_public_value_counts_as_public_loss(self):
         # Real corpus example: the selected value "1024" differs from the
         # public annotation "1024 байта". Exact candidate equality misses it.
