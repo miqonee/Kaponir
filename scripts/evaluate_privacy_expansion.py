@@ -37,6 +37,8 @@ def parser():
     command.add_argument('--model-dir', type=Path)
     command.add_argument('--runtime', type=Path)
     command.add_argument('--variants', nargs='+', choices=VARIANTS, default=list(VARIANTS))
+    command.add_argument('--paired-reference', action='store_true',
+                         help='Require the complete existing Gemma A/B/C/D request protocol')
     modes = command.add_mutually_exclusive_group()
     modes.add_argument('--prepare-only', action='store_true')
     modes.add_argument('--preflight-only', action='store_true')
@@ -107,10 +109,18 @@ def prepare_calibration(args):
 def main(argv=None):
     command = parser()
     args = configure(command.parse_args(argv), command)
+    if args.paired_reference and (args.dataset_kind != 'calibration' or args.profile != 'common'):
+        command.error('paired reference requires common calibration')
+    if args.paired_reference:
+        from privacy_expansion_profiles import NEW_MODELS, GEMMA_IT_MODELS
+        if args.model not in (*NEW_MODELS, *GEMMA_IT_MODELS):
+            command.error('paired reference is restricted to the eight new models')
     with research_registration(args.model, args.new_catalog):
         dataset, instructions, kinds, _ = (prepare_calibration(args)
             if args.dataset_kind == 'calibration' else prepare_plan(args))
         args.extra_producer_files += ['privacy_expansion_profiles.py', 'evaluate_privacy_expansion.py']
+        if args.paired_reference:
+            args.extra_producer_files.append('privacy_abcd_reference.py')
         from evaluate_privacy_policy import make_plan
         from privacy_policy_experiment import common_batches
         plan = make_plan(args, dataset.cases, dataset.case_data, dataset.sources,

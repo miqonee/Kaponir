@@ -230,6 +230,9 @@ def make_plan(args, cases, case_data, sources, instructions, kinds, batches):
             'protected_bypass': False, 'shadow': True, 'rules_changed': 0,
             'inference_calls': 0, 'model_sha256_verified': False,
             'token_budget_validation': 'pending_runtime'}
+    if getattr(args, 'paired_reference', False):
+        from privacy_abcd_reference import bind
+        signatures['paired_reference'] = bind(plan)
     plan['plan_sha256'] = digest({'signature': signatures, 'batches': plan['batches'],
                                   'requests': requests})
     return plan
@@ -413,6 +416,10 @@ def execute(args, plan, cases, sources, expected, instructions, kinds, metric_fu
             session['phases_seconds']['bounded_runtime_configuration'] = round(
                 time.monotonic() - configuration_started, 6)
             if args.response_format == 'grammar' and worker.process_supports_json_schema is False:
+                if getattr(args, 'paired_reference', False):
+                    atomic_json(args.output / 'native-budget-observations.json', {
+                        'error': 'runtime_json_schema_not_supported',
+                        'measurement_request_slots_recorded': 0})
                 raise ValueError('runtime_json_schema_not_supported')
             token_counts = {}
             planning_started = time.monotonic()
