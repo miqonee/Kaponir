@@ -57,14 +57,15 @@ def _number(value):
 def catalog_models():
     old = strict_json((ROOT / 'benchmark/data/models.json').read_text())['models']
     planned = strict_json((ROOT / 'benchmark/data/planned-models.json').read_text())['models']
-    # Admit the separately registered Gemma variants without rewriting the
-    # original thirteen-model input or changing any frozen producer.
-    from privacy_expansion_profiles import GEMMA_IT_CATALOG, pinned_models
-    extra = pinned_models(GEMMA_IT_CATALOG)[0]['models'] if GEMMA_IT_CATALOG.is_file() else []
+    # The research catalogs pin artifacts that the old planning list could
+    # only name. Do not weaken their identity checks to that earlier metadata.
+    from privacy_expansion_profiles import all_pinned_model_rows
+    extra = all_pinned_model_rows()
     return {row['id']: row for row in old + planned + extra}
 
 
-def _validate_source(state, plan, catalog, control_validator=None, variants=VARIANTS):
+def _validate_source(state, plan, catalog, control_validator=None, variants=VARIANTS, control_count=32):
+    require(type(control_count) is int and control_count > 0, 'invalid_expected_control_count')
     require(isinstance(state, dict) and state.get('version') == 1
             and isinstance(state.get('stages'), dict)
             and isinstance(state.get('responses'), dict)
@@ -112,7 +113,8 @@ def _validate_source(state, plan, catalog, control_validator=None, variants=VARI
     cases = plan['control_cases']
     require(signature['case_data_sha256'] == digest(cases), 'case_hash_mismatch')
     ids = [row['id'] for row in cases['candidates']]
-    require(len(ids) == len(set(ids)) == 32, 'not_32_unique_controls')
+    require(len(ids) == len(set(ids)) == control_count,
+            'not_32_unique_controls' if control_count == 32 else 'not_expected_unique_controls')
     if control_validator is None:
         require(cases.get('reference_private') == 16 and cases.get('reference_public') == 16,
                 'not_frozen_binary_32_controls')
@@ -131,7 +133,7 @@ def _validate_source(state, plan, catalog, control_validator=None, variants=VARI
         indexed[key] = row
     for variant in variants:
         flattened = [ident for row in plan['requests'] if row['variant'] == variant for ident in row['case_ids']]
-        require(len(flattened) == 32 and set(flattened) == set(ids), 'incomplete_variant_plan')
+        require(len(flattened) == control_count and set(flattened) == set(ids), 'incomplete_variant_plan')
     return model, ids, indexed
 
 

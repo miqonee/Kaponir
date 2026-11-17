@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "experiment_kind": "eight-model-pilot-v1",
+  "source_cases": "tests/fixtures/context-control-candidates.json",
+  "source_cases_sha256": "a8eb01e8c783eb001ca6dafdd52d19b5ac7d6426ff6f8266d9aa329cd79e12ea",
+  "documents": [
+    "01-cost-estimate.md",
+    "02-application.log"
+  ],
+  "case_ids": [
+    "03b1619e6887825b9f9a327e",
+    "831edde3c0cee04bd7145b33",
+    "0de50776faa1453c4aebe419",
+    "5497da7a9319bdc664b1c2fe",
+    "0c4f9a17814b433deba31279",
+    "1c3f623a44c3a18d049d1f4c",
+    "27aee07d72b34c6b50060cc7",
+    "39467113293617e59a7450dc"
+  ],
+  "reference_private": 4,
+  "reference_public": 4,
+  "variants": [
+    "B",
+    "D"
+  ],
+  "output_tokens": 1536,
+  "retry_output_tokens": 1536,
+  "requested_reasoning_budget": 512,
+  "timeout_seconds": 900,
+  "model_verification_wait_seconds": 600,
+  "source_scope": "purposefully selected known calibration controls, including previous failure categories; not fresh or blind",
+  "interpretation": "diagnostic only; no model excluded from full testing based on this pilot",
+  "models": [
+    "lfm2.5-1.2b-instruct",
+    "lfm2.5-2.6b",
+    "tiny-aya-global",
+    "qwen3.5-4b",
+    "spark-x2.6-4b",
+    "lfm2.5-8b-a1b",
+    "gemma4-e2b-it-q4km",
+    "gemma4-e4b-it-q4km"
+  ]
+}
