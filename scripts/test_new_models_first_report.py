@@ -7,8 +7,9 @@ import unittest
 from apply_measured_privacy import coverage, span_coverage
 from check_learning_corpus import load_corpus
 from compare_local_models import DOCUMENTS
-from report_new_models_first import application_summary, render
+from report_new_models_first import application_summary, corpus_summary, measurement_details, render
 from run_privacy_policy_suite import file_sha
+from validation_pipeline import Candidate
 
 
 class AppliedComparisonTests(unittest.TestCase):
@@ -122,8 +123,42 @@ class AppliedComparisonTests(unittest.TestCase):
                                      'technical_review_values': 72, 'protected_values': 10}, 'application': None}]}
         text = render(report)
         self.assertIn('### pending\n\nПолный результат ещё не получен; оценок качества нет.', text)
-        self.assertIn('| Проверка списка | 7 | 0 | 72 | 10 | — | — | — | — | — |', text)
+        self.assertIn('| Проверка списка | 0 | 72 | 10 | — |', text)
+        self.assertIn('Найдено /92', text)
+        self.assertIn('Не найдено /92', text)
         self.assertIn('Остальные исторические профили', text)
+
+    def test_counts_found_values_separately_from_confirmed_and_source_pool(self):
+        _, expected, _, sources, _ = load_corpus()
+        keys = sorted(key for key in expected if key[0] == DOCUMENTS[0])[:3]
+        candidates = []
+        for index, (name, value) in enumerate(keys):
+            start = sources[name].index(value)
+            kind, scope = expected[name, value]
+            candidates.append(Candidate(str(index), name, value, start, start + len(value), kind, scope,
+                                        protected=index == 0))
+        stage = {'candidates': [row.json() for row in candidates] + [candidates[2].json()],
+            'decisions': {'1': {'valid': True, 'verdict': 'keep', 'kind': candidates[1].kind,
+                                'scope': candidates[1].scope}}}
+        state = {'candidate_pool': [candidates[0].json()], 'stages': {'point': stage},
+            'calls': [{'error': 'JSONDecodeError'}, {'finish_reason': 'stop'}],
+            'signature': {'settings': {'response_format': 'auto'}}, 'structured_output': 'grammar'}
+        details = measurement_details(state)
+        row = details['methods']['point']
+        self.assertEqual(row['new_private_over_source_pool'], 2)
+        self.assertEqual(row['private_not_proposed'], 89)
+        self.assertEqual(row['private_not_confirmed'], 91)
+        self.assertEqual(sum(doc['quality']['proposal_matches'] for doc in row['documents']), 3)
+        self.assertEqual(details['requests_with_recorded_error'], 1)
+        self.assertEqual(details['requested_json'], 'auto')
+        self.assertEqual(details['effective_json'], 'grammar')
+
+    def test_corpus_denominators_are_documents_values_and_occurrences(self):
+        corpus = corpus_summary()
+        self.assertEqual((corpus['document_count'], corpus['private_values'],
+                          corpus['private_occurrences'], corpus['public_occurrences']), (3, 92, 193, 87))
+        public = next(doc for doc in corpus['documents'] if doc['file'] == '08-public-reference.md')
+        self.assertEqual(public['private_values'], 0)
 
 
 if __name__ == '__main__':
