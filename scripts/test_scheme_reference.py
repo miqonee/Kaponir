@@ -10,7 +10,8 @@ from unittest.mock import Mock, patch
 import evaluate_model_schemes as schemes
 from privacy_expansion_profiles import GEMMA_IT_MODELS
 from run_legacy_new_models import MODELS, build_jobs
-from scheme_reference import reference, verify_reference_inputs
+from scheme_reference import (REQUESTED_REFERENCE, matching_requested_references,
+                              reference, verify_reference_inputs)
 
 
 class SchemeReferenceTests(unittest.TestCase):
@@ -42,7 +43,10 @@ class SchemeReferenceTests(unittest.TestCase):
                     p = plan['profile']
                     self.assertEqual((p['context_tokens'], p['output_tokens'], p['retry_output_tokens']), (4096, 1600, 1600))
                     self.assertEqual((p['transport_timeout_seconds'], p['worker_configuration_timeout_seconds']), (1200, 1200))
-                    self.assertEqual(p['response_format'], 'prompt')
+                    self.assertEqual(p['response_format'], 'auto')
+                    self.assertEqual(plan['legacy_reference_mode'], REQUESTED_REFERENCE)
+                    self.assertEqual(set(matching_requested_references(plan)),
+                                     {'gemma4-e4b-qat', 'granite42-3b', 'nanbeige42-3b'})
                     self.assertEqual(p['template_kwargs'], {'enable_thinking': False})
                     self.assertEqual(p['extra_sampling'], {})
                     self.assertEqual(plan['source_sha256'], old['signature']['source_sha256'])
@@ -90,6 +94,17 @@ class SchemeReferenceTests(unittest.TestCase):
         worker.start_runtime.assert_called_once()
         measured_http.assert_not_called()
         self.assertEqual(client.profile['transport_timeout_seconds'], 1200)
+
+    def test_archived_forced_effective_v1_remains_readable_but_is_not_requested_auto(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            plan = self.prepared(Path(temporary), MODELS[0])
+            old = json.loads(json.dumps(plan));old.pop('legacy_reference_mode')
+            old['profile']['response_format'] = 'prompt'
+            self.assertEqual(verify_reference_inputs(old, 'nanbeige42-3b'), plan['legacy_reference'])
+            with self.assertRaisesRegex(ValueError, 'requested_reference_plan_required'):
+                matching_requested_references(old)
+            with self.assertRaisesRegex(ValueError, 'transport_or_format_differs'):
+                verify_reference_inputs(plan | {'profile': old['profile']}, 'nanbeige42-3b')
 
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from evaluate_model_schemes import MeasuredClient, execute, main, scheme_profile
-from experiment_inference import LocalClient, sampling_settings
+from experiment_inference import LocalClient, discover, sampling_settings
 from kaponir_worker import FILES
 
 
@@ -62,6 +62,46 @@ class ModelSchemesTests(unittest.TestCase):
                              json.dumps(old_request.call_args.args[1], sort_keys=True))
             self.assertEqual(sent.call_args.args[2], 3600)
             self.assertEqual(client.profile['worker_configuration_timeout_seconds'], 300)
+
+    def test_auto_format_matches_old_native_capability_selection(self):
+        for supported, expected in ((True, 'grammar'), (False, 'prompt')):
+            with self.subTest(supported=supported), tempfile.TemporaryDirectory() as temporary:
+                worker = Mock()
+                worker.status.return_value = {'models': {'test': {'downloaded': True}}}
+                worker.submit.return_value = {'id': 'job'}
+                worker.process_supports_json_schema = supported
+                worker.ocr_base = 'http://unused'
+                worker.count_text_tokens.return_value = 5
+                old = LocalClient(worker, 'test', 4096, 1600, 'auto')
+                profile = scheme_profile('lfm2.5-1.2b-instruct', 'common')
+                with patch('evaluate_model_schemes.http_json', return_value={'prompt': 'Public reference'}), \
+                        patch('evaluate_model_schemes.request_raw') as inference:
+                    new = MeasuredClient(worker, 'test', 4096, 1600, 'auto', {}, profile, Path(temporary), [])
+                self.assertEqual(new.output_mode, old.output_mode)
+                self.assertEqual(new.output_mode, expected)
+                inference.assert_not_called()
+
+    def test_prompt_discovery_reserves_the_actual_schema_before_splitting(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            client = self.client(Path(temporary))
+            client.output_mode = 'prompt'
+            def tokens(prompt, value, *_):
+                return 20 + len(value['source']) + (200 if '"candidates"' in prompt else 0)
+            client.worker.prompt_token_count.side_effect = tokens
+            fragments = []
+            def infer(prompt, value, schema, output):
+                self.assertLessEqual(client.input_tokens(prompt, value, schema) + output, 300)
+                fragments.append(value['source'])
+                client.records.append({})
+                return {'candidates': []}
+            client.infer = infer
+            args = argparse.Namespace(candidate_mode='typed', max_candidates=24, hint_tokens=0,
+                strategy='auto', output_tokens=50, reserve_tokens=0, context_tokens=300,
+                target_input_tokens=0, max_fragments=64)
+            result = discover(client, 'x' * 180, 'extract', ['CUSTOM'], args)
+            self.assertFalse(result['errors'])
+            self.assertGreater(len(fragments), 1)
+            self.assertEqual(''.join(fragments), 'x' * 180)
 
     def test_exact_pending_request_is_saved_before_send_and_malformed_bytes_survive(self):
         with tempfile.TemporaryDirectory() as temporary:

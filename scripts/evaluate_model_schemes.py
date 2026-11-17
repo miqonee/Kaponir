@@ -17,7 +17,7 @@ from check_learning_corpus import load_corpus
 from compare_local_models import DOCUMENTS, ROOT
 from evaluate_privacy_policy import PRODUCERS, RUNTIME_SHA256, observe_runtime_starts, request_raw, worker_pids
 import evaluate_validation_schemes as legacy
-from experiment_inference import sampling_settings
+from experiment_inference import LocalClient, sampling_settings
 from experiment_inference import prompts_and_kinds
 from kaponir_worker import FILES, http_json, schema_prompt
 from privacy_expansion_profiles import NEW_CATALOG, expansion_profile, model_ids, research_registration
@@ -95,7 +95,8 @@ def prepare(args):
         'transport_note': 'client wait extended to 3600; request bodies retain the declared token/sampling profile',
         'capabilities_verified_during_preparation': False}
     if reference_model:
-        from scheme_reference import verify_reference_inputs
+        from scheme_reference import REQUESTED_REFERENCE, verify_reference_inputs
+        plan['legacy_reference_mode'] = REQUESTED_REFERENCE
         plan['legacy_reference'] = verify_reference_inputs(plan, reference_model)
         plan['transport_note'] = 'Both client and worker timeouts match the existing reference; no new old-model inference.'
     plan['plan_sha256'] = digest(plan)
@@ -121,7 +122,7 @@ def verify_native_mode(profile, template_probe, output, history):
     raise ValueError('native_thinking_off_not_supported')
 
 
-class MeasuredClient:
+class MeasuredClient(LocalClient):
     def __init__(self, worker, model, context_tokens, output_tokens, response_format, sampling,
                  profile, output, history):
         self.worker, self.model, self.context_tokens = worker, model, context_tokens
@@ -134,7 +135,8 @@ class MeasuredClient:
             reasoning_budget=profile['reasoning_budget'])
         require(response_format != 'grammar' or worker.process_supports_json_schema is not False,
                 'runtime_json_schema_not_supported')
-        self.output_mode = response_format
+        self.output_mode = ('prompt' if worker.process_supports_json_schema is False else 'grammar') \
+            if response_format == 'auto' else response_format
         self.template_probe = {}
         for mode, kwargs in [('requested', profile['template_kwargs']),
                              ('off', {'enable_thinking': False}), ('on', {'enable_thinking': True})]:
@@ -324,7 +326,7 @@ def main(argv=None):
     parser.add_argument('--model', required=True)
     parser.add_argument('--new-catalog', type=Path, default=NEW_CATALOG)
     parser.add_argument('--profile', choices=['common', 'native'], default='common')
-    parser.add_argument('--response-format', choices=['grammar', 'prompt'])
+    parser.add_argument('--response-format', choices=['auto', 'grammar', 'prompt'])
     parser.add_argument('--legacy-reference', help='Replay a recorded old-model protocol on a new model')
     parser.add_argument('--model-dir', type=Path)
     parser.add_argument('--runtime', type=Path)

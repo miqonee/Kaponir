@@ -16,7 +16,8 @@ from report_complete_research import _csv, legacy_summary, table
 from run_complete_research import Controller as ResearchController, terminal_result as original_terminal
 from run_gemma_it_research import snapshot as research_snapshot
 from run_privacy_policy_suite import SuiteLock, atomic_json, file_sha, process_identity, runtime_processes, utc
-from scheme_reference import ARCHIVES, reference, verify_reference_inputs
+from scheme_reference import (ARCHIVES, REQUESTED_REFERENCE, matching_requested_references,
+                              reference, verify_reference_inputs)
 from summarize_privacy_policy import require, strict_json
 
 MODELS = (*NEW_MODELS, *GEMMA_IT_MODELS)
@@ -55,7 +56,8 @@ def prepare_jobs(config):
         require(plan['legacy_reference'] == verify_reference_inputs(plan, config['reference_model']),
                 'legacy_new_reference_binding_changed')
         rows.append({'model': job['model'], 'plan': str(output / 'scheme-plan.json'),
-                     'plan_sha256': plan['plan_sha256'], 'old_reference': plan['legacy_reference']})
+                     'plan_sha256': plan['plan_sha256'], 'old_reference': plan['legacy_reference'],
+                     'shared_requested_references': matching_requested_references(plan)})
     value = {'new_models': 8, 'old_models_repeated': 0, 'schemes': 48, 'new_model_calls': 0, 'plans': rows}
     atomic_json(Path(config['output']) / 'prepared-index.json', value)
     return value
@@ -73,6 +75,8 @@ def terminal_result(job):
 
 class Controller(ResearchController):
     def __init__(self, config, resume=False):
+        require(config.get('reference_mode') == REQUESTED_REFERENCE,
+                'new_comparison_requires_recorded_requested_reference_v2')
         super().__init__(config, resume, build_jobs(config), terminal_result)
 
     def check_source(self):
@@ -84,6 +88,10 @@ class Controller(ResearchController):
                 'deferred_full_queue_must_not_run_during_new_model_comparison')
         for name in ('config', 'diagnostic_config', 'diagnostic_driver'):
             require(file_sha(Path(deferred[name])) == deferred[name + '_sha256'], 'deferred_input_changed:' + name)
+        for owner in self.config.get('superseded_owners', []):
+            identity = process_identity(owner['pid'])
+            require(not identity or identity['start_ticks'] != owner['start_ticks'] or identity['state'] == 'Z',
+                    'superseded_effective_format_owner_still_alive')
 
     def ready(self):
         value = strict_json(Path(self.config['pilot_status']).read_text())
@@ -116,6 +124,15 @@ class Controller(ResearchController):
     def diagnostic(self):
         deferred = self.config['deferred_full'];row = self.state.get('nanbeige_diagnostic')
         path = Path(deferred['diagnostic_output']) / 'result.json'
+        if row is None and self.config.get('adopt_completed_nanbeige_diagnostic'):
+            adopted = self.config['adopt_completed_nanbeige_diagnostic']
+            require(adopted['status'] == 'completed' and adopted['result_sha256'] == file_sha(path),
+                    'adopted_registered_diagnostic_changed')
+            require(strict_json(path.read_text()).get('cleanup_finished_at_utc'),
+                    'adopted_registered_diagnostic_cleanup_missing')
+            self.state['nanbeige_diagnostic'] = dict(adopted,
+                adopted_without_inference=True, adopted_from=self.config['superseded_study'])
+            self.save();return
         if row and row['status'] == 'completed':
             require(file_sha(path) == row['result_sha256'], 'registered_diagnostic_changed');return
         if row:
@@ -138,10 +155,12 @@ class Controller(ResearchController):
 
     def refresh_reports(self, force=False):
         runs, pending, rejected = [], [], []
+        anchor = self.output / 'prepared' / MODELS[0] / 'scheme-plan.json'
+        shared_references = matching_requested_references(strict_json(anchor.read_text()))
         for model, name in ARCHIVES.items():
             path = self.root / 'benchmark/data/validation' / name
             run = dict(legacy_summary(path, archived=True));run['role'] = (
-                'archived_reference' if model == self.config['reference_model'] else 'archived_other_profile')
+                'archived_shared_requested' if model in shared_references else 'archived_other_profile')
             runs.append(run)
         for job in self.jobs:
             row = self.state['jobs'].get(job['id'], {})
@@ -151,7 +170,8 @@ class Controller(ResearchController):
             try:
                 require(file_sha(path) == row['result_sha256'], 'legacy_new_result_changed')
                 plan = strict_json(path.with_name('scheme-plan.json').read_text())
-                require(plan['legacy_reference'] == self.config['reference_binding']
+                require(plan.get('legacy_reference_mode') == REQUESTED_REFERENCE
+                        and plan['legacy_reference'] == self.config['reference_binding']
                         == verify_reference_inputs(plan, self.config['reference_model']), 'legacy_new_profile_changed')
                 run = dict(legacy_summary(path));run['role'] = 'new_matched_reference';runs.append(run)
                 state = strict_json(path.read_text())
@@ -164,6 +184,7 @@ class Controller(ResearchController):
                 rejected.append({'model': job['model'], 'reason': str(error)[:200]})
         output = self.output / 'reports';output.mkdir(exist_ok=True)
         report = {'kind': 'new-models-existing-protocol-v1', 'reference': self.config['reference_binding'],
+            'reference_mode': REQUESTED_REFERENCE, 'shared_requested_references': shared_references,
             'runs': runs, 'pending_new_models': pending, 'rejected_inputs': rejected,
             'old_model_benchmark_inference_repeated': 0, 'report_inference_calls': 0,
             'new_models_complete': sum(r['role'] == 'new_matched_reference' for r in runs),
@@ -193,7 +214,8 @@ class Controller(ResearchController):
         _csv(output / 'resources.csv', resources, resource_fields)
         lines = ['# Новые модели на прежнем корпусе и prompts', '',
             'Старые семь моделей читаются из проверенного архива, без новой генерации. '
-            'Новые восемь повторяют закреплённый профиль ' + self.config['reference_model'] + '. '
+            'Новые восемь повторяют записанный исходный протокол auto: schema/grammar при поддержке backend, '
+            'иначе prompt, как в старых Gemma, Granite и Nanbeige. '
             'Остальные исторические профили показаны отдельно: их настройки не объявляются одинаковыми.', '']
         lines += table(['Модель', 'Схема', 'Группа', 'Private MASK', 'Private KEEP',
             'Публичных MASK без защиты', 'Тех. REVIEW', 'Защищённых значений'],
