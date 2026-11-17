@@ -24,11 +24,15 @@ NAMES = {'plan.json', 'result.json', 'scheme-plan.json', 'transports.json', 'exe
     'verification.json', 'detectors.json', 'native-budget-observations.json',
     'native-mode-observations.json', 'preflight.json', 'config.json', 'status.json',
     'prepared-index.json', 'recovery-plan.json', 'recovery-result.json',
-    'mask.json', 'restore.json', 'masked.txt'}
+    'mask.json', 'restore.json', 'masked.txt', 'controller.py', 'queue.json',
+    'supervisor.py', 'continue_recovery.py', 'diagnose_nanbeige.py', 'full_controller.py',
+    'supervisor-status.json', 'resume-manifest.json', 'launch-record.json', 'launch-receipt.json',
+    'full-config.json', 'full-status.json', 'nanbeige-diagnostic-config.json'}
 TREES = ('new-models-reference-v1', 'new-models-reference-v1-application',
     'new-models-reference-v2', 'new-models-reference-v2-application', 'application-v2',
     'application-transport-v1', 'application-resume-v1', 'abcd-reference-v1', 'abcd-reference-v1-application',
-    'priority-eight-v1', 'analysis/requested-auto-v2-handoff',
+    'priority-eight-v1', 'suite-v1', 'recovery-v1', 'recovery-resume-v1',
+    'complete-v1', 'fresh-v1', 'policy-v2', 'gemma-it-v1', 'analysis/requested-auto-v2-handoff',
     'analysis/selected-d32-prepared-v1', 'analysis/lfm26-off-profile-incompatible-v1')
 EXTRA = ('analysis/requested-json-mode-audit-v1.json', 'analysis/existing-new-resource-context-v1.json',
     'analysis/work-continuation.json', 'analysis/lfm26-native-off-observation-v1.json',
@@ -89,7 +93,8 @@ def create(output):
     require(not output.is_relative_to(ROOT / 'benchmark'), 'old_benchmark_must_stay_immutable')
     output.mkdir(parents=True)
     legacy = export_legacy(STUDY, output / 'legacy', STUDY / 'recovery-resume-v1/queue.json')
-    manifest = {'version': 1, 'created_at_utc': utc(), 'new_inference_calls': 0,
+    manifest = {'version': 1, 'created_at_utc': utc(), 'writer_sha256': file_sha(Path(__file__)),
+        'new_inference_calls': 0,
         'user_rules_changed': 0, 'legacy_runs': len(legacy['runs']), 'captured': [], 'closed_schemes': [],
         'active_snapshots_are_not_completed_runs_or_resume_sources': True,
         'snapshot_files_have_individual_revisions': True, 'weights_or_binaries_or_vault_included': False}
@@ -125,6 +130,8 @@ def create(output):
     old = old_calibration();atomic_json(report_dir / 'old-abcd.json', old)
     text, rows, columns = render_calibration(old)
     _csv(report_dir / 'old-abcd.csv', rows, columns)
+    csv_path = report_dir / 'old-abcd.csv'
+    csv_path.write_bytes(csv_path.read_bytes().replace(b'\r\n', b'\n'))
     (report_dir / 'REPORT.md').write_text(render(report) + '\n' + text)
     state = strict_json((STUDY / 'new-models-reference-v2/status.json').read_text())
     for model, row in state['jobs'].items():

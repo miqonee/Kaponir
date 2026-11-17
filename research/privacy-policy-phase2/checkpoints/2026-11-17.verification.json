@@ -1,0 +1,15 @@
+{
+  "checkpoint_writer_sha256": "cd008349cc6645cc0e021b6f5c0d0df425bc2049ec94055de646ba54f60b2ca2",
+  "closed_new_scheme_models": 1,
+  "exact_roundtrips": 552,
+  "files": 1991,
+  "legacy_runs": 10,
+  "manifest_sha256": "9111b32e62ec86137df12e26e15ece3edb06f90d9516a00041f0aa3b3bff4903",
+  "measurement_producer_commit": "af51741d6f4d00e4a57b2737605dabd1edf157d0",
+  "new_inference_calls": 0,
+  "original_artifacts_access_blocked": true,
+  "original_artifacts_reads_attempted": 0,
+  "python_tests": 330,
+  "rescored": true,
+  "verified_application_jobs": 92
+}
