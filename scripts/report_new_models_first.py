@@ -224,6 +224,9 @@ def render(report):
         'HTTP — сумма всех шести схем, включая ошибки; это не время одного ответа. '
         'Полный пик включает загрузку, запросный RSS — отдельный неполный замер. '
         'Наблюдённая память не задаёт минимальные требования к железу. CPU: два потока; GPU: 0. '
+        'Архивный лимит контейнера — 2 CPU / 8 GiB, первый новый запуск — 4 CPU / 16 GiB; '
+        'времена между этими средами не дают контролируемого выигрыша в скорости. '
+        'Цикл runtime включает загрузку, запросы и cleanup, но не внешнюю проверку файлов. '
         'Ресурсы не входят в оценку качества.', '']
     values = []
     runs = {run['model']: run for run in report['runs']}
@@ -239,7 +242,7 @@ def render(report):
             None if not run else round(run['weight_bytes']/2**30, 2),
             None if not run or run.get('common_off_supported_by_observed_template') is None else
                 not run['common_off_supported_by_observed_template']])
-    lines += table(['Модель', 'HTTP-запросов', 'HTTP, мин', 'Полный замер HTTP', 'Вся сессия, мин',
+    lines += table(['Модель', 'HTTP-запросов', 'HTTP, мин', 'Полный замер HTTP', 'Цикл runtime, мин',
                     'Пик всей сессии, GiB', 'Запросный RSS, GiB', 'GGUF, GiB', 'Think-префикс при off'], values)
     lines += ['', 'Последняя колонка описывает только наблюдённый шаблон при запросе off: '
         'True — префикс рассуждения остался, False — отсутствует, «—» — отдельного наблюдения нет. '
