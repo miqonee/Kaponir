@@ -21,6 +21,7 @@ from experiment_inference import sampling_settings
 from experiment_inference import prompts_and_kinds
 from kaponir_worker import FILES, http_json, schema_prompt
 from privacy_expansion_profiles import NEW_CATALOG, expansion_profile, model_ids, research_registration
+from recover_privacy_transport import wait_for_verified_model
 from run_privacy_policy_suite import atomic_json, file_sha, runtime_processes, utc
 from summarize_privacy_policy import digest, require
 
@@ -60,9 +61,20 @@ def prepare(args):
     require(hashlib.sha256(json.dumps(export, sort_keys=True).encode()).hexdigest() == EXPORT_CANONICAL_SHA,
             'frozen_detector_export_changed')
     profile = scheme_profile(args.model, args.profile, getattr(args, 'new_catalog', NEW_CATALOG))
+    reference_model = getattr(args, 'legacy_reference', None)
+    if reference_model:
+        from privacy_expansion_profiles import NEW_MODELS, GEMMA_IT_MODELS
+        from scheme_reference import profile_from_reference
+        require(args.profile == 'common' and args.model in (*NEW_MODELS, *GEMMA_IT_MODELS),
+                'legacy_replay_requires_new_model_and_common_profile')
+        require(args.response_format is None, 'legacy_replay_format_is_fixed_by_reference')
+        profile_from_reference(profile, reference_model)
     if args.response_format is not None:
         profile['response_format'] = args.response_format
-    producers = list(dict.fromkeys(PRODUCERS + ['evaluate_model_schemes.py', 'privacy_expansion_profiles.py']))
+    producers = list(dict.fromkeys(PRODUCERS + ['evaluate_model_schemes.py', 'privacy_expansion_profiles.py',
+                                               'recover_privacy_transport.py']))
+    if reference_model:
+        producers.append('scheme_reference.py')
     extraction, _, kinds = prompts_and_kinds()
     plan = {'version': 1, 'experiment_kind': 'six-schemes-expansion-v1', 'model': args.model,
         'profile': profile, 'methods': list(METHODS), 'shadow': True, 'rules_changed': 0,
@@ -82,6 +94,10 @@ def prepare(args):
         'failure_handling': 'durable raw transport; retries only for returned length truncation; invalid finals never rehabilitated',
         'transport_note': 'client wait extended to 3600; request bodies retain the declared token/sampling profile',
         'capabilities_verified_during_preparation': False}
+    if reference_model:
+        from scheme_reference import verify_reference_inputs
+        plan['legacy_reference'] = verify_reference_inputs(plan, reference_model)
+        plan['transport_note'] = 'Both client and worker timeouts match the existing reference; no new old-model inference.'
     plan['plan_sha256'] = digest(plan)
     return plan
 
@@ -92,10 +108,7 @@ class MeasuredClient:
         self.worker, self.model, self.context_tokens = worker, model, context_tokens
         self.output_tokens, self.profile, self.output, self.history = output_tokens, profile, output, history
         self.sampling, self.records, self.planning_schema = sampling_settings(sampling), [], {}
-        deadline = time.monotonic() + 30
-        while not worker.status()['models'][model]['downloaded']:
-            require(time.monotonic() < deadline, 'model_not_ready')
-            time.sleep(.1)
+        wait_for_verified_model(worker, model, timeout=600)
         job = worker.submit('evaluate', model=model)
         worker.start_runtime(job['id'], model, 1, context_tokens=context_tokens,
             reasoning=profile['reasoning'], reasoning_format=profile['reasoning_format'],
@@ -258,7 +271,8 @@ def execute(args, plan):
             state['native_template_probe'] = clients[0].template_probe
     profile = plan['profile']
     command = ['--model', args.model, '--model-dir', str(args.model_dir), '--runtime', str(args.runtime),
-        '--frozen-detectors', str(EXPORT), '--output', str(args.output), '--response-format', profile['response_format']]
+        '--frozen-detectors', str(EXPORT), '--output', str(args.output), '--response-format', profile['response_format'],
+        '--timeout', str(profile['worker_configuration_timeout_seconds'])]
     for name in ('context_tokens', 'output_tokens', 'reserve_tokens', 'batch_size', 'hint_tokens',
                  'max_candidates', 'max_fragments', 'temperature', 'top_p', 'top_k', 'min_p'):
         command.extend(['--' + name.replace('_', '-'), str(profile[name])])
@@ -288,6 +302,7 @@ def main(argv=None):
     parser.add_argument('--new-catalog', type=Path, default=NEW_CATALOG)
     parser.add_argument('--profile', choices=['common', 'native'], default='common')
     parser.add_argument('--response-format', choices=['grammar', 'prompt'])
+    parser.add_argument('--legacy-reference', help='Replay a recorded old-model protocol on a new model')
     parser.add_argument('--model-dir', type=Path)
     parser.add_argument('--runtime', type=Path)
     parser.add_argument('--output', type=Path, required=True)
