@@ -13,6 +13,8 @@ from run_legacy_new_models import MODELS, snapshot as scheme_snapshot
 from run_privacy_policy_suite import SuiteLock, atomic_json, file_sha, process_identity, runtime_processes, utc
 from summarize_privacy_policy import build_report, digest, load_run, render_markdown, require, strict_json
 
+DEFAULT_ORDER = tuple(model for model in MODELS if model != 'lfm2.5-2.6b') + ('lfm2.5-2.6b',)
+
 
 def snapshot(root):
     value = scheme_snapshot(root)
@@ -22,10 +24,13 @@ def snapshot(root):
 
 def build_jobs(config):
     require(set(config['model_dirs']) == set(MODELS), 'ABCD_requires_exactly_eight_new_models')
+    order = tuple(config.get('model_order', DEFAULT_ORDER))
+    require(len(order) == len(MODELS) and set(order) == set(MODELS),
+            'ABCD_order_requires_each_new_model_exactly_once')
     root, output = Path(config['runner_root']), Path(config['output'])
     old = reference()['signature']['settings']
     jobs = []
-    for model in MODELS:
+    for model in order:
         destination = output / 'runs' / model
         command = [sys.executable, '-u', str(root / 'scripts/evaluate_privacy_expansion.py'),
             '--model', model, '--profile', 'common', '--dataset-kind', 'calibration',
@@ -54,6 +59,7 @@ def prepare_jobs(config):
                      'plan_sha256': plan['plan_sha256'], 'reference': binding,
                      'planned_requests': len(plan['requests'])})
     value = {'models': 8, 'variants': ['A', 'B', 'C', 'D'], 'cases_per_variant': 32,
+             'model_order': [row['model'] for row in rows],
              'outcomes': 1024, 'unique_cases': 32, 'planned_requests': sum(r['planned_requests'] for r in rows),
              'new_inference_calls': 0, 'old_models_repeated': 0, 'plans': rows}
     atomic_json(Path(config['output']) / 'prepared-index.json', value)
@@ -99,6 +105,8 @@ def dependency_ready(config):
 class Controller(Base):
     def __init__(self, config, resume=False):
         super().__init__(config, resume, build_jobs(config), terminal_result)
+        self.state['model_order'] = [job['model'] for job in self.jobs]
+        self.save()
 
     def check_source(self):
         require(snapshot(self.root) == self.config['producer_inputs_sha256'], 'frozen_ABCD_source_changed')

@@ -31,6 +31,7 @@ NAMES = {'plan.json', 'result.json', 'scheme-plan.json', 'transports.json', 'exe
 TREES = ('new-models-reference-v1', 'new-models-reference-v1-application',
     'new-models-reference-v2', 'new-models-reference-v2-application', 'application-v2',
     'application-transport-v1', 'application-resume-v1', 'abcd-reference-v1', 'abcd-reference-v1-application',
+    'abcd-reference-v2', 'abcd-reference-v2-application',
     'priority-eight-v1', 'suite-v1', 'recovery-v1', 'recovery-resume-v1',
     'complete-v1', 'fresh-v1', 'policy-v2', 'gemma-it-v1', 'analysis/requested-auto-v2-handoff',
     'analysis/selected-d32-prepared-v1', 'analysis/lfm26-off-profile-incompatible-v1')

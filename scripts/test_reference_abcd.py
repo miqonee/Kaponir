@@ -11,7 +11,7 @@ from compare_local_models import ROOT
 import evaluate_privacy_expansion as expansion
 from privacy_abcd_reference import bind, contract, reference
 from run_legacy_new_models import MODELS
-from run_reference_abcd import build_jobs, dependency_ready, terminal_result
+from run_reference_abcd import DEFAULT_ORDER, build_jobs, dependency_ready, terminal_result
 from run_privacy_policy_suite import atomic_json
 
 
@@ -28,6 +28,12 @@ class ReferenceABCDTests(unittest.TestCase):
     def test_all_eight_have_own_ABCD_and_same_old_requests_without_inference(self):
         old = reference()
         with tempfile.TemporaryDirectory() as temporary:
+            config = {'runner_root': str(ROOT), 'output': temporary, 'runtime': '/unused',
+                      'model_dirs': {model: '/unused' for model in MODELS}}
+            jobs = build_jobs(config)
+            self.assertEqual(tuple(job['model'] for job in jobs), DEFAULT_ORDER)
+            self.assertEqual(jobs[-1]['model'], 'lfm2.5-2.6b')
+            self.assertEqual({job['model'] for job in jobs}, set(MODELS))
             for model in MODELS:
                 with self.subTest(model=model):
                     plan = self.prepared(Path(temporary), model)
@@ -36,6 +42,14 @@ class ReferenceABCDTests(unittest.TestCase):
                     self.assertEqual(len(plan['requests']), 20)
                     self.assertEqual(contract(plan), contract(old))
                     self.assertEqual(plan['signature']['paired_reference'], bind(plan))
+
+    def test_order_can_change_without_dropping_or_duplicating_a_model(self):
+        config = {'runner_root': str(ROOT), 'output': '/unused', 'runtime': '/unused',
+                  'model_dirs': {model: '/unused' for model in MODELS}, 'model_order': list(reversed(MODELS))}
+        self.assertEqual([row['model'] for row in build_jobs(config)], list(reversed(MODELS)))
+        for order in [list(MODELS[:-1]), [MODELS[0]] * len(MODELS), [*MODELS[:-1], 'old-model']]:
+            with self.subTest(order=order), self.assertRaisesRegex(ValueError, 'exactly_once'):
+                build_jobs(config | {'model_order': order})
 
     def test_D_only_prompt_sampling_and_batch_drift_are_not_same_protocol(self):
         with tempfile.TemporaryDirectory() as temporary:
