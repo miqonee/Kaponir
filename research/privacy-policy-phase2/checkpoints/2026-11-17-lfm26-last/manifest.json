@@ -1,0 +1,51 @@
+{
+  "active_registration": "abcd-reference-v2",
+  "created_at_utc": "2026-11-17T16:44:51.596437+00:00",
+  "files": {
+    "registration.json.gz": {
+      "bytes": 12145,
+      "raw_sha256": "47d0c75fc2f9958b8b01004d6dff25a0861f6cbe0bcbebfbcd9f417ce2055e64",
+      "sha256": "0b30a117cb49ae1daa3ea06da355d39190aac1d7997a318d0a85c668ac80f2cc"
+    }
+  },
+  "model_order": [
+    "lfm2.5-1.2b-instruct",
+    "tiny-aya-global",
+    "qwen3.5-4b",
+    "spark-x2.6-4b",
+    "lfm2.5-8b-a1b",
+    "gemma4-e2b-it-q4km",
+    "gemma4-e4b-it-q4km",
+    "lfm2.5-2.6b"
+  ],
+  "new_inference_calls_for_reorder": 0,
+  "old_ABCD_model_requests_at_handoff": 0,
+  "planned_outcomes": 1024,
+  "planned_requests": 160,
+  "previous_checkpoint_manifest_sha256": "9111b32e62ec86137df12e26e15ece3edb06f90d9516a00041f0aa3b3bff4903",
+  "python_tests": 331,
+  "request_contracts_unchanged": true,
+  "six_scheme_runner_unchanged": {
+    "after": {
+      "pgrp": 17510,
+      "start_ticks": 4495739,
+      "state": "S"
+    },
+    "before": {
+      "pgrp": 17510,
+      "start_ticks": 4495739,
+      "state": "S"
+    },
+    "pid": 17510
+  },
+  "source_commit": "69227973c5a0422692961d4aa7b07ab31be3abfc",
+  "supersedes_registration": "abcd-reference-v1",
+  "unique_cases": 32,
+  "variants": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "version": 1
+}
