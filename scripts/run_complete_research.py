@@ -73,6 +73,32 @@ def dependency_ready(config, state):
 def terminal_result(job):
     output = Path(job['output'])
     path = output / 'result.json'
+    mode = output / 'native-mode-observations.json'
+    if mode.is_file():
+        observed = strict_json(mode.read_text())
+        require(observed.get('model') == job['model']
+                and job['kind'] == 'schemes'
+                and observed.get('error') == 'native_thinking_off_not_supported'
+                and observed.get('measurement_request_slots_recorded') == 0
+                and observed.get('control_data_used') is False,
+                'native_mode_diagnostic_invalid')
+        require(digest(observed['profile']) == observed['profile_sha256']
+                and observed['profile']['reasoning'] == 'off'
+                and observed['profile']['mode'] == job['profile']
+                and observed['profile']['model'] == job['model']
+                and digest(observed['native_template_probe']) == observed['native_template_probe_sha256']
+                and observed['native_template_probe']['requested']['ends_with_think_prefix'] is True
+                and observed['scheme_plan_file_sha256'] == file_sha(output / 'scheme-plan.json'),
+                'native_mode_diagnostic_binding_changed')
+        if path.is_file():
+            partial = strict_json(path.read_text())
+            require(not partial.get('calls') and not partial.get('responses'),
+                    'native_mode_diagnostic_has_measurements')
+        execution = strict_json((output / 'execution.json').read_text())
+        require(execution.get('runtime_cleanup_verified') is True, 'native_mode_cleanup_not_durable')
+        return {'status': 'failed', 'reason': 'native_thinking_off_not_supported',
+                'native_mode_observations_sha256': file_sha(mode), 'measurement_requests': 0,
+                **({'result_sha256': file_sha(path)} if path.is_file() else {})}
     if not path.is_file():
         budget = output / 'native-budget-observations.json'
         if budget.is_file():
@@ -197,6 +223,9 @@ class Controller:
                 if row.get('budget_observations_sha256'):
                     require(file_sha(Path(job['output']) / 'native-budget-observations.json')
                             == row['budget_observations_sha256'], 'completed_budget_evidence_changed')
+                if row.get('native_mode_observations_sha256'):
+                    require(file_sha(Path(job['output']) / 'native-mode-observations.json')
+                            == row['native_mode_observations_sha256'], 'completed_native_mode_evidence_changed')
                 return
             require(row['status'] != 'launching', 'launch_outcome_unknown_no_automatic_replay')
             require(row['status'] == 'running', 'unknown_recorded_job_state')

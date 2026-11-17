@@ -102,6 +102,25 @@ def prepare(args):
     return plan
 
 
+def verify_native_mode(profile, template_probe, output, history):
+    """Reject a forced thought prefix when the registered recipe requests off."""
+    if profile['reasoning'] != 'off' or not template_probe['requested']['ends_with_think_prefix']:
+        return
+    require(not history, 'native_mode_preflight_has_measurement_history')
+    output = Path(output)
+    path = output / 'native-mode-observations.json'
+    require(not path.exists(), 'native_mode_diagnostic_exists_no_overwrite')
+    plan = output / 'scheme-plan.json'
+    atomic_json(path, {'version': 1, 'status': 'unavailable_requested_profile',
+        'error': 'native_thinking_off_not_supported', 'model': profile['model'],
+        'measurement_request_slots_recorded': 0, 'control_data_used': False,
+        'profile': profile, 'profile_sha256': digest(profile),
+        'native_template_probe': template_probe, 'native_template_probe_sha256': digest(template_probe),
+        'scheme_plan_file_sha256': file_sha(plan) if plan.is_file() else None,
+        'meaning': 'requested off still forces a think prefix; no corpus quality was measured'})
+    raise ValueError('native_thinking_off_not_supported')
+
+
 class MeasuredClient:
     def __init__(self, worker, model, context_tokens, output_tokens, response_format, sampling,
                  profile, output, history):
@@ -125,6 +144,7 @@ class MeasuredClient:
             self.template_probe[mode] = {'sha256': hashlib.sha256(rendered.encode()).hexdigest(),
                 'tokens': worker.count_text_tokens(rendered), 'kwargs': dict(kwargs),
                 'ends_with_think_prefix': rendered.rstrip().endswith('<think>')}
+        verify_native_mode(profile, self.template_probe, self.output, self.history)
 
     def token_count(self, text):
         return self.worker.count_text_tokens(text)
@@ -222,6 +242,9 @@ class MeasuredClient:
 
 def execute(args, plan):
     require(not runtime_processes(args.runtime), 'runtime_busy_no_parallel_inference')
+    require(not any((args.output / name).exists() for name in
+                    ('result.json', 'transports.json', 'native-mode-observations.json')),
+            'scheme_measured_output_exists_no_replay')
     artifact = plan['model_artifact']
     model = args.model_dir / artifact[0]
     require(model.stat().st_size == artifact[1] and file_sha(model) == artifact[2], 'model_checksum_mismatch')
