@@ -133,6 +133,7 @@ def legacy_summary(path, archived=False):
             'source_path': str(source), 'result_sha256': hashlib.sha256(raw).hexdigest(),
             'rows': rows, 'typing': validation_quality(state, expected), 'calls': len(calls),
             'http_seconds_known': sum(times), 'http_seconds_complete': len(times) == len(calls),
+            'http_untimed_attempts': len(calls) - len(times),
             'model_sampled_peak_rss_bytes': max(peaks) if peaks else None,
             'model_snapshot_peak_rss_bytes': max(snapshot_peaks) if snapshot_peaks else None,
             'model_cpu_seconds_known': sum(cpu) if cpu else None,
@@ -180,6 +181,8 @@ def _csv(path, rows, fields):
 def privacy_resources(run, rows, series):
     return [{'model': run['model'], 'series': series, 'variant': row['variant'],
         'http_seconds': row['performance']['http_wall_seconds_including_retries'],
+        'http_seconds_known': row['performance']['known_http_wall_seconds_including_retries'],
+        'http_untimed_attempts': row['performance']['untimed_request_slots'],
         'model_peak_rss_bytes': row['performance'].get('hardware_planning_model_observed_peak_rss_bytes',
                                                      row['performance']['model_observed_peak_rss_bytes']),
         'model_request_peak_rss_bytes': row['performance']['model_observed_peak_rss_bytes'],
@@ -215,9 +218,12 @@ def recovery_reports(config):
 def render_recovery(report):
     lines = ['# Отдельное дополнение транспорта', '',
         'Исходные результаты сохранены. Дополнены только подтверждённые тайм-ауты без байтов ответа; '
-        'завершённые неверные типы, усечения и неопределённые отправки не повторялись. '
+        'завершённые неверные типы и усечения не повторялись. '
+        'После подтверждённого завершения старого процесса новая попытка прерванной отправки '
+        'хранится отдельно: исход этой прежней отправки и её полная стоимость остаются неизвестными. '
         'Эффективная колонка заменяет только эти пропуски новыми строгими решениями. '
-        'Время включает исходные неудачные попытки и дополнение. Это калибровка, не свежая проверка.', '']
+        'Время включает исходные неудачные попытки и дополнение; при неизвестной стоимости '
+        'публикуются только известные секунды, без полного итога. Это калибровка, не свежая проверка.', '']
     rows = []
     for run in report['runs']:
         originals = {row['variant']: row for row in run['original_rows']}
@@ -289,6 +295,8 @@ def write_reports(config, state, jobs):
     for run in legacy:
         resources.append({'model': run['model'], 'series': 'six-schemes-' + run['profile'], 'variant': 'shared-run',
             'http_seconds': run['http_seconds_known'] if run['http_seconds_complete'] else None,
+            'http_seconds_known': run['http_seconds_known'],
+            'http_untimed_attempts': run['http_untimed_attempts'],
             'model_peak_rss_bytes': run['model_sampled_peak_rss_bytes']
                                   if run['model_sampled_peak_rss_bytes'] is not None
                                   else run.get('model_snapshot_peak_rss_bytes'),
@@ -371,6 +379,7 @@ def write_reports(config, state, jobs):
         'overconfident_on_reference_review', 'technical_review', 'correct_automatic_actions']
     _csv(output / 'languages.csv', languages, language_fields)
     _csv(output / 'resources.csv', resources, ['model', 'series', 'variant', 'http_seconds', 'model_peak_rss_bytes',
+        'http_seconds_known', 'http_untimed_attempts',
         'model_request_peak_rss_bytes', 'model_session_peak_rss_bytes',
         'model_cpu_seconds', 'weight_bytes', 'context_tokens', 'reference_only'])
     return {'output': str(output), 'rejected_inputs': rejected, 'terminal_jobs': progress['terminal_jobs']}

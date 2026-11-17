@@ -49,7 +49,7 @@ class RecoverySummaryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'cached_supplement_reply_mismatch'):
             report.rescore_entry(entry, selected, [case], {'doc': text}, {}, ['AMOUNT', 'PERSON'])
 
-    def fixture(self, root, missing_batch=('D', 2), recovered_verdict='keep'):
+    def fixture(self, root, missing_batch=('D', 2), recovered_verdict='keep', missing_batches=None):
         from test_summarize_privacy_policy import PrivacySummaryTests
         helper = PrivacySummaryTests()
         original, original_state, original_plan = helper.fixture(root / 'original')
@@ -71,10 +71,12 @@ class RecoverySummaryTests(unittest.TestCase):
             'requests': [{k: row[k] for k in keys} for row in original_plan['requests']]})
         original_state['signature']['plan_sha256'] = original_plan['plan_sha256']
         original_state['status'] = 'completed'
+        original_state['execution_sessions'] = [{'finished_at_utc': '2026-01-01T00:00:00Z',
+                                                 'phases_seconds': {'runtime_cleanup': 0.1}}]
         for variant in ('A', 'B', 'C', 'D'):
             for index in range(4):
                 entry = helper.add_batch(original_state, original_plan, variant, index,
-                    status='failed' if (variant, index) == missing_batch else 'received')
+                    status='failed' if (variant, index) in (missing_batches or [missing_batch]) else 'received')
                 if entry['status'] == 'failed':
                     entry.update(error='TimeoutError', record={'http_wall_seconds': 1200.1})
         helper.save(original, original_state, original_plan)
@@ -116,6 +118,87 @@ class RecoverySummaryTests(unittest.TestCase):
     def save(self, path, state, plan):
         path.write_text(json.dumps(state))
         path.with_name('recovery-plan.json').write_text(json.dumps(plan))
+
+    def continuation_fixture(self, root):
+        _, path, state, plan, corpus = self.fixture(root, missing_batches=[('D', 0), ('D', 1)])
+        parent, parent_plan = copy.deepcopy(state), copy.deepcopy(plan)
+        parent['status'] = 'running'
+        parent['hardware'] = {'cpu_models': ['Synthetic previous machine']}
+        parent['runtime_starts'] = [{'process_started': True, 'seconds': 7.0}]
+        parent['sampled_resources'] = {'roles': {'model': {'observed_peak_rss_bytes': 9*2**30}}}
+        selected = plan['requests'][1]
+        entry = {**self.response([{'id': ident, 'verdict': 'keep', 'reason': 'Synthetic continuation.'}
+                                 for ident in selected['case_ids']]),
+                 **{key: selected[key] for key in ('variant', 'batch_index', 'case_ids', 'request', 'request_sha256')},
+                 'record': {'http_wall_seconds': 42.0}}
+        key = digest([selected['variant'], selected['batch_index'], selected['request']])
+        pending = {k: v for k, v in entry.items() if k not in ('raw_transport', 'record')}
+        pending['status'] = 'pending'
+        parent['calls'].append(key);parent['responses'][key] = pending
+        parent_path = path.parent / 'continuation-source/recovery-result.json'
+        parent_path.parent.mkdir()
+        self.save(parent_path, parent, parent_plan)
+        cases = [Candidate(**row) for row in plan['original_control_cases']['candidates']]
+        decisions, metrics = report.rescore_entry(entry, selected, cases, corpus[3], corpus[1], [])
+        state['calls'].append(key);state['responses'][key] = entry
+        state['batches'].append({'variant': selected['variant'], 'batch_index': selected['batch_index'],
+            'original_response_key': selected['original_response_key'], 'request_sha256': selected['request_sha256'],
+            'decisions': decisions, 'metrics_selected_cases_only': metrics})
+        metadata = {'source_relative_directory': 'continuation-source',
+            'source_result_sha256': report.sha(parent_path),
+            'source_plan_sha256': report.sha(parent_path.with_name('recovery-plan.json')),
+            'selection_uses_quality': False, 'received_failures_retried': 0,
+            'previous_hardware': parent['hardware'], 'previous_runtime_starts': parent['runtime_starts'],
+            'reused_confirmed_batches': [['D', 0]], 'new_request_batches': [['D', 1]],
+            'prior_unobserved_attempts': [{'response_key': key, 'entry': pending,
+                'previous_outcome': 'unobserved_after_environment_restart'}],
+            'resource_cost_unknown_variants': ['D']}
+        plan['continuation_execution'] = copy.deepcopy(metadata)
+        plan['recovery_plan_sha256'] = digest({k: v for k, v in plan.items() if k != 'recovery_plan_sha256'})
+        state['continuation_execution'] = copy.deepcopy(metadata)
+        state['recovery_plan_sha256'] = plan['recovery_plan_sha256']
+        self.save(path, state, plan)
+        return path, state, plan, corpus
+
+    def test_continuation_keeps_unknown_old_cost_separate_from_observed_quality(self):
+        from report_complete_research import privacy_resources
+        with tempfile.TemporaryDirectory() as temporary:
+            path, _, _, corpus = self.continuation_fixture(Path(temporary))
+            with patch.object(report, 'load_corpus', return_value=corpus):
+                run = report.load_supplement(path)
+            row = run['effective_rows'][3];p = row['performance']
+            self.assertTrue(row['outcome_evidence']['all_generation_outcomes_observed'])
+            self.assertEqual(row['pending_request_slots'], 0)
+            self.assertIsNone(p['http_wall_seconds_including_retries'])
+            self.assertAlmostEqual(p['known_http_wall_seconds_including_retries'], 2504.2)
+            self.assertEqual((p['untimed_request_slots'], p['historical_unobserved_request_slots']), (1, 1))
+            self.assertEqual(p['shared_runtime_readiness_seconds'], 7.0)
+            self.assertEqual(p['hardware_planning_model_observed_peak_rss_bytes'], 9*2**30)
+            exported = privacy_resources(run, [row], 'supplement')[0]
+            self.assertIsNone(exported['http_seconds'])
+            self.assertAlmostEqual(exported['http_seconds_known'], 2504.2)
+            self.assertEqual(exported['http_untimed_attempts'], 1)
+
+    def test_continuation_rejects_changed_inherited_responses_and_missing_cost_history(self):
+        for corruption in ('response', 'unknown_history', 'source_bytes', 'state_metadata'):
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as temporary:
+                path, state, plan, corpus = self.continuation_fixture(Path(temporary))
+                if corruption == 'response':
+                    state['responses'][state['calls'][0]]['record']['http_wall_seconds'] += 1
+                elif corruption == 'unknown_history':
+                    plan['continuation_execution']['prior_unobserved_attempts'] = []
+                    state['continuation_execution'] = copy.deepcopy(plan['continuation_execution'])
+                    plan['recovery_plan_sha256'] = digest({k: v for k, v in plan.items() if k != 'recovery_plan_sha256'})
+                    state['recovery_plan_sha256'] = plan['recovery_plan_sha256']
+                elif corruption == 'source_bytes':
+                    parent = path.parent / 'continuation-source/recovery-result.json'
+                    parent.write_text(parent.read_text() + '\n')
+                else:
+                    state.pop('continuation_execution')
+                self.save(path, state, plan)
+                with patch.object(report, 'load_corpus', return_value=corpus), self.assertRaisesRegex(
+                        ValueError, 'continuation_'):
+                    report.load_supplement(path)
 
     def test_effective_view_keeps_original_failure_and_cost_without_rewriting(self):
         with tempfile.TemporaryDirectory() as temporary:

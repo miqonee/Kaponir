@@ -30,7 +30,8 @@ from summarize_privacy_recovery import load_supplement
 STUDY = ROOT / 'artifacts/privacy-policy-phase2'
 RUN_FILES = ('plan.json', 'result.json', 'scheme-plan.json', 'transports.json',
              'policy-pair.json', 'preflight.json', 'recovery-plan.json', 'recovery-result.json',
-             'native-budget-observations.json')
+             'native-budget-observations.json', 'continuation-source/recovery-plan.json',
+             'continuation-source/recovery-result.json')
 MAX_RAW_BYTES = 256 * 1024 * 1024
 
 
@@ -73,7 +74,7 @@ def verify_producer_binding(row):
         require(sha(raw) == expected, 'measured_producer_source_changed')
 
 
-def records(study):
+def records(study, recovery_queue=None):
     config = strict_json(contained(study / 'complete-v1/config.json', study).read_text())
     result = []
     for model, path in config['reference_results'].items():
@@ -107,7 +108,7 @@ def records(study):
                 'path': Path(job['output']) / 'result.json', 'producer': Path(extension['runner_root']),
                 'terminal_status': states.get(job['id'], {}).get('status'),
                 **({'reference': job['reference_result']} if 'reference_result' in job else {})})
-    queue = study / 'recovery-v1/queue.json'
+    queue = Path(recovery_queue) if recovery_queue is not None else study / 'recovery-v1/queue.json'
     if queue.is_file():
         for row in strict_json(contained(queue, study).read_text())['runs']:
             original = Path(row['result'])
@@ -163,7 +164,7 @@ def producer_bundle(producer, study):
     return compressed, {name: {'sha256': sha(raw), 'bytes': len(raw)} for name, raw in contents.items()}
 
 
-def export(study, output):
+def export(study, output, recovery_queue=None):
     study, output = Path(study).resolve(), Path(output).resolve()
     require(study == STUDY.resolve(), 'only_explicit_synthetic_phase2_study_allowed')
     require(not output.exists(), 'snapshot_output_exists_no_overwrite')
@@ -172,7 +173,7 @@ def export(study, output):
         'source': 'pinned synthetic calibration and privacy-policy-holdout-v1',
         'raw_response_reinterpretation': False, 'runs': [], 'diagnostics': [], 'pending': [], 'producers': {}}
     blobs = {}
-    for row in records(study):
+    for row in records(study, recovery_queue):
         safe_relative(row['id'])
         path = row['path']
         if row['kind'] == 'recovery' and not path.is_file() and path.with_name('recovery-plan.json').is_file():
@@ -280,7 +281,9 @@ def verify(directory, rescore=False):
                 raw = decompress(compressed)
                 require(sha(compressed) == record['archive_sha256'] and sha(raw) == record['raw_sha256']
                         and len(raw) == record['raw_bytes'], 'snapshot_raw_or_archive_changed')
-                (target / name).write_bytes(raw)
+                destination = target / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(raw)
                 if name in ('result.json', 'recovery-result.json'):
                     by_sha[record['raw_sha256']] = target / name
             name = 'recovery-result.json' if row['kind'] == 'recovery' else 'result.json'
@@ -311,6 +314,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--study', type=Path, default=STUDY)
     parser.add_argument('--output', type=Path)
+    parser.add_argument('--recovery-queue', type=Path,
+                        help='Explicit canonical recovery queue after an environment restart')
     parser.add_argument('--verify', type=Path)
     parser.add_argument('--rescore', action='store_true')
     args = parser.parse_args()
@@ -318,7 +323,7 @@ def main():
     if args.verify:
         print(json.dumps(verify(args.verify, args.rescore)))
     else:
-        manifest = export(args.study, args.output)
+        manifest = export(args.study, args.output, args.recovery_queue)
         print(json.dumps({'archived_runs': len(manifest['runs']), 'pending': len(manifest['pending']),
                           'new_inference_calls': 0}))
 

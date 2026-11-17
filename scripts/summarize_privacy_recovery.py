@@ -49,6 +49,69 @@ def rescore_entry(entry, selected, cases, sources, expected, kinds):
     return decisions, metrics(batch, decisions, expected, selected['variant'] != 'D')
 
 
+def continuation_history(path, plan, state, source, actual, scored):
+    """Bind inherited bytes and retain the cost of an interrupted, unknown send."""
+    metadata = plan.get('continuation_execution')
+    require(metadata == state.get('continuation_execution'), 'continuation_metadata_mismatch')
+    if metadata is None:
+        return [], [], None
+    require(metadata['source_relative_directory'] == 'continuation-source'
+            and metadata['selection_uses_quality'] is False
+            and metadata['received_failures_retried'] == 0, 'invalid_continuation_contract')
+    parent_path = path.parent / 'continuation-source/recovery-result.json'
+    parent_plan_path = parent_path.with_name('recovery-plan.json')
+    require(sha(parent_path) == metadata['source_result_sha256']
+            and sha(parent_plan_path) == metadata['source_plan_sha256'], 'continuation_source_changed')
+    parent = strict_json(parent_path.read_text())
+    parent_plan = strict_json(parent_plan_path.read_text())
+    require('continuation_execution' not in parent_plan
+            and parent['status'] in ('running', 'failed'), 'unsupported_continuation_parent')
+    # Validate the checkpoint with the same raw-byte reader, including bad replies.
+    load_supplement(parent_path, source)
+    require(parent_plan['requests'] == plan['requests']
+            and parent_plan['original_result_sha256'] == plan['original_result_sha256']
+            and metadata['previous_hardware'] == parent.get('hardware')
+            and metadata['previous_runtime_starts'] == parent.get('runtime_starts', []),
+            'continuation_parent_contract_changed')
+    inherited = {(row['variant'], row['batch_index']): row for row in parent['batches']}
+    reused, unobserved = [], []
+    for key in parent['calls']:
+        entry = parent['responses'][key]
+        pair = entry['variant'], entry['batch_index']
+        if pair in inherited:
+            reused.append(list(pair))
+            if pair in actual:
+                require(key in state['calls'] and state['responses'][key] == entry
+                        and (pair not in scored or next(row for row in state['batches']
+                            if (row['variant'], row['batch_index']) == pair) == inherited[pair]),
+                        'continuation_confirmed_response_changed')
+        else:
+            require(entry['status'] == 'pending' and 'raw_transport' not in entry,
+                    'continuation_can_only_replace_unobserved_pending_send')
+            unobserved.append({'response_key': key, 'entry': entry,
+                               'previous_outcome': 'unobserved_after_environment_restart'})
+    new = [[row['variant'], row['batch_index']] for row in plan['requests']
+           if (row['variant'], row['batch_index']) not in inherited]
+    unknown_variants = sorted({row['entry']['variant'] for row in unobserved})
+    require(metadata['reused_confirmed_batches'] == reused
+            and metadata['new_request_batches'] == new
+            and metadata['prior_unobserved_attempts'] == unobserved
+            and metadata['resource_cost_unknown_variants'] == unknown_variants,
+            'continuation_attempt_history_changed')
+    if state['status'] == 'completed':
+        require(set(inherited) <= scored, 'continuation_dropped_confirmed_response')
+    sessions = [{'runtime_starts': parent.get('runtime_starts', []),
+                 'sampled_resources': parent.get('sampled_resources', {}),
+                 **({'execution_wall_seconds': parent['execution_wall_seconds']}
+                    if 'execution_wall_seconds' in parent else {})}]
+    return sessions, [row['entry'] for row in unobserved], {
+        'source_result_sha256': metadata['source_result_sha256'],
+        'reused_confirmed_batches': len(reused), 'new_request_batches': len(new),
+        'prior_unobserved_attempts': len(unobserved), 'resource_cost_unknown_variants': unknown_variants,
+        'historical_session_measurements_incomplete': 'sampled_resources' not in parent
+                                                    or 'execution_wall_seconds' not in parent}
+
+
 def load_supplement(path, original_path=None):
     path = Path(path).resolve()
     raw = path.read_bytes()
@@ -127,21 +190,25 @@ def load_supplement(path, original_path=None):
                            'quality_selected_cases_only': quality})
     if state['status'] == 'completed':
         require(scored == set(selected) == set(actual), 'completed_supplement_missing_batches')
+    history_sessions, historical_attempts, continuation = continuation_history(
+        path, plan, state, source, actual, scored)
     original_entries = _attempts(original_state, original_plan, indexed)
     labels = {row['id']: row['reference_private'] for row in original_state['case_transitions']}
     ids = [case.id for case in cases]
     run_id = digest(str(path))[:12]
     rows = []
-    sessions = {'execution_sessions': original_state.get('execution_sessions', []) + [{
+    sessions = {'execution_sessions': original_state.get('execution_sessions', []) + history_sessions + [{
         'runtime_starts': state.get('runtime_starts', []),
         'sampled_resources': state.get('sampled_resources', {}),
         **({'execution_wall_seconds': state['execution_wall_seconds']} if 'execution_wall_seconds' in state else {})}]}
     for variant in VARIANTS:
         combined_entries = original_entries[variant] + entries[variant]
+        prior = [entry for entry in historical_attempts if entry['variant'] == variant]
         row = _quality_row(variant, ids, labels, effective.get(variant, {}).get('decisions', {}), combined_entries)
         row.update(row_id=run_id + ':' + variant, model=original['model'],
             run_finalized=state['status'] == 'completed',
-            performance=_performance(combined_entries, sessions, original_plan, variant))
+            performance=_performance(combined_entries + prior, sessions, original_plan, variant))
+        row['performance']['historical_unobserved_request_slots'] = len(prior)
         rows.append(row)
     return {'model': original['model'], 'status': state['status'], 'result_path': str(path),
         'result_sha256': hashlib.sha256(raw).hexdigest(), 'recovery_plan_file_sha256': sha(plan_path),
@@ -151,4 +218,5 @@ def load_supplement(path, original_path=None):
         'supplement_batches': batch_rows, 'effective_rows': rows, 'effective_stages': effective,
         'effective_comparison': compare_quality(rows), 'automatic_production_approval': False,
         'cost_includes_original_failures': True, 'reinterpreted_received_failures': 0,
+        'continuation': continuation,
         'scope': 'original 32 calibration controls plus separately observed transport supplement'}

@@ -499,14 +499,15 @@ def render_markdown(report):
     lines.extend(['## Время и ресурсы: справочно', '',
         'Запуск runtime и время сессий являются общей стоимостью прогона, а не отдельной стоимостью каждого варианта. '
         'Для подбора памяти учитывается и общая сессия с загрузкой модели; пик внутри запросов показан отдельно. '
-        'Наблюдённый RSS не определяет универсальную минимальную RAM.', '',
+        'Наблюдённый RSS не определяет универсальную минимальную RAM. '
+        'При неизвестной стоимости попытки полный итог HTTP не указан.', '',
         '| Модель / запуск | Вариант | HTTP с повторами, с | Замерено / попыток | Пик RSS с загрузкой, байт | Пик RSS запросов, байт | CPU модели: известные секунды | Общая готовность runtime, с | Контекст | Потоки |',
         '|---|---|---:|---|---:|---:|---:|---:|---:|---:|'])
     for run in report['runs']:
         for row in run['rows']:
             p = row['performance']
             values = [run['model'] + ' / ' + run['run_id'], row['variant'], p['http_wall_seconds_including_retries'],
-                      str(p['timed_request_slots']) + '/' + str(row['registered_request_slots']),
+                      str(p['timed_request_slots']) + '/' + str(p['timed_request_slots'] + p['untimed_request_slots']),
                       p.get('hardware_planning_model_observed_peak_rss_bytes', p['model_observed_peak_rss_bytes']),
                       p['model_observed_peak_rss_bytes'],
                       p['known_model_cpu_seconds'], p['shared_runtime_readiness_seconds'],
