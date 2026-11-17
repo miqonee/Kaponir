@@ -324,7 +324,7 @@ def _performance(entries, state, plan, variant):
         'stored_variant_summary': state.get('performance', {}).get(variant)}
 
 
-def load_run(result_path, catalog=None):
+def _load_run(result_path, catalog=None, variants=VARIANTS, *, calibration_only=False):
     path = Path(result_path).resolve()
     if path.is_dir():
         path = path / 'result.json'
@@ -334,12 +334,17 @@ def load_run(result_path, catalog=None):
     plan_path = path.with_name('plan.json')
     plan_raw = plan_path.read_bytes()
     plan = strict_json(plan_raw.decode('utf-8'))
-    model, ids, indexed = _validate_source(state, plan, catalog_models() if catalog is None else catalog)
+    if calibration_only:
+        require(plan['signature'].get('quality_contract', {}).get('phase') is None,
+                'selected_reader_requires_calibration')
+    model, ids, indexed = _validate_source(state, plan, catalog_models() if catalog is None else catalog,
+                                         variants=variants)
+    require(not (set(state['stages']) - set(variants)), 'unplanned_variant_stages')
     entries = _attempts(state, plan, indexed)
     labels = _labels(state, ids)
     run_id = digest(str(path))[:12]
     rows = []
-    for variant in VARIANTS:
+    for variant in variants:
         decisions = state['stages'].get(variant, {}).get('decisions', {})
         row = _quality_row(variant, ids, labels, decisions, entries[variant])
         stored = state.get('metrics', {}).get(variant, {})
@@ -352,7 +357,7 @@ def load_run(result_path, catalog=None):
     cases = []
     for ident in ids:
         values = {}
-        for variant in VARIANTS:
+        for variant in variants:
             decision = state['stages'].get(variant, {}).get('decisions', {}).get(ident)
             if decision is not None:
                 values[variant] = {key: decision.get(key) for key in ('verdict', 'valid', 'review_origin', 'error')}
@@ -364,6 +369,23 @@ def load_run(result_path, catalog=None):
         'plan_path': str(plan_path), 'plan_file_sha256': hashlib.sha256(plan_raw).hexdigest(),
         'plan_sha256': plan['plan_sha256'], 'cohort_sha256': digest(cohort), 'cohort': cohort,
         'historical_reference_excluded': True, 'rows': rows, 'case_transitions': cases}
+
+
+def load_run(result_path, catalog=None):
+    """Read the full A/B/C/D contract; a selected-only plan is not accepted."""
+    return _load_run(result_path, catalog)
+
+
+def load_selected_run(result_path, *, variants, catalog=None):
+    """Read an explicitly selected calibration series without inventing A-C."""
+    require(isinstance(variants, (list, tuple)) and variants
+            and all(isinstance(variant, str) for variant in variants), 'invalid_selected_variants')
+    variants = tuple(variants)
+    require(len(set(variants)) == len(variants) and set(variants) <= set(VARIANTS),
+            'invalid_selected_variants')
+    run = _load_run(result_path, catalog, variants, calibration_only=True)
+    run.update(selected_variants=list(variants), abcd_comparison=set(variants) == set(VARIANTS))
+    return run
 
 
 def compare_quality(rows, axes=QUALITY_AXES):

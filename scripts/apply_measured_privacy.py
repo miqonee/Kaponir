@@ -20,7 +20,7 @@ from privacy_policy_clarification import load_clarification_run
 from privacy_policy_holdout import load_holdout
 from run_privacy_policy_suite import atomic_json, file_sha, utc
 from summarize_privacy_holdout import load_fresh_run
-from summarize_privacy_policy import load_run, require, strict_json
+from summarize_privacy_policy import load_run, load_selected_run, require, strict_json
 from summarize_privacy_recovery import load_supplement
 from validate_console import free_port, wait_for
 
@@ -168,14 +168,20 @@ def apply_documents(binary, output, source_hashes, sources, private, public, sel
     return report
 
 
-def run(result, binary, output, variant='D', *, transport_supplement=None):
+def run(result, binary, output, variant='D', *, transport_supplement=None, selected_variants=None):
     result, binary, output = Path(result).resolve(), Path(binary).resolve(), Path(output).resolve()
     require(not output.exists(), 'application_output_exists_no_overwrite')
     plan = strict_json(result.with_name('plan.json').read_text())
     phase = plan['signature'].get('quality_contract', {}).get('phase')
     loader = (load_clarification_run if phase == 'fresh_holdout_policy_clarification' else
               load_fresh_run if phase == 'fresh_holdout' else load_run)
-    verified = loader(result)
+    if selected_variants is None:
+        verified = loader(result)
+    else:
+        require(phase is None and transport_supplement is None,
+                'selected_variants_require_calibration_without_transport_supplement')
+        verified = load_selected_run(result, variants=selected_variants)
+        require(variant in verified['selected_variants'], 'application_variant_not_selected')
     row = next(row for row in verified['rows'] if row['variant'] == variant)
     require(verified['run_status'] == 'completed' and row['protocol_complete'], 'completed_measured_variant_required')
     raw = result.read_bytes()
@@ -183,7 +189,9 @@ def run(result, binary, output, variant='D', *, transport_supplement=None):
     state = strict_json(raw.decode('utf-8'))
     sources, private, public, oracle_scope = reference_data(plan)
     decisions = state['stages'][variant]['decisions']
-    supplement_metadata = {'decision_view': 'original'}
+    supplement_metadata = ({'decision_view': 'original'} if selected_variants is None else
+        {'decision_view': 'selected_variants', 'selected_variants': verified['selected_variants'],
+         'abcd_comparison': verified['abcd_comparison']})
     if transport_supplement is not None:
         require(phase not in ('fresh_holdout', 'fresh_holdout_policy_clarification'),
                 'transport_application_requires_calibration_source')
@@ -229,9 +237,11 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--variant', choices=['A', 'B', 'C', 'D'], default='D')
     parser.add_argument('--transport-supplement', type=Path)
+    parser.add_argument('--selected-variants', nargs='+', choices=['A', 'B', 'C', 'D'],
+                        help='Explicit calibration subset; omitted A-C remain unmeasured.')
     args = parser.parse_args()
     report = run(args.result, args.binary, args.output, args.variant,
-                 transport_supplement=args.transport_supplement)
+                 transport_supplement=args.transport_supplement, selected_variants=args.selected_variants)
     print(json.dumps({key: report[key] for key in ('status', 'model', 'variant', 'new_inference_calls',
                                                  'exact_roundtrips', 'user_rules_changed')}))
 
