@@ -122,6 +122,9 @@ def legacy_summary(path, archived=False):
         peaks = [row.get('sampled_resources', {}).get('roles', {}).get('model', {}).get('observed_peak_rss_bytes')
                  for row in calls]
         peaks = [value for value in peaks if value is not None]
+        snapshot_peaks = [row.get('memory', {}).get('model_rss_bytes') for row in calls]
+        snapshot_peaks = [value for value in snapshot_peaks if isinstance(value, (int, float))
+                          and not isinstance(value, bool) and value > 0]
         off = (state.get('native_template_probe') or {}).get('off', {})
         common_off_supported = not off['ends_with_think_prefix'] if 'ends_with_think_prefix' in off else None
         cpu = [row.get('sampled_resources', {}).get('roles', {}).get('model', {}).get('cpu_seconds') for row in calls]
@@ -131,6 +134,7 @@ def legacy_summary(path, archived=False):
             'rows': rows, 'typing': validation_quality(state, expected), 'calls': len(calls),
             'http_seconds_known': sum(times), 'http_seconds_complete': len(times) == len(calls),
             'model_sampled_peak_rss_bytes': max(peaks) if peaks else None,
+            'model_snapshot_peak_rss_bytes': max(snapshot_peaks) if snapshot_peaks else None,
             'model_cpu_seconds_known': sum(cpu) if cpu else None,
             'weight_bytes': state['signature']['artifact'][1],
             'common_off_supported_by_observed_template': common_off_supported,
@@ -176,7 +180,10 @@ def _csv(path, rows, fields):
 def privacy_resources(run, rows, series):
     return [{'model': run['model'], 'series': series, 'variant': row['variant'],
         'http_seconds': row['performance']['http_wall_seconds_including_retries'],
-        'model_peak_rss_bytes': row['performance']['model_observed_peak_rss_bytes'],
+        'model_peak_rss_bytes': row['performance'].get('hardware_planning_model_observed_peak_rss_bytes',
+                                                     row['performance']['model_observed_peak_rss_bytes']),
+        'model_request_peak_rss_bytes': row['performance']['model_observed_peak_rss_bytes'],
+        'model_session_peak_rss_bytes': row['performance'].get('shared_session_model_observed_peak_rss_bytes'),
         'model_cpu_seconds': row['performance']['known_model_cpu_seconds'],
         'weight_bytes': row['performance']['model_disk_bytes'],
         'context_tokens': row['performance']['settings']['context_tokens'], 'reference_only': True}
@@ -282,7 +289,13 @@ def write_reports(config, state, jobs):
     for run in legacy:
         resources.append({'model': run['model'], 'series': 'six-schemes-' + run['profile'], 'variant': 'shared-run',
             'http_seconds': run['http_seconds_known'] if run['http_seconds_complete'] else None,
-            'model_peak_rss_bytes': run['model_sampled_peak_rss_bytes'],
+            'model_peak_rss_bytes': run['model_sampled_peak_rss_bytes']
+                                  if run['model_sampled_peak_rss_bytes'] is not None
+                                  else run.get('model_snapshot_peak_rss_bytes'),
+            'model_request_peak_rss_bytes': run['model_sampled_peak_rss_bytes']
+                                          if run['model_sampled_peak_rss_bytes'] is not None
+                                          else run.get('model_snapshot_peak_rss_bytes'),
+            'model_session_peak_rss_bytes': None,
             'model_cpu_seconds': run['model_cpu_seconds_known'], 'weight_bytes': run['weight_bytes'],
             'context_tokens': run['settings']['context_tokens'], 'reference_only': True})
     atomic_json(output / 'schemes.json', {'unit': 'exact unique value per document; not all occurrences',
@@ -347,7 +360,9 @@ def write_reports(config, state, jobs):
         '- [Время и ресурсы, CSV](resources.csv).', '',
         'Нативный режим может отличаться от запрошенного: шаблон, фактически возвращённые reasoning-токены '
         'и причины N/A сохранены. Наблюдаемый RSS не является универсальной минимальной RAM. '
-        'Размер GGUF и активные MoE-параметры не заменяют замер памяти.', '']
+        'Размер GGUF и активные MoE-параметры не заменяют замер памяти. '
+        'Для privacy-прогонов RSS учитывает загрузку и общую сессию; запросы показаны отдельно. '
+        'В старых архивах доступны только сохранённые снимки внутри запросов.', '']
     if rejected:
         lines += ['Есть входы, не прошедшие проверку происхождения/целостности. Они не участвуют в выборе.', '']
     (output / 'REPORT.md').write_text('\n'.join(lines), encoding='utf-8')
@@ -356,5 +371,6 @@ def write_reports(config, state, jobs):
         'overconfident_on_reference_review', 'technical_review', 'correct_automatic_actions']
     _csv(output / 'languages.csv', languages, language_fields)
     _csv(output / 'resources.csv', resources, ['model', 'series', 'variant', 'http_seconds', 'model_peak_rss_bytes',
+        'model_request_peak_rss_bytes', 'model_session_peak_rss_bytes',
         'model_cpu_seconds', 'weight_bytes', 'context_tokens', 'reference_only'])
     return {'output': str(output), 'rejected_inputs': rejected, 'terminal_jobs': progress['terminal_jobs']}

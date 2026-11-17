@@ -14,6 +14,20 @@ from validation_pipeline import Candidate
 
 
 class RecoverySummaryTests(unittest.TestCase):
+    def test_supplement_startup_memory_reaches_hardware_report(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            _,path,state,plan,corpus=self.fixture(Path(temporary))
+            state['sampled_resources']={'roles':{'model':{'observed_peak_rss_bytes':8*2**30}}}
+            next(iter(state['responses'].values()))['record']['sampled_resources']={
+                'roles':{'model':{'observed_peak_rss_bytes':3*2**30}}}
+            self.save(path,state,plan)
+            with patch.object(report,'load_corpus',return_value=corpus):
+                run=report.load_supplement(path)
+            performance=run['effective_rows'][3]['performance']
+            self.assertEqual(performance['model_observed_peak_rss_bytes'],3*2**30)
+            self.assertEqual(performance['shared_session_model_observed_peak_rss_bytes'],8*2**30)
+            self.assertEqual(performance['hardware_planning_model_observed_peak_rss_bytes'],8*2**30)
+
     def response(self, rows):
         return {'status': 'received', 'raw_transport': {'status': 200, 'body_base64':
             base64.b64encode(json.dumps({'choices': [{'finish_reason': 'stop', 'message': {

@@ -13,6 +13,23 @@ from summarize_privacy_policy import (VARIANTS, build_report, catalog_models,
 
 
 class PrivacySummaryTests(unittest.TestCase):
+    def test_hardware_memory_includes_startup_above_request_working_set(self):
+        from report_complete_research import privacy_resources
+        with tempfile.TemporaryDirectory() as temporary:
+            path,state,plan=self.fixture(Path(temporary))
+            entry=self.add_batch(state,plan)
+            entry['record']['sampled_resources']={'roles':{'model':{'observed_peak_rss_bytes':3*2**30}}}
+            state['execution_sessions']=[{'sampled_resources':{
+                'roles':{'model':{'observed_peak_rss_bytes':8*2**30}}}}]
+            self.save(path,state,plan)
+            run=load_run(path);row=run['rows'][0];performance=row['performance']
+            self.assertEqual(performance['model_observed_peak_rss_bytes'],3*2**30)
+            self.assertEqual(performance['shared_session_model_observed_peak_rss_bytes'],8*2**30)
+            self.assertEqual(performance['hardware_planning_model_observed_peak_rss_bytes'],8*2**30)
+            exported=privacy_resources(run,[row],'calibration')[0]
+            self.assertEqual(exported['model_peak_rss_bytes'],8*2**30)
+            self.assertEqual(exported['model_request_peak_rss_bytes'],3*2**30)
+
     def fixture(self, directory):
         """Structurally valid synthetic records for parser tests, never model results."""
         artifact = catalog_models()['gemma4-e4b-qat']['artifact']

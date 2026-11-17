@@ -134,6 +134,7 @@ def load_supplement(path, original_path=None):
     rows = []
     sessions = {'execution_sessions': original_state.get('execution_sessions', []) + [{
         'runtime_starts': state.get('runtime_starts', []),
+        'sampled_resources': state.get('sampled_resources', {}),
         **({'execution_wall_seconds': state['execution_wall_seconds']} if 'execution_wall_seconds' in state else {})}]}
     for variant in VARIANTS:
         combined_entries = original_entries[variant] + entries[variant]

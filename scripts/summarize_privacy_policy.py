@@ -299,6 +299,11 @@ def _performance(entries, state, plan, variant):
     peaks = [row['observed_peak_rss_bytes'] for row in model if _number(row.get('observed_peak_rss_bytes'))]
     cpu = [row['cpu_seconds'] for row in model if _number(row.get('cpu_seconds'))]
     sessions = state.get('execution_sessions', [])
+    session_model = [session.get('sampled_resources', {}).get('roles', {}).get('model', {})
+                     for session in sessions]
+    session_peaks = [row['observed_peak_rss_bytes'] for row in session_model
+                     if _number(row.get('observed_peak_rss_bytes'))]
+    planning_peaks = peaks + session_peaks
     starts = [event['seconds'] for session in sessions for event in session.get('runtime_starts', [])
               if event.get('process_started') and _number(event.get('seconds'))]
     walls = [session['execution_wall_seconds'] for session in sessions if _number(session.get('execution_wall_seconds'))]
@@ -307,6 +312,8 @@ def _performance(entries, state, plan, variant):
         'http_wall_seconds_including_retries': sum(elapsed) if len(elapsed) == len(entries) else None,
         'timed_request_slots': len(elapsed), 'untimed_request_slots': len(entries) - len(elapsed),
         'model_observed_peak_rss_bytes': max(peaks) if peaks else None,
+        'shared_session_model_observed_peak_rss_bytes': max(session_peaks) if session_peaks else None,
+        'hardware_planning_model_observed_peak_rss_bytes': max(planning_peaks) if planning_peaks else None,
         'known_model_cpu_seconds': sum(cpu) if cpu else None, 'request_slots_with_cpu': len(cpu),
         'shared_runtime_readiness_seconds': sum(starts) if starts else None,
         'shared_recorded_session_wall_seconds': sum(walls) if walls else None,
@@ -491,15 +498,18 @@ def render_markdown(report):
         lines.append('')
     lines.extend(['## Время и ресурсы: справочно', '',
         'Запуск runtime и время сессий являются общей стоимостью прогона, а не отдельной стоимостью каждого варианта. '
-        'RSS — наблюдавшийся пик с периодическими замерами; он не определяет универсальную минимальную RAM.', '',
-        '| Модель / запуск | Вариант | HTTP с повторами, с | Замерено / попыток | Пик RSS модели, байт | CPU модели: известные секунды | Общая готовность runtime, с | Контекст | Потоки |',
-        '|---|---|---:|---|---:|---:|---:|---:|---:|'])
+        'Для подбора памяти учитывается и общая сессия с загрузкой модели; пик внутри запросов показан отдельно. '
+        'Наблюдённый RSS не определяет универсальную минимальную RAM.', '',
+        '| Модель / запуск | Вариант | HTTP с повторами, с | Замерено / попыток | Пик RSS с загрузкой, байт | Пик RSS запросов, байт | CPU модели: известные секунды | Общая готовность runtime, с | Контекст | Потоки |',
+        '|---|---|---:|---|---:|---:|---:|---:|---:|---:|'])
     for run in report['runs']:
         for row in run['rows']:
             p = row['performance']
             values = [run['model'] + ' / ' + run['run_id'], row['variant'], p['http_wall_seconds_including_retries'],
                       str(p['timed_request_slots']) + '/' + str(row['registered_request_slots']),
-                      p['model_observed_peak_rss_bytes'], p['known_model_cpu_seconds'], p['shared_runtime_readiness_seconds'],
+                      p.get('hardware_planning_model_observed_peak_rss_bytes', p['model_observed_peak_rss_bytes']),
+                      p['model_observed_peak_rss_bytes'],
+                      p['known_model_cpu_seconds'], p['shared_runtime_readiness_seconds'],
                       p['settings'].get('context_tokens'), p['settings'].get('threads')]
             lines.append('| ' + ' | '.join(map(_cell, values)) + ' |')
     if report['rejected_inputs']:
