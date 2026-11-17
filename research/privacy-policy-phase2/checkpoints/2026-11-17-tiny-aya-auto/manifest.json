@@ -1,0 +1,498 @@
+{
+  "archive": "evidence.tar.gz",
+  "archive_bytes": 524018,
+  "archive_sha256": "91da4dd1c5f13e6eeae05c96c94e4d1b2f09e3b14d85a2e055a4d7d94eb99b01",
+  "exact_roundtrips": 36,
+  "files": {
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71270,
+      "sha256": "7fae3640d24e3f5d197fbaddac2302717d8bd198df3532add0b1785b724ce36a"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "427195b24cb03242af28f1fcdfa016ce2f2ec80394112ff32dfb7532f0f2e892"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 126647,
+      "sha256": "36154ab87e3ffc857397c9e2cbeb1c3df5e2c26545b01f9a608a25ef72243621"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10419,
+      "sha256": "b2e8abf79b8b7a2ffd0f9924a870a1443612b7751898c2cddba6421bbb0dfb67"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "fc00d4136f3a1a74bb23f32c7b36fa31639219da09a046c2d6cc5839e22bc08d"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 191778,
+      "sha256": "498bbe7de1417c1d5a4debfa4dc40cdf14ad3ff23f5fd15529204f3fa5aad32f"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11000,
+      "sha256": "736a3e3ebaae9e62f08c8bbeb4a8ff4c071d7fa720a5dcc7aaec6f8b18fc6e70"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "acdd82d2b961274fb1d0ccdb9982f3fee0a433956281b5bba35d500e808c903b"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 16328,
+      "sha256": "b70ebaab92686e1deb23e5f7ccded91bddc84ea9a5aab72f784234780e358382"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3471,
+      "sha256": "3f47ad1caf04b6278a43e90279173983518dc87cd4b1d55aa43aa54b4289ea88"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3625,
+      "sha256": "b40b86f4501ee77f99da0c3a148aae9a9bec007b9734429584de7a273485a971"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/current_union/result.json": {
+      "bytes": 7865,
+      "sha256": "3584649b9246a4bc05882882096306b0a8e38c0fab8447684d76d09ef302a709"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71270,
+      "sha256": "899d3e8c070f19d9f528cb213d5ba31a45a231181fa99858d8f994944dfd01ed"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "3576947e182f1eab591097ae06ed269cc1962c5cdb3edfb214d730b7cd192851"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139816,
+      "sha256": "a46400e17b1c580d6a63dd8da0dedfb020a2f7925847c63b096be6d280e0f34c"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/detector_proposals/result.json": {
+      "bytes": 7859,
+      "sha256": "d17fce6018ae8cf09d4962a67df2f3c9cc67ba96bdc010bfb2669ca48329f6e4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/02-02-application/mask.json": {
+      "bytes": 71214,
+      "sha256": "b422f86221ce01771aa64092876f0f8ac2a86add50824f5b9fd12ddcd339456e"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "b91794353bef25f8a7d4db6361a230f69cb1da216fd5dd51628725fb3f658df3"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90534,
+      "sha256": "158e1e0ec4bd7f84941e6bb45d86fd86ee6058fbae890a0c0695a6e9081d5097"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "9237921016553650f76a5200869bef1bc0e070c4791fb7008426c009b9fd2d79"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/double/result.json": {
+      "bytes": 7847,
+      "sha256": "8c8266308561738db3d1d443e3b2f9768b6a885142c9d89f59386d2e014b78e3"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/02-02-application/mask.json": {
+      "bytes": 71248,
+      "sha256": "99a6d7ed70c1df69ae2e44054e863462879bccbff3ce0e268fdd6e05eed6073f"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "8425d998e75daa66bf28d06ff593a1ab8eb6b6c3de57e1fa418fdc63fb808cc4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90534,
+      "sha256": "c178fcf973d29a983e1592053bb7a2ae1cf6f85db9c858a753c088a664dc2131"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "c89ad689730bcb33143d8f89e05784f638f5a72d07b958b25eda447455ef1a5f"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/point/result.json": {
+      "bytes": 7842,
+      "sha256": "cd079c036119359f65ec4d9f0eb8aa869818f35022c912d20ca16a91898f6983"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71228,
+      "sha256": "1d25bd28f100955c6dd49a8d9e13ca6ab8f00d2f21f732de683e8b840be389a2"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "ff8e1459866babf04922f4458765a62081a1c261392038c9d3e90efa7ef4dc08"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 77642,
+      "sha256": "b6d3bfb6b1f42f2c00081b81393504c1c6495398553cfb9a2b86999282f44219"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10376,
+      "sha256": "ff9607e6e6d58366dde9aceca8c0a3d3ea0ec6ead55a9dad796d45f6746ab965"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "4ac0efd50b08ac75a79748264f90fd471b92b398136a7bf6f928660f7b91ada3"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 116193,
+      "sha256": "687f6c39ef9959e88012ddfb32a8d18479952f17b4c5a81474a0374d1a6f90da"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10821,
+      "sha256": "6dff26530701504005b03f8c37a4137be90ac7aedbc4f33bf128cc3acc4701b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "817c7055f9e66b2b20a97a3dca46895f7471c56cd03057a161745ddb05434d7b"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6192,
+      "sha256": "22583d4b71c49bcb70351db1f96a063b928b24bfd05fb79fbc4e5801bfedcc91"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3496,
+      "sha256": "fc8e1bfbcafd261e2ba16942263857d049a0646ff73fcbbc69557a40fe8c4359"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/regions/result.json": {
+      "bytes": 7848,
+      "sha256": "5650a4917cab1068b21de693301ce5e39cd1f6435b8bc6f0dd35d41d00079685"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71228,
+      "sha256": "c599f63d6c47f81cbebf179bd96fe1993a5875aafe2e1151b47ded4198d0d26e"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "6dfe2becc39cdd6ec19d89cdc10db9a091eea3e1594e59529c0006e182dbaf88"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90608,
+      "sha256": "1d49a6cfab9f9b19c8e0fcfcd68ec0e24deccac2af77f58c4ac84b58a5986638"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "0d32d3f97287edebdca5cb2243556afc15c1fa498dde40b5c559d20f43b89d1b"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "new-models-reference-v2-application/runs/tiny-aya-global/union_point/result.json": {
+      "bytes": 7852,
+      "sha256": "079f66a151da9df5c2aa49c1b682066e886069e8cab2b890eb5137fdf6cc7ede"
+    },
+    "new-models-reference-v2/runs/tiny-aya-global/detectors.json": {
+      "bytes": 42922,
+      "sha256": "545e0a5090b1b325af7ef75308fe58c40562fc24af94c084c462346f8ecea8a5"
+    },
+    "new-models-reference-v2/runs/tiny-aya-global/execution.json": {
+      "bytes": 6953,
+      "sha256": "c4186e449ed0f6fe0f39bc29abadd2fd05e646ab3c33699c84fb3f8fdbbeaa99"
+    },
+    "new-models-reference-v2/runs/tiny-aya-global/result.json": {
+      "bytes": 1253889,
+      "sha256": "5d8e93140292b80b3cebd89f6ba223f7e4280b6813000dfbc5aa3587e95c6aa1"
+    },
+    "new-models-reference-v2/runs/tiny-aya-global/scheme-plan.json": {
+      "bytes": 6212,
+      "sha256": "43f00d91d12e215e4642e96ea1040c5a50988b5914d89de2999d8eafa7c95310"
+    },
+    "new-models-reference-v2/runs/tiny-aya-global/transports.json": {
+      "bytes": 1743515,
+      "sha256": "d1cfe797070ae1395ca7bbd37d1280dbdf7dcda18fd8039e2deb8f50256fd466"
+    },
+    "new-models-reference-v2/runs/tiny-aya-global/verification.json": {
+      "bytes": 4613,
+      "sha256": "76bef075b9aa4ef6d114055c4d2e1d9dc482818889e5583ff856d602ed4077d5"
+    }
+  },
+  "measured_at_utc": "2026-11-17T19:35:40Z",
+  "model": "tiny-aya-global",
+  "received_responses": 80,
+  "series": "new-models-reference-v2",
+  "source_checkpoint_manifest_sha256": "454fd8cb4e5490e3bcd359338e3220ce6ffcc6edd1435c4d223467b304e95d0d",
+  "source_result_sha256": "5d8e93140292b80b3cebd89f6ba223f7e4280b6813000dfbc5aa3587e95c6aa1",
+  "verification_inference_calls": 0,
+  "verified_application_jobs": 6,
+  "verified_model_schemes": 6,
+  "version": 1
+}
