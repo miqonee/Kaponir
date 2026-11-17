@@ -265,6 +265,7 @@ def build(study, old_applications, new_applications):
             'reference': config['reference_binding'], 'reference_mode': reference_mode,
             'shared_requested_references': shared, 'corpus': corpus_summary(), 'binary_sha256': binary_sha,
             'study_status': state['status'],
+            'application_status': status['status'],
             'product_baseline': dict(baselines[0]) if baselines else None,
             'new_models_complete': sum(model in runs for model in MODELS)
                 if reference_mode == REQUESTED_REFERENCE else 0,

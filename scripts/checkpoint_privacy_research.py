@@ -15,6 +15,8 @@ from compare_local_models import DOCUMENTS, ROOT
 from export_privacy_snapshot import (STUDY, contained, decompress, export as export_legacy,
                                     safe_relative, verify as verify_legacy)
 from report_complete_research import _csv, legacy_summary, table
+from report_full_model_study import build as build_full_report, from_checkpoint as read_full_report
+from report_full_model_study import ready as full_report_ready, write_report as write_full_report
 from report_new_models_first import build, render
 from report_reference_abcd import build as build_abcd, completed_run as read_completed_abcd
 from report_reference_abcd import write_report as write_abcd_report
@@ -159,6 +161,8 @@ def create(output):
     (report_dir / 'REPORT.md').write_text(render(report) + '\n' + text)
     if abcd is not None:
         write_abcd_report(abcd, report_dir / 'new-abcd')
+        if full_report_ready(report, abcd):
+            write_full_report(build_full_report(report, old, abcd), report_dir)
     manifest['files'] = {p.relative_to(output).as_posix(): {'sha256': file_sha(p), 'bytes': p.stat().st_size}
                          for p in sorted(output.rglob('*')) if p.is_file()}
     atomic_json(output / 'manifest.json', manifest)
@@ -205,6 +209,9 @@ def verify(directory, rescore=False):
         safe_relative(name);path = contained(directory/name, directory)
         require(path.stat().st_size == binding['bytes'] and file_sha(path) == binding['sha256'],
                 'checkpoint_file_changed:' + name)
+    summary_path = directory / 'reports/all-models.json'
+    if summary_path.is_file():
+        require(strict_json(summary_path.read_text()) == read_full_report(directory), 'checkpoint_study_summary_changed')
     old = verify_legacy(directory/'legacy', rescore=rescore)
     jobs, restores, closed, abcd_closed = 0, 0, 0, 0
     with tempfile.TemporaryDirectory(prefix='kaponir-checkpoint-read-') as temporary:
@@ -233,7 +240,7 @@ def verify(directory, rescore=False):
     return {'files': len(manifest['files']), 'legacy_runs': old['runs'], 'closed_new_scheme_models': closed,
             'closed_new_abcd_models': abcd_closed,
             'verified_application_jobs': jobs, 'exact_roundtrips': restores,
-            'new_inference_calls': 0, 'rescored': rescore}
+            'all_model_summary_verified': summary_path.is_file(), 'new_inference_calls': 0, 'rescored': rescore}
 
 
 def main():
