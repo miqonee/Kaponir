@@ -16,12 +16,13 @@ APPLICATIONS_CLOSED = {'applications_finished', 'applications_finished_with_sour
 NO_QUALITY_RESULT = {'failed', 'unavailable_context'}
 REASONS = {
     'native_thinking_off_not_supported': 'Модель требует рассуждений в шести схемах',
+    'document_fragment_limit': 'Достигнут предел числа фрагментов',
     'missing_generation_outcomes': 'В A–D есть цели без ответа',
 }
 SUMMARY_FIELDS = (
     'model', 'scheme_profile', 'schemes_measured', 'scheme_reason', 'documents_processed', 'private_found', 'private_added',
     'private_full', 'private_partial', 'private_untouched', 'public_lost', 'public_replacements',
-    'scheme_choices', 'scheme_request_errors', 'scheme_http_minutes', 'scheme_peak_rss_gib',
+    'scheme_choices', 'scheme_resource_scope', 'scheme_request_errors', 'scheme_http_minutes', 'scheme_peak_rss_gib',
     'scheme_reasoning_responses', 'scheme_reasoning_response_samples', 'scheme_truncated_responses',
     'scheme_finish_reason_samples',
     'abcd_profile', 'abcd_variants_with_all_responses', 'abcd_responses', 'abcd_reason',
@@ -59,6 +60,19 @@ def scheme_choices(rows):
             if not any(dominates(other, axes) for other in candidates.values())]
 
 
+def scheme_resources(run, scope):
+    details = run['details']
+    peak = next((run.get(key) for key in ('full_session_peak_rss_bytes', 'model_sampled_peak_rss_bytes',
+                 'model_snapshot_peak_rss_bytes') if run.get(key) is not None), None)
+    return dict(scheme_resource_scope=scope, scheme_request_errors=details['requests_with_recorded_error'],
+        scheme_reasoning_responses=details.get('reasoning_responses'),
+        scheme_reasoning_response_samples=details.get('reasoning_response_samples'),
+        scheme_truncated_responses=details.get('truncated_responses'),
+        scheme_finish_reason_samples=details.get('finish_reason_samples'),
+        scheme_http_minutes=round(run['http_seconds_known'] / 60, 2) if run['http_seconds_complete'] else None,
+        scheme_peak_rss_gib=round(peak / 2**30, 2) if peak is not None else None)
+
+
 def scheme_summary(rows, run, unavailable):
     summary = {'schemes_measured': sum(row['measurement'] is not None for row in rows),
                'scheme_profile': rows[0]['group'], 'scheme_choices': scheme_choices(rows)}
@@ -67,26 +81,20 @@ def scheme_summary(rows, run, unavailable):
         require(unavailable and unavailable['status'] in NO_QUALITY_RESULT
                 and summary['schemes_measured'] == 0, 'study_scheme_run_unaccounted')
         summary['scheme_reason'] = unavailable.get('reason') or unavailable['status']
+        attempt = unavailable.get('failed_attempt')
+        if attempt is not None:
+            summary.update(scheme_resources(attempt, 'failed_attempt'))
         return summary
     require(summary['schemes_measured'] == len(METHODS) and all(row['application'] for row in rows),
             'study_scheme_application_incomplete')
     outcome = union['application']
-    details = run['details']
-    peak = next((run.get(key) for key in ('full_session_peak_rss_bytes', 'model_sampled_peak_rss_bytes',
-                 'model_snapshot_peak_rss_bytes') if run.get(key) is not None), None)
-    summary.update(documents_processed=details['documents_processed'],
+    summary.update(documents_processed=run['details']['documents_processed'],
         private_found=union['measurement']['quality']['proposal_matches'],
         private_added=union['details']['new_private_over_source_pool'],
         private_full=outcome['private_spans_fully_covered'], private_partial=outcome['private_spans_partly_covered'],
         private_untouched=outcome['private_spans_untouched'], public_lost=outcome['public_occurrences_lost'],
         public_replacements=outcome['public_reference_replacements'],
-        scheme_request_errors=details['requests_with_recorded_error'],
-        scheme_reasoning_responses=details.get('reasoning_responses'),
-        scheme_reasoning_response_samples=details.get('reasoning_response_samples'),
-        scheme_truncated_responses=details.get('truncated_responses'),
-        scheme_finish_reason_samples=details.get('finish_reason_samples'),
-        scheme_http_minutes=round(run['http_seconds_known'] / 60, 2) if run['http_seconds_complete'] else None,
-        scheme_peak_rss_gib=round(peak / 2**30, 2) if peak is not None else None)
+        **scheme_resources(run, 'full_run'))
     return summary
 
 
@@ -192,10 +200,12 @@ def render(report):
     lines += ['', '## Запросы и ресурсы', '',
         'Время HTTP включает запросы с повторами, когда они были записаны. RSS показывает наблюдавшийся '
         'пиковый объём оперативной памяти модели. Ресурсы приведены для подбора оборудования. '
+        'Для строк с пометкой «попытка» показаны затраты до остановки. '
         'Доли ответов с рассуждением и усечённых ответов рассчитаны по сохранённой телеметрии.', '']
     lines += table(['Модель', 'Документов', 'Ошибок запросов схем', 'Ошибок запросов A–D',
         'Шесть схем, мин', 'A–D, мин', 'RSS схем, ГиБ', 'RSS A–D, ГиБ', 'Ответов схем с рассуждением', 'Ответов схем усечено'], [
-        [row['model'], *(row.get(key) for key in ('documents_processed', 'scheme_request_errors', 'abcd_request_errors',
+        [row['model'] + ' (попытка)' if row.get('scheme_resource_scope') == 'failed_attempt' else row['model'],
+            *(row.get(key) for key in ('documents_processed', 'scheme_request_errors', 'abcd_request_errors',
             'scheme_http_minutes', 'abcd_http_minutes', 'scheme_peak_rss_gib', 'abcd_peak_rss_gib')),
             rate(row.get('scheme_reasoning_responses'), row.get('scheme_reasoning_response_samples')),
             rate(row.get('scheme_truncated_responses'), row.get('scheme_finish_reason_samples'))]

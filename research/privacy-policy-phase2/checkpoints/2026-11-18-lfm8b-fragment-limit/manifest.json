@@ -1,0 +1,52 @@
+{
+  "archive": "evidence.tar.gz",
+  "archive_bytes": 1181175,
+  "archive_sha256": "a1ef3482717ca5657380b1705e7885b95a54e7313f35456c6bfe419b1b5a68bb",
+  "at_utc": "2026-11-18T15:37:14Z",
+  "checkpoint_manifest_sha256": "f0cf89a94b0f3038a59960769b91156ad5134ff23ff24481cc8cab54268646a6",
+  "documents_with_complete_discovery": 0,
+  "files": {
+    "new-models-reference-v2/runs/lfm2.5-8b-a1b/detectors.json": {
+      "bytes": 42922,
+      "sha256": "545e0a5090b1b325af7ef75308fe58c40562fc24af94c084c462346f8ecea8a5"
+    },
+    "new-models-reference-v2/runs/lfm2.5-8b-a1b/execution.json": {
+      "bytes": 6946,
+      "sha256": "0d84f42523bd3148f21910937847e837c12c309717fcb687c83f5093719deaaf"
+    },
+    "new-models-reference-v2/runs/lfm2.5-8b-a1b/result.json": {
+      "bytes": 1948927,
+      "sha256": "5936c8b93b855bf9e8e8e79a08fc31472ffd51f4a7ce8971fceb2e758c1e6e34"
+    },
+    "new-models-reference-v2/runs/lfm2.5-8b-a1b/scheme-plan.json": {
+      "bytes": 6192,
+      "sha256": "9742052b1ea227fdbbb748e877a551002f53ddd4b0f9157301f6c25b799efee6"
+    },
+    "new-models-reference-v2/runs/lfm2.5-8b-a1b/transports.json": {
+      "bytes": 7334079,
+      "sha256": "4e350f784a400b17fd390c65c6b88a9dcd2a6d416bf97856a67d5797d8c308c5"
+    },
+    "new-models-reference-v2/runs/lfm2.5-8b-a1b/verification.json": {
+      "bytes": 4613,
+      "sha256": "fd411f079cdcae4644288223a1b57b98b3d5a41641c98c221a10f85e1026db89"
+    }
+  },
+  "fragment_response_cache_hits": 16,
+  "full_session_peak_rss_bytes": 9245532160,
+  "http_seconds": 42232.72536529781,
+  "logical_fragment_visits": 256,
+  "model": "lfm2.5-8b-a1b",
+  "reason": "document_fragment_limit",
+  "request_errors": 207,
+  "requested_reasoning": "off",
+  "rescore_inference_calls": 0,
+  "responses_received": 240,
+  "responses_with_reasoning": 240,
+  "runtime_cleanup_verified": true,
+  "runtime_seconds": 42373.775770284,
+  "series": "new-models-reference-v2",
+  "status": "failed",
+  "terminal_result_sha256": "5936c8b93b855bf9e8e8e79a08fc31472ffd51f4a7ce8971fceb2e758c1e6e34",
+  "truncated_responses": 207,
+  "version": 1
+}

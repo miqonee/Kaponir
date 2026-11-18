@@ -62,11 +62,14 @@ def measurement_details(state):
             'private_not_confirmed': quality['expected'] - quality['confirmed_matches'],
             'new_private_over_source_pool': len((proposed - pool) & set(expected)),
             'documents': documents}
+    return {'documents_processed': len(DOCUMENTS), 'methods': methods, **request_details(state)}
+
+
+def request_details(state):
     calls = state.get('calls', [])
     reasoning = [row['reasoning_text_chars'] for row in calls if type(row.get('reasoning_text_chars')) is int]
     finishes = [row['finish_reason'] for row in calls if isinstance(row.get('finish_reason'), str)]
-    return {'documents_processed': len(DOCUMENTS), 'methods': methods,
-        'requests_with_recorded_error': sum(bool(row.get('error')) for row in calls),
+    return {'requests_with_recorded_error': sum(bool(row.get('error')) for row in calls),
         'request_errors_by_code': {code: sum(row.get('error') == code for row in calls)
             for code in sorted({row['error'] for row in calls if row.get('error')})},
         'reasoning_responses': sum(chars > 0 for chars in reasoning) if reasoning else None,
@@ -84,6 +87,14 @@ def saved_run_details(run):
     return measurement_details(strict_json(raw.decode('utf-8')))
 
 
+def with_execution_resources(run, execution):
+    peaks = [sample.get('roles', {}).get('model', {}).get('observed_peak_rss_bytes')
+             for sample in execution['sampled_resources']]
+    peaks.append(run['model_sampled_peak_rss_bytes'])
+    return dict(run, execution_wall_seconds=execution['execution_wall_seconds'],
+        full_session_peak_rss_bytes=max((value for value in peaks if type(value) is int), default=None))
+
+
 def progress_counts(study, model, receipt):
     """Describe partial work without assigning an incomplete quality score."""
     output = study / 'runs' / model
@@ -92,9 +103,22 @@ def progress_counts(study, model, receipt):
     finished = {name for name in DOCUMENTS if 'discovery:' + name in data.get('stages', {})}
     attempted = finished | (set(data.get('discovery_progress', {})) & set(DOCUMENTS))
     requests = strict_json(journal.read_text())['requests'] if journal.is_file() else []
-    return {'documents_attempted': len(attempted), 'documents_discovery_finished': len(finished),
+    progress = {'documents_attempted': len(attempted), 'documents_discovery_finished': len(finished),
             'responses_received': sum('raw_transport' in row for row in requests),
             'status': receipt.get('status', 'pending'), 'reason': receipt.get('reason')}
+    execution = data.get('research_execution', {})
+    if (progress['status'] == data.get('status') == 'failed' and requests
+            and execution.get('runtime_cleanup_verified') is True
+            and data.get('transport_journal_sha256') == file_sha(journal)):
+        run = with_execution_resources(legacy_summary(result), execution)
+        require(run['model'] == model, 'comparison_failed_attempt_model_mismatch')
+        progress['reason'] = data.get('error') or progress['reason']
+        progress['failed_attempt'] = {key: run[key] for key in ('status', 'result_sha256', 'calls',
+            'http_seconds_known', 'http_seconds_complete', 'execution_wall_seconds', 'full_session_peak_rss_bytes',
+            'model_sampled_peak_rss_bytes', 'model_snapshot_peak_rss_bytes', 'weight_bytes',
+            'common_off_supported_by_observed_template')}
+        progress['failed_attempt']['details'] = request_details(data)
+    return progress
 
 
 def application_summary(job, receipt, measured, binary_sha256, *, phase='six_scheme_calibration'):
@@ -213,12 +237,7 @@ def build(study, old_applications, new_applications):
                     'comparison_model_identity_or_completeness_changed')
             execution = strict_json(path.read_text())['research_execution']
             require(execution['runtime_cleanup_verified'] is True, 'comparison_runtime_cleanup_missing')
-            peaks = [sample.get('roles', {}).get('model', {}).get('observed_peak_rss_bytes')
-                     for sample in execution['sampled_resources']]
-            peaks.append(measured['model_sampled_peak_rss_bytes'])
-            measured = dict(measured, execution_wall_seconds=execution['execution_wall_seconds'],
-                full_session_peak_rss_bytes=max((value for value in peaks if type(value) is int), default=None))
-            runs[model] = measured
+            runs[model] = with_execution_resources(measured, execution)
         except (ValueError, KeyError, TypeError, OSError) as error:
             rejected.append({'model': model, 'phase': 'measurement', 'reason': str(error)[:200]})
     applications, application_pending, seen = {}, [], set()
@@ -343,9 +362,13 @@ def render(report):
                 str(detail.get('requested_json') or '—') + ' → ' + str(detail.get('effective_json') or '—')])
         else:
             status = ('N/A: thinking off не поддерживается' if progress.get('reason') ==
-                      'native_thinking_off_not_supported' else 'v1 остановлена'
+                      'native_thinking_off_not_supported' else 'достигнут предел фрагментов'
+                      if progress.get('reason') == 'document_fragment_limit' else 'v1 остановлена'
                       if progress.get('status') == 'superseded' else STATUS.get(progress.get('status', 'pending'), 'ожидает'))
-            volume.append([model, status, '—', '—', progress.get('responses_received'), None, '—'])
+            detail = progress.get('failed_attempt', {}).get('details', {})
+            formats = str(detail.get('requested_json') or '—') + ' → ' + str(detail.get('effective_json') or '—')
+            volume.append([model, status, '—', '—', progress.get('responses_received'),
+                           detail.get('requests_with_recorded_error'), formats if detail else None])
     lines += table(['Модель', 'Источник / статус', 'Документов полного результата', 'Схем',
                     'HTTP-ответов / попыток в архиве', 'Запросов с записанной ошибкой', 'JSON: запрошен → выбран'], volume)
     lines += ['', 'У незавершённых моделей качество не оценивается. «HTTP» у архивов — записанные '
@@ -353,9 +376,8 @@ def render(report):
         'N/A до корпуса означает 0 документов и 0 измерительных запросов, а не нулевое качество.', '']
     for model, progress in pending.items():
         if progress.get('documents_attempted'):
-            lines += [f"Текущий {model}: начато документов {progress['documents_attempted']}/3; "
-                f"этап поиска завершён в {progress['documents_discovery_finished']}/3. "
-                'Полный результат шести схем ещё не готов.', '']
+            lines += [f"У {model} начато документов {progress['documents_attempted']}/3. "
+                f"Поиск завершён в {progress['documents_discovery_finished']}/3.", '']
     baseline = report.get('product_baseline')
     if baseline:
         lines += ['Обычные действующие детекторы во всех сохранённых применениях: '
@@ -411,11 +433,12 @@ def render(report):
         'Ресурсы не входят в оценку качества.', '']
     values = []
     for model in dict.fromkeys(row['model'] for row in report['rows']):
-        run = runs.get(model)
+        attempt = pending.get(model, {}).get('failed_attempt')
+        run = runs.get(model) or attempt
         details = run['details'] if run else {}
         reasoning = details.get('reasoning_response_samples', 0)
         finishes = details.get('finish_reason_samples', 0)
-        values.append([model, run['calls'] if run else None,
+        values.append([model + ' (попытка)' if attempt else model, run['calls'] if run else None,
             None if run is None else round(run['http_seconds_known']/60, 2),
             None if run is None else run['http_seconds_complete'],
             None if not run or run.get('execution_wall_seconds') is None else round(run['execution_wall_seconds']/60, 2),

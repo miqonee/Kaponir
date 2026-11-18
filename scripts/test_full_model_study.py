@@ -65,6 +65,19 @@ class FullModelStudyTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'ABCD_application_incomplete'):
             build(schemes, old, abcd)
 
+    def test_failed_scheme_attempt_retains_resources_with_empty_quality(self):
+        schemes, old, abcd = self.fixture()
+        missing = next(row for row in schemes['pending_models'] if row['model'] == 'lfm2.5-2.6b')
+        missing.update(reason='document_fragment_limit', failed_attempt={
+            'http_seconds_known': 120, 'http_seconds_complete': True,
+            'full_session_peak_rss_bytes': 2**30, 'details': {'requests_with_recorded_error': 4}})
+        models = build(schemes, old, abcd)['models']
+        row = next(model for model in models if model['model'] == missing['model'])
+        self.assertEqual(row['schemes_measured'], 0)
+        self.assertNotIn('private_found', row)
+        self.assertEqual((row['scheme_resource_scope'], row['scheme_request_errors'], row['scheme_http_minutes']),
+                         ('failed_attempt', 4, 2.0))
+
 
 if __name__ == '__main__':
     unittest.main()
