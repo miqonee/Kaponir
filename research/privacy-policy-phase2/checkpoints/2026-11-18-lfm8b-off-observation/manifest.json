@@ -1,0 +1,41 @@
+{
+  "archive": "evidence.tar.gz",
+  "archive_bytes": 418480,
+  "archive_sha256": "09554a580d00fe9b54e9903431e02ef65d3f2a5c344931b39d433d7f670d7d15",
+  "captured_at_utc": "2026-11-18T08:37:44Z",
+  "files": {
+    "native-template-probe.json": {
+      "bytes": 491,
+      "sha256": "a634fe631075e49d0094b69a936f1d813bd43f724e85dc957a8f644c4c61459d"
+    },
+    "scheme-plan.json": {
+      "bytes": 6192,
+      "sha256": "9742052b1ea227fdbbb748e877a551002f53ddd4b0f9157301f6c25b799efee6"
+    },
+    "transports-prefix.json": {
+      "bytes": 2525880,
+      "sha256": "f976e21c07ce63c23c97c0183e00a1a5b029b2142f5c5cf0d22fafbdc92f39d8"
+    },
+    "verification.json": {
+      "bytes": 4613,
+      "sha256": "fd411f079cdcae4644288223a1b57b98b3d5a41641c98c221a10f85e1026db89"
+    }
+  },
+  "finish_reasons": {
+    "length": 82,
+    "stop": 18
+  },
+  "model": "lfm2.5-8b-a1b",
+  "model_generation_calls_for_export": 0,
+  "native_generation_seconds": 16633.982,
+  "native_prompt_seconds": 845.287,
+  "native_template_forced_prefix": false,
+  "not_a_resume_source": true,
+  "raw_transport_outcomes_observed": 100,
+  "registered_output_tokens": 1600,
+  "requested_reasoning": "off",
+  "responses_with_reasoning": 100,
+  "runtime_reasoning_flag": "off",
+  "status": "diagnostic_prefix_active_run",
+  "version": 1
+}
