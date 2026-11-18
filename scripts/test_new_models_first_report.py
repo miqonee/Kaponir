@@ -168,7 +168,8 @@ class AppliedComparisonTests(unittest.TestCase):
             'decisions': {'1': {'valid': True, 'verdict': 'keep', 'kind': candidates[1].kind,
                                 'scope': candidates[1].scope}}}
         state = {'candidate_pool': [candidates[0].json()], 'stages': {'point': stage},
-            'calls': [{'error': 'JSONDecodeError'}, {'finish_reason': 'stop'}],
+            'calls': [{'error': 'JSONDecodeError'}, {'finish_reason': 'stop', 'reasoning_text_chars': 0},
+                      {'finish_reason': 'length', 'reasoning_text_chars': 123}],
             'signature': {'settings': {'response_format': 'auto'}}, 'structured_output': 'grammar'}
         details = measurement_details(state)
         row = details['methods']['point']
@@ -177,6 +178,8 @@ class AppliedComparisonTests(unittest.TestCase):
         self.assertEqual(row['private_not_confirmed'], 91)
         self.assertEqual(sum(doc['quality']['proposal_matches'] for doc in row['documents']), 3)
         self.assertEqual(details['requests_with_recorded_error'], 1)
+        self.assertEqual((details['reasoning_responses'], details['reasoning_response_samples']), (1, 2))
+        self.assertEqual((details['truncated_responses'], details['finish_reason_samples']), (1, 2))
         self.assertEqual(details['requested_json'], 'auto')
         self.assertEqual(details['effective_json'], 'grammar')
 

@@ -63,10 +63,16 @@ def measurement_details(state):
             'new_private_over_source_pool': len((proposed - pool) & set(expected)),
             'documents': documents}
     calls = state.get('calls', [])
+    reasoning = [row['reasoning_text_chars'] for row in calls if type(row.get('reasoning_text_chars')) is int]
+    finishes = [row['finish_reason'] for row in calls if isinstance(row.get('finish_reason'), str)]
     return {'documents_processed': len(DOCUMENTS), 'methods': methods,
         'requests_with_recorded_error': sum(bool(row.get('error')) for row in calls),
         'request_errors_by_code': {code: sum(row.get('error') == code for row in calls)
             for code in sorted({row['error'] for row in calls if row.get('error')})},
+        'reasoning_responses': sum(chars > 0 for chars in reasoning) if reasoning else None,
+        'reasoning_response_samples': len(reasoning),
+        'truncated_responses': finishes.count('length') if finishes else None,
+        'finish_reason_samples': len(finishes),
         'requested_json': state['signature']['settings'].get('response_format'),
         'effective_json': state.get('structured_output')}
 
@@ -406,6 +412,9 @@ def render(report):
     values = []
     for model in dict.fromkeys(row['model'] for row in report['rows']):
         run = runs.get(model)
+        details = run['details'] if run else {}
+        reasoning = details.get('reasoning_response_samples', 0)
+        finishes = details.get('finish_reason_samples', 0)
         values.append([model, run['calls'] if run else None,
             None if run is None else round(run['http_seconds_known']/60, 2),
             None if run is None else run['http_seconds_complete'],
@@ -415,12 +424,15 @@ def render(report):
                 round((run['model_sampled_peak_rss_bytes'] or run['model_snapshot_peak_rss_bytes'])/2**30, 2),
             None if not run else round(run['weight_bytes']/2**30, 2),
             None if not run or run.get('common_off_supported_by_observed_template') is None else
-                not run['common_off_supported_by_observed_template']])
+                not run['common_off_supported_by_observed_template'],
+            f"{details['reasoning_responses']}/{reasoning}" if reasoning else None,
+            f"{details['truncated_responses']}/{finishes}" if finishes else None])
     lines += table(['Модель', 'HTTP-запросов', 'HTTP, мин', 'Полный замер HTTP', 'Цикл runtime, мин',
-                    'Пик всей сессии, GiB', 'Запросный RSS, GiB', 'GGUF, GiB', 'Think-префикс при off'], values)
-    lines += ['', 'Последняя колонка описывает только наблюдённый шаблон при запросе off: '
-        'True — префикс рассуждения остался, False — отсутствует, «—» — отдельного наблюдения нет. '
-        'Переданный флаг не гарантирует фактическое отключение reasoning.', '']
+                    'Пик всей сессии, GiB', 'Запросный RSS, GiB', 'GGUF, GiB', 'Think-префикс при off',
+                    'Ответов с рассуждением', 'Ответов усечено'], values)
+    lines += ['', 'Префикс относится к сформированному запросу. Две последние колонки '
+        'считают признаки в ответах. Знаменатель показывает число ответов, для которых '
+        'сохранён соответствующий признак. Прочерк обозначает отсутствие замера.', '']
     if report['rejected_inputs']:
         lines += ['', '## Входы, требующие проверки', '']
         lines += ['- ' + str(row) for row in report['rejected_inputs']]
