@@ -18,6 +18,10 @@ REASONS = {
     'native_thinking_off_not_supported': 'Модель требует рассуждений в шести схемах',
     'document_fragment_limit': 'Достигнут предел числа фрагментов',
     'missing_generation_outcomes': 'В A–D есть цели без ответа',
+    'unique_observed_quality_frontier_member': 'Преимущество по показателям качества',
+    'unresolved_quality_tradeoffs': 'Разные компромиссы по ошибкам и ручной проверке',
+    'equivalent_quality': 'Равные показатели качества',
+    'all_review_is_not_automation': 'Требуется разбор всех целей',
 }
 SUMMARY_FIELDS = (
     'model', 'scheme_profile', 'schemes_measured', 'scheme_reason', 'documents_processed', 'private_found', 'private_added',
@@ -27,7 +31,8 @@ SUMMARY_FIELDS = (
     'scheme_finish_reason_samples',
     'abcd_profile', 'abcd_variants_with_all_responses', 'abcd_responses', 'abcd_reason',
     'd_private_mask', 'd_private_keep', 'd_public_mask', 'd_review', 'd_inapplicable', 'd_missing',
-    'abcd_choices', 'abcd_request_errors', 'abcd_http_minutes', 'abcd_peak_rss_gib',
+    'abcd_choices', 'abcd_preferred', 'abcd_selection_reason',
+    'abcd_request_errors', 'abcd_http_minutes', 'abcd_peak_rss_gib',
 )
 
 
@@ -116,8 +121,11 @@ def abcd_summary(rows, profile):
     if observed < 128:
         summary['abcd_reason'] = 'missing_generation_outcomes'
     else:
-        frontier = compare_quality(rows)['frontier']
-        summary['abcd_choices'] = [row['variant'] for row in rows if row['row_id'] in frontier]
+        comparison = compare_quality(rows)
+        by_row_id = {row['row_id']: row['variant'] for row in rows}
+        summary['abcd_choices'] = [by_row_id[row_id] for row_id in comparison['frontier']]
+        summary['abcd_preferred'] = by_row_id.get(comparison['winner'])
+        summary['abcd_selection_reason'] = comparison['reason']
     decision = rows[-1]
     delivered = decision['outcome_evidence']
     summary['d_missing'] = delivered['unobserved_scored_cases']
@@ -189,13 +197,16 @@ def render(report):
         'Полные таблицы схем и вариантов A–D лежат рядом со сводкой в пакете исследования.', '']
     lines += table(['Модель', 'Схем', 'Найдено (+новых)', 'Полностью скрыто', 'Публичных потерь',
         'Целей с ответом A–D', 'D приватных MASK', 'D публичных MASK', 'D непригодных', 'D без ответа'], values)
-    lines += ['', '## Подходы для дальнейшей проверки', '',
-        'Варианты в строке сохраняют измеримый компромисс. Для схем сравнивается полное скрытие и сохранность открытого текста. '
+    lines += ['', '## Выбор схем и вариантов A–D', '',
+        'Для схем сравнивается полное скрытие и сохранность открытого текста. '
         'Для A–D учитываются ошибочные KEEP и MASK, ручная проверка и технические ошибки. '
-        'Неполные ответы и затраты ресурсов учитываются отдельно.', '']
-    lines += table(['Модель', 'Схемы', 'Варианты A–D', 'Ограничения'], [
-        [row['model'], ', '.join(METHOD_NAMES[key] for key in row['scheme_choices']) or None, ', '.join(row['abcd_choices']) or None,
-         ', '.join(REASONS.get(row[key], row[key]) for key in ('scheme_reason', 'abcd_reason') if row.get(key)) or None]
+        'Предпочтительный вариант для модели указан при полном наборе ответов '
+        'и преимуществе по этим критериям на контрольных целях.', '']
+    lines += table(['Модель', 'Схемы', 'Варианты A–D', 'Предпочтительный A–D', 'Основание выбора или ограничение'], [
+        [row['model'], ', '.join(METHOD_NAMES[key] for key in row['scheme_choices']) or None,
+         ', '.join(row['abcd_choices']) or None, row.get('abcd_preferred'),
+         '. '.join(REASONS.get(row[key], row[key])
+                   for key in ('abcd_selection_reason', 'scheme_reason', 'abcd_reason') if row.get(key)) or None]
         for row in report['models']])
     lines += ['', '## Запросы и ресурсы', '',
         'Время HTTP включает запросы с повторами, когда они были записаны. RSS показывает наблюдавшийся '

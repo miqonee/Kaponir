@@ -40,7 +40,11 @@ class FullModelStudyTests(unittest.TestCase):
         return schemes, old, abcd
 
     def test_summary_has_all_models_and_missing_results_are_blank(self):
-        report = build(*self.fixture())
+        schemes, old, abcd = self.fixture()
+        measured = abcd['runs'][0]
+        measured['rows'] = deepcopy(measured['rows'])
+        measured['rows'][-1]['quality'].update(private_mask=16, private_keep=0, explicit_review=0)
+        report = build(schemes, old, abcd)
         with TemporaryDirectory() as temporary:
             output = Path(temporary) / 'report'
             write_report(report, output)
@@ -52,7 +56,11 @@ class FullModelStudyTests(unittest.TestCase):
         self.assertEqual(rows['lfm2.5-2.6b']['abcd_responses'], '128')
         self.assertEqual(rows['nanbeige42-3b']['d_private_mask'], '')
         self.assertEqual(rows['nanbeige42-3b']['d_missing'], '32')
+        self.assertEqual(rows['nanbeige42-3b']['abcd_preferred'], '')
         self.assertTrue(rows['gemma4-e4b-qat']['scheme_choices'])
+        self.assertEqual(rows['gemma4-e4b-qat']['abcd_preferred'], '')
+        self.assertEqual(rows['gemma4-e4b-qat']['abcd_selection_reason'], 'unresolved_quality_tradeoffs')
+        self.assertEqual(rows[MODELS[0]]['abcd_preferred'], 'D')
         self.assertEqual(rows[MODELS[0]]['private_found'], '71')
 
     def test_terminal_inference_still_requires_finished_application_checks(self):
