@@ -111,8 +111,11 @@ def build(study, applications):
 
 def render(report):
     rows = report['rows']
+    all_observed = sum(all(row['outcome_evidence']['all_generation_outcomes_observed'] for row in run['rows'])
+                       for run in report['runs'])
     lines = ['# Полный A/B/C/D новых моделей', '',
-        f"Полные результаты получены у {report['models_completed']} из 8 моделей. "
+        f"Завершены все четыре варианта у {report['models_completed']} из 8 моделей. "
+        f"Ответы на все {report['unique_cases'] * len(VARIANTS)} целей есть у {all_observed} из них. "
         f"Проверено применений {report['application_jobs_completed']} из 32, "
         f"восстановлений {report['exact_roundtrips']}.", '',
         'Каждый вариант получает те же 32 цели, поровну приватных и публичных. '
