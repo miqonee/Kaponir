@@ -25,7 +25,8 @@ python scripts/checkpoint_privacy_research.py \
 отдельно не конфиденциален. Пропущенные ответы, неверные решения, технические
 ошибки и явный ручной разбор считаются отдельно. Ресурсы имеют справочный вес.
 
-После окончания шести схем, A–D и применения через API итоговый пакет содержит
-`reports/ALL_MODELS.md` и `reports/all-models.csv` с одной строкой на модель.
+Итог сравнения опубликован в [таблице 15 моделей](../../docs/experiments/ALL_MODELS.md)
+и [CSV](../../docs/experiments/all-models.csv). В проверенном локальном пакете
+соответствующие агрегаты находятся в `reports/ALL_MODELS.md` и `reports/all-models.csv`.
 В `reports/REPORT.md` остаются результаты всех шести схем, а в `reports/new-abcd`
 и `reports/old-abcd.csv` — результаты отдельных вариантов A–D.
