@@ -30,3 +30,5 @@ python scripts/checkpoint_privacy_research.py \
 соответствующие агрегаты находятся в `reports/ALL_MODELS.md` и `reports/all-models.csv`.
 В `reports/REPORT.md` остаются результаты всех шести схем, а в `reports/new-abcd`
 и `reports/old-abcd.csv` — результаты отдельных вариантов A–D.
+
+Результаты коротких сценариев от 20 ноября, сквозные проверки, тест типов d1-3B и показатели для пересчёта рейтинга опубликованы в [дополнительном отчёте](../../docs/experiments/FOCUSED_MODEL_RESULTS.md). Там же приведена контрольная сумма локального архива первичных измерений.

@@ -1,0 +1,17 @@
+attempt,model,document,status,error,transport_status,input_tokens,thought_tokens,http_seconds,wall_seconds,peak_model_rss_gib,model_cpu_seconds,cases,correct_actions,private_cases,private_mask,private_keep,public_cases,public_mask,public_keep,technical_review,explicit_review,unattempted_cases,private_annotated,private_found,public_controls,public_proposed,other_grounded,invalid_rows,usable
+qwen4-d-off-journal,qwen3.5-4b,02-application.log,received,,200,7357,0,471.8501616200083,481.81275029695826,4.559986114501953,949.34,5,2,3,0,1,2,0,2,0,2,0,,,,,,,
+qwen4-d-off-public,qwen3.5-4b,08-public-reference.md,received,,200,2041,0,188.69718080898747,196.66990291996626,4.678318023681641,384.14,6,6,0,0,0,6,0,6,0,0,0,,,,,,,
+e2b-c-original-contract,gemma4-e2b-it-q4km,02-application.log,received,,200,2581,0,276.1813227930106,281.96942473604577,4.175769805908203,555.6,8,5,5,4,0,3,2,1,1,0,0,,,,,,,
+e2b-c-short-contract,gemma4-e2b-it-q4km,02-application.log,received,,200,2515,0,146.95819414797006,153.75022409902886,4.179496765136719,299.46,8,6,5,5,0,3,2,1,0,0,0,,,,,,,
+e4b-it-d-short-journal-1,gemma4-e4b-it-q4km,02-application.log,received,,200,1480,0,155.51663709705463,164.21466119005345,7.079322814941406,318.11,4,2,3,1,2,1,0,1,0,0,0,,,,,,,
+e4b-it-d-short-journal-2,gemma4-e4b-it-q4km,02-application.log,received,,200,1596,0,165.0084700640291,174.7656070550438,7.035392761230469,338.4,4,4,2,2,0,2,0,2,0,0,0,,,,,,,
+granite-add-control-public,granite42-3b,08-public-reference.md,received,,200,1040,0,38.38589593896177,42.898714414972346,3.890472412109375,80.77,,,,,,,,,,,,0,0,30,0,0,0,True
+granite-add-policy-public,granite42-3b,08-public-reference.md,received,,200,1138,0,42.969943978008814,48.57942606700817,3.8905258178710938,90.87,,,,,,,,,,,,0,0,30,0,0,0,True
+granite-add-control-mixed,granite42-3b,01-cost-estimate.md,received,,200,394,0,105.46527208399493,110.13156708795577,3.9051055908203125,215.03,,,,,,,,,,,,11,9,8,0,0,1,True
+granite-add-policy-mixed,granite42-3b,01-cost-estimate.md,received,,200,492,0,19.553958849050105,25.277564063027967,3.890399932861328,44.73,,,,,,,,,,,,11,0,8,0,0,0,True
+nanbeige-short-region,nanbeige42-3b,02-application.log,received,,200,789,0,113.03354663401842,118.79391583398683,4.374317169189453,231.68,,,,,,,,,,,,2,1,1,1,0,4,True
+qwen4-d-short-common,qwen3.5-4b,02-application.log,received,,200,1701,0,205.6940432979609,210.82113929098705,4.318183898925781,414.21,5,4,3,2,1,2,0,2,0,0,0,,,,,,,
+qwen4-d-short-vendor,qwen3.5-4b,02-application.log,received,,200,1701,0,184.05509232898476,190.38062787795207,4.318122863769531,371.69,5,4,3,2,1,2,0,2,0,0,0,,,,,,,
+qwen4-d-short-bounded,qwen3.5-4b,02-application.log,received,,200,1699,255,270.4338143549976,276.44452332903165,4.284809112548828,544.27,5,5,3,3,0,2,0,2,0,0,0,,,,,,,
+e2b-c-short-exact-span,gemma4-e2b-it-q4km,02-application.log,received,,200,2548,0,180.79639038001187,184.81397442502202,4.155300140380859,364.01,8,6,5,4,1,3,1,2,0,0,0,,,,,,,
+e4b-it-d-short-bounded-journal-1,gemma4-e4b-it-q4km,02-application.log,received,,200,1482,255,208.46991074102698,214.41283057600958,7.103263854980469,420.6,4,2,3,1,2,1,0,1,0,0,0,,,,,,,
