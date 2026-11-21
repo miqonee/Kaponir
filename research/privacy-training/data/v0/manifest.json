@@ -1,0 +1,64 @@
+{
+  "offsets": "UTF-8 bytes, end exclusive",
+  "policy": "external-model-sharing-v1",
+  "prompt_sha256": "d593dbba34d1d8c503bc71b5b84a442a835d3cffe1cdc90e20fa2b71f18a7a9f",
+  "seed_sha256": {
+    "access-classification-seed.jsonl": "d002b23a092d82fd1a93ebf5566d52622f2e6dbb4f0fde80e94bc85b0803b460",
+    "annotation-seed.jsonl": "14e8e309f461b9d310fffae3ac2f0e727cd9fafff12410416d17b4b3ebda5d62"
+  },
+  "splits": {
+    "test": {
+      "by_action": {
+        "keep": 144,
+        "mask": 288,
+        "review": 12
+      },
+      "by_language": {
+        "en": 60,
+        "ru": 72
+      },
+      "by_source": {
+        "synthetic-template": 132
+      },
+      "groups": 11,
+      "records": 132,
+      "sha256": "d1946d82883de31b3c3d42cefaf6d1d683450dcb4493df6a56f31d730efea28c"
+    },
+    "train": {
+      "by_action": {
+        "keep": 491,
+        "mask": 819,
+        "review": 30
+      },
+      "by_language": {
+        "en": 205,
+        "ru": 231
+      },
+      "by_source": {
+        "synthetic-seed": 76,
+        "synthetic-template": 360
+      },
+      "groups": 52,
+      "records": 436,
+      "sha256": "6fcb1fae84094bf75b1dd2d7c93ce2fe7a408552e7f1c296ac7cd2189ff3651a"
+    },
+    "validation": {
+      "by_action": {
+        "keep": 144,
+        "mask": 204,
+        "review": 12
+      },
+      "by_language": {
+        "en": 72,
+        "ru": 48
+      },
+      "by_source": {
+        "synthetic-template": 120
+      },
+      "groups": 10,
+      "records": 120,
+      "sha256": "bc6ade220a576dfc8e0a95f839a232c5ebcb1214fd5a7c1927a50e8a4f7bf1bc"
+    }
+  },
+  "version": "v0"
+}
