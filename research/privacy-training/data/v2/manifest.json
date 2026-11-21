@@ -1,0 +1,87 @@
+{
+  "base_version": "v1",
+  "extension_sha256": "896be6e70efb7b7f1a562a42c4c096b00db2aa3aedfbf876b5edc618a9c36d7c",
+  "offsets": "UTF-8 bytes, end exclusive",
+  "policy": "external-model-sharing-v1",
+  "prompt_sha256": "d593dbba34d1d8c503bc71b5b84a442a835d3cffe1cdc90e20fa2b71f18a7a9f",
+  "seed_sha256": {
+    "access-classification-seed.jsonl": "d002b23a092d82fd1a93ebf5566d52622f2e6dbb4f0fde80e94bc85b0803b460",
+    "annotation-seed.jsonl": "14e8e309f461b9d310fffae3ac2f0e727cd9fafff12410416d17b4b3ebda5d62"
+  },
+  "splits": {
+    "test": {
+      "by_action": {
+        "keep": 167,
+        "mask": 334,
+        "review": 14
+      },
+      "by_language": {
+        "en": 82,
+        "ru": 81
+      },
+      "by_source": {
+        "synthetic-curated": 19,
+        "synthetic-template": 144
+      },
+      "contrast_sets": {
+        "format": 1,
+        "order": 12,
+        "provenance": 1,
+        "role": 1
+      },
+      "groups": 26,
+      "records": 163,
+      "sha256": "e375b7419c8bdb4e58b144c26bbcc105576ea9992233ed482d3101d662d26513"
+    },
+    "train": {
+      "by_action": {
+        "keep": 568,
+        "mask": 883,
+        "review": 33
+      },
+      "by_language": {
+        "en": 225,
+        "ru": 271
+      },
+      "by_source": {
+        "synthetic-curated": 36,
+        "synthetic-seed": 76,
+        "synthetic-template": 384
+      },
+      "contrast_sets": {
+        "format": 1,
+        "order": 27,
+        "provenance": 1,
+        "role": 1
+      },
+      "groups": 81,
+      "records": 496,
+      "sha256": "c4dcb7012e9b9d3bfb42e06fb47ec73e3916f62c5fd1d298b9f6c87a92317835"
+    },
+    "validation": {
+      "by_action": {
+        "keep": 188,
+        "mask": 234,
+        "review": 14
+      },
+      "by_language": {
+        "en": 95,
+        "ru": 54
+      },
+      "by_source": {
+        "synthetic-curated": 17,
+        "synthetic-template": 132
+      },
+      "contrast_sets": {
+        "format": 1,
+        "order": 12,
+        "provenance": 1,
+        "role": 1
+      },
+      "groups": 23,
+      "records": 149,
+      "sha256": "a54d5482b70283c2c7abbe9c6b6fc7d8a80ee18d7041b8ddf5e23baf40446a27"
+    }
+  },
+  "version": "v2"
+}

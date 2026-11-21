@@ -12,8 +12,9 @@ from synthetic_cases import synthetic_rows
 ROOT = Path(__file__).resolve().parent
 SNAPSHOT = ROOT / "data" / "v0"
 SEEDS = ROOT / "data" / "seeds"
-EXTENSIONS = {"v1": ROOT / "data" / "extensions" / "v1.jsonl"}
+VERSIONS = ("v0", "v1", "v2")
 SPLITS = ("train", "validation", "test")
+CONTRASTS = {"order", "role", "provenance", "format"}
 SHARING_ACTION = {"public": "keep", "internal": "mask", "restricted": "mask", "unknown": "review"}
 ACTIONS = {"mask", "keep", "review"}
 KINDS = {
@@ -89,11 +90,27 @@ def target_spans(row):
     ]
 
 
+def contrast_sets(rows):
+    by_id = {row["id"]: row for row in rows}
+    sets = {}
+    for row in rows:
+        if "contrast" not in row and "contrast_with" not in row:
+            continue
+        contrast, anchor_id = row.get("contrast"), row.get("contrast_with")
+        anchor = by_id.get(anchor_id)
+        if (contrast not in CONTRASTS or anchor is None or anchor is row
+                or "contrast_with" in anchor or row["group"] != anchor["group"]):
+            raise ValueError(f"{row['id']}: invalid contrast or reference outside the source group")
+        sets.setdefault((contrast, anchor_id), [anchor]).append(row)
+    return sets
+
+
 def validate(splits):
     ids, groups, texts, annotated_values = set(), {}, {}, {}
     for split, rows in splits.items():
         if not rows:
             raise ValueError(f"Empty {split} split")
+        contrast_sets(rows)
         for row in rows:
             row_id, group, original = row["id"], row["group"], row["text"]
             if row_id in ids:
@@ -127,14 +144,15 @@ def validate(splits):
 
 
 def build(version="v0"):
-    if version not in ("v0", *EXTENSIONS):
+    if version not in VERSIONS:
         raise ValueError(f"Unsupported dataset version: {version}")
     splits = {name: [] for name in SPLITS}
     for source in (seed_rows(), synthetic_rows()):
         for split, row in source:
             splits[split].append(row)
-    extension = EXTENSIONS.get(version)
-    if extension is not None:
+    version_index = VERSIONS.index(version)
+    for revision in VERSIONS[1:version_index + 1]:
+        extension = ROOT / "data" / "extensions" / f"{revision}.jsonl"
         for row in read_jsonl(extension):
             split = row.pop("split")
             if split not in splits:
@@ -147,9 +165,10 @@ def build(version="v0"):
         "seed_sha256": {path.name: sha256(path.read_bytes()).hexdigest() for path in sorted(SEEDS.glob("*.jsonl"))},
         "splits": {},
     }
-    if extension is not None:
-        manifest["base_version"] = "v0"
-        manifest["extension_sha256"] = sha256(extension.read_bytes()).hexdigest()
+    if version_index:
+        manifest["base_version"] = VERSIONS[version_index - 1]
+        path = ROOT / "data" / "extensions" / f"{version}.jsonl"
+        manifest["extension_sha256"] = sha256(path.read_bytes()).hexdigest()
     for name, rows in splits.items():
         payload = jsonl(rows)
         files[f"{name}.jsonl"] = payload
@@ -160,6 +179,9 @@ def build(version="v0"):
             "by_action": dict(Counter(span["action"] for row in rows for span in row["spans"])),
             "sha256": sha256(payload).hexdigest(),
         }
+        contrasts = contrast_sets(rows)
+        if contrasts:
+            manifest["splits"][name]["contrast_sets"] = dict(Counter(kind for kind, _ in contrasts))
     files["manifest.json"] = (json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
     return files, manifest
 
@@ -196,17 +218,42 @@ def export(directory, output):
         (output / name).write_bytes(jsonl(records))
 
 
+def score_contrasts(rows, predictions):
+    sets = contrast_sets(rows)
+    if not sets:
+        raise ValueError("This split contains no annotated contrast sets")
+    expected = {row["id"]: sorted(dumps(s) for s in target_spans(row)) for row in rows}
+    correct = {}
+    for prediction in predictions:
+        row_id = prediction["id"]
+        if row_id not in expected or row_id in correct:
+            raise ValueError(f"Unknown or duplicate prediction ID: {row_id}")
+        spans = prediction.get("spans")
+        correct[row_id] = isinstance(spans, list) and sorted(map(dumps, spans)) == expected[row_id]
+    scores = {}
+    for (contrast, _), members in sets.items():
+        score = scores.setdefault(contrast, {"correct": 0, "total": 0})
+        score["total"] += 1
+        if all(correct.get(row["id"], False) for row in members):
+            score["correct"] += 1
+    return scores
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     build_command = commands.add_parser("build", help="regenerate a snapshot from the repository sources")
-    build_command.add_argument("--version", choices=("v0", *EXTENSIONS), default="v0")
+    build_command.add_argument("--version", choices=VERSIONS, default="v0")
     build_command.add_argument("--output", type=Path)
     check_command = commands.add_parser("check", help="verify split isolation and snapshot bytes")
     check_command.add_argument("--data", type=Path, default=SNAPSHOT)
     export_command = commands.add_parser("export", help="write conversational SFT data and unlabeled test inputs")
     export_command.add_argument("--data", type=Path, default=SNAPSHOT)
     export_command.add_argument("--output", type=Path, required=True)
+    score_command = commands.add_parser("score-contrasts", help="score complete sets of related examples")
+    score_command.add_argument("--data", type=Path, default=ROOT / "data" / "v2")
+    score_command.add_argument("--split", choices=SPLITS, default="test")
+    score_command.add_argument("--predictions", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "build":
         files, manifest = build(args.version)
@@ -216,6 +263,11 @@ def main():
             (output / filename).write_bytes(content)
     else:
         manifest = check_snapshot(args.data)
+        if args.command == "score-contrasts":
+            rows = read_jsonl(args.data / f"{args.split}.jsonl")
+            scores = score_contrasts(rows, read_jsonl(args.predictions))
+            print(json.dumps(scores, sort_keys=True))
+            return
         if args.command == "export":
             # An export has different schemas. Protect the canonical snapshot and existing runs.
             args.output.mkdir(parents=True, exist_ok=False)
