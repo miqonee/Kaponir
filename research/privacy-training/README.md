@@ -14,13 +14,45 @@
 
 Оригиналы 76 ручных примеров сохранены в [разметке значений](data/seeds/annotation-seed.jsonl) и [сценариях раскрытия](data/seeds/access-classification-seed.jsonl). Остальные фрагменты воспроизводятся из [синтетических шаблонов](synthetic_cases.py). [Манифест](data/v0/manifest.json) фиксирует SHA-256, состав частей и число меток. `validation` и `test` содержат отдельные шаблоны. Варианты одного шаблона остаются в одной части.
 
+## Расширение v1
+
+К v0 добавлены 48 отдельно составленных синтетических фрагментов — 26 в `train`, 10 в `validation` и 12 в `test`. В новых случаях есть фрагменты с пустым ответом, IPv4 с префиксом, IPv6 с портом и зоной, закрытые имена модулей, вложенный JSON, неодинаковые пробелы в суммах и значения, которые входят в другие строки как префикс. [Исходная разметка дополнений](data/extensions/v1.jsonl)
+
+| Часть | Фрагменты v1 |
+|---|---:|
+| [Train](data/v1/train.jsonl) | 462 |
+| [Validation](data/v1/validation.jsonl) | 130 |
+| [Test](data/v1/test.jsonl) | 144 |
+
+В [манифесте v1](data/v1/manifest.json) записаны хеши частей, исходных примеров и дополнения. В `test` есть 305 приватных вхождений, 154 публичных контроля и 13 случаев `review`.
+
+## Пример разметки
+
+Этот фрагмент `annotation-seed/seed-003` есть в обеих версиях.
+
+```text
+Public catalog price for the standard package: USD 1,870.00.
+Confidential negotiated amount for a separate support agreement: USD 1,870.00.
+```
+
+В эталонном ответе решение размечено отдельно для каждого вхождения.
+
+```json
+{"spans":[
+  {"value":"USD 1,870.00","kind":"AMOUNT","action":"keep","occurrence":1},
+  {"value":"USD 1,870.00","kind":"AMOUNT","action":"mask","occurrence":2}
+]}
+```
+
+## Проверка и экспорт
+
 Команды выполняются из корня репозитория с Python 3.10 или новее.
 
 ```sh
-python3 research/privacy-training/dataset.py check
-python3 research/privacy-training/dataset.py export --output artifacts/privacy-training/sft-v0
+python3 research/privacy-training/dataset.py check --data research/privacy-training/data/v1
+python3 research/privacy-training/dataset.py export --data research/privacy-training/data/v1 --output artifacts/privacy-training/sft-v1
 ```
 
-Проверка сверяет байтовые границы, преобразование каждой метки в точное вхождение, отсутствие пересечений групп между частями и идентичность снимка исходникам. Экспорт создаёт `train.jsonl` и `validation.jsonl` в диалоговом формате `prompt`/`completion` для TRL. `test-inputs.jsonl` содержит только запросы. Эталон теста остаётся в канонической разметке.
+Проверка сверяет байтовые границы, преобразование каждой метки в точное вхождение, отсутствие пересечений групп между частями и идентичность снимка исходникам. Экспорт создаёт `train.jsonl` и `validation.jsonl` в диалоговом формате `prompt`/`completion` для TRL. `test-inputs.jsonl` содержит только запросы. Эталон теста остаётся в канонической разметке. Для повторной сборки можно использовать `dataset.py build --version v1`.
 
 [План обучения и проверки](TRAINING_PLAN.md) содержит параметры для RTX 4080 Laptop и критерии сравнения. [Отчёты](reports/README.md) содержат зафиксированную исходную точку и формат хранения итогов.

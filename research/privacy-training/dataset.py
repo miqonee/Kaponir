@@ -12,6 +12,7 @@ from synthetic_cases import synthetic_rows
 ROOT = Path(__file__).resolve().parent
 SNAPSHOT = ROOT / "data" / "v0"
 SEEDS = ROOT / "data" / "seeds"
+EXTENSIONS = {"v1": ROOT / "data" / "extensions" / "v1.jsonl"}
 SPLITS = ("train", "validation", "test")
 SHARING_ACTION = {"public": "keep", "internal": "mask", "restricted": "mask", "unknown": "review"}
 ACTIONS = {"mask", "keep", "review"}
@@ -102,7 +103,7 @@ def validate(splits):
                 raise ValueError(f"{row_id}: source or template group crosses data splits")
             if row["language"] not in {"ru", "en"} or not original:
                 raise ValueError(f"{row_id}: invalid source metadata")
-            if row["source"] not in {"synthetic-template", "synthetic-seed"}:
+            if row["source"] not in {"synthetic-template", "synthetic-seed", "synthetic-curated"}:
                 raise ValueError(f"{row_id}: expected a synthetic source")
             if row["format"] == "json":
                 json.loads(original)
@@ -125,18 +126,30 @@ def validate(splits):
             raise ValueError(f"A protected or uncertain synthetic value crosses splits: {value!r}")
 
 
-def build():
+def build(version="v0"):
+    if version not in ("v0", *EXTENSIONS):
+        raise ValueError(f"Unsupported dataset version: {version}")
     splits = {name: [] for name in SPLITS}
     for source in (seed_rows(), synthetic_rows()):
         for split, row in source:
             splits[split].append(row)
+    extension = EXTENSIONS.get(version)
+    if extension is not None:
+        for row in read_jsonl(extension):
+            split = row.pop("split")
+            if split not in splits:
+                raise ValueError(f"{row['id']}: unknown split {split}")
+            splits[split].append(row)
     validate(splits)
     files, manifest = {}, {
-        "version": "v0", "policy": "external-model-sharing-v1", "offsets": "UTF-8 bytes, end exclusive",
+        "version": version, "policy": "external-model-sharing-v1", "offsets": "UTF-8 bytes, end exclusive",
         "prompt_sha256": sha256(SYSTEM.encode("utf-8")).hexdigest(),
         "seed_sha256": {path.name: sha256(path.read_bytes()).hexdigest() for path in sorted(SEEDS.glob("*.jsonl"))},
         "splits": {},
     }
+    if extension is not None:
+        manifest["base_version"] = "v0"
+        manifest["extension_sha256"] = sha256(extension.read_bytes()).hexdigest()
     for name, rows in splits.items():
         payload = jsonl(rows)
         files[f"{name}.jsonl"] = payload
@@ -152,7 +165,8 @@ def build():
 
 
 def check_snapshot(directory):
-    expected, manifest = build()
+    version = json.loads((directory / "manifest.json").read_bytes())["version"]
+    expected, manifest = build(version)
     for filename, content in expected.items():
         if (directory / filename).read_bytes() != content:
             raise ValueError(f"Snapshot differs from its sources: {filename}")
@@ -185,8 +199,9 @@ def export(directory, output):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    build_command = commands.add_parser("build", help="regenerate the snapshot from the repository seeds and templates")
-    build_command.add_argument("--output", type=Path, default=SNAPSHOT)
+    build_command = commands.add_parser("build", help="regenerate a snapshot from the repository sources")
+    build_command.add_argument("--version", choices=("v0", *EXTENSIONS), default="v0")
+    build_command.add_argument("--output", type=Path)
     check_command = commands.add_parser("check", help="verify split isolation and snapshot bytes")
     check_command.add_argument("--data", type=Path, default=SNAPSHOT)
     export_command = commands.add_parser("export", help="write conversational SFT data and unlabeled test inputs")
@@ -194,10 +209,11 @@ def main():
     export_command.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "build":
-        files, manifest = build()
-        args.output.mkdir(parents=True, exist_ok=True)
+        files, manifest = build(args.version)
+        output = args.output if args.output is not None else SNAPSHOT.parent / args.version
+        output.mkdir(parents=True, exist_ok=True)
         for filename, content in files.items():
-            (args.output / filename).write_bytes(content)
+            (output / filename).write_bytes(content)
     else:
         manifest = check_snapshot(args.data)
         if args.command == "export":
