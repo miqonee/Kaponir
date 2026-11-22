@@ -5,6 +5,7 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 from validate_console import free_port,wait_for
+from validate_dataset import check_dataset_ui
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('binary',type=Path);parser.add_argument('--output',type=Path,default=Path('artifacts/review'));args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
@@ -53,7 +54,8 @@ def main():
                 browser=playwright.chromium.launch(executable_path=shutil.which('chromium') or shutil.which('google-chrome'),headless=True,args=['--no-sandbox'])
                 page=browser.new_page(viewport={'width':1440,'height':1000},locale='ru-RU',color_scheme='dark');errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
                 try:
-                    page.goto(base+'/ui/#analysis');page.locator('#analysis-enabled').wait_for()
+                    page.goto(base+'/ui/#settings');check_dataset_ui(page)
+                    page.locator('[data-tab="analysis"]').click();page.locator('#analysis-enabled').wait_for()
                     wait_for(lambda:page.locator('#analysis-enabled').is_enabled())
                     assert page.locator('#analysis-response-format').input_value()=='prompt'
                     page.locator('#analysis-response-format').evaluate("e=>e.closest('details').open=true")

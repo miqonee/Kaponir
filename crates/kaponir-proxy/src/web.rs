@@ -123,6 +123,15 @@ pub(crate) fn routes() -> Router<Shared> {
                 )
             }),
         )
+        .route(
+            "/ui/dataset.js",
+            get(|| async {
+                asset(
+                    include_str!("../assets/dataset.js"),
+                    "text/javascript; charset=utf-8",
+                )
+            }),
+        )
         .route("/api/v1/ui/events", get(ui_events))
         .route("/api/v1/ui/events/{id}", get(ui_event_by_id))
         .route(

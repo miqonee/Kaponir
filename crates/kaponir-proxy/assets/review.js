@@ -132,6 +132,9 @@ function reviewCard(item) {
       h("button", { class: "secondary", disabled: ro, onclick: () => confirmReview([item], "rollback") }, tr("Отменить правило")),
       h("button", { class: "ghost", onclick: () => { showTab("rules"); } }, tr("Открыть правила")));
   }
+  if (datasetMode() === 'on') controls.append(h('button', {
+    class:'secondary', onclick:() => openDatasetExample(item),
+  }, tr('В датасет')));
   article.append(controls); return article;
 }
 function scopeLabel(scope) { return tr({ personal: "Личные", team: "Команда", global: "Корпоративные" }[scope] || scope); }

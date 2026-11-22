@@ -18,6 +18,7 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/worker/start", post(start))
         .route("/api/v1/ui/worker/stop", post(stop))
         .route("/api/v1/ui/worker/jobs", post(submit))
+        .route("/api/v1/ui/worker/privacy-suggest", post(privacy_suggest))
         .route("/api/v1/ui/worker/models/download", post(download))
         .route("/api/v1/ui/worker/models/verify", post(verify))
         .route("/api/v1/ui/worker/models/resolve", post(resolve_model))
@@ -61,7 +62,7 @@ pub(crate) async fn forward(
     let response = request
         .timeout(Duration::from_secs(if path == "/status" {
             1
-        } else if path == "/evaluate" {
+        } else if matches!(path, "/evaluate" | "/privacy-suggest") {
             300
         } else if matches!(path, "/models/resolve" | "/models/register") {
             20
@@ -199,6 +200,17 @@ async fn submit(
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &headers, true)?;
     forward(&st, "/jobs", Some(body)).await
+}
+async fn privacy_suggest(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    if st.control.is_none() {
+        return Err(error(StatusCode::FORBIDDEN, "read_only"));
+    }
+    forward(&st, "/privacy-suggest", Some(body)).await
 }
 async fn download(
     State(st): State<Shared>,

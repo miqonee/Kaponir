@@ -170,14 +170,14 @@ $('#access-settings').addEventListener('click', async () => {
   catch (error) { fail(error); }
 });
 
-async function api(path, { method = 'GET', body } = {}) {
+async function api(path, { method = 'GET', body, timeout = 45000 } = {}) {
   const headers = {};
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (token) headers.authorization = 'Bearer ' + token;
-  const r = await fetch(path, { method, headers, signal: AbortSignal.timeout(45000), body: body === undefined ? undefined : JSON.stringify(body) });
+  const r = await fetch(path, { method, headers, signal: AbortSignal.timeout(timeout), body: body === undefined ? undefined : JSON.stringify(body) });
   if (r.status === 401) {
     await askToken();
-    return api(path, { method, body });
+    return api(path, { method, body, timeout });
   }
   const data = await r.json().catch(() => null);
   if (!r.ok) {
