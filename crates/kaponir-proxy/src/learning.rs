@@ -33,6 +33,49 @@ const MAX_SOURCE: usize = 2 * 1024 * 1024;
 const KINDS: &[&str] = kaponir_core::kinds::STANDARD;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LocalGeneration {
+    pub temperature: f64,
+    pub top_p: f64,
+    pub top_k: u32,
+    pub min_p: f64,
+    pub seed: Option<u32>,
+    #[serde(default)]
+    pub parse_reasoning: bool,
+    pub reasoning_budget: Option<usize>,
+    pub retry_output_tokens: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_source_cutoff: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_thinking: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_schema: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_threads: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation_threads: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repeat_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub low_effort: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_target: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_hints: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_temperature: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_repeat_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_log: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<usize>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct InferenceSettings {
     pub context_tokens: usize,
@@ -40,6 +83,8 @@ pub struct InferenceSettings {
     pub reserve_tokens: usize,
     pub batch_size: usize,
     pub response_format: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_generation: Option<LocalGeneration>,
 }
 impl Default for InferenceSettings {
     fn default() -> Self {
@@ -49,6 +94,7 @@ impl Default for InferenceSettings {
             reserve_tokens: 64,
             batch_size: 2,
             response_format: "auto".into(),
+            local_generation: None,
         }
     }
 }
@@ -63,6 +109,36 @@ impl InferenceSettings {
                 && self.max_output_tokens + self.reserve_tokens < self.context_tokens,
             "invalid_inference_settings"
         );
+        if let Some(g) = &self.local_generation {
+            anyhow::ensure!(
+                (0.0..=2.0).contains(&g.temperature)
+                    && (0.0..=1.0).contains(&g.top_p)
+                    && (0.0..=1.0).contains(&g.min_p)
+                    && g.prompt_threads.is_none_or(|n| (1..=128).contains(&n))
+                    && g.generation_threads.is_none_or(|n| (1..=128).contains(&n))
+                    && [g.log_target, g.log_hints, g.target]
+                        .into_iter()
+                        .flatten()
+                        .all(|n| n < self.context_tokens)
+                    && g.thinking_source_cutoff
+                        .is_none_or(|n| n > 0 && n <= 262144)
+                    && [g.repeat_penalty, g.log_repeat_penalty]
+                        .into_iter()
+                        .flatten()
+                        .all(|n| (0.0..=4.0).contains(&n))
+                    && g.presence_penalty.is_none_or(|n| (-2.0..=2.0).contains(&n))
+                    && g.log_temperature.is_none_or(|n| (0.0..=2.0).contains(&n))
+                    && g.reasoning_effort
+                        .as_deref()
+                        .is_none_or(|v| matches!(v, "low" | "medium" | "high"))
+                    && g.top_k <= 1024
+                    && g.reasoning_budget
+                        .is_none_or(|n| n > 0 && n <= self.context_tokens)
+                    && g.retry_output_tokens
+                        .is_none_or(|n| (1..=131072).contains(&n)),
+                "invalid_inference_settings"
+            );
+        }
         Ok(())
     }
 }
@@ -776,7 +852,11 @@ fn validate_analysis(s: &AnalysisSettings) -> anyhow::Result<()> {
         s.threshold.is_finite() && (0.0..=1.0).contains(&s.threshold),
         "invalid_threshold"
     );
-    anyhow::ensure!((1..=300).contains(&s.timeout_seconds), "invalid_timeout");
+    let max_timeout = if s.provider == "local" { 1800 } else { 300 };
+    anyhow::ensure!(
+        (1..=max_timeout).contains(&s.timeout_seconds),
+        "invalid_timeout"
+    );
     if s.provider == "local" {
         validate_model(&s.model)?;
     } else if s.provider == "api" {
@@ -792,6 +872,10 @@ fn validate_categorization(s: &CategorizationSettings) -> anyhow::Result<()> {
         "invalid_categorization_provider"
     );
     if s.provider == "local" {
+        anyhow::ensure!(
+            (1..=1_800_000).contains(&s.http.timeout_ms),
+            "invalid_timeout"
+        );
         validate_model(&s.model)?;
     }
     if s.provider == "s1" {
@@ -1033,10 +1117,14 @@ fn safe_inference_trace(value: &Value) -> Value {
     }
     trace
 }
-async fn local_request(st: &Shared, body: Value) -> anyhow::Result<Value> {
-    let settings = st.learning.snapshot().analysis;
+async fn local_request(
+    st: &Shared,
+    mut body: Value,
+    timeout_seconds: u64,
+) -> anyhow::Result<Value> {
+    body["timeout_seconds"] = json!(timeout_seconds);
     let call = crate::worker::forward(st, "/evaluate", Some(body));
-    let value = tokio::time::timeout(Duration::from_secs(settings.timeout_seconds), call)
+    let value = tokio::time::timeout(Duration::from_secs(timeout_seconds), call)
         .await
         .map_err(|_| anyhow::anyhow!("model_timeout"))?
         .map_err(|e| anyhow::anyhow!(safe_error(&anyhow::anyhow!(e.message().to_string()))))?;
@@ -1049,12 +1137,14 @@ async fn local_model(
     schema: Value,
     input: Value,
     inference: &InferenceSettings,
+    timeout_seconds: u64,
 ) -> anyhow::Result<InferenceReply> {
     let settings = st.learning.snapshot().analysis;
     let reply = local_request(
         st,
         json!({"model":model,"prompt":prompt,"schema":schema,"input":input,
         "parallelism":settings.parallelism,"inference":inference,"telemetry":true}),
+        timeout_seconds,
     )
     .await?;
     // Older external workers remain readable; packaged workers return diagnostics.
@@ -1194,6 +1284,7 @@ async fn extract(
                 ),
                 input,
                 &s.inference,
+                s.timeout_seconds,
             )
             .await
         }
@@ -1246,6 +1337,14 @@ async fn extract(
     );
     Ok(reply.candidates)
 }
+fn local_categorization_timeout(st: &Shared, s: &CategorizationSettings) -> u64 {
+    // Existing local configurations used the analysis timeout for both roles.
+    if s.inference.local_generation.is_some() {
+        s.http.timeout_ms.div_ceil(1000)
+    } else {
+        st.learning.snapshot().analysis.timeout_seconds
+    }
+}
 async fn classify(
     st: &Shared,
     s: &CategorizationSettings,
@@ -1267,6 +1366,7 @@ async fn classify(
                 classification_schema(candidates.len()),
                 input,
                 &s.inference,
+                local_categorization_timeout(st, s),
             )
             .await?
         } else {
@@ -1346,9 +1446,10 @@ async fn test_analysis(
     validate_analysis(&req.settings).map_err(bad)?;
     let token =
         test_key(&st, "analysis", req.key, req.clear_key, &req.settings.url).map_err(bad)?;
+    let mut settings = req.settings;
     let fragments = plan_chunks(
         &st,
-        &req.settings,
+        &mut settings,
         "Project: Cedar Plum. password: SyntheticFixture_47!",
         "",
     )
@@ -1358,7 +1459,7 @@ async fn test_analysis(
     for fragment in fragments {
         count += extract(
             &st,
-            &req.settings,
+            &settings,
             token.clone(),
             &fragment.source,
             &fragment.context,
@@ -1450,7 +1551,7 @@ async fn documents(
                 for d in req.documents {
                     let id = format!(
                         "learning:job:document:{}",
-                        text_fingerprint(&s.analysis, &d.text, "")
+                        text_fingerprint(&document_settings(&s.analysis, &d.name), &d.text, "")
                     );
                     let job = Job {
                         id: id.clone(),
@@ -1773,9 +1874,24 @@ fn portable_plan(
     );
     Ok(output)
 }
+// The benchmark selects the log policy by file type before splitting a document.
+fn document_settings(settings: &AnalysisSettings, name: &str) -> AnalysisSettings {
+    let mut result = settings.clone();
+    if let Some(g) = &mut result.inference.local_generation {
+        if g.log_target.is_some()
+            || g.log_temperature.is_some()
+            || g.log_repeat_penalty.is_some()
+            || g.log_hints.is_some()
+        {
+            g.is_log = Some(name.to_ascii_lowercase().ends_with(".log"));
+        }
+    }
+    result
+}
+
 async fn plan_chunks(
     st: &Shared,
-    settings: &AnalysisSettings,
+    settings: &mut AnalysisSettings,
     text: &str,
     context: &str,
 ) -> anyhow::Result<Vec<Fragment>> {
@@ -1786,9 +1902,16 @@ async fn plan_chunks(
     {
         let reply=local_request(st,json!({"model":settings.model,"operation":"plan","prompt":discovery_prompt(settings),
             "schema":extraction_schema(settings.chunking.max_candidates,settings.chunking.discovery_mode=="values"),"input":{"source":text,"context":context},
-            "parallelism":settings.parallelism,"inference":settings.inference,"chunking":settings.chunking,"telemetry":true})).await?;
+            "parallelism":settings.parallelism,"inference":settings.inference,"chunking":settings.chunking,"telemetry":true}), settings.timeout_seconds).await?;
         if let Some(code) = reply["error"].as_str() {
             anyhow::bail!(code.to_string());
+        }
+        if let Some(thinking) = reply["enable_thinking"].as_bool() {
+            if let Some(g) = &mut settings.inference.local_generation {
+                if g.thinking_source_cutoff.is_some() {
+                    g.enable_thinking = Some(thinking);
+                }
+            }
         }
         if let Some(fragments) = reply.get("fragments") {
             let fragments: Vec<Fragment> = serde_json::from_value(fragments.clone())?;
@@ -1930,6 +2053,11 @@ pub(crate) async fn review_infer(
             schema,
             input,
             inference,
+            if role == "analysis" {
+                settings.analysis.timeout_seconds
+            } else {
+                local_categorization_timeout(st, &settings.categorization)
+            },
         )
         .await?
         .into_result();
@@ -1961,8 +2089,10 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         st.with_vault(|_, v| counter(v, |c| c.skipped_known += 1))?;
         return st.with_vault(|_, v| job_entry_count(v, &job.id));
     }
+    let mut analysis = document_settings(&s.analysis, &job.name);
+    let document_fingerprint = text_fingerprint(&analysis, &filtered, &job.context);
     let mut pending = std::collections::VecDeque::from(
-        plan_chunks(st, &s.analysis, &filtered, &job.context).await?,
+        plan_chunks(st, &mut analysis, &filtered, &job.context).await?,
     );
     let mut errors = Vec::new();
     let mut complete = Vec::new();
@@ -1976,7 +2106,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         let known_chunk = st.with_vault(|_, v| {
             Ok(v.app_record(&format!(
                 "learning:text:{}",
-                text_fingerprint(&s.analysis, chunk, &fragment.context)
+                text_fingerprint(&analysis, chunk, &fragment.context)
             ))?
             .is_some())
         })?;
@@ -1986,7 +2116,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         calls += 1;
         let result = extract(
             st,
-            &s.analysis,
+            &analysis,
             analysis_key.clone(),
             chunk,
             &fragment.context,
@@ -2004,7 +2134,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
                     .len()
                     >= s.analysis.chunking.max_candidates;
                 if !split {
-                    complete.push(text_fingerprint(&s.analysis, chunk, &fragment.context));
+                    complete.push(text_fingerprint(&analysis, chunk, &fragment.context));
                 }
                 candidates
             }
@@ -2197,7 +2327,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         anyhow::bail!(code.clone());
     }
     st.with_vault(|_, v| {
-        complete.push(text_fingerprint(&s.analysis, &filtered, &job.context));
+        complete.push(document_fingerprint);
         for fingerprint in complete {
             put(
                 v,

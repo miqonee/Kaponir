@@ -1281,5 +1281,9 @@
   "{{0}}–{{1}} ч назад · заданий {{2}}": "{{0}}–{{1}} h ago · {{2}} jobs",
   "Не удалось обновить статистику": "Could not refresh statistics",
   "Учёт с {{0}}": "Tracking since {{0}}",
-  "Время обработки успешно завершённых заданий за 24 часа, без ожидания в очереди.": "Processing time for successful jobs in the last 24 hours, excluding time spent waiting in the queue."
+  "Время обработки успешно завершённых заданий за 24 часа, без ожидания в очереди.": "Processing time for successful jobs in the last 24 hours, excluding time spent waiting in the queue.",
+  "Параметры исследования · температура {{0}}, top_p {{1}}, top_k {{2}}, min_p {{3}}, seed {{4}}, бюджет рассуждений {{5}}.": "Research settings · temperature {{0}}, top_p {{1}}, top_k {{2}}, min_p {{3}}, seed {{4}}, reasoning budget {{5}}.",
+  "В архиве поиска подтверждены только лимиты контекста и ответа.": "Only context and output limits were recorded in the search run.",
+  "Параметры исторического поиска не подтверждены. Используются обычные настройки.": "The historical search settings are unverified. Using the standard settings.",
+  "Рассуждения включаются до {{0}} токенов исходного текста.": "Thinking is enabled for source documents of up to {{0}} tokens."
 }

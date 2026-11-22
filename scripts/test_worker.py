@@ -238,7 +238,7 @@ class WorkerTests(unittest.TestCase):
                 peak = max(peak, active)
             time.sleep(.05)
             with lock: active -= 1
-            return {'choices':[{'finish_reason':'stop','message':{'content':'{"candidates":[]}'}}]}
+            return {'choices':[{'finish_reason':'stop','message':{'content':'{"candidates":[],"credentials":[]}'}}]}
         self.worker.ocr_base='http://fixture'
         results=[]
         body={'model':'qwen3-0.6b','parallelism':3,'prompt':'fixture','schema':{},'input':{}}
@@ -364,6 +364,77 @@ class WorkerTests(unittest.TestCase):
             self.assertEqual(failure.exception.telemetry['finish_reason'],'length')
             self.assertEqual(failure.exception.telemetry['completion_tokens'],1600)
             self.assertNotIn('RAW_PRIVATE_TEXT',json.dumps(failure.exception.telemetry))
+
+    def test_study_profile_reaches_runtime_template_sampling_and_bounded_retry(self):
+        self.worker.ocr_base = 'http://fixture'
+        generation = dict(temperature=1, top_p=.95, top_k=64, min_p=0, seed=42,
+                          parse_reasoning=True, reasoning_budget=2048, retry_output_tokens=8192)
+        settings = dict(context_tokens=16384, max_output_tokens=4096, reserve_tokens=64,
+                        response_format='prompt', local_generation=generation)
+        requests = []
+        def reply(url, body, timeout):
+            requests.append(dict(body))
+            self.assertGreater(timeout, 300)
+            reason = 'length' if len(requests) == 1 else 'stop'
+            return {'choices':[{'finish_reason':reason, 'message':{'content':'{}'}}]}
+        with patch.object(self.worker,'start_runtime') as start, patch.object(self.worker,'prompt_token_count',return_value=10000) as count, patch('kaponir_worker.http_json',side_effect=reply):
+            result = self.worker.evaluate({'prompt':'fixture','schema':{},'input':{},'inference':settings,'timeout_seconds':1200})
+        self.assertEqual(result,{})
+        self.assertEqual(start.call_args.kwargs,dict(context_tokens=16384, reasoning='auto', reasoning_format='deepseek', reasoning_budget=2048))
+        self.assertEqual(count.call_args.args[-1],{'enable_thinking':True})
+        self.assertEqual([request['max_tokens'] for request in requests],[4096,6320])
+        for request in requests:
+            self.assertEqual({key:request[key] for key in ('temperature','top_p','top_k','min_p','seed')},
+                             dict(temperature=1,top_p=.95,top_k=64,min_p=0,seed=42))
+            self.assertNotIn('response_format',request)
+
+    def test_queued_semantic_scan_uses_its_saved_profile(self):
+        generation = dict(temperature=0,top_p=.95,top_k=40,min_p=0)
+        job = self.worker.submit('scan',model='qwen3.5-2b',mode='qwen',timeout_seconds=300,
+                                 inference={'response_format':'prompt','local_generation':generation})
+        self.assertEqual(self.worker.get(job['id'])['inference']['local_generation'],generation)
+        self.worker.ocr_base = 'http://fixture'
+        reply = {'choices':[{'finish_reason':'stop','message':{'content':'{"candidates":[],"credentials":[]}'}}]}
+        with patch.object(self.worker,'start_runtime'), patch.object(self.worker,'message_token_count',return_value=42), patch('kaponir_worker.http_json',return_value=reply) as call:
+            self.worker.extract_text_candidates(job['id'],job['model'],'fixture')
+        payload = call.call_args.args[1]
+        self.assertEqual(payload['max_tokens'],1600)
+        self.assertEqual(payload['top_k'],40)
+        self.assertNotIn('response_format',payload)
+
+    def test_gemma_document_cutoff_is_measured_before_splitting(self):
+        self.worker.ocr_base = 'http://fixture'
+        generation = dict(temperature=0,top_k=64,top_p=.95,min_p=0,
+                          reasoning_budget=384,thinking_source_cutoff=1024)
+        body = {'prompt':'fixture','schema':{},'inference':{'local_generation':generation},
+                'input':{'source':'whole document','context':'other context'}}
+        for tokens,expected in [(1024,True),(1025,False)]:
+            with patch.object(self.worker,'start_runtime'), patch.object(self.worker,'count_text_tokens',return_value=tokens) as tokenizer, patch.object(self.worker,'prompt_token_count',return_value=60):
+                plan = self.worker.evaluate({**body,'operation':'plan'})
+                tokenizer.assert_called_once_with('whole document')
+                self.assertEqual(plan['enable_thinking'],expected)
+            resolved = {**generation,'enable_thinking':expected}
+            reply = {'choices':[{'finish_reason':'stop','message':{'content':'{}'}}]}
+            with patch.object(self.worker,'start_runtime'), patch.object(self.worker,'count_text_tokens',side_effect=AssertionError('must use document decision')), patch.object(self.worker,'prompt_token_count',return_value=60), patch('kaponir_worker.http_json',return_value=reply) as http:
+                self.worker.evaluate({**body,'input':{'source':'short fragment'},'inference':{'local_generation':resolved}})
+                self.assertEqual(http.call_args.args[1]['chat_template_kwargs']['enable_thinking'],expected)
+
+    def test_completion_schema_uses_log_sampling_and_distinct_thread_counts(self):
+        self.worker.ocr_base = 'http://fixture'
+        generation = dict(temperature=0,top_p=.95,top_k=20,min_p=0,seed=42,
+                          completion_schema=True,log_temperature=.2,prompt_threads=4,generation_threads=2)
+        for log in [False,True]:
+            with patch.object(self.worker,'start_runtime') as runtime, patch.object(self.worker,'prompt_token_count',return_value=60), patch('kaponir_worker.http_json',side_effect=[{'prompt':'rendered'},{'stop_type':'eos','content':'{}'}]) as http:
+                self.worker.evaluate({'prompt':'fixture','schema':{'type':'object'},'input':{'source':'test'},
+                                      'inference':{'local_generation':{**generation,'is_log':log}}})
+                self.assertEqual(runtime.call_args.kwargs['prompt_threads'],4)
+                self.assertEqual(runtime.call_args.kwargs['generation_threads'],2)
+                url,payload = http.call_args.args
+                self.assertTrue(url.endswith('/completion'))
+                self.assertEqual(payload['temperature'],.2 if log else 0)
+                self.assertEqual(payload['json_schema'],{'type':'object'})
+                self.assertEqual(payload['prompt'],'rendered')
+                self.assertEqual(payload['n_predict'],1600)
 
     def test_context_changes_wait_for_inflight_requests(self):
         self.worker.ocr_base='http://fixture'

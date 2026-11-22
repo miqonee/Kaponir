@@ -1,10 +1,75 @@
 #!/usr/bin/env python3
 """Browser/API regression for explicit review actions and asynchronous LLM recommendations. No model downloads."""
-import argparse,json,os,re,shutil,subprocess,tempfile,threading,time,urllib.request
+import argparse,csv,json,os,re,shutil,subprocess,tempfile,threading,time,urllib.request
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 from validate_console import free_port,wait_for
+
+def check_local_presets(page, api):
+    analysis = api('/api/v1/ui/analysis')['settings']
+    categorization = api('/api/v1/ui/categorization')['settings']
+    try:
+        page.locator('#analysis-provider').select_option('local')
+        model = page.locator('#analysis-local-model')
+        options = set(model.locator('option').evaluate_all('(options) => options.map(o => o.value)'))
+        with (Path(__file__).resolve().parents[1]/'docs/experiments/model-search-final.csv').open() as f:
+            rows = list(csv.DictReader(f))
+        hidden = {'huihui-qwen3.5-2b-abliterated','tiny-aya-global'}
+        assert not options.intersection(hidden)
+        for row in rows:
+            if row['model'] in hidden:
+                continue
+            model.select_option(row['model'])
+            preset = page.evaluate("chosenLocalPreset('analysis')")
+            if not row['context_tokens']:
+                assert preset is None
+                continue
+            settings = preset['inference']
+            assert settings['context_tokens'] == int(row['context_tokens'])
+            assert settings['max_output_tokens'] == int(row['primary_output_tokens'])
+            g = settings['local_generation']
+            if not row['temperature_text']:
+                assert g is None
+                continue
+            for key,column in [('temperature','temperature_text'),('top_k','top_k'),('top_p','top_p'),('min_p','min_p')]:
+                assert g[key] == float(row[column]), (row['model'],key)
+            assert g['seed'] == (int(row['seed']) if row['seed'] else None)
+            if row['prompt_threads']:
+                assert g['prompt_threads'] == int(row['prompt_threads'])
+                assert g['generation_threads'] == int(row['generation_threads'])
+        page.locator('#analysis-local-model').select_option('gemma4-e4b-qat')
+        assert page.locator('#analysis-context-tokens').input_value() == '16384'
+        assert page.locator('#analysis-timeout').input_value() == '1200'
+        page.locator('#analysis-local-model').select_option('qwen3.5-2b')
+        assert page.locator('#analysis-context-tokens').input_value() == '4096'
+        page.locator('#analysis-output-tokens').evaluate("e => e.closest('details').open = true")
+        page.locator('#analysis-output-tokens').fill('1400')
+        page.locator('#analysis-save').click()
+        wait_for(lambda: api('/api/v1/ui/analysis')['settings']['model'] == 'qwen3.5-2b')
+        page.reload()
+        page.wait_for_function("() => document.querySelector('#analysis-output-tokens').value === '1400'")
+        assert api('/api/v1/ui/analysis')['settings']['inference']['local_generation']['top_k'] == 40
+        page.evaluate("showTab('categorization')")
+        page.locator('#categorization-provider').select_option('local')
+        page.locator('#categorization-local-model').select_option('nanbeige42-3b')
+        assert page.locator('#categorization-response-format').input_value() == 'grammar'
+        assert page.evaluate("chosenLocalPreset('categorization').inference.local_generation.completion_schema")
+        page.locator('#categorization-local-model').select_option('gemma4-e4b-qat')
+        page.locator('#categorization-save').click()
+        wait_for(lambda: api('/api/v1/ui/categorization')['settings']['model'] == 'gemma4-e4b-qat')
+        settings = api('/api/v1/ui/categorization')['settings']
+        assert settings['http']['timeout_ms'] == 1200000
+        assert settings['inference']['local_generation']['reasoning_budget'] == 2048
+        assert settings['inference']['local_generation']['temperature'] == 1
+        assert settings['inference']['response_format'] == 'grammar'
+    finally:
+        for role, saved in [('analysis',analysis),('categorization',categorization)]:
+            api('/api/v1/ui/'+role,{'settings':saved},'PUT')
+        page.goto(page.url.split('#')[0]+'#analysis')
+        page.reload()
+        page.wait_for_function("() => document.querySelector('#analysis-provider').value === 'api'")
+
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('binary',type=Path);parser.add_argument('--output',type=Path,default=Path('artifacts/review'));args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
@@ -55,6 +120,7 @@ def main():
                 try:
                     page.goto(base+'/ui/#analysis');page.locator('#analysis-enabled').wait_for()
                     wait_for(lambda:page.locator('#analysis-enabled').is_enabled())
+                    check_local_presets(page, api)
                     assert page.locator('#analysis-response-format').input_value()=='prompt'
                     page.locator('#analysis-response-format').evaluate("e=>e.closest('details').open=true")
                     page.locator('#analysis-response-format').select_option('grammar');page.locator('#analysis-save').click()
