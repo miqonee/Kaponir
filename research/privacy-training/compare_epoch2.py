@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Run the original Kaponir search or A–D benchmark with one Qwen LoRA arm."""
 import argparse
-import base64
 from collections import defaultdict
 import gzip
 import hashlib
@@ -10,7 +9,6 @@ from pathlib import Path
 import subprocess
 import sys
 from tempfile import TemporaryDirectory
-import time
 
 
 def digest_file(path):
@@ -122,13 +120,14 @@ def check_active_adapter(adapters, launcher):
         assert adapters == []
 
 
-def compare_abcd_plans(archived, candidate):
+def compare_abcd_plans(archived, candidate, variants):
     for key in ("source_sha256", "annotations_sha256", "case_data_sha256", "policy_sha256", "kinds_sha256"):
         assert candidate["signature"][key] == archived["signature"][key], key
-    for key in ("control_cases", "batches", "variant_order"):
+    for key in ("control_cases", "batches"):
         assert candidate[key] == archived[key], key
+    assert candidate["variant_order"] == list(variants)
     assert [r["request_sha256"] for r in candidate["requests"]] == [
-        r["request_sha256"] for r in archived["requests"]
+        r["request_sha256"] for r in archived["requests"] if r["variant"] in variants
     ], "Historical A–D request changed"
 
 
@@ -149,6 +148,14 @@ def run_abcd(args, launcher):
     reference = checkpoint / "evidence/suite-v1/01-qwen3.5-2b/plan.json.gz"
     plan = json.loads(gzip.decompress(reference.read_bytes()))
     original = plan["signature"]["settings"]
+    variants = args.variants or tuple(plan["variant_order"])
+    original_prepare = benchmark.make_plan
+
+    def make_plan(parameters, *inputs):
+        parameters.variants = variants
+        return original_prepare(parameters, *inputs)
+
+    benchmark.make_plan = make_plan
     argv = ["--model", "qwen3.5-2b", "--model-dir", str(args.model_dir),
             "--runtime", str(args.runtime)]
     for name, value in original.items():
@@ -158,7 +165,7 @@ def run_abcd(args, launcher):
             argv.extend(["--" + name.replace("_", "-"), str(value)])
     with TemporaryDirectory(prefix="kaponir-abcd-plan-") as directory:
         invoke_abcd(benchmark, [*argv, "--output", directory, "--prepare-only"])
-        compare_abcd_plans(plan, json.loads((Path(directory) / "plan.json").read_bytes()))
+        compare_abcd_plans(plan, json.loads((Path(directory) / "plan.json").read_bytes()), variants)
 
     # Read back the runtime's effective configuration before the benchmark makes its first request.
     original_probe = benchmark.Worker.detect_json_schema
@@ -174,91 +181,25 @@ def run_abcd(args, launcher):
     invoke_abcd(benchmark, [*argv, "--output", str(args.output)])
     assert launcher.launches, "No benchmark model started"
     current = json.loads((args.output / "plan.json").read_bytes())
-    compare_abcd_plans(plan, current)
-
-
-def run_pilot(args, launcher):
-    from dataset import ROOT, check_snapshot, jsonl, read_jsonl
-    from evaluate import score_model, score_outbound
-    from evaluate_privacy_policy import request_raw
-    from kaponir_worker import Worker, configuration, http_json
-    from prepare import CONTEXT, MAX_NEW, TokenBudget, join_answers, model_windows
-    from recover_privacy_transport import wait_for_verified_model
-    from replay import run as replay
-    from run_privacy_policy_suite import atomic_json
-
-    data = ROOT / "data" / args.suite.rsplit("-", 1)[-1]
-    manifest = check_snapshot(data)
-    rows = read_jsonl(data / "test.jsonl")
-    budget = TokenBudget(args.assets)
-    windows = [window for row in rows for window in model_windows(row, manifest["version"], budget)]
-    (args.output / "windows.jsonl").write_bytes(jsonl(windows))
-    answers = {}
-    total_seconds = 0.0
-    with TemporaryDirectory(prefix="kaponir-pilot-cpu-") as directory:
-        home = Path(directory)
-        worker = Worker(home, configuration(home, {
-            "model_dir": str(args.model_dir), "runtime": str(args.runtime), "threads": 2,
-        }), "unused")
-        try:
-            model = "qwen3.5-2b"
-            wait_for_verified_model(worker, model, timeout=600)
-            job = worker.submit("evaluate", model=model)
-            worker.start_runtime(job["id"], model, 1, context_tokens=CONTEXT)
-            adapters = http_json(worker.ocr_base + "/lora-adapters")
-            check_active_adapter(adapters, launcher)
-            atomic_json(args.output / "active-adapters.json", adapters)
-            with (args.output / "transports.jsonl").open("xb") as receipts:
-                for window in windows:
-                    ident = window["id"]
-                    tokens = budget.ids(window["prompt"], True)
-                    assert len(tokens) + MAX_NEW <= CONTEXT
-                    request = {"prompt": tokens, "n_predict": MAX_NEW, "temperature": 0.0,
-                               "cache_prompt": False, "stream": False, "seed": 42}
-                    started = time.monotonic()
-                    transport = request_raw(worker.ocr_base + "/completion", request, 300)
-                    elapsed = time.monotonic() - started
-                    total_seconds += elapsed
-                    receipts.write(jsonl([{"id": ident, "request": request,
-                                           "transport": transport, "http_seconds": elapsed}]))
-                    receipts.flush()
-                    assert transport["status"] == 200, (ident, transport["status"])
-                    reply = json.loads(base64.b64decode(transport["body_base64"]))
-                    answers[ident] = ({"response": reply["content"]} if reply["stop_type"] == "eos"
-                                      else {"error": "truncated_answer"})
-        finally:
-            worker.stop.set()
-            worker.stop_runtime()
-    assert len(answers) == len(windows)
-    joined = join_answers(windows, answers)
-    (args.output / "predictions.jsonl").write_bytes(jsonl(joined))
-    predictions = {row["id"]: row for row in joined}
-    observations = replay(rows, predictions, args.binary)
-    (args.output / "observations.jsonl").write_bytes(jsonl(observations))
-    outbound = score_outbound(rows, {row["id"]: row for row in observations})
-    report = {"dataset": manifest["version"], "split": "test",
-              "source_sha256": manifest["splits"]["test"]["sha256"],
-              "binary_sha256": digest_file(args.binary), "adapter_sha256": launcher.sha256,
-              "windows": len(windows), "http_seconds": total_seconds,
-              "model": score_model(rows, predictions), "outbound": outbound}
-    atomic_json(args.output / "summary.json", report)
-    print(json.dumps(outbound["all"], ensure_ascii=False), flush=True)
+    compare_abcd_plans(plan, current, variants)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("suite", choices=("search", "abcd", "pilot-v3", "pilot-v2"))
+    parser.add_argument("suite", choices=("search", "abcd"))
     parser.add_argument("--repo", type=Path, required=True)
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--model-dir", type=Path, required=True)
-    parser.add_argument("--binary", type=Path, required=True)
+    parser.add_argument("--binary", type=Path, help="Kaponir executable used for the search backtest")
     parser.add_argument("--adapter", type=Path)
-    parser.add_argument("--assets", type=Path, help="Pinned tokenizer/template for the training pilot")
+    parser.add_argument("--variants", nargs="+", choices=tuple("ABCD"), help="Run an ordered A–D subset")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.suite.startswith("pilot-") and args.assets is None:
-        parser.error("The pilot requires --assets")
-    for name in ("repo", "runtime", "model_dir", "binary", "adapter", "assets", "output"):
+    if args.suite == "search" and args.binary is None:
+        parser.error("Search requires --binary")
+    if args.variants and (args.suite != "abcd" or args.variants != sorted(set(args.variants))):
+        parser.error("A–D variants must be unique and ordered")
+    for name in ("repo", "runtime", "model_dir", "binary", "adapter", "output"):
         value = getattr(args, name)
         if value is not None:
             setattr(args, name, value.resolve())
@@ -267,7 +208,7 @@ def main():
     import kaponir_worker
     launcher = RuntimeLauncher(args.runtime, args.adapter)
     kaponir_worker.subprocess = launcher
-    suite = {"search": run_search, "abcd": run_abcd, "pilot-v3": run_pilot, "pilot-v2": run_pilot}
+    suite = {"search": run_search, "abcd": run_abcd}
     suite[args.suite](args, launcher)
 
 
