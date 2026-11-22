@@ -174,6 +174,12 @@ struct ServeArgs {
     anthropic_upstream: Option<String>,
     #[arg(long)]
     openai_upstream: Option<String>,
+    /// Bind Windows audit accounts to their JSON record positions.
+    #[arg(long)]
+    windows_audit_records: bool,
+    /// Read per-document, per-field public permissions from this local JSON file.
+    #[arg(long)]
+    public_occurrences: Option<PathBuf>,
     /// Не добавлять подсказку о плейсхолдерах в system prompt.
     #[arg(long)]
     no_system_hint: bool,
@@ -1328,6 +1334,12 @@ fn serve(home: &Home, a: ServeArgs, open: bool) -> Result<ExitCode> {
     }
     if a.no_system_hint {
         s.system_hint = false;
+    }
+    if a.windows_audit_records {
+        s.windows_audit_records = true;
+    }
+    if let Some(path) = a.public_occurrences {
+        s.public_occurrences = Some(path);
     }
     if let Ok(t) = std::env::var("KAPONIR_API_TOKEN")
         && !t.is_empty()
