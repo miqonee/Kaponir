@@ -1602,10 +1602,8 @@ mod tests {
         let engine = engine("abc51.100xyz");
         let source = "/abc51.100xyz /abc51.100xyz";
         let mut vault = MemoryVault::new();
-        let edits = PositionEdits {
-            public_ranges: vec![4..10],
-            ..PositionEdits::default()
-        };
+        let mut edits = PositionEdits::default();
+        edits.public_ranges.push(4..10);
         let masked = engine
             .mask_without_s1_positioned(&Input::text(source), &opts(vec![]), &mut vault, &edits)
             .unwrap();
@@ -1629,10 +1627,8 @@ mod tests {
         let first = engine
             .mask_without_s1(&Input::text(source), &opts(vec![]), &mut vault)
             .unwrap();
-        let edits = PositionEdits {
-            public_ranges: vec![1..7],
-            ..PositionEdits::default()
-        };
+        let mut edits = PositionEdits::default();
+        edits.public_ranges.push(1..7);
         let masked = engine
             .mask_without_s1_positioned(
                 &Input::text(source),

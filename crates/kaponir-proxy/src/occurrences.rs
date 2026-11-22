@@ -335,10 +335,9 @@ mod tests {
         let start = text.find('☀').unwrap();
         let end = start + "☀".len() + 12;
         let allowed = |records: &[Grant], now| public_ranges(text, &doc, records, now, &[]);
-        assert_eq!(
-            allowed(&[grant(text, 0, "value", start..end, Status::Public)], 0).unwrap(),
-            [start..end]
-        );
+        let ranges = allowed(&[grant(text, 0, "value", start..end, Status::Public)], 0).unwrap();
+        assert_eq!(ranges.len(), 1);
+        assert_eq!(ranges[0], start..end);
         assert!(allowed(&[grant(text, 1, "value", start..end, Status::Public)], 0).is_none());
         assert!(allowed(&[grant(text, 0, "other", start..end, Status::Public)], 0).is_none());
         assert!(
