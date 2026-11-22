@@ -1,0 +1,1301 @@
+{
+  "abcd_variants": 4,
+  "archive": "evidence.tar.gz",
+  "archive_bytes": 1066113,
+  "archive_sha256": "fc8d0c4b0bae482ff0b51c07441d709542379613a94db6bc66c8320a1f483bca",
+  "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+  "captured_at_utc": "2026-11-18T23:27:30Z",
+  "files": {
+    "abcd/qwen3.5-4b/plan.json": {
+      "bytes": 393570,
+      "sha256": "dc697bfce6d2c009d7052bf8bc6049b638c78570b09e2071f7c90472739f1cee"
+    },
+    "abcd/qwen3.5-4b/result.json": {
+      "bytes": 760239,
+      "sha256": "967eb452f954e729373108f6a45dd7d552ca46f0460f0fc8427cbff1c1f88327"
+    },
+    "abcd/qwen3.5-4b/session-1795039870563380486.json": {
+      "bytes": 7445,
+      "sha256": "5bd8babaafe9291a8b8ddd4b4338f2c39b6120c37cfd6d21fce47bc96721ca89"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/02-02-application/mask.json": {
+      "bytes": 71304,
+      "sha256": "9775dbc8e23dbe7e878bb4b8c8150a0f48b96edc3528bf3e7700d78635269460"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "7402efccf96375687ad57e6f30aee0ad28753e3de70111e3778909508c51f847"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/qwen3.5-4b/A/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/02-02-application/mask.json": {
+      "bytes": 71194,
+      "sha256": "663254ddbc785a8a71fee1b3ca5a91929e3cb084bd6e4302f63510cfda29ac88"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "25fb23d7fd2e0d0e85fb24ffb20b6ff1f53d65b196fae0c575b3acb8bc232bfb"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/qwen3.5-4b/A/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/qwen3.5-4b/A/result.json": {
+      "bytes": 7599,
+      "sha256": "19393bf1b1b4b04258d7b50112fc1de353e2c92922ed35bff675bc1f177faeca"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/02-02-application/mask.json": {
+      "bytes": 71256,
+      "sha256": "7420f2e62227645cf9503b73a8abf59597877af6568ec8e91333211eafc88a78"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "035040d08e66917a1ce085175a80e1202ee88996474fba49dc07acdb08289bb8"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/qwen3.5-4b/B/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 45531,
+      "sha256": "b834d15c6b5f88a6e7f6f7e1ab7299a9a23e75b415bd6e154600cba1478a8bbe"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10553,
+      "sha256": "600d6df540a5c2d354324bd7e431b34b3935a6b6dbb3a12451f581cd3c29a091"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/02-02-application/mask.json": {
+      "bytes": 71444,
+      "sha256": "e80d47a7b68915af1fe60448a951ad26fcb3cdb624e823a386ec900327983f0d"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "5a30c29793af302fff2438f038c0247a727025363686ab9d56fd5cc17f0730f7"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/qwen3.5-4b/B/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/qwen3.5-4b/B/result.json": {
+      "bytes": 7600,
+      "sha256": "373a28e20083ff88c156491f3502a43ed43d065e6450ac3e47bd9a32ab44c86c"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/02-02-application/mask.json": {
+      "bytes": 71194,
+      "sha256": "b7f1ba176fd2670006357200131db3cdea2560e3f808ba63d1f48d88a5fc85f2"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "4f70860e04c3ba33338f93b2d134510031109d1c04b15c640a74d9924e672682"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/qwen3.5-4b/C/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 45531,
+      "sha256": "b834d15c6b5f88a6e7f6f7e1ab7299a9a23e75b415bd6e154600cba1478a8bbe"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10553,
+      "sha256": "600d6df540a5c2d354324bd7e431b34b3935a6b6dbb3a12451f581cd3c29a091"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/02-02-application/mask.json": {
+      "bytes": 71589,
+      "sha256": "e65228192b9d60a708fbecba7b5eb1f42dbd80b8a24b0eff7475bf4cc3b66daa"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10662,
+      "sha256": "82ebb2e424e043cdacf0717ce0649198c68bfddb2b99e29c08774f9441cee8ca"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/qwen3.5-4b/C/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/qwen3.5-4b/C/result.json": {
+      "bytes": 7600,
+      "sha256": "c8cff0a70db5d4272e3b68ee7bb64d4d3dc6f533bf347b457fcb19797a17c846"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/02-02-application/mask.json": {
+      "bytes": 71276,
+      "sha256": "7b4adb4b5d437881c0fd565a54b0cd77fb94a60077e4aefdccddd291144425cc"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "40bc19a6ac19d7fcc88b3f568efa105752aa01e19d8e73e660f2e45346b9aa50"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/qwen3.5-4b/D/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/02-02-application/mask.json": {
+      "bytes": 73781,
+      "sha256": "a64ee2eeb4e1bbdb346bebe806097f1348a37499b821f82881d99c3fbf798ec6"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10692,
+      "sha256": "4f7748255954f95871c05191800c5f2ed3d5392aa71533291fb86fc8b7fc8906"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "83728c88db24fa2dcf54f99c9c1fe6fa37b4cbf99738d4c51a5a799108360b95"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/qwen3.5-4b/D/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/qwen3.5-4b/D/result.json": {
+      "bytes": 7599,
+      "sha256": "47020e45e6affad50942bfa5e42d36ae697a70634da62b3c45f542b94a7c2796"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71466,
+      "sha256": "7b85dec4169a37b26167bf7a74e63315699a3b7c25c40f9e41f7dfb7c747f147"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "7d17403cf05f204e82f4a92f4161ef16dd921fe81dee81a123e27aee6d331bd1"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 118290,
+      "sha256": "8914b01ae5ef1ba3ccae3b1ceda12a44ed9e913b633e1cc9fb20b960d4b3bd1f"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10517,
+      "sha256": "b73dba8d04b61d18488b35df8a3aba4690e73a56778939b4ae2ef1fe8d1d24bb"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 157878,
+      "sha256": "d674bffd393a2c4a17d27cbb3994820fa76f1c4b8248e9e2ebad8f1b6e01f923"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11136,
+      "sha256": "ca1a19245cc5c801e77c0d4c832aa2eb48b0cd122e68189e15d056d72095af9a"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "47f1d873bcb9357bbfb29dea4b5251ffac3959e338606e6457a669e18a625b35"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/qwen3.5-4b/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/qwen3.5-4b/current_union/result.json": {
+      "bytes": 7875,
+      "sha256": "ddca69ff2e32035dda1ff24554bc7a61bd07440ee50e05bff431af224d62378a"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71472,
+      "sha256": "3682c25be31bd80bd4de9a24c04d37ef69980d006e49bdf0ecf61aa9f78db01d"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "ce1ebdae33808f0e5ee475574a4b96ed6bf2380b41d5c1358db20beba745ac38"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139844,
+      "sha256": "ebadc0456e9309de98f6abe1c92f586935c498aa8dcf6b2a35bfcb3654571856"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/qwen3.5-4b/detector_proposals/result.json": {
+      "bytes": 7876,
+      "sha256": "6e7784121469306d91186c6293961b65b55e0b30d43ccaff00aac437cb3fc37a"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/02-02-application/mask.json": {
+      "bytes": 71220,
+      "sha256": "f3f92edaedc0f3a206451b7b007179c883373e73a66ee7efe3f040b34dde20c0"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "394625698bc42a4b5341d8824117d19a8370cd428a156179ed678f6d71a89491"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90496,
+      "sha256": "33abd0d6e223f0eeb52e0e4b0a99cdf5e863c40bc13d4472e043b0a0601518bd"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "3645a7284d8bed9af5663baf888a4d6fdcf3e15ffd23e9d089a4f291cc2d9b23"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/double/result.json": {
+      "bytes": 7861,
+      "sha256": "147309e60b46b51c23590056a07eae7ff1cca03881a3004c6ee1b4eb16884bfc"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/02-02-application/mask.json": {
+      "bytes": 71256,
+      "sha256": "e1a5d0cc347d84986a15ffaf4b158df4c2d5201d740428dad8243204c024362e"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "1a42b1264644187603cdaa9b8f5fbd2f91b9529028baea5d390a6ec1e1b7163b"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90496,
+      "sha256": "8e10b374ec5b59754dda26794fac2cc231ec2887daef16622194b32b359ba870"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "292fa5b1cf584029ebd0c9ce1285cc1e03a8db450b0d7151ab3d4bd318685dc2"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/point/result.json": {
+      "bytes": 7859,
+      "sha256": "075f9de2e66ce211677f0a14d6c2059b4fe95889d357f17959d8ed616cb53c18"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71494,
+      "sha256": "4db817a0bcd00cf8da4e9528d4475f009ce30a5203cb2cf5973496c46c7d268a"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "22033183a96195c7cc5da728d0c942150318e79f2c6ee911fd8bc86a610b6552"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 90727,
+      "sha256": "2166741eb9a5957a5ccd8101726bbcf3799c00946faaf008a96e5e73804ddbf4"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10481,
+      "sha256": "8d16cf2bfaef6c2e74d284b2c558b75e71de8a7cff7b407198c39293fddfd097"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "4ab871bd52a626a2a1fc3dc2157045c9e69765cdb54196d61bdcb32f5af1f3ad"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 100560,
+      "sha256": "f3913cdeef5677f1de8beb5d59c9fbae0664fa8e90ae08ea23a75246bb162519"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10731,
+      "sha256": "d68f77905a5fbfccf3dbff11a3c6c4946a4a944f87c2bc02ce439b690b74c14b"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "39da0e7d5074283690d7806f41727988a543b183ea359f435427389a7b36dfd9"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/regions/result.json": {
+      "bytes": 7865,
+      "sha256": "01b44c6376ba90b54961285a105da1ac5e3ba4489f9526be3a4affca6c446597"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71222,
+      "sha256": "5b581dd51bc1461dc02491ceb020e8e1d6903d4dcceda97793a07ba53bce9751"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "913a14b6ba65588c8d35acf4f497abb12687eb51d07161f0776e89a3d47c7e5b"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90534,
+      "sha256": "19507e71fc9b82d8ea04571e7cec7906e36ce05d9d3f59f91a91268ea6689467"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "de201d34d17bb82b9d4d57356d05bf0fd105a10fd92a041a66b5727cecc2818e"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/qwen3.5-4b/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/qwen3.5-4b/union_point/result.json": {
+      "bytes": 7866,
+      "sha256": "0e91272f79f693252cab1afb67a7c7e3d0f4a4b33ecf84c5bb52223411d31cfd"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71256,
+      "sha256": "d7fba83dda26c8423b54fc6e464b80d0da6c43978a898d4017d30c0cad19f137"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "ef16081a40017eb5cefdb1353df07143d6c5920bb1aacddbc3f8f42966aecdd3"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 127794,
+      "sha256": "6b7c0ac7e37e8f9023d2c54c9587f17ba9e13d083144ff960e48543e331e6904"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10320,
+      "sha256": "55d17f275dd1bc84fed13230bd54a969a390b3c78237ddfcd50252350d3f13a8"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 188034,
+      "sha256": "4273b742b4d424be971d8e51b751fe1e8a2522df3c07c6bf8729ee0b97215ee6"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11047,
+      "sha256": "9059e2eded8966eaa4f452e9ae2136b9f22c972b3eca939a76e57032da99b85e"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "b3b2bccb5504fee48f960120af14982697ee58287a0e1f639329b1c95cd03e74"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 10208,
+      "sha256": "f94fbef80b7465e34dbe0b33fa72cd4ec4b8c07539ca91fa4bfc924fbae99caf"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3528,
+      "sha256": "15211677e0876b2d24cb4394d16879b4f22bb52fdd0527821b5a049077f43218"
+    },
+    "baseline-application/qwen3.5-4b/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "e836d16f80e1c0dc38aa7b4e64847a2e7b79d71f7d518e3c9127a532f369ddb1"
+    },
+    "baseline-application/qwen3.5-4b/current_union/result.json": {
+      "bytes": 7829,
+      "sha256": "53936a4f37ab6cf1005854e9ae1e75aaff445b5224985a4934eb1d19d62011cb"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71298,
+      "sha256": "6be3f48e5c0d972edbcf55651faabe2eeabb0eb7a5eac529a7b2a8718c320c08"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "e943de498384a0ffb7c9ed35544a7948117f65b8f67896269203ddd49bc83aef"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139840,
+      "sha256": "711d409e621fa268170aa41faf22fd3dac122d7f81cf9a4cc527921937cb5828"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "baseline-application/qwen3.5-4b/detector_proposals/result.json": {
+      "bytes": 7831,
+      "sha256": "6e183ff95d6ad9acdb23917cfa779f95e62d591a5e8317bf68b0595180bba4c7"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/02-02-application/mask.json": {
+      "bytes": 71278,
+      "sha256": "5bb5c3ea945b69cb74fd7846e556e8923e4738d7344137f1f84f29339c52ba4b"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "966bcf4d2248028a6d136853a14acd5d30be6246e03f01362687d6f95cd90531"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90530,
+      "sha256": "088617a3737f61da4459ac0b8361fef59b36c9cecd5c881ed26a1509082d5829"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "d7a4d7c5e78157a1818d58ed94c938b221c7bc1a34bf1ee7f57a66d1224482ef"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/double/result.json": {
+      "bytes": 7818,
+      "sha256": "cecc9206014f2530db2b6da60f7055f3527f7d51f4388fad4c85b0c742061911"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/02-02-application/mask.json": {
+      "bytes": 71256,
+      "sha256": "12c7156c28cfc9518ac56141eceecdd5cb890c9ffd9d0cc654d693c3524eeec7"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "523b8b42311c2a3685cb465231c0934e52b379a082b89bcc36e7f75bcbe0a20d"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90500,
+      "sha256": "7a96146bd585cb7ddc1cc716995d6f3d4bed0f5fdf4f77da024df997c7b2cb58"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "dfed41d03929da33fb065f897b66a5cae37397fd6d14c8d61088476cf7d5b2b7"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/point/result.json": {
+      "bytes": 7815,
+      "sha256": "031eaecc6438ef4a9db5ff67959fb03cd6914554d6babee1e542b4035f86e8ce"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71242,
+      "sha256": "6663c5995e298181e2b60f4dcb4032b793345bc62afab6e2bbda39208f2c14d5"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "86c60e073ffdb4bda91c53e5ca6d37544c1c897df2051d896ab7415ea64d88cc"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 81661,
+      "sha256": "243726df2f3fdbaa156989a18b4273538b7065706ada8194f789ab9ee465d29c"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10413,
+      "sha256": "b031e331d5d7b739fd3e6e24b7d83cf28fcc996ef67b0d056d6d80dd267f0058"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "250673ed28933a087b5ad18fd09d6e79dfad54fd17ab6a53352b7dc1c5e086d8"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 98008,
+      "sha256": "e5dc5c35793d2cef0954c632a69e9a81ae780b154620cbb93bd48ad7c9370324"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10770,
+      "sha256": "c53b01e56d3e5a74e3fa5be0cb0b5440c742cc922d222bd16941a3b2ba971524"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "9c9b48b69f523132f322747a38ab149108c4664587d5ae894df99287d494ce00"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6192,
+      "sha256": "22583d4b71c49bcb70351db1f96a063b928b24bfd05fb79fbc4e5801bfedcc91"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3496,
+      "sha256": "fc8e1bfbcafd261e2ba16942263857d049a0646ff73fcbbc69557a40fe8c4359"
+    },
+    "baseline-application/qwen3.5-4b/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "baseline-application/qwen3.5-4b/regions/result.json": {
+      "bytes": 7820,
+      "sha256": "8760422ac3eba2ceeb919c064477f9b86e78c35ace79951caec05c85a5c0f350"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71472,
+      "sha256": "7b401b0127d1dae9e797f784ae3c2dd4296a8ab56c51a530000de6370ecd7644"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "78d6aa306739acc61c119446013bfd9b8f1d2d6f24ba8b76213816562b9f7700"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90524,
+      "sha256": "d2d4686ea1da0d59f867ca507866c6e1cca78fe7cfd01868481a11cd956d090a"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "b0864657c8ce7de93734dc8100a20967ca01d36904ff6be5d5ccd45e3147bf21"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/qwen3.5-4b/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/qwen3.5-4b/union_point/result.json": {
+      "bytes": 7822,
+      "sha256": "e3125e51bcc68d513346457c40deac958cd9610dbc57ea2c1b5bcec7bef57a7e"
+    },
+    "calibration/qwen3.5-4b/off/result.json": {
+      "bytes": 2057,
+      "sha256": "d26642ad87aa72d86d59ca8b59f0e19cadfbfba39d6f330ab10850eec08ef78d"
+    },
+    "calibration/qwen3.5-4b/off/transports.json": {
+      "bytes": 100035,
+      "sha256": "cbf7c2988e59ff10d0e5d14ed2e73d66d2de4cc195c879f4db4cf4a4d61f5ce7"
+    },
+    "calibration/qwen3.5-4b/plan.json": {
+      "bytes": 3652,
+      "sha256": "84c645977d2eadbe00c4b46bc9d2d19a6d85e3a0351b75a67f4a35bc4a2ac1be"
+    },
+    "calibration/qwen3.5-4b/result.json": {
+      "bytes": 6159,
+      "sha256": "5e8cbb8b450b2c743d11c439f5587850a9794823992cf7ac2fd79cba7cd18d29"
+    },
+    "calibration/qwen3.5-4b/selected-profile.json": {
+      "bytes": 1148,
+      "sha256": "a019fca9cfcb49ad834b001d8aac671f1692fc3370d2f31035755d552a77c580"
+    },
+    "calibration/qwen3.5-4b/thinking-2048/result.json": {
+      "bytes": 2059,
+      "sha256": "789e0ec63d7e97be6b41838c96defc73a29d3cb1fb0dfdb3b826c6302c9fc8e9"
+    },
+    "calibration/qwen3.5-4b/thinking-2048/transports.json": {
+      "bytes": 172532,
+      "sha256": "df97ce3874fb54784e2804d7a04ca4e962acf260e3b44fe232e1449d7f7f2c2e"
+    },
+    "schemes/qwen3.5-4b/detectors.json": {
+      "bytes": 42922,
+      "sha256": "545e0a5090b1b325af7ef75308fe58c40562fc24af94c084c462346f8ecea8a5"
+    },
+    "schemes/qwen3.5-4b/execution.json": {
+      "bytes": 6969,
+      "sha256": "eb76a614354fe0d622a9da6cfc72f7c3ce6a36ac1fcdc3de88b3d99dcb44e5af"
+    },
+    "schemes/qwen3.5-4b/result.json": {
+      "bytes": 904713,
+      "sha256": "27a50f33fa3cca679067117be301b2dd2031ed2d601cb57daca833fed43310bc"
+    },
+    "schemes/qwen3.5-4b/scheme-plan.json": {
+      "bytes": 5980,
+      "sha256": "3f86666a4d224b3ea866ce883ee26a3112e2476591fbf420eaa250ee0308e868"
+    },
+    "schemes/qwen3.5-4b/transports.json": {
+      "bytes": 1102790,
+      "sha256": "6ea21912c6881334b8613485befe8337aed8f01fbb3ee80d0f4086db14112930"
+    },
+    "schemes/qwen3.5-4b/verification.json": {
+      "bytes": 4613,
+      "sha256": "795424e9404f292402db128a724afef023cfd56e670c78e115306deb8919cba6"
+    },
+    "status.json": {
+      "bytes": 3895,
+      "sha256": "19fab71e3ce8347843991a106e7bdc93a117491dff1b8dca957c7073fb065924"
+    }
+  },
+  "model": "qwen3.5-4b",
+  "native_exact_roundtrips": 60,
+  "not_a_resume_source": true,
+  "profile_sha256": "4927213b87e68718017a5907c06589b0b095122d2a29805b673e134623ebd785",
+  "schemes": 6,
+  "series": "native-retest-v1",
+  "version": 1
+}
