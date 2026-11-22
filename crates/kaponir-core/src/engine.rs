@@ -4,7 +4,9 @@ use crate::metrics::{Metrics, S1FailureCode};
 use hmac::{Hmac, KeyInit, Mac};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
+use std::borrow::Cow;
 use std::net::Ipv4Addr;
+use std::ops::Range;
 use std::sync::Arc;
 use std::sync::atomic::Ordering::Relaxed;
 use std::time::Instant;
@@ -155,6 +157,14 @@ pub struct Known {
     pub form: TokenForm,
 }
 
+/// Optional edits resolved by the caller against this exact UTF-8 input.
+#[derive(Default)]
+pub struct PositionEdits {
+    pub additional_masks: Vec<Candidate>,
+    /// Ranges authorized by a trusted local source.
+    pub public_ranges: Vec<Range<usize>>,
+}
+
 /// Короче — слишком часто совпадает с обычными словами и частями чисел.
 const MIN_KNOWN_LEN: usize = 3;
 
@@ -244,17 +254,63 @@ pub struct Restored {
     pub known: Vec<Known>,
 }
 
+#[derive(Clone)]
 struct Scored {
     c: Candidate,
     verdict: Verdict,
 }
 
 impl Scored {
+    fn permits_public_range(&self) -> bool {
+        self.verdict == Verdict::Mask
+            && self.c.origin == Origin::Builtin
+            && self.c.category != Category::Credential
+            && !self.c.hard
+            && self.c.inflection.is_none()
+    }
+
     fn applied_mask(&self, uncertain: UncertainAction) -> bool {
         self.c.polarity == Polarity::Mask
             && (self.verdict == Verdict::Mask
                 || (self.verdict == Verdict::Uncertain && uncertain == UncertainAction::Mask))
     }
+}
+
+fn overlaps(a: &Range<usize>, b: &Range<usize>) -> bool {
+    a.start < b.end && b.start < a.end
+}
+
+/// Remove sorted cuts from a byte range, preserving every surviving piece.
+fn subtract_ranges(range: Range<usize>, cuts: &[Range<usize>]) -> Vec<Range<usize>> {
+    let mut start = range.start;
+    let mut remaining = Vec::new();
+    for cut in cuts {
+        if cut.start >= range.end {
+            break;
+        }
+        if cut.end <= start {
+            continue;
+        }
+        if start < cut.start {
+            remaining.push(start..cut.start);
+        }
+        start = cut.end.max(start);
+    }
+    if start < range.end {
+        remaining.push(start..range.end);
+    }
+    remaining
+}
+
+fn fragment<'a>(s: &Scored, range: &Range<usize>) -> (Cow<'a, Scored>, usize) {
+    let mut s = s.clone();
+    s.c.start = range.start;
+    s.c.end = range.end;
+    s.c.canonical = None;
+    s.c.inflection = None;
+    // A fragment of a typed value (e.g. an IPv4 address) may need a regular token.
+    s.c.strategy = Some(Strategy::Variable);
+    (Cow::Owned(s), range.end)
 }
 
 impl Engine {
@@ -336,7 +392,7 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
     ) -> Result<Masked, EngineError> {
-        self.mask_measured(input, opts, vault, true, MIN_KNOWN_LEN)
+        self.mask_measured(input, opts, vault, true, MIN_KNOWN_LEN, None)
     }
 
     /// Значения `opts.known` явно выбраны для этого текста, а не взяты из памяти
@@ -347,7 +403,7 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
     ) -> Result<Masked, EngineError> {
-        self.mask_measured(input, opts, vault, true, 1)
+        self.mask_measured(input, opts, vault, true, 1, None)
     }
 
     fn mask_measured(
@@ -357,9 +413,10 @@ impl Engine {
         vault: &mut dyn Vault,
         use_s1: bool,
         minimum_known_length: usize,
+        positions: Option<&PositionEdits>,
     ) -> Result<Masked, EngineError> {
         let started = Instant::now();
-        let result = self.mask_impl(input, opts, vault, use_s1, minimum_known_length);
+        let result = self.mask_impl(input, opts, vault, use_s1, minimum_known_length, positions);
         self.metrics
             .mask
             .observe(started.elapsed(), result.is_err());
@@ -379,7 +436,17 @@ impl Engine {
         opts: &MaskOptions,
         vault: &mut dyn Vault,
     ) -> Result<Masked, EngineError> {
-        self.mask_measured(input, opts, vault, false, MIN_KNOWN_LEN)
+        self.mask_measured(input, opts, vault, false, MIN_KNOWN_LEN, None)
+    }
+
+    pub fn mask_without_s1_positioned(
+        &self,
+        input: &Input<'_>,
+        opts: &MaskOptions,
+        vault: &mut dyn Vault,
+        positions: &PositionEdits,
+    ) -> Result<Masked, EngineError> {
+        self.mask_measured(input, opts, vault, false, MIN_KNOWN_LEN, Some(positions))
     }
 
     fn mask_impl(
@@ -389,6 +456,7 @@ impl Engine {
         vault: &mut dyn Vault,
         use_s1: bool,
         minimum_known_length: usize,
+        positions: Option<&PositionEdits>,
     ) -> Result<Masked, EngineError> {
         let text = input.text;
         let mut result = Masked::default();
@@ -521,12 +589,21 @@ impl Engine {
         // 7. Токены и сборка результата.
         let mut out = String::with_capacity(text.len());
         let mut pos = 0;
-        for (n, &i) in accepted.iter().enumerate() {
-            let s = &scored[i];
+        let mut emission: Vec<_> = accepted
+            .iter()
+            .enumerate()
+            .map(|(n, &i)| {
+                let next_start = accepted
+                    .get(n + 1)
+                    .map_or(text.len(), |&j| scored[j].c.start);
+                (Cow::Borrowed(&scored[i]), next_start)
+            })
+            .collect();
+        if let Some(edits) = positions {
+            self.apply_position_edits(text, opts, &scored, &protected, edits, &mut emission);
+        }
+        for (s, next_start) in emission {
             let c = &s.c;
-            let next_start = accepted
-                .get(n + 1)
-                .map_or(text.len(), |&j| scored[j].c.start);
             let strategy = self.strategy_for(c, opts);
             // Словоформа: токен заменяет основу, окончание остаётся в тексте после него.
             // Хвост цифр не поглощается: между номером токена и цифрами стоят буквы окончания.
@@ -567,6 +644,13 @@ impl Engine {
             let scope = c.scope.unwrap_or(opts.scope);
             let id = self.token_id(&c.kind, &canonical, original, strategy, scope, opts, vault)?;
             let token = self.codec.format(&c.kind, &id, c.form);
+            // Bound clipped tokens explicitly so a retained digit cannot become
+            // part of the vault ID. The codec already restores this wrapper.
+            let token = if matches!(s, Cow::Owned(_)) && !matches!(&id, TokenId::Surrogate(_)) {
+                format!("${{{token}}}")
+            } else {
+                token
+            };
             if !opts.irreversible {
                 result.known.push(Known {
                     text: original.to_string(),
@@ -600,6 +684,71 @@ impl Engine {
         out.push_str(&text[pos..]);
         result.text = out;
         Ok(result)
+    }
+
+    fn apply_position_edits<'a>(
+        &self,
+        text: &str,
+        opts: &MaskOptions,
+        scored: &[Scored],
+        literals: &[(usize, usize)],
+        edits: &PositionEdits,
+        emission: &mut Vec<(Cow<'a, Scored>, usize)>,
+    ) {
+        let valid = |r: &Range<usize>| r.start < r.end && text.get(r.clone()).is_some();
+        let additions: Vec<_> = edits
+            .additional_masks
+            .iter()
+            .filter(|c| valid(&(c.start..c.end)))
+            .collect();
+        let mut public: Vec<_> = edits
+            .public_ranges
+            .iter()
+            .filter(|r| {
+                valid(r)
+                    && !additions.iter().any(|c| overlaps(&(c.start..c.end), r))
+                    && !scored.iter().any(|s| {
+                        s.c.polarity == Polarity::Mask
+                            && s.verdict != Verdict::Keep
+                            && !s.permits_public_range()
+                            && overlaps(&(s.c.start..s.c.end), r)
+                    })
+            })
+            .cloned()
+            .collect();
+        public.sort_unstable_by_key(|r| r.start);
+
+        let mut covered: Vec<_> = literals.iter().map(|&(start, end)| start..end).collect();
+        for (s, limit) in std::mem::take(emission) {
+            let c = &s.c;
+            let end = match &c.inflection {
+                Some(inf) => c.end - inf.ending,
+                None => absorb_tail(text, c.end, limit, self.strategy_for(c, opts)),
+            };
+            let range = c.start..end;
+            if s.permits_public_range() && public.iter().any(|r| overlaps(r, &range)) {
+                for remaining in subtract_ranges(range, &public) {
+                    emission.push(fragment(&s, &remaining));
+                    covered.push(remaining);
+                }
+            } else {
+                // The writer also copies any inflection suffix after the token.
+                covered.push(c.start..end.max(c.end));
+                emission.push((s, limit));
+            }
+        }
+        for c in additions {
+            covered.sort_unstable_by_key(|r| r.start);
+            let decision = Scored {
+                c: c.clone().hard(),
+                verdict: Verdict::Mask,
+            };
+            for remaining in subtract_ranges(c.start..c.end, &covered) {
+                emission.push(fragment(&decision, &remaining));
+                covered.push(remaining);
+            }
+        }
+        emission.sort_unstable_by_key(|(s, _)| s.c.start);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1446,6 +1595,55 @@ mod tests {
             known,
             ..MaskOptions::default()
         }
+    }
+
+    #[test]
+    fn public_ranges_clip_only_allowed_bytes_and_keep_numeric_suffix_unambiguous() {
+        let engine = engine("abc51.100xyz");
+        let source = "/abc51.100xyz /abc51.100xyz";
+        let mut vault = MemoryVault::new();
+        let edits = PositionEdits {
+            public_ranges: vec![4..10],
+            ..PositionEdits::default()
+        };
+        let masked = engine
+            .mask_without_s1_positioned(&Input::text(source), &opts(vec![]), &mut vault, &edits)
+            .unwrap();
+        let ranges: Vec<_> = masked.replacements.iter().map(|r| r.start..r.end).collect();
+        assert_eq!(ranges, [1..4, 10..13, 15..27]);
+        assert!(masked.text.contains("}51.100"));
+        assert_eq!(
+            engine
+                .restore(&masked.text, &Principal::local("me"), &vault, Escape::None)
+                .unwrap()
+                .text,
+            source
+        );
+    }
+
+    #[test]
+    fn a_public_range_does_not_release_session_protection() {
+        let engine = engine("inside");
+        let mut vault = MemoryVault::new();
+        let source = "/inside";
+        let first = engine
+            .mask_without_s1(&Input::text(source), &opts(vec![]), &mut vault)
+            .unwrap();
+        let edits = PositionEdits {
+            public_ranges: vec![1..7],
+            ..PositionEdits::default()
+        };
+        let masked = engine
+            .mask_without_s1_positioned(
+                &Input::text(source),
+                &opts(first.known),
+                &mut vault,
+                &edits,
+            )
+            .unwrap();
+        assert_eq!(first.text, masked.text);
+        assert_eq!(masked.replacements.len(), 1);
+        assert!(masked.replacements[0].protected);
     }
 
     #[test]
