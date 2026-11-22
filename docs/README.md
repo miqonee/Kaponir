@@ -91,6 +91,9 @@
 
 ## Исследования и история
 
+- [Базовая Qwen и адаптер epoch-2](../research/privacy-training/README.md) — какую версию установить, что дало дообучение и как повторить сравнение.
+- [Сводка по 15 моделям](experiments/ALL_MODELS.md) и [настройки моделей по задачам](experiments/FOCUSED_MODEL_RESULTS.md).
+
 Текущий этап — [политика приватности и парный эксперимент A/B/C/D](experiments/PRIVACY_POLICY_PHASE2.md).
 Здесь находятся отдельный протокол и команды подготовки;
 [статус запущенной очереди](experiments/PHASE2_STATUS.md) описывает продолжение.

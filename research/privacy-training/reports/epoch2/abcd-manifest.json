@@ -1,0 +1,16 @@
+{
+  "archive_sha256": "545aaf677b7b4f34c313d0735674f4122ebfc6457d13f108924d9e6f6dca2fd9",
+  "files": {
+    "abcd-epoch2-cd/active-adapters.json": "a81a924d36dcdd6ed69d79f4f217f7a8fb64f9371340b28d57e3962b1b837662",
+    "abcd-epoch2-cd/adapter.json": "e2f4725ed9b203b25ecde16892f8b02eeeb3925f86e6f600d1271b403cf450af",
+    "abcd-epoch2-cd/plan.json": "1022f9f128ba31718a5cfdcfbccfaf872f3349bc9cc173244d017427221f3c12",
+    "abcd-epoch2-cd/result.json": "32f633944b8432808bd1a930105dc3c3e43d3001a7d48c787f5d9cb0beb9627b",
+    "abcd-epoch2-cd/session-1795374835570962924.json": "91a20ef0849ac6a5f8ce11e318838484acd7f23a4a21ceb0716277ddc6cd9b9a",
+    "abcd-epoch2/active-adapters.json": "a81a924d36dcdd6ed69d79f4f217f7a8fb64f9371340b28d57e3962b1b837662",
+    "abcd-epoch2/adapter.json": "e2f4725ed9b203b25ecde16892f8b02eeeb3925f86e6f600d1271b403cf450af",
+    "abcd-epoch2/plan.json": "d07a70cab4c3953f29cc5eebaa83f42b2a599856994cc72808373ec048a9898c",
+    "abcd-epoch2/result.json": "433a7edc776c6f04f3f91990e90e01e4f5c53f12d1ece2af4e1df8a4f0e2e1a7",
+    "abcd-epoch2/session-1795374339662860920.json": "63d6d1d296a8bf3c4e025e984fb7aec663d2226048d5c8d1fe3e5049fc6fcca4",
+    "paired-abcd.json": "b80c7c285dfc22712ad6d116c4dd6e8c5b0b6cb5a0e116fb0f182dfdca4b9f54"
+  }
+}
