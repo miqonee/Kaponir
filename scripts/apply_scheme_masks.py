@@ -17,7 +17,7 @@ from check_learning_corpus import load_corpus
 from evaluate_model_schemes import METHODS
 from report_complete_research import legacy_summary
 from run_privacy_policy_suite import file_sha
-from summarize_privacy_policy import require, strict_json
+from summarize_privacy_policy import digest, require, strict_json
 
 
 def select_masks(stage, sources):
@@ -39,17 +39,41 @@ def select_masks(stage, sources):
     return selected, len(protected)
 
 
-def run_scheme(result, binary, output, method, archived=False):
+def complete_discovery_snapshot(state, plan, journal):
+    """Verify a finished adding-search stage in a still-open native experiment."""
+    require(plan['profile'].get('native_retest') and 'current_union' in state['stages'],
+            'native_discovery_stage_not_available')
+    require(journal['model'] == plan['model'] and journal['profile'] == plan['profile'],
+            'native_discovery_journal_profile_changed')
+    requests = journal['requests']
+    for file in plan['source_sha256']:
+        stage = f'discovery:{file}'
+        outcome = state['stages'].get(stage, {})
+        entries = [row for row in requests if row['record']['measurement_stage'] == stage]
+        require(outcome.get('errors') == [] and entries and len(entries) == outcome.get('calls')
+                and all(row['status'] == 'received' and not row.get('parse_error')
+                        and row['record']['finish_reason'] == 'stop'
+                        and row['request_sha256'] == digest(row['request']) for row in entries),
+                'native_discovery_stage_incomplete')
+
+
+def run_scheme(result, binary, output, method, archived=False, *, discovery_snapshot=False):
     result, binary, output = Path(result).resolve(), Path(binary).resolve(), Path(output).resolve()
     require(not output.exists(), 'application_output_exists_no_overwrite')
     require(method in METHODS, 'unknown_six_scheme_method')
     verified = legacy_summary(result, archived=archived)
-    require(verified['status'] == 'completed' and len(verified['rows']) == len(METHODS),
-            'completed_measured_scheme_required')
+    if discovery_snapshot:
+        require(method == 'current_union' and not archived, 'native_discovery_only_snapshot')
+    else:
+        require(verified['status'] == 'completed' and len(verified['rows']) == len(METHODS),
+                'completed_measured_scheme_required')
     raw = gzip.decompress(result.read_bytes()) if archived else result.read_bytes()
     require(hashlib.sha256(raw).hexdigest() == verified['result_sha256'], 'application_result_changed')
     state = strict_json(raw.decode())
-    if not archived:
+    if discovery_snapshot:
+        complete_discovery_snapshot(state, strict_json(result.with_name('scheme-plan.json').read_text()),
+                                    strict_json(result.with_name('transports.json').read_text()))
+    elif not archived:
         require(state.get('research_execution', {}).get('runtime_cleanup_verified') is True,
                 'scheme_cleanup_not_durable')
     _, expected, public, sources, _ = load_corpus()
@@ -71,6 +95,8 @@ def run_scheme(result, binary, output, method, archived=False):
         'detector_only_proposal_stage': method == 'detector_proposals',
         'oracle_scope': 'all private value annotations and known public controls in the three calibration source documents',
         'measured_decision_quality': row['quality']}
+    if discovery_snapshot:
+        metadata['completed_scope'] = 'current_union'
     return apply_documents(binary, output, state['signature']['source_sha256'],
                            sources, private, public, selected, metadata)
 

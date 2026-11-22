@@ -1,0 +1,174 @@
+{
+  "all_four_criteria_met": false,
+  "archives": {
+    "application.json.gz": {
+      "bytes": 1213,
+      "sha256": "90b3edac983a0b906fdb54aa12ccb18d3086c78420c740cf73148d0e9f9eb4d6"
+    },
+    "evidence.tar.gz": {
+      "bytes": 61003,
+      "sha256": "d75da6936357a822a4621088d8d21ae351668bfd07d2af06582a209669f32a76"
+    }
+  },
+  "corpus": {
+    "documents": 3,
+    "private_occurrences": 193,
+    "public_controls": 87
+  },
+  "evaluation": {
+    "faster": true,
+    "private_coverage_maintained": true,
+    "public_controls_maintained": false,
+    "public_guide_maintained": false
+  },
+  "exact_restores": 6,
+  "members": {
+    "apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "apply/baseline/02-02-application/mask.json": "72027a12caf41d28b5331d258040ccd55718c0dfa07da5ef4cba9a6ab5854832",
+    "apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "apply/model_masks_added/01-01-cost-estimate/mask.json": "78d1ad95ba3378b6bcc30fa9e789951339688e8db586827116a7843df83f103b",
+    "apply/model_masks_added/01-01-cost-estimate/restore.json": "fb33cec8d32147ebc86fc003817ecb85ea7f3a1bb3a92c023126aa22618dcc48",
+    "apply/model_masks_added/02-02-application/mask.json": "ab4b363b8bca85405ccc0ecc3e38260c047c47e1fb0be8456c1fceecabfd3ef6",
+    "apply/model_masks_added/02-02-application/restore.json": "dc32fc7195329563766f8b2821d3ce8eafeaa9722b3f94ec424dd2e810b75e96",
+    "apply/model_masks_added/03-08-public-reference/mask.json": "7d3562ac18c96531a0adf85a1b08c15f1855cf5601f5245c5196b37527a0c190",
+    "apply/model_masks_added/03-08-public-reference/restore.json": "962b903727d1f6abeaff42f80212dd08270875449a32fb398068dbd428bf906c",
+    "apply/result.json": "fbf9735624ce041944e994342c1a4f88111a39ea0aef87387ea5f18f8b898684",
+    "discovery.json": "eb55a0b026fd11663087ea34843f2100e44a80549d14f7ccaa17dd7442d1cec2",
+    "plan.json": "e89c96627fd3c726977cc0b37231a123af2fa96b136c1350f1d90305384b104d",
+    "producer/check-kaponir-gemma-qat-direct-full.py": "8168ee2d8912cd5b8253b5d62fc6c39b0049b9a228a05d2afd9620c6ed72cd0f",
+    "producer/check-kaponir-lfm-large.py": "918ed25dfb8cff0cc816a767cbd77de2c87e3e72aa3ce1c4a98ae4ff81fcc9e1",
+    "response-checks.json": "6e2ce77077f8c96349c5070c2f5ee921849544940a7b3d7623889ab1e8ddd739",
+    "result.json": "9fd8f7504f91e3091434390c252de860e4edc86bb119f442799c7cf570eecbf3",
+    "transports.json": "9bc7f2a800b50cde6224374408c4a3e3cad43e36d3b44ab70e671bb3a25ed907"
+  },
+  "method": "same frozen source, model, runtime, detector pool, API binary, JSON Schema, output limit, seed and CPU thread count as recommended search; overrides temperature=0 and chat_template_kwargs.enable_thinking=false",
+  "model": "gemma4-e4b-qat",
+  "results": {
+    "direct-temperature-0": {
+      "documents": {
+        "01-cost-estimate.md": {
+          "http_seconds": 211.41800106098526,
+          "private_full": 79,
+          "private_partial": 1,
+          "private_untouched": 0,
+          "public_lost": 0,
+          "reasoning_tokens": 0,
+          "replacements": 86,
+          "requests": 1,
+          "schema_valid_responses": 1,
+          "successful_json_requests": 1
+        },
+        "02-application.log": {
+          "http_seconds": 413.9662697809981,
+          "private_full": 111,
+          "private_partial": 2,
+          "private_untouched": 0,
+          "public_lost": 5,
+          "reasoning_tokens": 0,
+          "replacements": 149,
+          "requests": 1,
+          "schema_valid_responses": 1,
+          "successful_json_requests": 1
+        },
+        "08-public-reference.md": {
+          "http_seconds": 53.09235557599459,
+          "private_full": 0,
+          "private_partial": 0,
+          "private_untouched": 0,
+          "public_lost": 5,
+          "reasoning_tokens": 0,
+          "replacements": 7,
+          "requests": 1,
+          "schema_valid_responses": 1,
+          "successful_json_requests": 1
+        }
+      },
+      "guide_replacements": 7,
+      "http_minutes": 11.307943773632966,
+      "http_seconds": 678.476626417978,
+      "private_full": 190,
+      "private_partial": 3,
+      "private_untouched": 0,
+      "public_lost": 10,
+      "score_100": 78.2825038290768
+    },
+    "original": {
+      "documents": {
+        "01-cost-estimate.md": {
+          "http_seconds": 198.495,
+          "private_full": 79,
+          "private_partial": 1,
+          "private_untouched": 0,
+          "public_lost": 0,
+          "replacements": 86
+        },
+        "02-application.log": {
+          "http_seconds": 454.267,
+          "private_full": 94,
+          "private_partial": 19,
+          "private_untouched": 0,
+          "public_lost": 5,
+          "replacements": 143
+        },
+        "08-public-reference.md": {
+          "http_seconds": 52.512,
+          "private_full": 0,
+          "private_partial": 0,
+          "private_untouched": 0,
+          "public_lost": 5,
+          "replacements": 7
+        }
+      },
+      "guide_replacements": 7,
+      "http_minutes": 11.754566666666667,
+      "http_seconds": 705.274,
+      "private_full": 173,
+      "private_partial": 20,
+      "private_untouched": 0,
+      "public_lost": 10,
+      "score_100": 73.58784544619964
+    },
+    "recommended": {
+      "documents": {
+        "01-cost-estimate.md": {
+          "http_seconds": 316.40902605200245,
+          "private_full": 77,
+          "private_partial": 3,
+          "private_untouched": 0,
+          "public_lost": 0,
+          "reasoning_tokens": 1016,
+          "replacements": 88
+        },
+        "02-application.log": {
+          "http_seconds": 516.7767404990009,
+          "private_full": 55,
+          "private_partial": 41,
+          "private_untouched": 17,
+          "public_lost": 0,
+          "reasoning_tokens": 1224,
+          "replacements": 108
+        },
+        "08-public-reference.md": {
+          "http_seconds": 141.80365608099964,
+          "private_full": 0,
+          "private_partial": 0,
+          "private_untouched": 0,
+          "public_lost": 0,
+          "reasoning_tokens": 865,
+          "replacements": 2
+        }
+      },
+      "guide_replacements": 2,
+      "http_minutes": 16.249823710533384,
+      "http_seconds": 974.989422632003,
+      "private_full": 132,
+      "private_partial": 44,
+      "private_untouched": 17,
+      "public_lost": 0,
+      "score_100": 63.32766567459661
+    }
+  }
+}

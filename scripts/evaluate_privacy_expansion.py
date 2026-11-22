@@ -16,6 +16,7 @@ from evaluate_context_controls import prepare_cases
 from evaluate_privacy_holdout import PROFILE_FIELDS, prepare_plan
 from evaluate_privacy_policy import execute, save_plan
 from experiment_inference import sampling_settings
+from native_model_profiles import load_profile
 from privacy_expansion_profiles import (NEW_CATALOG, ProfiledClient, expansion_profile,
                                         model_ids, research_registration)
 from privacy_policy_experiment import VARIANTS, strict_json
@@ -27,6 +28,7 @@ def parser():
     command = argparse.ArgumentParser(description=__doc__)
     command.add_argument('--model', required=True)
     command.add_argument('--profile', choices=['native', 'common'], default='native')
+    command.add_argument('--native-profile', type=Path, help='Frozen manufacturer profile for the native retest')
     command.add_argument('--new-catalog', type=Path, default=NEW_CATALOG)
     command.add_argument('--dataset', type=Path, default=DEFAULT_DATASET)
     command.add_argument('--dataset-kind', choices=['calibration', 'holdout'], default='holdout')
@@ -55,6 +57,12 @@ def configure(args, command):
     if args.model not in model_ids(args.new_catalog):
         command.error('model is outside the explicitly selected pinned matrix')
     profile = expansion_profile(args.model, args.profile, args.new_catalog)
+    if getattr(args, 'native_profile', None):
+        if any(getattr(args, name) is not None for name in PROFILE_FIELDS):
+            command.error('native retest settings are fixed by --native-profile')
+        chosen = load_profile(args.native_profile, args.model, args.profile, args.new_catalog)
+        profile.update(chosen['settings'])
+        profile['profile_source'] = {**profile['profile_source'], 'native_retest': chosen['profile_sha256']}
     for name in PROFILE_FIELDS:
         if getattr(args, name) is None:
             setattr(args, name, profile[name])
@@ -119,6 +127,8 @@ def main(argv=None):
         dataset, instructions, kinds, _ = (prepare_calibration(args)
             if args.dataset_kind == 'calibration' else prepare_plan(args))
         args.extra_producer_files += ['privacy_expansion_profiles.py', 'evaluate_privacy_expansion.py']
+        if args.native_profile:
+            args.extra_producer_files.append('native_model_profiles.py')
         if args.paired_reference:
             args.extra_producer_files.append('privacy_abcd_reference.py')
         from evaluate_privacy_policy import make_plan

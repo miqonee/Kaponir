@@ -1313,5 +1313,9 @@
   "privacy_worker_disabled": "Start processing in LLM & Analysis.",
   "ungrounded_occurrence": "Qwen could not locate the occurrence. Select it manually.",
   "overlapping_privacy_spans": "Qwen returned overlapping selections. Mark the values manually.",
-  "Сохранено примеров: {{0}}": "Saved examples: {{0}}"
+  "Сохранено примеров: {{0}}": "Saved examples: {{0}}",
+  "Параметры исследования · температура {{0}}, top_p {{1}}, top_k {{2}}, min_p {{3}}, seed {{4}}, бюджет рассуждений {{5}}.": "Research settings · temperature {{0}}, top_p {{1}}, top_k {{2}}, min_p {{3}}, seed {{4}}, reasoning budget {{5}}.",
+  "В архиве поиска подтверждены только лимиты контекста и ответа.": "Only context and output limits were recorded in the search run.",
+  "Параметры исторического поиска не подтверждены. Используются обычные настройки.": "The historical search settings are unverified. Using the standard settings.",
+  "Рассуждения включаются до {{0}} токенов исходного текста.": "Thinking is enabled for source documents of up to {{0}} tokens."
 }

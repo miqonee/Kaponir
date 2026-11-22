@@ -48,7 +48,79 @@ def inference_settings(value):
         if type(result[name]) is not int or not minimum<=result[name]<=maximum:raise ValueError('invalid_inference_settings')
     if result['response_format'] not in ['auto','grammar','prompt']:raise ValueError('invalid_inference_settings')
     if result['max_output_tokens']+result['reserve_tokens']>=result['context_tokens']:raise ValueError('invalid_inference_settings')
+    generation = result.get('local_generation')
+    if generation is not None:
+        if not isinstance(generation, dict):
+            raise ValueError('invalid_inference_settings')
+        if type(generation.get('parse_reasoning', False)) is not bool:
+            raise ValueError('invalid_inference_settings')
+        for key, maximum in [('temperature', 2), ('top_p', 1), ('min_p', 1)]:
+            number = generation.get(key)
+            if type(number) not in (float, int) or not 0 <= number <= maximum:
+                raise ValueError('invalid_inference_settings')
+        for key, low, high in [('top_k', 0, 1024), ('seed', 0, 2**32-1),
+                               ('reasoning_budget', 1, result['context_tokens']), ('retry_output_tokens', 1, 131072)]:
+            number = generation.get(key)
+            if number is None and key != 'top_k':
+                continue
+            if type(number) is not int or not low <= number <= high:
+                raise ValueError('invalid_inference_settings')
+        for key, high in [('prompt_threads',128), ('generation_threads',128), ('thinking_source_cutoff',262144),
+                          ('log_target',result['context_tokens']-1), ('log_hints',result['context_tokens']-1),
+                          ('target',result['context_tokens']-1)]:
+            n = generation.get(key)
+            minimum = 0 if key in ('log_hints','target','log_target') else 1
+            if n is not None and (type(n) is not int or not minimum <= n <= high):
+                raise ValueError('invalid_inference_settings')
+        for key, low, high in [('repeat_penalty',0,4), ('presence_penalty',-2,2),
+                               ('log_repeat_penalty',0,4), ('log_temperature',0,2)]:
+            n = generation.get(key)
+            if n is not None and (type(n) not in (float,int) or not low <= n <= high):
+                raise ValueError('invalid_inference_settings')
+        for key in ('completion_schema','low_effort','enable_thinking','is_log'):
+            if generation.get(key) is not None and type(generation[key]) is not bool:
+                raise ValueError('invalid_inference_settings')
+        if generation.get('reasoning_effort') not in (None,'low','medium','high'):
+            raise ValueError('invalid_inference_settings')
     return result
+
+
+def generation_runtime(generation):
+    budget = generation.get('reasoning_budget')
+    parse = generation.get('parse_reasoning', False) or budget is not None
+    return {'reasoning':'auto' if parse else 'off', 'reasoning_format':'deepseek' if parse else 'auto',
+            'reasoning_budget':budget if budget is not None else -1,
+            **{key:generation[key] for key in ('prompt_threads','generation_threads') if generation.get(key) is not None}}
+
+
+def document_generation(generation, source, count_tokens, is_log):
+    """Resolve document-wide choices once, before planning fragments."""
+    generation = dict(generation)
+    if is_log:
+        for key in ('temperature','repeat_penalty'):
+            if generation.get('log_'+key) is not None:
+                generation[key] = generation['log_'+key]
+    cutoff = generation.get('thinking_source_cutoff')
+    if cutoff is not None and generation.get('enable_thinking') is None:
+        generation['enable_thinking'] = count_tokens(source) <= cutoff
+    return generation
+
+
+def generation_template(generation):
+    thinking = generation.get('enable_thinking')
+    if thinking is None:
+        thinking = generation.get('reasoning_budget') is not None
+    return {'enable_thinking':thinking, **{key:generation[key] for key in ('low_effort','reasoning_effort')
+                                           if generation.get(key) is not None}}
+
+
+def document_limits(generation, limit, hints, is_log):
+    if is_log:
+        # A manually chosen nonzero limit takes precedence over the automatic log policy.
+        limit = limit or generation.get('log_target') or 0
+        if generation.get('log_hints') is not None:
+            hints = generation['log_hints']
+    return limit, hints
 
 
 class InferenceError(ValueError):
@@ -98,21 +170,27 @@ FILES = {
     'nanbeige42-3b': ('Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf', 2684023968, 'b92d2e35c9876b0c4bc671996360204f4149d0546c23d5954d5eb3b106c81f24', 'https://huggingface.co/bartowski/Nanbeige_Nanbeige4.2-3B-GGUF/resolve/17562eefe9752007209148d5f7a6e275fc8d8077/Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf'),
     'granite42-3b': ('granite-4.2-3b-Q4_K_M.gguf', 2244011552, 'e0406663965846ae22a403456eb826ccce5f450840491f71952f18a7cb78e7d5', 'https://huggingface.co/ibm-granite/granite-4.2-3b-GGUF/resolve/c40945d71cd90f249a56985e8155551a9188dc30/granite-4.2-3b-Q4_K_M.gguf'),
     'gemma4-e4b-qat': ('gemma-4-E4B_q4_0-it.gguf', 5154941280, '676c35070db6dbe52f93e9c864ee0fba4eddea94b9c875d9cb10daff453fbaee', 'https://huggingface.co/google/gemma-4-E4B-it-qat-q4_0-gguf/resolve/4b4a2c1d584be7264f87aac328a1bc739ce81b6c/gemma-4-E4B_q4_0-it.gguf'),
+    'lfm2.5-1.2b-instruct': ('LFM2.5-1.2B-Instruct-Q4_K_M.gguf', 730895168, 'b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5', 'https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/8ed288026e23958ad9dfa92d53ed773a8eee7125/LFM2.5-1.2B-Instruct-Q4_K_M.gguf'),
+    'lfm2.5-2.6b': ('LFM2.5-2.6B-Q4_K_M.gguf', 1674455040, '02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed', 'https://huggingface.co/LiquidAI/LFM2.5-2.6B-GGUF/resolve/e7caca5d835a3901a8e0d63e94009429bafafdfc/LFM2.5-2.6B-Q4_K_M.gguf'),
+    'qwen3.5-4b': ('Qwen3.5-4B-Q4_K_M.gguf', 2740937888, '00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4', 'https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf'),
+    'spark-x2.6-4b': ('Spark-X2.6-4B-Q4_K_M.gguf', 3543441312, '91cb2811aebb47ac916aa619d27d4cdd7f4143106b7917accb8ead4cd7f5cbd9', 'https://huggingface.co/XHToken/Spark-X2.6-4B-GGUF/resolve/9d716770ac7477776de5f891f70cdf98b003a5cd/Spark-X2.6-4B-Q4_K_M.gguf'),
+    'lfm2.5-8b-a1b': ('LFM2.5-8B-A1B-Q4_K_M.gguf', 5155564768, '4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0', 'https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/49c14831707011e64d70b2ebd8462ba08d608434/LFM2.5-8B-A1B-Q4_K_M.gguf'),
+    'gemma4-e2b-it-q4km': ('gemma-4-E2B-it-Q4_K_M.gguf', 3106738272, '740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8', 'https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/0314792d7f1f7e229411f620751375812bb9faf2/gemma-4-E2B-it-Q4_K_M.gguf'),
+    'gemma4-e4b-it-q4km': ('gemma-4-E4B-it-Q4_K_M.gguf', 4977171584, '85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87', 'https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/bfc15c382204943c3a8fff0c750b94ae2364d7a3/gemma-4-E4B-it-Q4_K_M.gguf'),
 }
 MODEL_ALIASES = {
-    'q4': 'q4',
-    'q5': 'q5',
+    **{variant: variant for variant in FILES},
     'qwen3-0.6b': 'q4',
     'qwen3-0.6b-q8': 'q5',
-    'qwen3.5-0.8b': 'qwen3.5-0.8b',
-    'minicpm5-2b': 'minicpm5-2b',
-    'qwen3.5-2b': 'qwen3.5-2b',
-    'huihui-qwen3.5-2b-abliterated': 'huihui-qwen3.5-2b-abliterated',
-    'nanbeige42-3b': 'nanbeige42-3b',
-    'granite42-3b': 'granite42-3b',
-    'gemma4-e4b-qat': 'gemma4-e4b-qat',
 }
 MODEL_LABELS = {
+    'lfm2.5-1.2b-instruct': 'LFM2.5-1.2B-Instruct',
+    'lfm2.5-2.6b': 'LFM2.5-2.6B',
+    'qwen3.5-4b': 'Qwen3.5-4B',
+    'spark-x2.6-4b': 'Spark-X2.6-4B',
+    'lfm2.5-8b-a1b': 'LFM2.5-8B-A1B',
+    'gemma4-e2b-it-q4km': 'Gemma 4 E2B-it · Unsloth Q4_K_M',
+    'gemma4-e4b-it-q4km': 'Gemma 4 E4B-it · Unsloth Q4_K_M',
     'q4': 'Qwen3-0.6B · Q4_K_M',
     'q5': 'Qwen3-0.6B · Q8_0',
     'qwen3.5-0.8b': 'Qwen3.5-0.8B · Q4_K_M',
@@ -505,7 +583,7 @@ class Worker:
             db.execute('UPDATE jobs SET updated=?,body=? WHERE id=?',(job['updated'],json.dumps(job),ident))
         return job
 
-    def submit(self, kind, source='.', model=None, use_s1=False, mode='local'):
+    def submit(self, kind, source='.', model=None, use_s1=False, mode='local', inference=None, timeout_seconds=None):
         if kind not in ['scan','download','evaluate']: raise ValueError('invalid job kind')
         if not isinstance(use_s1,bool): raise ValueError('use_s1 must be a boolean')
         if not isinstance(mode, str) or mode not in MODES: raise ValueError('unsupported analysis mode')
@@ -518,6 +596,19 @@ class Worker:
         job={'id':uuid.uuid4().hex,'kind':kind,'source':source,'root':str(self.root),'model':model,'use_s1':bool(use_s1),'mode':mode,
              'state':'queued','created':time.time(),'updated':time.time(),'completed':0,'page':0,'files':None,
              'total':0,'errors':[],'skipped':0,'control':None,'progress':0,'progress_total':0,'current':''}
+        if inference is not None:
+            if kind != 'scan' or mode != 'qwen':
+                raise ValueError('invalid_inference_settings')
+            settings = inference_settings(inference)
+            # Only persist validated settings in the queue, never arbitrary request metadata.
+            job['inference'] = {key:settings[key] for key in ('context_tokens','max_output_tokens','reserve_tokens','batch_size','response_format')}
+            if settings.get('local_generation') is not None:
+                generation = settings['local_generation']
+                job['inference']['local_generation'] = {key:generation[key] for key in
+                    ('temperature','top_p','top_k','min_p','seed','parse_reasoning','reasoning_budget','retry_output_tokens') if key in generation}
+            if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 1800:
+                raise ValueError('invalid_evaluation_timeout')
+            job['timeout_seconds'] = timeout_seconds
         with self.lock, self.connection() as db:
             if kind == 'download':
                 for row in db.execute('SELECT body FROM jobs ORDER BY created'):
@@ -684,8 +775,7 @@ class Worker:
                     'label':MODEL_LABELS.get(variant,self.custom_models.get(variant,{}).get('label',variant)),
                     'kind':'text-cpu','custom':variant in self.custom_models}
             models[variant] = info
-            # This adapter returns occurrence labels. General discovery uses a different prompt.
-            if variant == PRIVACY_MODEL:
+            if variant in (PRIVACY_MODEL, 'huihui-qwen3.5-2b-abliterated', 'tiny-aya-global'):
                 continue
             catalog.append({'id':{'q4':'qwen3-0.6b','q5':'qwen3-0.6b-q8'}.get(variant,variant),
                 'label':info['label'],'bytes':fsize,'custom':info['custom']})
@@ -812,16 +902,18 @@ class Worker:
         use_prompt=response_format=='prompt' or response_format=='auto' and self.process_supports_json_schema is False
         return schema_prompt(prompt,schema) if use_prompt else prompt
 
-    def start_runtime(self, ident, variant, slots=1, context_tokens=4096, reasoning='off', reasoning_format='auto', reasoning_budget=-1):
+    def start_runtime(self, ident, variant, slots=1, context_tokens=4096, reasoning='off', reasoning_format='auto', reasoning_budget=-1,
+                      prompt_threads=None, generation_threads=None):
         if reasoning not in ['off','on','auto'] or reasoning_format not in ['auto','none','deepseek','deepseek-legacy']:
             raise ValueError('invalid_reasoning_settings')
         if type(reasoning_budget) is not int or not -1<=reasoning_budget<=context_tokens:
             raise ValueError('invalid_reasoning_settings')
+        threads = (prompt_threads or self.cfg['threads'], generation_threads or self.cfg['threads'])
         variant = self.canonical_model(variant)
         if (self.process and self.process.poll() is None and self.process_variant == variant
                 and self.process_slots == slots and self.process_context_tokens==context_tokens
                 and self.process_reasoning==reasoning and self.process_reasoning_format==reasoning_format
-                and self.process_reasoning_budget==reasoning_budget): return
+                and self.process_reasoning_budget==reasoning_budget and self.process_threads==threads): return
         self.stop_runtime()
         if not self.runtime.is_file() or not self.status()['models'][variant]['downloaded']:
             raise ValueError('CPU LLM model/runtime missing; download the model first')
@@ -829,7 +921,7 @@ class Worker:
             sock.bind(('127.0.0.1',0));port=sock.getsockname()[1]
         self.ocr_base=f'http://127.0.0.1:{port}'
         cmd=[str(self.runtime),'-m',str(self.models/self.model_files()[variant][0]),
-             '--host','127.0.0.1','--port',str(port),'-c',str(context_tokens*slots),'-np',str(slots),'-t',str(self.cfg['threads']),'-tb',str(self.cfg['threads']),
+             '--host','127.0.0.1','--port',str(port),'-c',str(context_tokens*slots),'-np',str(slots),'-t',str(threads[1]),'-tb',str(threads[0]),
              '-b','512','-ub','256','-ngl','0','--no-warmup','--reasoning',reasoning,'--no-mmproj',
              '--cache-ram','0','--no-cache-idle-slots']
         if reasoning_format!='auto':cmd.extend(['--reasoning-format',reasoning_format])
@@ -844,6 +936,7 @@ class Worker:
         self.process_context_tokens = context_tokens
         self.process_reasoning = reasoning
         self.process_reasoning_format = reasoning_format
+        self.process_threads = threads
         self.process_reasoning_budget = reasoning_budget
         with self.token_lock:self.token_counts.clear()
         deadline=time.monotonic()+120
@@ -950,6 +1043,43 @@ class Worker:
         }, trained_prompt=True)
         return {'spans': ground_privacy_spans(text, result)}
 
+    def complete_local(self, ident, base, payload, settings, input_tokens, deadline):
+        generation = settings.get('local_generation') or {}
+        for key in ('temperature', 'top_p', 'top_k', 'min_p', 'seed', 'presence_penalty', 'repeat_penalty'):
+            if generation.get(key) is not None:
+                payload[key] = generation[key]
+        available = settings['context_tokens'] - input_tokens - settings['reserve_tokens']
+        if available < payload['max_tokens']:
+            raise ValueError('model_context_budget_exceeded')
+        limits = [payload['max_tokens']]
+        retry = min(available, generation.get('retry_output_tokens') or 0)
+        if retry > limits[0]:
+            limits.append(retry)
+        use_completion = generation.get('completion_schema') and 'response_format' in payload
+        if use_completion:
+            template = {'messages':payload['messages'], 'chat_template_kwargs':payload['chat_template_kwargs'],
+                        'add_generation_prompt':True}
+            rendered = http_json(base+'/apply-template', template, timeout=max(0.01, deadline-time.monotonic()))['prompt']
+            completion = {k:v for k,v in payload.items() if k not in
+                          ('model','messages','chat_template_kwargs','response_format','max_tokens')}
+            completion.update(prompt=rendered, json_schema=payload['response_format']['json_schema']['schema'])
+        for limit in limits:
+            self.check(ident)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError('model_timeout')
+            payload['max_tokens'] = limit
+            if use_completion:
+                raw = http_json(base+'/completion', {**completion,'n_predict':limit}, timeout=remaining)
+                finish = {'eos':'stop','word':'stop','limit':'length'}.get(raw.get('stop_type'),'error')
+                reply = {'choices':[{'finish_reason':finish,'message':{'content':raw['content']}}],
+                         'usage':{'prompt_tokens':raw.get('tokens_evaluated'),'completion_tokens':raw.get('tokens_predicted')}}
+            else:
+                reply = http_json(base+'/v1/chat/completions', payload, timeout=remaining)
+            if reply['choices'][0].get('finish_reason') != 'length':
+                break
+        return reply
+
     def evaluate(self, body, *, trained_prompt=False):
         if not self.enabled: raise ValueError('worker is disabled')
         model = self.canonical_model(body.get('model', self.cfg['model']))
@@ -957,7 +1087,13 @@ class Worker:
         if type(slots) is not int or not 1 <= slots <= 10: raise ValueError('invalid parallelism')
         settings=inference_settings(body.get('inference',{}))
         context_tokens=settings['context_tokens']
-        profile=(model,slots,context_tokens)
+        generation = settings.get('local_generation') or {}
+        reasoning_budget = generation.get('reasoning_budget')
+        runtime = generation_runtime(generation)
+        profile = (model, slots, context_tokens, tuple(sorted(runtime.items())))
+        timeout = body.get('timeout_seconds', self.cfg['ocr_timeout_seconds'])
+        if type(timeout) is not int or not 1 <= timeout <= 1800:
+            raise ValueError('invalid_evaluation_timeout')
         prompt, schema, source = body.get('prompt'), body.get('schema'), body.get('input')
         if not isinstance(prompt, str) or not 1 <= len(prompt) <= 8192: raise ValueError('invalid evaluation prompt')
         if not isinstance(schema, dict) or not isinstance(source, dict): raise ValueError('invalid evaluation input')
@@ -979,12 +1115,16 @@ class Worker:
         try:
             with self.runtime_lock:
                 self.check(ident)
-                self.start_runtime(ident, model, slots, context_tokens=context_tokens)
+                self.start_runtime(ident, model, slots, context_tokens=context_tokens, **runtime)
                 base = self.ocr_base
                 supports_schema = False
                 if not trained_prompt:
                     prompt = self.structured_prompt(prompt,schema,settings['response_format'])
                     supports_schema = settings['response_format']=='grammar' or settings['response_format']=='auto' and self.process_supports_json_schema is not False
+            is_log = generation.get('is_log', False)
+            generation = document_generation(generation, source.get('source',''), self.count_text_tokens, is_log)
+            settings = {**settings,'local_generation':generation}
+            template_kwargs = generation_template(generation)
             telemetry['structured_output']='json_schema' if supports_schema else 'json_prompt'
             if body.get('operation')=='plan':
                 chunking=body.get('chunking',{})
@@ -992,28 +1132,28 @@ class Worker:
                 if not isinstance(text,str):raise ValueError('invalid_evaluation_input')
                 limit=chunking.get('target_input_tokens',0)
                 hints=chunking.get('context_hint_tokens',0)
+                limit,hints = document_limits(generation, limit, hints, is_log)
                 maximum=chunking.get('max_fragments',256)
                 if type(limit) is not int or not 0<=limit<context_tokens or type(hints) is not int or not 0<=hints<context_tokens or type(maximum) is not int or not 1<=maximum<=1000:raise ValueError('invalid_chunk_settings')
                 def context(offset):
                     return '\n'.join(x for x in [source.get('context',''),document_hint(text,offset,hints,self.count_text_tokens)] if x)
                 def fits(fragment,hint):
-                    tokens=self.prompt_token_count(prompt,{'source':fragment,'context':hint})
+                    tokens=self.prompt_token_count(prompt,{'source':fragment,'context':hint},template_kwargs)
                     return tokens+settings['max_output_tokens']+settings['reserve_tokens']<=context_tokens and (not limit or tokens<=limit)
                 spans=plan_text(text,fits,context,strategy=chunking.get('strategy','auto'),max_fragments=maximum)
                 self.update(ident,state='succeeded')
-                return {'fragments':[{'source':text[s['start']:s['end']],'context':s['context']} for s in spans],'token_count_method':'runtime_tokenizer'}
-            telemetry['prompt_tokens']=self.prompt_token_count(prompt,source)
-            if telemetry['prompt_tokens']+settings['max_output_tokens']+settings['reserve_tokens']>context_tokens:
-                raise ValueError('model_context_budget_exceeded')
+                return {'enable_thinking':template_kwargs['enable_thinking'], 'fragments':[{'source':text[s['start']:s['end']],'context':s['context']} for s in spans],'token_count_method':'runtime_tokenizer'}
+            telemetry['prompt_tokens']=self.prompt_token_count(prompt,source,template_kwargs)
             payload = {
                 'model':'qwen-cpu', 'messages':[{'role':'system','content':prompt},
                     {'role':'user','content':json.dumps(source, ensure_ascii=False)}],
                 'temperature':0, 'max_tokens':settings['max_output_tokens'], 'stream':False, 'cache_prompt':False,
-                'chat_template_kwargs':{'enable_thinking':False},
+                'chat_template_kwargs':template_kwargs,
                 'response_format':{'type':'json_schema','json_schema':{'name':'learning','strict':True,'schema':schema}},
             }
             if not supports_schema:payload.pop('response_format')
-            reply = http_json(base+'/v1/chat/completions',payload,timeout=self.cfg['ocr_timeout_seconds'])
+            reply = self.complete_local(ident, base, payload, settings, telemetry['prompt_tokens'], started + timeout)
+            telemetry['max_output_tokens'] = payload['max_tokens']
             self.check(ident)
             choice = reply['choices'][0]
             telemetry['finish_reason']=choice.get('finish_reason') if choice.get('finish_reason') in ['stop','length','content_filter','error'] else 'other'
@@ -1052,30 +1192,37 @@ class Worker:
                 self.evaluations.pop(ident, None)
                 self.evaluation_condition.notify_all()
 
-    def extract_text_candidates(self, ident, variant, source):
+    def extract_text_candidates(self, ident, variant, source, settings=None, hint=''):
         """Run the selected local CPU text model directly on a text chunk."""
-        self.start_runtime(ident, variant)
+        job = self.get(ident)
+        settings = settings or inference_settings(job.get('inference', {'max_output_tokens':800}))
+        generation = settings.get('local_generation') or {}
+        self.start_runtime(ident, variant, context_tokens=settings['context_tokens'], **generation_runtime(generation))
+        fmt = settings['response_format']
+        generation = document_generation(generation,source,self.count_text_tokens,generation.get('is_log',False))
+        settings = {**settings,'local_generation':generation}
+        template = generation_template(generation)
         payload = {
             'model': 'qwen3-cpu',
             'messages': [
-                {'role': 'system', 'content': self.structured_prompt(CANDIDATE_PROMPT,CANDIDATE_SCHEMA)},
-                {'role': 'user', 'content': source},
+                {'role': 'system', 'content': self.structured_prompt(CANDIDATE_PROMPT,CANDIDATE_SCHEMA,fmt)},
+                {'role': 'user', 'content': json.dumps({'source':source,'context':hint},ensure_ascii=False) if hint else source},
             ],
             'temperature': 0,
-            'max_tokens': 800,
+            'max_tokens': settings['max_output_tokens'],
             'stream': False,
             'cache_prompt': False,
-            'chat_template_kwargs': {'enable_thinking': False},
+            'chat_template_kwargs': template,
             'response_format': {
                 'type': 'json_schema',
                 'json_schema': {'name': 'candidates', 'strict': True, 'schema': CANDIDATE_SCHEMA},
             },
         }
-        if self.process_supports_json_schema is False:payload.pop('response_format')
-        reserve=inference_settings({})['reserve_tokens']
-        if self.message_token_count(payload['messages'])+payload['max_tokens']+reserve>self.process_context_tokens:
-            raise ValueError('model_context_budget_exceeded')
-        reply = http_json(self.ocr_base + '/v1/chat/completions', payload, timeout=self.cfg['ocr_timeout_seconds'])
+        if fmt == 'prompt' or fmt == 'auto' and self.process_supports_json_schema is False:
+            payload.pop('response_format')
+        input_tokens = self.message_token_count(payload['messages'],template)
+        timeout = job.get('timeout_seconds', self.cfg['ocr_timeout_seconds'])
+        reply = self.complete_local(ident, self.ocr_base, payload, settings, input_tokens, time.monotonic() + timeout)
         self.check(ident)
         choice = reply['choices'][0]
         if choice.get('finish_reason') != 'stop':
@@ -1087,13 +1234,39 @@ class Worker:
             return self.extract_text_candidates(ident, variant, image_or_text)
         return self.extract_text_candidates(ident, variant, source or '')
 
-    def model_candidates(self, ident, text):
+    def model_candidates(self, ident, text, name=None):
         job = self.get(ident)
         found, rejected = {}, 0
-        for index, source in enumerate(text_chunks(text, self.cfg['max_pages'])):
+        settings = job.get('inference')
+        chunks = None
+        if settings:
+            settings = inference_settings(settings)
+            generation = settings.get('local_generation') or {}
+            self.start_runtime(ident, job['model'], context_tokens=settings['context_tokens'], **generation_runtime(generation))
+            is_log = str(name or job.get('current') or '').lower().endswith('.log')
+            generation = document_generation(generation,text,self.count_text_tokens,is_log)
+            generation['is_log'] = is_log
+            settings = {**settings,'local_generation':generation}
+            limit,hints = document_limits(generation, generation.get('target',0), 256, is_log)
+            template = generation_template(generation)
+            prompt = self.structured_prompt(CANDIDATE_PROMPT,CANDIDATE_SCHEMA,settings['response_format'])
+            def fits(source,hint):
+                content = json.dumps({'source':source,'context':hint},ensure_ascii=False) if hint else source
+                messages = [{'role':'system','content':prompt},{'role':'user','content':content}]
+                size = self.message_token_count(messages,template)
+                return (not limit or size <= limit) and size+settings['max_output_tokens']+settings['reserve_tokens']<=settings['context_tokens']
+            spans = plan_text(text, fits, lambda offset: document_hint(text,offset,hints,self.count_text_tokens),
+                              max_fragments=self.cfg['max_pages'])
+            chunks = ((text[span['start']:span['end']],span['context']) for span in spans)
+        else:
+            chunks = ((source,'') for source in text_chunks(text,self.cfg['max_pages']))
+        for index, (source,hint) in enumerate(chunks):
             self.check(ident)
             self.update(ident, candidate_page=index+1)
-            candidates, dropped = self.extract_text_candidates(ident, job['model'], source)
+            if settings:
+                candidates, dropped = self.extract_text_candidates(ident, job['model'], source, settings, hint)
+            else:
+                candidates, dropped = self.extract_text_candidates(ident, job['model'], source)
             rejected += dropped
             for candidate in candidates:
                 value = candidate['value']
@@ -1117,7 +1290,7 @@ class Worker:
         model_error = None
         if self.get(ident).get('mode', 'local') in ('qwen', 'xiaomi'):
             try:
-                docs[0]['model_candidates'] = self.model_candidates(ident, text)
+                docs[0]['model_candidates'] = self.model_candidates(ident, text, name)
             except Interrupted:
                 raise
             except Exception as exc:
@@ -1294,7 +1467,7 @@ def handler(worker, token):
                 elif path=='/disable':result=worker.activate(False)
                 elif path=='/evaluate':result=worker.evaluate(body)
                 elif path=='/privacy-suggest':result=worker.suggest_privacy_spans(body)
-                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'))
+                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'),body.get('inference'),body.get('timeout_seconds'))
                 elif path=='/models/resolve':result=resolve_hf(body.get('url'))
                 elif path=='/models/register':result=worker.register_model(body.get('url'),body.get('file'))
                 elif path=='/models/download':result=worker.submit('download',model=body.get('model'))

@@ -1,0 +1,1117 @@
+{
+  "data": "Kaponir synthetic privacy corpus",
+  "evidence_file": "evidence.tar.gz",
+  "evidence_sha256": "85d08d954725a3288d7832e2e0d857a433b9bbf0a47fe40daff58944960e10d0",
+  "members": {
+    "archive.py": "a04451fcefbebbb92dad82bae17b0b7db0d5e66a521cfc8288aaeff57af20cef",
+    "granite42-3b/direct-md-stock-log/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "granite42-3b/direct-md-stock-log/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "granite42-3b/direct-md-stock-log/apply/baseline/02-02-application/mask.json": "73dde43c718d83656d67420c8a6fb851e970e82984002a8117e789f474176253",
+    "granite42-3b/direct-md-stock-log/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "granite42-3b/direct-md-stock-log/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "granite42-3b/direct-md-stock-log/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "granite42-3b/direct-md-stock-log/apply/model_masks_added/01-01-cost-estimate/mask.json": "dcb0cee871b3a2f69666ffaac5363a749c5157733a41e5476549cfa075e3d441",
+    "granite42-3b/direct-md-stock-log/apply/model_masks_added/01-01-cost-estimate/restore.json": "46a571ede086a23383d01761268ab74c193e2de7dec409e1b5ec9eb48cb0bc43",
+    "granite42-3b/direct-md-stock-log/apply/model_masks_added/02-02-application/mask.json": "f06de12f3332e90d3035fe3a2d4a00f7c6f77b0d3b5f749be7ed4d48e6a60218",
+    "granite42-3b/direct-md-stock-log/apply/model_masks_added/02-02-application/restore.json": "da00672f6e3ed3791374935344b46403de81cb4ee85a1926cd7331479999c158",
+    "granite42-3b/direct-md-stock-log/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "granite42-3b/direct-md-stock-log/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "granite42-3b/direct-md-stock-log/apply/result.json": "3fe525d5615f3c468fe595e36854a74510e8979d6465f273bb0f18ed5010dab4",
+    "granite42-3b/direct-md-stock-log/discovery.json": "5c3a66d51a3fd8cf1b3fca5301ed6bb0308af353d651a8a7e21d71f18a476c65",
+    "granite42-3b/direct-md-stock-log/result.json": "e1ed099bb5b3ab73dd1ffd44aeb04d7eb84a866aae069c0c5d6907c231ea4fee",
+    "granite42-3b/granite-full-type-presets/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "granite42-3b/granite-full-type-presets/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "granite42-3b/granite-full-type-presets/apply/baseline/02-02-application/mask.json": "b0e02d2667c819fd8d595ae9ca5eaa79e231016f64257a23661c97b182f0076e",
+    "granite42-3b/granite-full-type-presets/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "granite42-3b/granite-full-type-presets/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "granite42-3b/granite-full-type-presets/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "granite42-3b/granite-full-type-presets/apply/model_masks_added/01-01-cost-estimate/mask.json": "dcb0cee871b3a2f69666ffaac5363a749c5157733a41e5476549cfa075e3d441",
+    "granite42-3b/granite-full-type-presets/apply/model_masks_added/01-01-cost-estimate/restore.json": "46a571ede086a23383d01761268ab74c193e2de7dec409e1b5ec9eb48cb0bc43",
+    "granite42-3b/granite-full-type-presets/apply/model_masks_added/02-02-application/mask.json": "ac94fba7a687aacd8780ffa1069902a824c8bc51664955e02497398d00814f90",
+    "granite42-3b/granite-full-type-presets/apply/model_masks_added/02-02-application/restore.json": "da00672f6e3ed3791374935344b46403de81cb4ee85a1926cd7331479999c158",
+    "granite42-3b/granite-full-type-presets/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "granite42-3b/granite-full-type-presets/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "granite42-3b/granite-full-type-presets/apply/result.json": "1f8f859fc4e0295dd90de5fc49b6d490d1eeed7d6ef23664aff93ba9a1b774e7",
+    "granite42-3b/granite-full-type-presets/discovery.json": "12ab8ac50114356db9b3c0d63d321df7111ae42240df70f2ee9e05fab90fc8b2",
+    "granite42-3b/granite-full-type-presets/layout.json": "55569146aa460763eaef92eb8125e5b36911e0329d84de8c7f8db6bcd3f91fa5",
+    "granite42-3b/granite-full-type-presets/non-log/transports.json": "836f5edbcad194167fa86f1192f64b8a207d7a51ad9412e623604bdebde64964",
+    "granite42-3b/granite-full-type-presets/plan.json": "f211818b2c741786c47cca534fa37c6d733e2ffa516d4b3ce989555697692b78",
+    "granite42-3b/granite-full-type-presets/result.json": "575e5127860a6fd522c7f5be178e4920cdf65b75d7d7e4470e364b3940e3d81f",
+    "granite42-3b/granite-full-type-presets/transports.json": "856047915142dde7a9925694a555ec3a09a79bcbb0f2755f099d05d23db89f8a",
+    "granite42-3b/granite-log-low128-t0/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "granite42-3b/granite-log-low128-t0/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "granite42-3b/granite-log-low128-t0/apply/baseline/02-02-application/mask.json": "d133927c5a5a584fc65776f06b11d8ba33ea4ce0dcddf491caff141952811ddc",
+    "granite42-3b/granite-log-low128-t0/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "granite42-3b/granite-log-low128-t0/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "granite42-3b/granite-log-low128-t0/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "granite42-3b/granite-log-low128-t0/apply/model_masks_added/01-01-cost-estimate/mask.json": "dcb0cee871b3a2f69666ffaac5363a749c5157733a41e5476549cfa075e3d441",
+    "granite42-3b/granite-log-low128-t0/apply/model_masks_added/01-01-cost-estimate/restore.json": "46a571ede086a23383d01761268ab74c193e2de7dec409e1b5ec9eb48cb0bc43",
+    "granite42-3b/granite-log-low128-t0/apply/model_masks_added/02-02-application/mask.json": "c0aedc3d66101489e3c923328531c90c877e0e097e79e827d245918b3271af4c",
+    "granite42-3b/granite-log-low128-t0/apply/model_masks_added/02-02-application/restore.json": "8542e60d17668b2f82fec249e50cb91431f8b9e430ce3cd0b37a4d601423fc4f",
+    "granite42-3b/granite-log-low128-t0/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "granite42-3b/granite-log-low128-t0/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "granite42-3b/granite-log-low128-t0/apply/result.json": "03141978c8f1b4dfcf12dd2d20f28893893795a75c85698a10031f8bdb73179c",
+    "granite42-3b/granite-log-low128-t0/discovery.json": "d2a3b749deade6365044b0e896f9dc64501239425185c073769729345899dd5a",
+    "granite42-3b/granite-log-low128-t0/layout.json": "55569146aa460763eaef92eb8125e5b36911e0329d84de8c7f8db6bcd3f91fa5",
+    "granite42-3b/granite-log-low128-t0/plan.json": "917265cd7d3393b4cea2c8d5fdf5e3e73d3fa4400b8050382e2ba98af50178a1",
+    "granite42-3b/granite-log-low128-t0/result.json": "221a095ba64d51d756338b08fac8af6121331ad377c2d1e2206b2b2c715f45f1",
+    "granite42-3b/granite-log-low128-t0/transports.json": "c9086c7af2d877b061b23648e737d2feeb9890b018e376def207963beff2e96c",
+    "granite42-3b/granite-log-t025/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "granite42-3b/granite-log-t025/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "granite42-3b/granite-log-t025/apply/baseline/02-02-application/mask.json": "6f2db85dfa882cb9170e22260221d8ea234b518f1f2cd4eaed8bf1718b9939be",
+    "granite42-3b/granite-log-t025/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "granite42-3b/granite-log-t025/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "granite42-3b/granite-log-t025/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "granite42-3b/granite-log-t025/apply/model_masks_added/01-01-cost-estimate/mask.json": "dcb0cee871b3a2f69666ffaac5363a749c5157733a41e5476549cfa075e3d441",
+    "granite42-3b/granite-log-t025/apply/model_masks_added/01-01-cost-estimate/restore.json": "46a571ede086a23383d01761268ab74c193e2de7dec409e1b5ec9eb48cb0bc43",
+    "granite42-3b/granite-log-t025/apply/model_masks_added/02-02-application/mask.json": "711d409e621fa268170aa41faf22fd3dac122d7f81cf9a4cc527921937cb5828",
+    "granite42-3b/granite-log-t025/apply/model_masks_added/02-02-application/restore.json": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b",
+    "granite42-3b/granite-log-t025/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "granite42-3b/granite-log-t025/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "granite42-3b/granite-log-t025/apply/result.json": "4e018674038d4cd62a0c4b157ae7570ed3582f99795cb77e7278f3d9a535c295",
+    "granite42-3b/granite-log-t025/discovery.json": "b9f76c7306dc8c660ca485d64a8e9e2f5945da07070a77aa888537f9ba99aa69",
+    "granite42-3b/granite-log-t025/layout.json": "55569146aa460763eaef92eb8125e5b36911e0329d84de8c7f8db6bcd3f91fa5",
+    "granite42-3b/granite-log-t025/plan.json": "96b2445e619c7249bcfe2c3ed9d5ac7677a0b6bd6e5e4ac7fc8f52c634729d1c",
+    "granite42-3b/granite-log-t025/result.json": "328afca0db0bf33eeb01d77dbf00fa0847b9cac46c1e0765aa3ed425196f4a3a",
+    "granite42-3b/granite-log-t025/transports.json": "778018a5916d17ce293c35528b1e3d61ce9930bb7e7537fc36525e2fe6c5eda8",
+    "nanbeige42-3b/direct-md-stock-log/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "nanbeige42-3b/direct-md-stock-log/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "nanbeige42-3b/direct-md-stock-log/apply/baseline/02-02-application/mask.json": "6f8b28b66d9f2fc711b08d2a5c3c45072d73a90f1e19cdf134f1abcd71fb926b",
+    "nanbeige42-3b/direct-md-stock-log/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "nanbeige42-3b/direct-md-stock-log/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "nanbeige42-3b/direct-md-stock-log/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "nanbeige42-3b/direct-md-stock-log/apply/model_masks_added/01-01-cost-estimate/mask.json": "fd7f7130aee98a754b479315fc39c72b0d5f8bfcd1bf7938abb267f78d8eb088",
+    "nanbeige42-3b/direct-md-stock-log/apply/model_masks_added/01-01-cost-estimate/restore.json": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422",
+    "nanbeige42-3b/direct-md-stock-log/apply/model_masks_added/02-02-application/mask.json": "0c0ad92eb2cdfb735d8d963523b5af401ac7b38d497d9d0bc82518e39cc4e894",
+    "nanbeige42-3b/direct-md-stock-log/apply/model_masks_added/02-02-application/restore.json": "6a91bab71f74931509d57b981094ee9ced13bc2f69da91fc99503e4faf00bef9",
+    "nanbeige42-3b/direct-md-stock-log/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "nanbeige42-3b/direct-md-stock-log/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "nanbeige42-3b/direct-md-stock-log/apply/result.json": "09d7775ce10a91cbf9595201603acb89e8e4e4f2b6c07cd524f2d8547cfc8937",
+    "nanbeige42-3b/direct-md-stock-log/discovery.json": "d824794e08b8e010d4ff194bd1b69777c368f846bb5784f28468fd5b1bf628df",
+    "nanbeige42-3b/direct-md-stock-log/result.json": "79874342779bb4d8e5386a48746432096c8e29ab6a90b16bcb27df857b811459",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/baseline/02-02-application/mask.json": "55093dcb3bdb6e8e6d965b273c8bc7fcd96e6b789e0d91a3f8e88a42969280b0",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/model_masks_added/01-01-cost-estimate/mask.json": "fd7f7130aee98a754b479315fc39c72b0d5f8bfcd1bf7938abb267f78d8eb088",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/model_masks_added/01-01-cost-estimate/restore.json": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/model_masks_added/02-02-application/mask.json": "8e1851522c5b6c326ce6127171f859d869245e5a86de275e8892c129257f4205",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/model_masks_added/02-02-application/restore.json": "186b3b37c5892bc174808ec94c3d82aebccbbf41292e731c6f86d9438d94ff98",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/apply/result.json": "25ce66cce594be8e259b50af190f45d7b9b9f8d8cb03ffe2a5b9d835e071c45c",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/discovery.json": "ee1555c2812339af7ec291dcdd0cf5d7ea559ab91fdcae65313bbfadffcffae7",
+    "nanbeige42-3b/nanbeige-first-fragment-t0-schema/result.json": "5b37fdddb9158e9a2beb6c62bba0c77679b4f2d369b49dab744fffaab2c75c17",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/baseline/02-02-application/mask.json": "1647a9e54c30b3664c974da2f1327454e98e1c0cfe13d68c984ff2e90bb15930",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/model_masks_added/01-01-cost-estimate/mask.json": "fd7f7130aee98a754b479315fc39c72b0d5f8bfcd1bf7938abb267f78d8eb088",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/model_masks_added/01-01-cost-estimate/restore.json": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/model_masks_added/02-02-application/mask.json": "4d8918e952fdb1292dc7c0e3c1f9c4a7fc7fa140a46b2ea19d0f654cf1c4f37b",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/model_masks_added/02-02-application/restore.json": "383cf8f4be7158a21ed6c336d99d9a1c11f8674a661a60695aeb60d0d8f81749",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/apply/result.json": "0e981f1b0ba0201bf84a3c86883a334be447c30cdc616c06c592dbe8eca4a510",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/discovery.json": "4afbdec5bd3ba739deab19d6df37d0f60e2faecfd31b32cda9fee6822a8009ed",
+    "nanbeige42-3b/nanbeige-first-fragment-t06-schema/result.json": "084ae0c63f77935e9b4e1aeca19879048b7fcfe113c40a71f5ebadf19f7324a7",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/baseline/02-02-application/mask.json": "e9045859aa3228e833fdfa6dfe0547c7533d3167570ec4d38e66cc77260f5c55",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/model_masks_added/01-01-cost-estimate/mask.json": "fd7f7130aee98a754b479315fc39c72b0d5f8bfcd1bf7938abb267f78d8eb088",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/model_masks_added/01-01-cost-estimate/restore.json": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/model_masks_added/02-02-application/mask.json": "a3570e3dfcd9066d3dfecbfbc9211df7a75ea4341c7434e4b225747c4c8044b8",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/model_masks_added/02-02-application/restore.json": "8ca3e2b7eb57cb16beb63b967fabd7011e4325b40e85769ed8280c830bfaa363",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "nanbeige42-3b/nanbeige-log-t0-schema/apply/result.json": "8e5991299261e01bb036535be8dbbfcd72045fc9b77b0ad334206a2b098cf761",
+    "nanbeige42-3b/nanbeige-log-t0-schema/discovery.json": "5df9d7c53c3cd83ac67bb0e039a863622f5519685452b1b99c4527c94ca2f59e",
+    "nanbeige42-3b/nanbeige-log-t0-schema/layout.json": "06b0e9907b62e4e3dc84d279188101875c9bfd4cffb50b65fd4d562e41b61df9",
+    "nanbeige42-3b/nanbeige-log-t0-schema/plan.json": "93cad13bd33bc4903a3fd9839ec5889291aabaf80f5ccf64c68fbae4179300b7",
+    "nanbeige42-3b/nanbeige-log-t0-schema/result.json": "bc5d691bc67dce0b09837436d766d78cf8751b61c0a8b3b779cc5eadb396dd5c",
+    "nanbeige42-3b/nanbeige-log-t0-schema/transports.json": "40b31b2a4f1f5a1b7b5fc6a32c01e430854e2c00c2b24d06a77ca63ebff33ad9",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/baseline/02-02-application/mask.json": "a10c37cf69a38e3dcb9f2a8edca5930a5c6be5ba5f4aaa390eb25978c2ce8741",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/model_masks_added/01-01-cost-estimate/mask.json": "fd7f7130aee98a754b479315fc39c72b0d5f8bfcd1bf7938abb267f78d8eb088",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/model_masks_added/01-01-cost-estimate/restore.json": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/model_masks_added/02-02-application/mask.json": "19f82d59b9c7ab5446f902f5a7a91f195b7a55bcd83add4348e65893afeb317d",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/model_masks_added/02-02-application/restore.json": "ef7c20d6d0541dc7bb6bd1f8684cf503735980e498135249889195c204e95090",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "nanbeige42-3b/nanbeige-log-t06-schema/apply/result.json": "a46135af3ad5b7092fbfcf0d7d1f6deb1c374a394bfb8199f4af1d11e3454656",
+    "nanbeige42-3b/nanbeige-log-t06-schema/discovery.json": "067de97dcad2bb837d77ea7e339641d401710be8b800cce1f8f1d579a6a62cfc",
+    "nanbeige42-3b/nanbeige-log-t06-schema/layout.json": "06b0e9907b62e4e3dc84d279188101875c9bfd4cffb50b65fd4d562e41b61df9",
+    "nanbeige42-3b/nanbeige-log-t06-schema/plan.json": "92cd341a21a064f4122e2b75e5b8d92db09a90d1f809bea94d696ff063912ad9",
+    "nanbeige42-3b/nanbeige-log-t06-schema/result.json": "e9083f2fbd4891bb99aec9d9118191a29edfb92afa85277260e1d716b58a3809",
+    "nanbeige42-3b/nanbeige-log-t06-schema/transports.json": "836dfa2342988b040990f15a4c79fe261f83c366137f6a1791832b29330b367c",
+    "producer.py": "620ef25982fdc1ec9356ab9f26091e059030205e789022d7b8de8fa3c1047905"
+  },
+  "trials": [
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/granite42-3b-direct-md-stock-log-application.json.gz",
+      "application_sha256": "6742127fcc5b058fba341cc61d4755b016e4a49052dfa5ec5f59aa4928ae0f81",
+      "label": "direct-md-stock-log",
+      "model": "granite42-3b",
+      "profile": {
+        "archived_sampling": {
+          "min_p": 0.0,
+          "temperature": 0.0,
+          "top_k": 40,
+          "top_p": 0.95
+        },
+        "model_path": "stock log and direct non-log",
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "granite42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "grammar",
+          "retry_output_tokens": 8192,
+          "route": "chat-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 1.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 40,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        }
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 426.3782130199994,
+        "private_full": 143,
+        "private_total": 193,
+        "public_lost": 0,
+        "public_total": 87,
+        "quality_70": 53.71329879101899,
+        "reference_replacements": 2,
+        "score_100": 72.28610980179445
+      }
+    },
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/granite42-3b-granite-full-type-presets-application.json.gz",
+      "application_sha256": "e75d419077cc7d5c7c65130313bbc6eb184ecc96a3f91b5514b4bc7d670f81ab",
+      "label": "granite-full-type-presets",
+      "model": "granite42-3b",
+      "profile": {
+        "artifact": [
+          "granite-4.2-3b-Q4_K_M.gguf",
+          2244011552,
+          "e0406663965846ae22a403456eb826ccce5f450840491f71952f18a7cb78e7d5",
+          "https://huggingface.co/ibm-granite/granite-4.2-3b-GGUF/resolve/c40945d71cd90f249a56985e8155551a9188dc30/granite-4.2-3b-Q4_K_M.gguf"
+        ],
+        "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+        "cpus": [
+          2,
+          3
+        ],
+        "log": {
+          "batch_size": 8,
+          "context_tokens": 4096,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "granite42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 1600,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "grammar",
+          "retry_output_tokens": 1600,
+          "route": "chat-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 40,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 900,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "granite42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "grammar",
+          "retry_output_tokens": 8192,
+          "route": "chat-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 1.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 40,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934"
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 483.3332863150008,
+        "private_full": 143,
+        "private_total": 193,
+        "public_lost": 0,
+        "public_total": 87,
+        "quality_70": 53.71329879101899,
+        "reference_replacements": 2,
+        "score_100": 71.38686141299245
+      }
+    },
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/granite42-3b-granite-log-low128-t0-application.json.gz",
+      "application_sha256": "675ebc8a2fdf32a5438c3b755d55ef33b69ddf587560b39c4f252ee94ab480f0",
+      "label": "granite-log-low128-t0",
+      "model": "granite42-3b",
+      "profile": {
+        "artifact": [
+          "granite-4.2-3b-Q4_K_M.gguf",
+          2244011552,
+          "e0406663965846ae22a403456eb826ccce5f450840491f71952f18a7cb78e7d5",
+          "https://huggingface.co/ibm-granite/granite-4.2-3b-GGUF/resolve/c40945d71cd90f249a56985e8155551a9188dc30/granite-4.2-3b-Q4_K_M.gguf"
+        ],
+        "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+        "cpus": [
+          0,
+          1
+        ],
+        "log": {
+          "batch_size": 8,
+          "context_tokens": 8192,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "granite42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 2048,
+          "reasoning": "auto",
+          "reasoning_budget": 128,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "grammar",
+          "retry_output_tokens": 3072,
+          "route": "chat-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0,
+          "template_kwargs": {
+            "enable_thinking": true,
+            "low_effort": true
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 40,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 900,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "granite42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "grammar",
+          "retry_output_tokens": 8192,
+          "route": "chat-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 1.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 40,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934"
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 616.1014104080023,
+        "private_full": 135,
+        "private_total": 193,
+        "public_lost": 0,
+        "public_total": 87,
+        "quality_70": 51.64075993091537,
+        "reference_replacements": 2,
+        "score_100": 67.52188253509962
+      }
+    },
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/granite42-3b-granite-log-t025-application.json.gz",
+      "application_sha256": "a4bfc24a0e9adedf103e7ac62c97d1872d46e12ba1c6e043ae8e70e2f5fcc83f",
+      "label": "granite-log-t025",
+      "model": "granite42-3b",
+      "profile": {
+        "artifact": [
+          "granite-4.2-3b-Q4_K_M.gguf",
+          2244011552,
+          "e0406663965846ae22a403456eb826ccce5f450840491f71952f18a7cb78e7d5",
+          "https://huggingface.co/ibm-granite/granite-4.2-3b-GGUF/resolve/c40945d71cd90f249a56985e8155551a9188dc30/granite-4.2-3b-Q4_K_M.gguf"
+        ],
+        "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+        "cpus": [
+          0,
+          1
+        ],
+        "log": {
+          "batch_size": 8,
+          "context_tokens": 8192,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "granite42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 2048,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "grammar",
+          "retry_output_tokens": 3072,
+          "route": "chat-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0.25,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 40,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 900,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "granite42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "grammar",
+          "retry_output_tokens": 8192,
+          "route": "chat-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 1.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 40,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934"
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 439.9590424049984,
+        "private_full": 117,
+        "private_total": 193,
+        "public_lost": 0,
+        "public_total": 87,
+        "quality_70": 46.97754749568221,
+        "reference_replacements": 2,
+        "score_100": 65.32772541197109
+      }
+    },
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/nanbeige42-3b-direct-md-stock-log-application.json.gz",
+      "application_sha256": "1d013787719bd8c443fd3af98fbceeb9f411244551afc6ce133ace5ac6fdd7c1",
+      "label": "direct-md-stock-log",
+      "model": "nanbeige42-3b",
+      "profile": {
+        "archived_sampling": {
+          "min_p": 0.0,
+          "temperature": 0.0,
+          "top_k": 40,
+          "top_p": 0.95
+        },
+        "model_path": "stock log and direct non-log",
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 8192,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        }
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 2021.6404285080007,
+        "private_full": 190,
+        "private_total": 193,
+        "public_lost": 7,
+        "public_total": 87,
+        "quality_70": 64.68256804240367,
+        "reference_replacements": 2,
+        "score_100": 72.34104088531585
+      }
+    },
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/nanbeige42-3b-nanbeige-first-fragment-t0-schema-application.json.gz",
+      "application_sha256": "80f60e3c80f919aaa3b0e0abf2a19fd5f350a3f216143fe501bbf336998d83e0",
+      "label": "nanbeige-first-fragment-t0-schema",
+      "model": "nanbeige42-3b",
+      "profile": {
+        "first_log_fragment": {
+          "batch_size": 8,
+          "context_tokens": 8192,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 2048,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 3072,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 900,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 8192,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "remaining_log_fragments": {
+          "min_p": 0.0,
+          "temperature": 0.0,
+          "top_k": 40,
+          "top_p": 0.95
+        }
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 1785.6121662510009,
+        "private_full": 191,
+        "private_total": 193,
+        "public_lost": 7,
+        "public_total": 87,
+        "quality_70": 64.94163539991662,
+        "reference_replacements": 2,
+        "score_100": 73.32939379272952
+      }
+    },
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/nanbeige42-3b-nanbeige-first-fragment-t06-schema-application.json.gz",
+      "application_sha256": "7d935e498088b1d1aca38e5c6c6c3c3c712dc2972442e31d34efd6d72e6677ba",
+      "label": "nanbeige-first-fragment-t06-schema",
+      "model": "nanbeige42-3b",
+      "profile": {
+        "first_log_fragment": {
+          "batch_size": 8,
+          "context_tokens": 8192,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 2048,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 3072,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0.6,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 900,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 8192,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "remaining_log_fragments": {
+          "min_p": 0.0,
+          "temperature": 0.0,
+          "top_k": 40,
+          "top_p": 0.95
+        }
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 1595.0972321460008,
+        "private_full": 190,
+        "private_total": 193,
+        "public_lost": 2,
+        "public_total": 87,
+        "quality_70": 65.54463700792091,
+        "reference_replacements": 2,
+        "score_100": 74.63078933917525
+      }
+    },
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/nanbeige42-3b-nanbeige-log-t0-schema-application.json.gz",
+      "application_sha256": "4f39e24b92a2f11619b6f396f891d5e561ca524a21a2317691529f7fc4be4fc4",
+      "label": "nanbeige-log-t0-schema",
+      "model": "nanbeige42-3b",
+      "profile": {
+        "artifact": [
+          "Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf",
+          2684023968,
+          "b92d2e35c9876b0c4bc671996360204f4149d0546c23d5954d5eb3b106c81f24",
+          "https://huggingface.co/bartowski/Nanbeige_Nanbeige4.2-3B-GGUF/resolve/17562eefe9752007209148d5f7a6e275fc8d8077/Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf"
+        ],
+        "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+        "cpus": [
+          2,
+          3
+        ],
+        "log": {
+          "batch_size": 8,
+          "context_tokens": 8192,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 2048,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 3072,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 900,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 8192,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934"
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 1860.9202891170025,
+        "private_full": 188,
+        "private_total": 193,
+        "public_lost": 6,
+        "public_total": 87,
+        "quality_70": 64.33684712048121,
+        "reference_replacements": 2,
+        "score_100": 72.47727346369648
+      }
+    },
+    {
+      "application": "research/privacy-policy-phase2/checkpoints/granite-nanbeige-combinations/nanbeige42-3b-nanbeige-log-t06-schema-application.json.gz",
+      "application_sha256": "d316ff1c60d35c8896fcbf34bfe39804adb2e8eb88210aff93fe46a815bbf53b",
+      "label": "nanbeige-log-t06-schema",
+      "model": "nanbeige42-3b",
+      "profile": {
+        "artifact": [
+          "Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf",
+          2684023968,
+          "b92d2e35c9876b0c4bc671996360204f4149d0546c23d5954d5eb3b106c81f24",
+          "https://huggingface.co/bartowski/Nanbeige_Nanbeige4.2-3B-GGUF/resolve/17562eefe9752007209148d5f7a6e275fc8d8077/Nanbeige_Nanbeige4.2-3B-Q4_K_M.gguf"
+        ],
+        "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+        "cpus": [
+          0,
+          1
+        ],
+        "log": {
+          "batch_size": 8,
+          "context_tokens": 8192,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 2048,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 3072,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0.6,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 900,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "non_log_profile": {
+          "batch_size": 8,
+          "context_tokens": 16384,
+          "extra_sampling": {},
+          "hint_tokens": 256,
+          "max_candidates": 24,
+          "max_fragments": 64,
+          "min_p": 0.0,
+          "mode": "native",
+          "model": "nanbeige42-3b",
+          "native_mode_constraints": null,
+          "output_tokens": 4096,
+          "reasoning": "auto",
+          "reasoning_budget": -1,
+          "reasoning_format": "deepseek",
+          "reserve_tokens": 64,
+          "response_format": "prompt",
+          "retry_output_tokens": 8192,
+          "route": "completion-grammar",
+          "seed": 42,
+          "source_profile": {
+            "legacy_profile_source": {
+              "path": "docs/experiments/phase2-model-profiles.json",
+              "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+            },
+            "mode": "native",
+            "path": "scripts/privacy_expansion_profiles.py",
+            "pinned_catalog": {
+              "path": "docs/experiments/phase2-new-model-artifacts.json",
+              "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+            },
+            "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+          },
+          "temperature": 0.0,
+          "template_kwargs": {
+            "enable_thinking": false
+          },
+          "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+          "top_k": 20,
+          "top_p": 0.95,
+          "transport_timeout_seconds": 1200,
+          "worker_configuration_timeout_seconds": 300
+        },
+        "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934"
+      },
+      "search": {
+        "completed": true,
+        "exact_roundtrips": 6,
+        "http_seconds": 1952.6746957319992,
+        "private_full": 161,
+        "private_total": 193,
+        "public_lost": 1,
+        "public_total": 87,
+        "quality_70": 58.20409743314871,
+        "reference_replacements": 2,
+        "score_100": 66.06220638113783
+      }
+    }
+  ]
+}

@@ -1,0 +1,176 @@
+{
+  "archive_sha256": "4a939778f7859fbee1473a90b819ff7fd2a5e51408d603f485ba062f89890e4f",
+  "exact_restores": 24,
+  "members": 57,
+  "new_inference_calls": 0,
+  "plan_sha256": "46597fed5c114a1aa16c6a87763a47a00e5769c3c0e06de471980fff86cc9bee",
+  "results": {
+    "lfm2.5-1.2b-instruct": {
+      "added_literals": {
+        "nightly-export.log": [],
+        "public-protocol-guide.log": []
+      },
+      "applications": {
+        "literal-in-context": {
+          "nightly-export.log": {
+            "private_spans_fully_covered": 55,
+            "private_spans_partly_covered": 6,
+            "private_spans_untouched": 8,
+            "public_occurrences_lost": 11,
+            "replacements": 72
+          },
+          "public-protocol-guide.log": {
+            "private_spans_fully_covered": 0,
+            "private_spans_partly_covered": 0,
+            "private_spans_untouched": 0,
+            "public_occurrences_lost": 0,
+            "replacements": 0
+          }
+        },
+        "original": {
+          "nightly-export.log": {
+            "private_spans_fully_covered": 55,
+            "private_spans_partly_covered": 6,
+            "private_spans_untouched": 8,
+            "public_occurrences_lost": 11,
+            "replacements": 72
+          },
+          "public-protocol-guide.log": {
+            "private_spans_fully_covered": 0,
+            "private_spans_partly_covered": 0,
+            "private_spans_untouched": 0,
+            "public_occurrences_lost": 0,
+            "replacements": 0
+          }
+        }
+      },
+      "source_profile": "12-fresh-reference-2t"
+    },
+    "lfm2.5-2.6b": {
+      "added_literals": {
+        "nightly-export.log": [
+          "OPS-GM-718"
+        ],
+        "public-protocol-guide.log": []
+      },
+      "applications": {
+        "literal-in-context": {
+          "nightly-export.log": {
+            "private_spans_fully_covered": 69,
+            "private_spans_partly_covered": 0,
+            "private_spans_untouched": 0,
+            "public_occurrences_lost": 15,
+            "replacements": 84
+          },
+          "public-protocol-guide.log": {
+            "private_spans_fully_covered": 0,
+            "private_spans_partly_covered": 0,
+            "private_spans_untouched": 0,
+            "public_occurrences_lost": 0,
+            "replacements": 0
+          }
+        },
+        "original": {
+          "nightly-export.log": {
+            "private_spans_fully_covered": 69,
+            "private_spans_partly_covered": 0,
+            "private_spans_untouched": 0,
+            "public_occurrences_lost": 15,
+            "replacements": 84
+          },
+          "public-protocol-guide.log": {
+            "private_spans_fully_covered": 0,
+            "private_spans_partly_covered": 0,
+            "private_spans_untouched": 0,
+            "public_occurrences_lost": 0,
+            "replacements": 0
+          }
+        }
+      },
+      "source_profile": "26-fresh-reference-2t"
+    },
+    "lfm2.5-8b-a1b": {
+      "added_literals": {
+        "nightly-export.log": [
+          "Лидия Ракитина",
+          "mira_ops"
+        ],
+        "public-protocol-guide.log": []
+      },
+      "applications": {
+        "literal-in-context": {
+          "nightly-export.log": {
+            "private_spans_fully_covered": 57,
+            "private_spans_partly_covered": 3,
+            "private_spans_untouched": 9,
+            "public_occurrences_lost": 12,
+            "replacements": 73
+          },
+          "public-protocol-guide.log": {
+            "private_spans_fully_covered": 0,
+            "private_spans_partly_covered": 0,
+            "private_spans_untouched": 0,
+            "public_occurrences_lost": 12,
+            "replacements": 15
+          }
+        },
+        "original": {
+          "nightly-export.log": {
+            "private_spans_fully_covered": 50,
+            "private_spans_partly_covered": 6,
+            "private_spans_untouched": 13,
+            "public_occurrences_lost": 12,
+            "replacements": 72
+          },
+          "public-protocol-guide.log": {
+            "private_spans_fully_covered": 0,
+            "private_spans_partly_covered": 0,
+            "private_spans_untouched": 0,
+            "public_occurrences_lost": 12,
+            "replacements": 15
+          }
+        }
+      },
+      "source_profile": "8-fresh-reference-2t"
+    }
+  },
+  "source_evidence_sha256": "4727c2d3e7ec14a4f10bf9657633792c91b521514734ba57a282a6516c4e6063",
+  "summary": {
+    "lfm2.5-1.2b-instruct": {
+      "literal-in-context": {
+        "guide_replacements": 0,
+        "private_full": 55,
+        "public_lost": 11
+      },
+      "original": {
+        "guide_replacements": 0,
+        "private_full": 55,
+        "public_lost": 11
+      }
+    },
+    "lfm2.5-2.6b": {
+      "literal-in-context": {
+        "guide_replacements": 0,
+        "private_full": 69,
+        "public_lost": 15
+      },
+      "original": {
+        "guide_replacements": 0,
+        "private_full": 69,
+        "public_lost": 15
+      }
+    },
+    "lfm2.5-8b-a1b": {
+      "literal-in-context": {
+        "guide_replacements": 15,
+        "private_full": 57,
+        "public_lost": 24
+      },
+      "original": {
+        "guide_replacements": 15,
+        "private_full": 50,
+        "public_lost": 24
+      }
+    }
+  }
+}

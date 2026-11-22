@@ -1,0 +1,985 @@
+{
+  "archive": "evidence.tar.gz",
+  "archive_bytes": 706461,
+  "archive_sha256": "80312a32aa5b79b0bc36863c3dc7dad23bade332e21d854592f3f99a657fc15a",
+  "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+  "captured_at_utc": "2026-11-18T17:40:27Z",
+  "files": {
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71438,
+      "sha256": "6729dfe00092c63858e257454facf76ffc9a64e8cadc7a42aa3a894451d1d8c3"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "7a6e658a3d1b4922c7d1262cf621bc31ed26be08ff01f15f660cafe6b3c82782"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 116596,
+      "sha256": "5260e5c191c4a9d6a5ce291473439de259e24f7129bdf0a46cef23a13d80a11c"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10502,
+      "sha256": "98c2f019ad3eef557c9f5faf38cd2b6f2669a88f032ec83d59f6b9934f7e66e0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "e2b0bd0ad75ed472854d41c3192c0de09da0ddb98fcafb78a9e7af91848aa6f8"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 157030,
+      "sha256": "501c889c4aa0e41433d4434b79192472881ff354ec79fae272a01039a718f417"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11146,
+      "sha256": "ba00ede7330515a7515ddbf2e69d587f10ebeaff00d97fca2786895c4ef16950"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "47f1d873bcb9357bbfb29dea4b5251ffac3959e338606e6457a669e18a625b35"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 10248,
+      "sha256": "802ea2d77c19a050a0f67f785256b86b7c190eb47c23416d1b2da3366be50539"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3488,
+      "sha256": "d11edfaca8be946fec8ee9906ecdf7f88da89011462dcacbdff6bd69a20f7a27"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "e836d16f80e1c0dc38aa7b4e64847a2e7b79d71f7d518e3c9127a532f369ddb1"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/current_union/result.json": {
+      "bytes": 7907,
+      "sha256": "f1242cc4b4ea00cc38ba353711c47a82c9ba5c4f2ec2cf6ad000fe348602efd9"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71466,
+      "sha256": "dcbfc9a431083385741e3b7914cea9289161f26522cdc68c2fdfb804774efd72"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "4c3aa8615f5daeb8c154234840ba6cbae3262573596dc03b2300e10d7c5ad381"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139837,
+      "sha256": "22906bcde7b85e187cc830effe521bd37f426ef894d6780f0539aa344876077b"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/detector_proposals/result.json": {
+      "bytes": 7908,
+      "sha256": "18de77c36b2247bc6bd2a845e1961953d1c29d62b4d83f46d94678ba4fd9867e"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/02-02-application/mask.json": {
+      "bytes": 71472,
+      "sha256": "c05ce887a166a2e3d01b5850dee74b2ce2256c8b6d18fc453d133483b145c64a"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "b06c0641bd887df832707688a8dcc5188cbb32613026efe4d84ed9d025fa6b42"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90496,
+      "sha256": "82ac4182a143c780e3eb52e52b12b85b98b1f2e2491d9e2724605b457bb6142a"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "ea62acb09e6af34f74944998ed88c33d502f2101bad2f1415a4abf2bb29afe5f"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/double/result.json": {
+      "bytes": 7893,
+      "sha256": "be792e9dd13a2b7aec2afa4052acefffa7fc1ec22f1cb2c2e4de4850a0d32354"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/02-02-application/mask.json": {
+      "bytes": 71194,
+      "sha256": "def3ca5f1a1f45ea9b7987362d39abb3db762721688b4e9c8fe9a9e9fff7db62"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "fb85c07f83a574316ca804ef50f6e418fdad85fa971700244fd07158eddde917"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90552,
+      "sha256": "82e10c73d29f9ecd7f34fcc8b2d077f688d6be926e9d396482b99611a175f46f"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "33c33b3f9e6722a99b479000f583139c76b5a68a0bc784532d1e1ae1208d6602"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/point/result.json": {
+      "bytes": 7891,
+      "sha256": "95e4fee02c8e38740de316bcc919ca56817f4d6d967882e6fd434cb12db6a9b7"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71214,
+      "sha256": "f46c2f26cfe694c9744bc865354ce2297fb5e2a6f856488b9a649b41de0f0098"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "866fcb27acea146fcb7d7b513799934e9f76a5b28a40188cc8fc6bff64967e4b"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 68069,
+      "sha256": "27ae14d9e09cb4f25f2bd1953e2fe35ce3efece6abdc1f5655a1d3358e2c6ea8"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10514,
+      "sha256": "9e87996da3074e05a3ee63475950690ed13d0ef9c019741430ce94010ea97ab6"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "84d8d4a8e27366e93e789040395356434c425ad9552cf94f9e2f218fa8a34f2f"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 133579,
+      "sha256": "c03814245650685a7f1f7822fdf7f6a1f96af8ce0430689ea5122cdf151a7d06"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10840,
+      "sha256": "b7a72afdf3e53d310e03ac9e22ff7a665936bc3092834db16e6a966d1a5be7aa"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "47dd01cdec6d81c82578f9f90d74bdfc1000888c5cc53a3d2dbb8cafe5a7422d"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 7334,
+      "sha256": "45881f0426cfcb5d5015e0cfcb68e24dc1eb95a65145a2e11737eaa39c3bedbd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3365,
+      "sha256": "dfd01459057c529ac0ab377bdb9ea815c6cc67709ab8ee57b11a3e6ccaaebf98"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "b56f6e0423150a0b541e4f927e498efa3194148209888070895c609b23d0713c"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/regions/result.json": {
+      "bytes": 7897,
+      "sha256": "461ff13925e1abab13af0f6d016e15cfe95a16afdfc05471ff7c276d899847c8"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71444,
+      "sha256": "06d586da641584f941de5e8fc90d99a25f45e9232c6a6c0d6ab4dea262fe4e37"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "b5e48ba4944c6bd76ba29c8a55ca9736a789508cba5bf6e6357f2868b3a73ec3"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90642,
+      "sha256": "0e090eabdbf8fac0f427d7a98c5fb93d3ed82406c9091a5ab24d5ffb6003f80c"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "f3daee2594d54f91081f5eecc79d718104208412921fdfeb52701481e3615435"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/lfm2.5-1.2b-instruct/union_point/result.json": {
+      "bytes": 7898,
+      "sha256": "4a1e8f88a7abf190a0891bda970f3f5c4f4a0044329ba62cbb016383d8fb6a78"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71472,
+      "sha256": "93c47279c929d3589eab0d721e6809471793a613097f5c1f7ef5c638b991a909"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "dfd7d5027b395802bc42484daa130ad3e220158253de90e7f29696835074d571"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 121023,
+      "sha256": "869da88feb0f30867a4ab7210b81fbadc76361a8f20d83fd001fd2cb5a9a6239"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10547,
+      "sha256": "45c5118da084f3511bd00b0bbe4f7e23fd267658a5d7348db19f3b5a56666832"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7cbfb00397a51e8d1985d672f8b2bd49dcb1c41446cc9af35d08caf60e91c0ee"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 169189,
+      "sha256": "fe9552443b3196454e1c1fb352bcdde9f624072bd779d757cbc5096064b8c76d"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11147,
+      "sha256": "167727662a5bc12b8e44d0be0ce819daf823c1149d51f474e065064c885510de"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "04528470eb89c7b45c90194f60d8cec0b5e49ab17484eeab21a565de705ee4fd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 10248,
+      "sha256": "802ea2d77c19a050a0f67f785256b86b7c190eb47c23416d1b2da3366be50539"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3488,
+      "sha256": "d11edfaca8be946fec8ee9906ecdf7f88da89011462dcacbdff6bd69a20f7a27"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "e836d16f80e1c0dc38aa7b4e64847a2e7b79d71f7d518e3c9127a532f369ddb1"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/current_union/result.json": {
+      "bytes": 7880,
+      "sha256": "4e5f86efc7aa2f3285a0d77e4ea5ad39cd399a63d0a7403f1d52720a4c8ef8c1"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71270,
+      "sha256": "02989ccb8cfd20c43c15b155505cdf1cb8339407c472d3b2e2a7539215a56cd4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "2e4e8e960b1fe833c018dfbcce6441ec2fb946f57890c2dd2bfd4510bb6a353a"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139865,
+      "sha256": "68f5ebf6129a8cff1b223977a05b45214216db5197339c1d5b227d505fbfe6ce"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/detector_proposals/result.json": {
+      "bytes": 7881,
+      "sha256": "7ad4707c304c5e222ff92f4170ed3d3d6218896ca39267abf8576b32ec0d3bae"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/02-02-application/mask.json": {
+      "bytes": 71270,
+      "sha256": "5776f406faaadfe50a902d69bcfd03087e17ce342201ef476298b0ccb99c0399"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "0862d02a752419e6e9702b903485d7895f64829351c15f5015d3c33185d89573"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90472,
+      "sha256": "766a0b29c9acf618546bb4ba89fcaae5d0fbde23bbf8d8b3b587e0c1d54f168f"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "d599d3e2f907ab7894859d0a024fc45e72368f20d4034ce8b8b75b232301f40c"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/double/result.json": {
+      "bytes": 7866,
+      "sha256": "7d4c7c456b5dae05c579c5f168cbb9fefacb863231d5fbf8e2e54a4f549f1d71"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/02-02-application/mask.json": {
+      "bytes": 71276,
+      "sha256": "c216d11866f887d7403af2d44d49858fbd22e057d371b6c3e27ec9f6569d017f"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "fea0789780f2c87d993cb689f886c4e8c5de30cc2a34b2c6ae7b6b04e13551fc"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90474,
+      "sha256": "25a993021a8fc8473c6c553f9c99b775e2bb41964c1bf994a7ef62ef8fc3bcf8"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10726,
+      "sha256": "31ac868b6291450e42c4c34e2c02a95b42ee28eaa8aa3e67fcf5fb07a90d8b0e"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/point/result.json": {
+      "bytes": 7864,
+      "sha256": "c41fcbce0a70af8991ed2112c98ec271cb3ca8f50042bbd8363a6f73d2818ab7"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71228,
+      "sha256": "76eb2e189a5d906c71392dd0ca04e5c63a60dba55a0c4b4480d25bc351f5b083"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "524cf38efea02dbfbad3c577bfa6a62b8cdb42d0298244f4de87398b577e7d79"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 69897,
+      "sha256": "4c90cd94179ccac42ace229f6fef28fb8557e1f436ba5573bc7e406041f5d1f1"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10527,
+      "sha256": "47ab947b8f05c883d227fb45b81f92749f1c06a2ff11d9bc45111091fa316e31"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "84d8d4a8e27366e93e789040395356434c425ad9552cf94f9e2f218fa8a34f2f"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 144154,
+      "sha256": "12132b05fbcb81e9f6a3f7b8d84fc08dd4ee89a5ab56e9df176aec094655131a"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10869,
+      "sha256": "ef1bf681ca9a9035eb9efae6818a8f070e84cd96c608cfc1ac8578fc1edc324a"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "49e0b02a569a8b9b9d21ae3cd81b26596baa3b1168e80752c82a840668e96112"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 7817,
+      "sha256": "69a12742e27a1107692e6be3b6ee907f7755cda76402eb86168cf5e322ab940e"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3365,
+      "sha256": "dfd01459057c529ac0ab377bdb9ea815c6cc67709ab8ee57b11a3e6ccaaebf98"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "b56f6e0423150a0b541e4f927e498efa3194148209888070895c609b23d0713c"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/regions/result.json": {
+      "bytes": 7873,
+      "sha256": "577672513f6fe7548f00ab66ce0aa339f1e4688c45dfe54b2606ec84a63168fb"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71304,
+      "sha256": "d2c7a4b496c551a1fb730eb34289761fefa2202e25e99fa613926df621252a26"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "9605a8bdd763cc4efdef69b7a567f30e3014cdd9eb7b6efc76a47a7dd3db670b"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90450,
+      "sha256": "83b3abe32654d95720ca3c1715899528d2e8649f31b1b03f356ef1e8cccd2068"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10726,
+      "sha256": "b6fb95f0fa98e1ce46ee06931371688ea7d3fca7047bc59a23661d64ae710c75"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/lfm2.5-1.2b-instruct/union_point/result.json": {
+      "bytes": 7871,
+      "sha256": "db618ae4c1f6342f29c5c423f0b341cdacac4bfaa87e77af3c594360a3ebd72f"
+    },
+    "calibration/lfm2.5-1.2b-instruct/grammar/result.json": {
+      "bytes": 2045,
+      "sha256": "a0aa939f05ddae442cce340fa904135f6dd20e1f52a6a12b2a1fac337574ccc5"
+    },
+    "calibration/lfm2.5-1.2b-instruct/grammar/transports.json": {
+      "bytes": 92303,
+      "sha256": "64db0e32a71742df3f9e98889c4cd7033ebae48808e76200f8c4b4dbefb6d2b3"
+    },
+    "calibration/lfm2.5-1.2b-instruct/plan.json": {
+      "bytes": 3629,
+      "sha256": "15dec086cb1424c5c62f7593905d2766bf918b52c87160f08720b8c17988a9d8"
+    },
+    "calibration/lfm2.5-1.2b-instruct/prompt/result.json": {
+      "bytes": 2273,
+      "sha256": "141768d6528faae0e764277c6c0b8749034c7f2537e1d5d2970be543bf168d87"
+    },
+    "calibration/lfm2.5-1.2b-instruct/prompt/transports.json": {
+      "bytes": 87490,
+      "sha256": "5eda31ad08f5c7bcb49d0fb1543505339994dd0a36ceb7ed5c86af2ed98ea625"
+    },
+    "calibration/lfm2.5-1.2b-instruct/result.json": {
+      "bytes": 6366,
+      "sha256": "3a7f094549422de10d1c94e545e0708463f21953fc3b746a1b52efbe7b59e897"
+    },
+    "calibration/lfm2.5-1.2b-instruct/selected-profile.json": {
+      "bytes": 1137,
+      "sha256": "21589c08bee4fc84b01610e0c5bb404e283dc5799dc09abd96e2cc2494e87bfc"
+    },
+    "schemes/lfm2.5-1.2b-instruct/detectors.json": {
+      "bytes": 42922,
+      "sha256": "545e0a5090b1b325af7ef75308fe58c40562fc24af94c084c462346f8ecea8a5"
+    },
+    "schemes/lfm2.5-1.2b-instruct/execution.json": {
+      "bytes": 6975,
+      "sha256": "dda5a816d2c72d69e7b44d1ef66dd968a6abb2b44d4548f4d12d388a69d777b7"
+    },
+    "schemes/lfm2.5-1.2b-instruct/result.json": {
+      "bytes": 892956,
+      "sha256": "6d7bf2b7b6d64005345e3a8cd8bd2b9909ab9f51afa5d6565374c76ac2f2e030"
+    },
+    "schemes/lfm2.5-1.2b-instruct/scheme-plan.json": {
+      "bytes": 5967,
+      "sha256": "496b6df0baeef68f6b2e3d67e7f71eac6497a32f3bb123a9176e395efd722942"
+    },
+    "schemes/lfm2.5-1.2b-instruct/transports.json": {
+      "bytes": 1100577,
+      "sha256": "05713adf93d35011b7adaf9cec5fbe0664bc4ee5a19989e6627f24a62124f8f2"
+    },
+    "schemes/lfm2.5-1.2b-instruct/verification.json": {
+      "bytes": 4612,
+      "sha256": "aa2d274db7234614797decb9e030f97bdcc808b7cd254575a9480c355afe2e15"
+    },
+    "status.json": {
+      "bytes": 3153,
+      "sha256": "8ebf752beef9aa18386acc102ca2a4fc1a24b336018fe6be8b5dd96c5254bb30"
+    }
+  },
+  "model": "lfm2.5-1.2b-instruct",
+  "native_exact_roundtrips": 36,
+  "native_run_status": "completed_technical_incomplete",
+  "not_a_resume_source": true,
+  "profile_sha256": "fbb89a930417e98bf12daef549c6bee41265701a7fa1aa5d463a25128f505339",
+  "schemes": 6,
+  "series": "native-retest-v1",
+  "version": 1
+}
