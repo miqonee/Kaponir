@@ -39,7 +39,9 @@ def check_local_presets(page, api):
             if row['prompt_threads']:
                 assert g['prompt_threads'] == int(row['prompt_threads'])
                 assert g['generation_threads'] == int(row['generation_threads'])
+        page.locator('#analysis-discovery-mode').evaluate("e => e.value = 'values'")
         page.locator('#analysis-local-model').select_option('gemma4-e4b-qat')
+        assert page.locator('#analysis-discovery-mode').input_value() == 'typed'
         assert page.locator('#analysis-context-tokens').input_value() == '16384'
         assert page.locator('#analysis-timeout').input_value() == '1200'
         page.locator('#analysis-local-model').select_option('qwen3.5-2b')

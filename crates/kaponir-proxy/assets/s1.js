@@ -156,6 +156,7 @@ function updateProfileNote(role, g = LearningUI.generation[role]) {
   if (g?.thinking_source_cutoff) note.textContent += " " + tr("Рассуждения включаются до {{0}} токенов исходного текста.", [g.thinking_source_cutoff]);
 }
 function applySearchLimits(preset) {
+  if (preset?.inference.local_generation) $("#analysis-discovery-mode").value = "typed";
   $("#analysis-target-input").value = preset?.target ?? 0;
   $("#analysis-hint-tokens").value = preset ? 256 : 0;
   $("#analysis-max-candidates").value = preset?.maxCandidates ?? 24;
