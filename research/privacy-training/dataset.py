@@ -5,6 +5,8 @@ from collections import Counter
 from hashlib import sha256
 import json
 from pathlib import Path
+import re
+import unicodedata
 
 from synthetic_cases import synthetic_rows
 
@@ -12,11 +14,13 @@ from synthetic_cases import synthetic_rows
 ROOT = Path(__file__).resolve().parent
 SNAPSHOT = ROOT / "data" / "v0"
 SEEDS = ROOT / "data" / "seeds"
-VERSIONS = ("v0", "v1", "v2")
+VERSIONS = ("v0", "v1", "v2", "v3")
 SPLITS = ("train", "validation", "test")
 CONTRASTS = {"order", "role", "provenance", "format"}
 SHARING_ACTION = {"public": "keep", "internal": "mask", "restricted": "mask", "unknown": "review"}
 ACTIONS = {"mask", "keep", "review"}
+MIN_FULL_PERCENT = 95
+MAX_PUBLIC_PERCENT = 2
 KINDS = {
     "AMOUNT", "CLIENT", "CUSTOM", "DOM", "EMAIL", "HOST", "IP", "MODULE", "ORG",
     "PATH", "PERSON", "PHONE", "PROJ", "SECRET", "SUB", "SVC", "USER",
@@ -33,6 +37,18 @@ SYSTEM = (
     "matches from left to right in text, including overlapping matches. Use an empty list when "
     "there are no relevant values. Kinds: " + ", ".join(sorted(KINDS)) + "."
 )
+SYSTEM_V3 = SYSTEM + (
+    " An optional publication_status outside text is supplied by the gateway. For listed values "
+    "of unspecified origin, published means cleared for external sharing, internal or unreleased "
+    "means private, and unknown means review. In mixed material judge each occurrence by its "
+    "source. Preserve explicitly identified public samples and mark active credentials as private. "
+    "Mark relevant public values and named technical controls as keep. Ordinary field names, "
+    "syntax and boilerplate need no annotation."
+)
+
+
+def instruction(version):
+    return SYSTEM_V3 if version == "v3" else SYSTEM
 
 
 def dumps(value):
@@ -75,6 +91,8 @@ def seed_rows():
 
 def offsets(raw, value):
     needle = value.encode("utf-8")
+    if not needle:
+        raise ValueError("An annotated value must be non-empty")
     start = raw.find(needle)
     while start >= 0:
         yield start
@@ -107,6 +125,7 @@ def contrast_sets(rows):
 
 def validate(splits):
     ids, groups, texts, annotated_values = set(), {}, {}, {}
+    inputs = set()
     for split, rows in splits.items():
         if not rows:
             raise ValueError(f"Empty {split} split")
@@ -116,6 +135,10 @@ def validate(splits):
             if row_id in ids:
                 raise ValueError(f"Duplicate ID {row_id}")
             ids.add(row_id)
+            model_input = (original, row["format"], row.get("publication_status"))
+            if model_input in inputs:
+                raise ValueError(f"{row_id}: duplicate model input")
+            inputs.add(model_input)
             if groups.setdefault(group, split) != split or texts.setdefault(original, split) != split:
                 raise ValueError(f"{row_id}: source or template group crosses data splits")
             if row["language"] not in {"ru", "en"} or not original:
@@ -143,6 +166,59 @@ def validate(splits):
             raise ValueError(f"A protected or uncertain synthetic value crosses splits: {value!r}")
 
 
+def read_marked(text):
+    """Remove author markup and compute offsets on the exact UTF-8 payload."""
+    parts, spans = [], []
+    position = size = 0
+    for match in re.finditer(r"⟦(mask|keep|review)\|([A-Z]+)\|([^⟦⟧]+)⟧", text):
+        prefix = text[position:match.start()]
+        action, kind, value = match.groups()
+        size += len(prefix.encode())
+        end = size + len(value.encode())
+        spans.append(dict(action=action, kind=kind, value=value, start_byte=size, end_byte=end))
+        parts.extend((prefix, value))
+        size, position = end, match.end()
+    parts.append(text[position:])
+    original = "".join(parts)
+    if "⟦" in original or "⟧" in original:
+        raise ValueError("Malformed annotation marker")
+    return original, spans
+
+
+def add_v3(splits, extension):
+    regression = splits["test"]
+    splits["test"] = []
+    originals = {row["id"]: (split, row) for split, rows in splits.items() for row in rows}
+    for case in read_jsonl(extension):
+        split = case.pop("split")
+        original, spans = read_marked(case.pop("annotated"))
+        if case.pop("amend", False):
+            old_split, row = originals[case["id"]]
+            if split != old_split or original != row["text"]:
+                raise ValueError(f"{row['id']}: amendment changed its input or split")
+            row["spans"] = spans
+        else:
+            splits[split].append(dict(case, source="synthetic-curated", text=original, spans=spans))
+    # Test rows from earlier versions were inspected during development.
+    validate({**splits, "v2-regression": regression})
+    held = splits["test"]
+    sizes = Counter(r["group"] for r in held)
+    clean = Counter(r["group"] for r in held if not r["spans"])
+    counts = Counter(s["action"] for r in held for s in r["spans"])
+    if (len(sizes) != 12 or set(sizes.values()) != {6} or set(clean) != set(sizes)
+            or counts["mask"] < 200 or counts["keep"] < 150):
+        raise ValueError("Independent test does not meet its registered composition")
+    def skeleton(row):
+        raw = row["text"].encode()
+        for span in reversed(row["spans"]):
+            raw = raw[:span["start_byte"]] + b"{value}" + raw[span["end_byte"]:]
+        return " ".join(unicodedata.normalize("NFKC", raw.decode()).casefold().split())
+    previous = {skeleton(r) for r in splits["train"] + splits["validation"] + regression}
+    if previous.intersection(skeleton(r) for r in held):
+        raise ValueError("An anonymised document template occurs in development and independent test")
+    return regression
+
+
 def build(version="v0"):
     if version not in VERSIONS:
         raise ValueError(f"Unsupported dataset version: {version}")
@@ -151,8 +227,12 @@ def build(version="v0"):
         for split, row in source:
             splits[split].append(row)
     version_index = VERSIONS.index(version)
+    regression = []
     for revision in VERSIONS[1:version_index + 1]:
         extension = ROOT / "data" / "extensions" / f"{revision}.jsonl"
+        if revision == "v3":
+            regression = add_v3(splits, extension)
+            continue
         for row in read_jsonl(extension):
             split = row.pop("split")
             if split not in splits:
@@ -161,10 +241,16 @@ def build(version="v0"):
     validate(splits)
     files, manifest = {}, {
         "version": version, "policy": "external-model-sharing-v1", "offsets": "UTF-8 bytes, end exclusive",
-        "prompt_sha256": sha256(SYSTEM.encode("utf-8")).hexdigest(),
+        "prompt_sha256": sha256(instruction(version).encode("utf-8")).hexdigest(),
         "seed_sha256": {path.name: sha256(path.read_bytes()).hexdigest() for path in sorted(SEEDS.glob("*.jsonl"))},
         "splits": {},
     }
+    if regression:
+        manifest["regression_test_v2_sha256"] = sha256(jsonl(regression)).hexdigest()
+        manifest["evaluation"] = {"unit": "annotated UTF-8 occurrence", "review_at_boundary": "mask",
+                                  "min_fully_masked_percent": MIN_FULL_PERCENT,
+                                  "max_public_touched_percent": MAX_PUBLIC_PERCENT,
+                                  "min_exact_restore_percent": 100, "complete_observations_required": True}
     if version_index:
         manifest["base_version"] = VERSIONS[version_index - 1]
         path = ROOT / "data" / "extensions" / f"{version}.jsonl"
@@ -195,23 +281,24 @@ def check_snapshot(directory):
     return manifest
 
 
-def prompt(row):
+def prompt(row, version="v0"):
     payload = {"text": row["text"], "format": row["format"]}
     if "publication_status" in row:
         payload["publication_status"] = row["publication_status"]
-    return [{"role": "system", "content": SYSTEM}, {"role": "user", "content": dumps(payload)}]
+    return [{"role": "system", "content": instruction(version)}, {"role": "user", "content": dumps(payload)}]
 
 
 def export(directory, output):
+    version = json.loads((directory / "manifest.json").read_bytes())["version"]
     for split in SPLITS:
         rows = read_jsonl(directory / f"{split}.jsonl")
         if split == "test":
             name = "test-inputs.jsonl"
-            records = ({"id": row["id"], "prompt": prompt(row)} for row in rows)
+            records = ({"id": row["id"], "prompt": prompt(row, version)} for row in rows)
         else:
             name = f"{split}.jsonl"
             records = (
-                {"id": row["id"], "prompt": prompt(row),
+                {"id": row["id"], "prompt": prompt(row, version),
                  "completion": [{"role": "assistant", "content": dumps({"spans": target_spans(row)})}]}
                 for row in rows
             )

@@ -1,0 +1,95 @@
+{
+  "base_version": "v2",
+  "evaluation": {
+    "complete_observations_required": true,
+    "max_public_touched_percent": 2,
+    "min_exact_restore_percent": 100,
+    "min_fully_masked_percent": 95,
+    "review_at_boundary": "mask",
+    "unit": "annotated UTF-8 occurrence"
+  },
+  "extension_sha256": "78d34f366c0e6941f9111d392d225ac01e1c3e4ed4c390a70ddc71aca6f8f6c3",
+  "offsets": "UTF-8 bytes, end exclusive",
+  "policy": "external-model-sharing-v1",
+  "prompt_sha256": "7fb2cad95c16a31cf064a895c5e7f8108ddce9f28ceba225f86dadaebd39328f",
+  "regression_test_v2_sha256": "e375b7419c8bdb4e58b144c26bbcc105576ea9992233ed482d3101d662d26513",
+  "seed_sha256": {
+    "access-classification-seed.jsonl": "d002b23a092d82fd1a93ebf5566d52622f2e6dbb4f0fde80e94bc85b0803b460",
+    "annotation-seed.jsonl": "14e8e309f461b9d310fffae3ac2f0e727cd9fafff12410416d17b4b3ebda5d62"
+  },
+  "splits": {
+    "test": {
+      "by_action": {
+        "keep": 182,
+        "mask": 217,
+        "review": 18
+      },
+      "by_language": {
+        "en": 38,
+        "ru": 34
+      },
+      "by_source": {
+        "synthetic-curated": 72
+      },
+      "contrast_sets": {
+        "format": 2,
+        "order": 2,
+        "provenance": 3,
+        "role": 2
+      },
+      "groups": 12,
+      "records": 72,
+      "sha256": "89eee56cbab68e378922d68caf75facaf029b6e584cba8956d5b87bc160c5cfb"
+    },
+    "train": {
+      "by_action": {
+        "keep": 584,
+        "mask": 890,
+        "review": 37
+      },
+      "by_language": {
+        "en": 231,
+        "ru": 276
+      },
+      "by_source": {
+        "synthetic-curated": 47,
+        "synthetic-seed": 76,
+        "synthetic-template": 384
+      },
+      "contrast_sets": {
+        "format": 1,
+        "order": 27,
+        "provenance": 3,
+        "role": 1
+      },
+      "groups": 84,
+      "records": 507,
+      "sha256": "7e8d2877ac7755b901560c0e7b2eb5ee472f518dadaddf69fb46a052111deced"
+    },
+    "validation": {
+      "by_action": {
+        "keep": 211,
+        "mask": 239,
+        "review": 18
+      },
+      "by_language": {
+        "en": 99,
+        "ru": 58
+      },
+      "by_source": {
+        "synthetic-curated": 25,
+        "synthetic-template": 132
+      },
+      "contrast_sets": {
+        "format": 1,
+        "order": 12,
+        "provenance": 3,
+        "role": 1
+      },
+      "groups": 25,
+      "records": 157,
+      "sha256": "4e1e5b1c48af2b71b93148efb55e2b28365d0f5b8037dc35006f3408008e6bff"
+    }
+  },
+  "version": "v3"
+}

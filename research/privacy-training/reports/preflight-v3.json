@@ -1,0 +1,911 @@
+{
+  "binary_sha256": "cfb9c85d972aaa485e8656b1ac4b024854930a99d38be463dd390b8a7abae8b7",
+  "cpu_adapter_check": {
+    "generate": true,
+    "gradient": "finite",
+    "optimizer_steps": 2,
+    "peft": "0.19.0",
+    "reloaded_logits_equal_atol": 1e-06,
+    "torch": "2.8.0+cpu",
+    "training_rows_response_mask_checked": 507,
+    "transformers": "5.3.0",
+    "weights": "small randomly initialized Qwen3.5 conditional model; standard and linear attention"
+  },
+  "dataset": "v3",
+  "method": "built-in CLI text masking + optional research span adapter + capture at local HTTP recipient + actual vault restore",
+  "oracle_minus_detectors_diagnostic": {
+    "private_full": {
+      "ci95_pp": [
+        76.92307692307692,
+        82.06521739130434
+      ],
+      "delta_pp": 79.26267281105991,
+      "groups": 12,
+      "replicates_used": 2000
+    },
+    "public_touched": {
+      "ci95_pp": [
+        0.0,
+        0.0
+      ],
+      "delta_pp": 0.0,
+      "groups": 12,
+      "replicates_used": 2000
+    }
+  },
+  "prompt_sha256": "7fb2cad95c16a31cf064a895c5e7f8108ddce9f28ceba225f86dadaebd39328f",
+  "runs": {
+    "v2-test-detectors": {
+      "all": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 2,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 2,
+        "collateral_bytes": 12,
+        "complete": true,
+        "documents": 163,
+        "documents_with_leak": 119,
+        "exact_restore": {
+          "d": 163,
+          "n": 163,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 334,
+          "n": 93,
+          "rate": 0.27844311377245506
+        },
+        "leaking_requests": {
+          "d": 134,
+          "n": 119,
+          "rate": 0.8880597014925373
+        },
+        "observed": 163,
+        "pass": false,
+        "private": 334,
+        "private_documents": 134,
+        "private_full": 93,
+        "private_open": 183,
+        "private_partial": 58,
+        "public": 167,
+        "public_losses": {
+          "d": 167,
+          "n": 1,
+          "rate": 0.005988023952095809
+        },
+        "public_touched": 1,
+        "restored": 163,
+        "review": 14,
+        "review_full": 0,
+        "review_open": 13,
+        "review_partial": 1
+      },
+      "by_input": {
+        "text_only": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 2,
+            "n": 0,
+            "rate": 0.0
+          },
+          "clean": 2,
+          "collateral_bytes": 12,
+          "complete": true,
+          "documents": 163,
+          "documents_with_leak": 119,
+          "exact_restore": {
+            "d": 163,
+            "n": 163,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 334,
+            "n": 93,
+            "rate": 0.27844311377245506
+          },
+          "leaking_requests": {
+            "d": 134,
+            "n": 119,
+            "rate": 0.8880597014925373
+          },
+          "observed": 163,
+          "pass": false,
+          "private": 334,
+          "private_documents": 134,
+          "private_full": 93,
+          "private_open": 183,
+          "private_partial": 58,
+          "public": 167,
+          "public_losses": {
+            "d": 167,
+            "n": 1,
+            "rate": 0.005988023952095809
+          },
+          "public_touched": 1,
+          "restored": 163,
+          "review": 14,
+          "review_full": 0,
+          "review_open": 13,
+          "review_partial": 1
+        }
+      },
+      "public_losses_by_kind": {
+        "IP": 1
+      },
+      "receipt_sha256_this_run": "d0a45a3a116316a2806de9c553698fb50e396af81d085519330395b9cf98622d",
+      "split_sha256": "e375b7419c8bdb4e58b144c26bbcc105576ea9992233ed482d3101d662d26513"
+    },
+    "v3-test-detectors": {
+      "all": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 12,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 12,
+        "collateral_bytes": 17,
+        "complete": true,
+        "documents": 72,
+        "documents_with_leak": 53,
+        "exact_restore": {
+          "d": 72,
+          "n": 72,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 217,
+          "n": 45,
+          "rate": 0.2073732718894009
+        },
+        "leaking_requests": {
+          "d": 53,
+          "n": 53,
+          "rate": 1.0
+        },
+        "observed": 72,
+        "pass": false,
+        "private": 217,
+        "private_documents": 53,
+        "private_full": 45,
+        "private_open": 155,
+        "private_partial": 17,
+        "public": 182,
+        "public_losses": {
+          "d": 182,
+          "n": 16,
+          "rate": 0.08791208791208792
+        },
+        "public_touched": 16,
+        "restored": 72,
+        "review": 18,
+        "review_full": 1,
+        "review_open": 16,
+        "review_partial": 1
+      },
+      "by_input": {
+        "text_only": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 12,
+            "n": 0,
+            "rate": 0.0
+          },
+          "clean": 12,
+          "collateral_bytes": 17,
+          "complete": true,
+          "documents": 63,
+          "documents_with_leak": 50,
+          "exact_restore": {
+            "d": 63,
+            "n": 63,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 208,
+            "n": 44,
+            "rate": 0.21153846153846154
+          },
+          "leaking_requests": {
+            "d": 50,
+            "n": 50,
+            "rate": 1.0
+          },
+          "observed": 63,
+          "pass": false,
+          "private": 208,
+          "private_documents": 50,
+          "private_full": 44,
+          "private_open": 148,
+          "private_partial": 16,
+          "public": 155,
+          "public_losses": {
+            "d": 155,
+            "n": 14,
+            "rate": 0.09032258064516129
+          },
+          "public_touched": 14,
+          "restored": 63,
+          "review": 9,
+          "review_full": 0,
+          "review_open": 9,
+          "review_partial": 0
+        },
+        "with_status": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 0,
+            "n": 0,
+            "rate": null
+          },
+          "clean": 0,
+          "collateral_bytes": 0,
+          "complete": true,
+          "documents": 9,
+          "documents_with_leak": 3,
+          "exact_restore": {
+            "d": 9,
+            "n": 9,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 9,
+            "n": 1,
+            "rate": 0.1111111111111111
+          },
+          "leaking_requests": {
+            "d": 3,
+            "n": 3,
+            "rate": 1.0
+          },
+          "observed": 9,
+          "pass": false,
+          "private": 9,
+          "private_documents": 3,
+          "private_full": 1,
+          "private_open": 7,
+          "private_partial": 1,
+          "public": 27,
+          "public_losses": {
+            "d": 27,
+            "n": 2,
+            "rate": 0.07407407407407407
+          },
+          "public_touched": 2,
+          "restored": 9,
+          "review": 9,
+          "review_full": 1,
+          "review_open": 7,
+          "review_partial": 1
+        }
+      },
+      "public_losses_by_kind": {
+        "CLIENT": 2,
+        "EMAIL": 5,
+        "IP": 4,
+        "PERSON": 1,
+        "PHONE": 1,
+        "USER": 3
+      },
+      "receipt_sha256_this_run": "dec4eb2f5f65e0739844bb70d406f180d7a67334e3807b296ea57ef8ddf80c06",
+      "split_sha256": "89eee56cbab68e378922d68caf75facaf029b6e584cba8956d5b87bc160c5cfb"
+    },
+    "v3-test-oracle": {
+      "all": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 12,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 12,
+        "collateral_bytes": 17,
+        "complete": true,
+        "documents": 72,
+        "documents_with_leak": 0,
+        "exact_restore": {
+          "d": 72,
+          "n": 72,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 217,
+          "n": 217,
+          "rate": 1.0
+        },
+        "leaking_requests": {
+          "d": 53,
+          "n": 0,
+          "rate": 0.0
+        },
+        "observed": 72,
+        "pass": false,
+        "private": 217,
+        "private_documents": 53,
+        "private_full": 217,
+        "private_open": 0,
+        "private_partial": 0,
+        "public": 182,
+        "public_losses": {
+          "d": 182,
+          "n": 16,
+          "rate": 0.08791208791208792
+        },
+        "public_touched": 16,
+        "restored": 72,
+        "review": 18,
+        "review_full": 18,
+        "review_open": 0,
+        "review_partial": 0
+      },
+      "by_input": {
+        "text_only": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 12,
+            "n": 0,
+            "rate": 0.0
+          },
+          "clean": 12,
+          "collateral_bytes": 17,
+          "complete": true,
+          "documents": 63,
+          "documents_with_leak": 0,
+          "exact_restore": {
+            "d": 63,
+            "n": 63,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 208,
+            "n": 208,
+            "rate": 1.0
+          },
+          "leaking_requests": {
+            "d": 50,
+            "n": 0,
+            "rate": 0.0
+          },
+          "observed": 63,
+          "pass": false,
+          "private": 208,
+          "private_documents": 50,
+          "private_full": 208,
+          "private_open": 0,
+          "private_partial": 0,
+          "public": 155,
+          "public_losses": {
+            "d": 155,
+            "n": 14,
+            "rate": 0.09032258064516129
+          },
+          "public_touched": 14,
+          "restored": 63,
+          "review": 9,
+          "review_full": 9,
+          "review_open": 0,
+          "review_partial": 0
+        },
+        "with_status": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 0,
+            "n": 0,
+            "rate": null
+          },
+          "clean": 0,
+          "collateral_bytes": 0,
+          "complete": true,
+          "documents": 9,
+          "documents_with_leak": 0,
+          "exact_restore": {
+            "d": 9,
+            "n": 9,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 9,
+            "n": 9,
+            "rate": 1.0
+          },
+          "leaking_requests": {
+            "d": 3,
+            "n": 0,
+            "rate": 0.0
+          },
+          "observed": 9,
+          "pass": false,
+          "private": 9,
+          "private_documents": 3,
+          "private_full": 9,
+          "private_open": 0,
+          "private_partial": 0,
+          "public": 27,
+          "public_losses": {
+            "d": 27,
+            "n": 2,
+            "rate": 0.07407407407407407
+          },
+          "public_touched": 2,
+          "restored": 9,
+          "review": 9,
+          "review_full": 9,
+          "review_open": 0,
+          "review_partial": 0
+        }
+      },
+      "public_losses_by_kind": {
+        "CLIENT": 2,
+        "EMAIL": 5,
+        "IP": 4,
+        "PERSON": 1,
+        "PHONE": 1,
+        "USER": 3
+      },
+      "receipt_sha256_this_run": "a48f09096037c3e4a9966cce1c18895993e623c1cde9a868d42580fa22d93bf1",
+      "split_sha256": "89eee56cbab68e378922d68caf75facaf029b6e584cba8956d5b87bc160c5cfb"
+    },
+    "v3-validation-detectors": {
+      "all": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 3,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 3,
+        "collateral_bytes": 0,
+        "complete": true,
+        "documents": 157,
+        "documents_with_leak": 98,
+        "exact_restore": {
+          "d": 157,
+          "n": 157,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 239,
+          "n": 66,
+          "rate": 0.27615062761506276
+        },
+        "leaking_requests": {
+          "d": 123,
+          "n": 98,
+          "rate": 0.7967479674796748
+        },
+        "observed": 157,
+        "pass": false,
+        "private": 239,
+        "private_documents": 123,
+        "private_full": 66,
+        "private_open": 150,
+        "private_partial": 23,
+        "public": 211,
+        "public_losses": {
+          "d": 211,
+          "n": 50,
+          "rate": 0.23696682464454977
+        },
+        "public_touched": 50,
+        "restored": 157,
+        "review": 18,
+        "review_full": 1,
+        "review_open": 15,
+        "review_partial": 2
+      },
+      "by_input": {
+        "text_only": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 3,
+            "n": 0,
+            "rate": 0.0
+          },
+          "clean": 3,
+          "collateral_bytes": 0,
+          "complete": true,
+          "documents": 150,
+          "documents_with_leak": 95,
+          "exact_restore": {
+            "d": 150,
+            "n": 150,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 234,
+            "n": 65,
+            "rate": 0.2777777777777778
+          },
+          "leaking_requests": {
+            "d": 120,
+            "n": 95,
+            "rate": 0.7916666666666666
+          },
+          "observed": 150,
+          "pass": false,
+          "private": 234,
+          "private_documents": 120,
+          "private_full": 65,
+          "private_open": 147,
+          "private_partial": 22,
+          "public": 200,
+          "public_losses": {
+            "d": 200,
+            "n": 48,
+            "rate": 0.24
+          },
+          "public_touched": 48,
+          "restored": 150,
+          "review": 14,
+          "review_full": 0,
+          "review_open": 13,
+          "review_partial": 1
+        },
+        "with_status": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 0,
+            "n": 0,
+            "rate": null
+          },
+          "clean": 0,
+          "collateral_bytes": 0,
+          "complete": true,
+          "documents": 7,
+          "documents_with_leak": 3,
+          "exact_restore": {
+            "d": 7,
+            "n": 7,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 5,
+            "n": 1,
+            "rate": 0.2
+          },
+          "leaking_requests": {
+            "d": 3,
+            "n": 3,
+            "rate": 1.0
+          },
+          "observed": 7,
+          "pass": false,
+          "private": 5,
+          "private_documents": 3,
+          "private_full": 1,
+          "private_open": 3,
+          "private_partial": 1,
+          "public": 11,
+          "public_losses": {
+            "d": 11,
+            "n": 2,
+            "rate": 0.18181818181818182
+          },
+          "public_touched": 2,
+          "restored": 7,
+          "review": 4,
+          "review_full": 1,
+          "review_open": 2,
+          "review_partial": 1
+        }
+      },
+      "public_losses_by_kind": {
+        "AMOUNT": 24,
+        "CLIENT": 1,
+        "CUSTOM": 12,
+        "EMAIL": 1,
+        "IP": 12
+      },
+      "receipt_sha256_this_run": "0ef75c9f5a91b71ac940b055625f9115dd3da125e89bbbf02e42e08cfb81de29",
+      "split_sha256": "4e1e5b1c48af2b71b93148efb55e2b28365d0f5b8037dc35006f3408008e6bff"
+    },
+    "v3-validation-oracle": {
+      "all": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 3,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 3,
+        "collateral_bytes": 0,
+        "complete": true,
+        "documents": 157,
+        "documents_with_leak": 0,
+        "exact_restore": {
+          "d": 157,
+          "n": 157,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 239,
+          "n": 239,
+          "rate": 1.0
+        },
+        "leaking_requests": {
+          "d": 123,
+          "n": 0,
+          "rate": 0.0
+        },
+        "observed": 157,
+        "pass": false,
+        "private": 239,
+        "private_documents": 123,
+        "private_full": 239,
+        "private_open": 0,
+        "private_partial": 0,
+        "public": 211,
+        "public_losses": {
+          "d": 211,
+          "n": 50,
+          "rate": 0.23696682464454977
+        },
+        "public_touched": 50,
+        "restored": 157,
+        "review": 18,
+        "review_full": 18,
+        "review_open": 0,
+        "review_partial": 0
+      },
+      "by_input": {
+        "text_only": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 3,
+            "n": 0,
+            "rate": 0.0
+          },
+          "clean": 3,
+          "collateral_bytes": 0,
+          "complete": true,
+          "documents": 150,
+          "documents_with_leak": 0,
+          "exact_restore": {
+            "d": 150,
+            "n": 150,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 234,
+            "n": 234,
+            "rate": 1.0
+          },
+          "leaking_requests": {
+            "d": 120,
+            "n": 0,
+            "rate": 0.0
+          },
+          "observed": 150,
+          "pass": false,
+          "private": 234,
+          "private_documents": 120,
+          "private_full": 234,
+          "private_open": 0,
+          "private_partial": 0,
+          "public": 200,
+          "public_losses": {
+            "d": 200,
+            "n": 48,
+            "rate": 0.24
+          },
+          "public_touched": 48,
+          "restored": 150,
+          "review": 14,
+          "review_full": 14,
+          "review_open": 0,
+          "review_partial": 0
+        },
+        "with_status": {
+          "changed_clean": 0,
+          "changed_empty_requests": {
+            "d": 0,
+            "n": 0,
+            "rate": null
+          },
+          "clean": 0,
+          "collateral_bytes": 0,
+          "complete": true,
+          "documents": 7,
+          "documents_with_leak": 0,
+          "exact_restore": {
+            "d": 7,
+            "n": 7,
+            "rate": 1.0
+          },
+          "full_privacy": {
+            "d": 5,
+            "n": 5,
+            "rate": 1.0
+          },
+          "leaking_requests": {
+            "d": 3,
+            "n": 0,
+            "rate": 0.0
+          },
+          "observed": 7,
+          "pass": false,
+          "private": 5,
+          "private_documents": 3,
+          "private_full": 5,
+          "private_open": 0,
+          "private_partial": 0,
+          "public": 11,
+          "public_losses": {
+            "d": 11,
+            "n": 2,
+            "rate": 0.18181818181818182
+          },
+          "public_touched": 2,
+          "restored": 7,
+          "review": 4,
+          "review_full": 4,
+          "review_open": 0,
+          "review_partial": 0
+        }
+      },
+      "public_losses_by_kind": {
+        "AMOUNT": 24,
+        "CLIENT": 1,
+        "CUSTOM": 12,
+        "EMAIL": 1,
+        "IP": 12
+      },
+      "receipt_sha256_this_run": "83be831871bd1575683f81432686778320718afdf1e75902d1d0e2c0707033ff",
+      "split_sha256": "4e1e5b1c48af2b71b93148efb55e2b28365d0f5b8037dc35006f3408008e6bff"
+    }
+  },
+  "scorer_controls": {
+    "damaged_window_run": {
+      "errors": {
+        "invalid_json": 1,
+        "missing_answer": 1
+      },
+      "exact_documents": {
+        "d": 72,
+        "n": 70,
+        "rate": 0.9722222222222222
+      }
+    },
+    "paired_only_contrast_sets": {
+      "format": {
+        "d": 2,
+        "n": 2,
+        "rate": 1.0
+      },
+      "order": {
+        "d": 2,
+        "n": 2,
+        "rate": 1.0
+      },
+      "provenance": {
+        "d": 3,
+        "n": 3,
+        "rate": 1.0
+      },
+      "role": {
+        "d": 2,
+        "n": 2,
+        "rate": 1.0
+      }
+    },
+    "paired_only_errors": {
+      "missing_answer": 51
+    },
+    "paired_only_exact_documents": {
+      "d": 72,
+      "n": 21,
+      "rate": 0.2916666666666667
+    },
+    "reference_by_action": {
+      "keep": {
+        "f1": {
+          "d": 364,
+          "n": 364,
+          "rate": 1.0
+        },
+        "fn": 0,
+        "fp": 0,
+        "precision": {
+          "d": 182,
+          "n": 182,
+          "rate": 1.0
+        },
+        "recall": {
+          "d": 182,
+          "n": 182,
+          "rate": 1.0
+        },
+        "tp": 182
+      },
+      "mask": {
+        "f1": {
+          "d": 434,
+          "n": 434,
+          "rate": 1.0
+        },
+        "fn": 0,
+        "fp": 0,
+        "precision": {
+          "d": 217,
+          "n": 217,
+          "rate": 1.0
+        },
+        "recall": {
+          "d": 217,
+          "n": 217,
+          "rate": 1.0
+        },
+        "tp": 217
+      },
+      "review": {
+        "f1": {
+          "d": 36,
+          "n": 36,
+          "rate": 1.0
+        },
+        "fn": 0,
+        "fp": 0,
+        "precision": {
+          "d": 18,
+          "n": 18,
+          "rate": 1.0
+        },
+        "recall": {
+          "d": 18,
+          "n": 18,
+          "rate": 1.0
+        },
+        "tp": 18
+      }
+    },
+    "reference_exact_documents": {
+      "d": 72,
+      "n": 72,
+      "rate": 1.0
+    }
+  },
+  "test_sha256": "89eee56cbab68e378922d68caf75facaf029b6e584cba8956d5b87bc160c5cfb",
+  "token_audit": {
+    "assets": {
+      "chat_template.jinja": "273d8e0e683b885071fb17e08d71e5f2a5ddfb5309756181681de4f5a1822d80",
+      "tokenizer.json": "5f9e4d4901a92b997e463c1f46055088b6cca5ca61a6522d1b9f64c4bb81cb42"
+    },
+    "context": 1024,
+    "dataset": "v3",
+    "enable_thinking": false,
+    "max_new": 256,
+    "model": "Qwen/Qwen3.5-2B",
+    "prompt_version": "v3",
+    "revision": "15852e8c16360a2fea060d615a32b45270f8a8fc",
+    "splits": {
+      "test": {
+        "documents": 72,
+        "max_completion_tokens": 189,
+        "max_document_tokens": 1225,
+        "max_window_tokens": 803,
+        "split_documents": 2,
+        "windows": 74
+      },
+      "train": {
+        "documents": 507,
+        "max_completion_tokens": 132,
+        "max_document_tokens": 517,
+        "max_window_tokens": 517,
+        "split_documents": 0,
+        "windows": 507
+      },
+      "validation": {
+        "documents": 157,
+        "max_completion_tokens": 107,
+        "max_document_tokens": 482,
+        "max_window_tokens": 482,
+        "split_documents": 0,
+        "windows": 157
+      }
+    }
+  },
+  "training_performed_on_qwen": false
+}
