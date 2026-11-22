@@ -1,0 +1,136 @@
+{
+  "hf_adapter_revision": "7e2dc95138c72eaf5131f8da99f2e6e57a669393",
+  "base_result_gzip_sha256": "377605ce0689308e8faa220ec6a114de5913fdbcc9d25ce04658c8e6a1d61c97",
+  "reference_t0_minutes": 51.77481835,
+  "metrics": {
+    "A": {
+      "base": {
+        "private_mask": 0,
+        "public_keep": 7,
+        "private_keep": 10,
+        "public_mask": 0,
+        "technical_review": 6,
+        "explicit_review": 9,
+        "http_minutes": 33.60839981666667,
+        "score": 26.94145007474527,
+        "technical_error_counts": {
+          "invalid_review_evidence_or_shape": 6
+        },
+        "requests": 5,
+        "received": 5
+      },
+      "epoch2": {
+        "private_mask": 10,
+        "public_keep": 8,
+        "private_keep": 1,
+        "public_mask": 4,
+        "technical_review": 1,
+        "explicit_review": 8,
+        "http_minutes": 21.51568955,
+        "score": 62.44298385296085,
+        "technical_error_counts": {
+          "invalid_review_evidence_or_shape": 1
+        },
+        "requests": 5,
+        "received": 5
+      },
+      "lane": "abcd-epoch2"
+    },
+    "B": {
+      "base": {
+        "private_mask": 9,
+        "public_keep": 10,
+        "private_keep": 7,
+        "public_mask": 4,
+        "technical_review": 2,
+        "explicit_review": 0,
+        "http_minutes": 32.57880638333333,
+        "score": 59.03848911099273,
+        "technical_error_counts": {
+          "invalid_review_evidence_or_shape": 2
+        },
+        "requests": 5,
+        "received": 5
+      },
+      "epoch2": {
+        "private_mask": 12,
+        "public_keep": 6,
+        "private_keep": 4,
+        "public_mask": 4,
+        "technical_review": 6,
+        "explicit_review": 0,
+        "http_minutes": 22.997902383333333,
+        "score": 65.77287726414869,
+        "technical_error_counts": {
+          "invalid_review_evidence_or_shape": 6
+        },
+        "requests": 5,
+        "received": 5
+      },
+      "lane": "abcd-epoch2"
+    },
+    "C": {
+      "base": {
+        "private_mask": 6,
+        "public_keep": 5,
+        "private_keep": 10,
+        "public_mask": 6,
+        "technical_review": 4,
+        "explicit_review": 1,
+        "http_minutes": 33.69098125,
+        "score": 43.17387256387407,
+        "technical_error_counts": {
+          "invalid_review_evidence_or_shape": 4
+        },
+        "requests": 5,
+        "received": 5
+      },
+      "epoch2": {
+        "private_mask": 13,
+        "public_keep": 14,
+        "private_keep": 0,
+        "public_mask": 1,
+        "technical_review": 4,
+        "explicit_review": 0,
+        "http_minutes": 23.55862485,
+        "score": 78.74326042354585,
+        "technical_error_counts": {
+          "invalid_review_evidence_or_shape": 4
+        },
+        "requests": 5,
+        "received": 5
+      },
+      "lane": "abcd-epoch2-cd"
+    },
+    "D": {
+      "base": {
+        "private_mask": 5,
+        "public_keep": 16,
+        "private_keep": 11,
+        "public_mask": 0,
+        "technical_review": 0,
+        "explicit_review": 0,
+        "http_minutes": 31.2024153,
+        "score": 54.34392424193874,
+        "technical_error_counts": {},
+        "requests": 5,
+        "received": 5
+      },
+      "epoch2": {
+        "private_mask": 14,
+        "public_keep": 12,
+        "private_keep": 2,
+        "public_mask": 4,
+        "technical_review": 0,
+        "explicit_review": 0,
+        "http_minutes": 20.677622883333335,
+        "score": 80.18812581135494,
+        "technical_error_counts": {},
+        "requests": 5,
+        "received": 5
+      },
+      "lane": "abcd-epoch2-cd"
+    }
+  },
+  "score_comparison_timing": "candidate recorded on cloud CPU; base timing from archived run"
+}
