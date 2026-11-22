@@ -267,6 +267,36 @@ function learningWaitingReason() {
   return null;
 }
 
+function jobDuration(ms) {
+  if (ms == null) return "—";
+  const [unit, divisor] = ms < 1000 ? ["millisecond", 1]
+    : ms < 60000 ? ["second", 1000] : ["minute", 60000];
+  return new Intl.NumberFormat(I18N.language, {
+    style: "unit", unit, unitDisplay: "short", maximumFractionDigits: 1,
+  }).format(ms / divisor);
+}
+
+function renderQueueActivity(summary) {
+  const activity = summary.activity;
+  $("#queue-waiting").textContent = number(summary.queued);
+  $("#queue-running").textContent = number(summary.running);
+  $("#queue-pending").textContent = number(summary.pending);
+  $("#queue-completed").textContent = activity ? number(activity.completed_24h) : "—";
+  $("#queue-speed").textContent = activity ? number(activity.hourly[23]) : "—";
+  $("#queue-average").textContent = jobDuration(activity?.average_processing_ms);
+  const since = summary.activity_since_ms;
+  $("#queue-since").textContent = since && Date.now() - since < 86400000
+    ? tr("Учёт с {{0}}", [time(since, { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })]) : "";
+  const chart = $("#queue-chart");
+  const hourly = activity?.hourly || [];
+  const peak = Math.max(1, ...hourly);
+  chart.replaceChildren(...hourly.map((count, i) => h("span", {
+    class: count ? "queue-bar filled" : "queue-bar",
+    style: `--height:${100 * count / peak}%`,
+    title: tr("{{0}}–{{1}} ч назад · заданий {{2}}", [24 - i, 23 - i, number(count)]),
+  })));
+}
+
 function renderLearningWidget() {
   const history = LearningUI.history,
     settings = LearningUI.analysis?.settings,
@@ -287,14 +317,12 @@ function renderLearningWidget() {
   );
   toggle.disabled =
     LearningUI.busy.has("toggle") || !LearningUI.analysis?.editable;
-  $("#learning-metrics").replaceChildren(
+  renderQueueActivity(summary);
+  $("#learning-totals").replaceChildren(
     ...[
-      ["В очереди", summary.queued],
-      ["В работе", summary.running],
       ["Обработано", totals.processed],
       ["Извлечено", totals.extracted],
       ["Применено правил", totals.applied],
-      ["На подтверждение", summary.pending],
       ["Ошибок обработки", totals.failed],
       ["Пропущено знакомых", totals.skipped_known],
       ["Вытеснено", totals.evicted],
@@ -372,8 +400,16 @@ async function learningAction(id, action, body = {}) {
 }
 async function loadLearningHistory(force = false) {
   LearningUI.history = await api("/api/v1/ui/learning");
+  $("#queue-updated").textContent = tr("Обновлено {{0}}", [new Date().toLocaleTimeString(I18N.language)]);
   renderLearningWidget();
 }
+$("#queue-open-pending").addEventListener("click", () => {
+  $("#review-source").value = "learning";
+  $("#review-query").value = "";
+  $("#review-action").selectedIndex = 0;
+  $("#review-kind").selectedIndex = 0;
+  showReview([], "pending");
+});
 $("#learning-open-history").addEventListener("click", () => openReview("history"));
 async function loadCategorization() {
   await Promise.all([
@@ -395,5 +431,7 @@ setInterval(() => {
       location.hash,
     )
   )
-    loadLearningHistory().catch(() => {});
+    loadLearningHistory().catch(() => {
+      $("#queue-updated").textContent = tr("Не удалось обновить статистику");
+    });
 }, 2500);
