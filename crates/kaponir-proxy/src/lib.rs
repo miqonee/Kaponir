@@ -13,6 +13,7 @@ pub mod discovery;
 mod learning;
 mod metrics;
 mod model_json;
+mod occurrences;
 pub mod openai;
 pub mod providers;
 mod review;
@@ -113,6 +114,10 @@ pub struct ProxyConfig {
     pub api_token: Option<String>,
     /// Сессия без запросов дольше этого выгружается из памяти (в vault остаётся до TTL журнала).
     pub session_idle_hours: u64,
+    /// Position-aware Windows audit records in JSON message content.
+    pub windows_audit_records: bool,
+    /// Locally configured permissions file. Its contents never enter requests.
+    pub public_occurrences: Option<std::path::PathBuf>,
     /// Контур новых записей vault.
     pub scope: Scope,
 }
@@ -127,6 +132,8 @@ impl Default for ProxyConfig {
             system_hint: false,
             api_token: None,
             session_idle_hours: 12,
+            windows_audit_records: false,
+            public_occurrences: None,
             scope: Scope::Personal,
         }
     }

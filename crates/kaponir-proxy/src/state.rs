@@ -88,6 +88,7 @@ pub struct State {
     pub(crate) requests: kaponir_core::metrics::OperationMetrics,
     pub(crate) stream_errors: std::sync::atomic::AtomicU64,
     engine: RwLock<Arc<Engine>>,
+    occurrences: crate::occurrences::OccurrencePolicy,
     pub principal: Principal,
     pub cfg: ProxyConfig,
     pub(crate) http: reqwest::Client,
@@ -109,6 +110,10 @@ impl State {
             .metrics()
             .set_s1_failure_sink(Arc::new(crate::metrics::StderrDiagnostics));
         let owner = owner.into();
+        let occurrences = crate::occurrences::OccurrencePolicy::new(
+            cfg.windows_audit_records,
+            cfg.public_occurrences.as_deref(),
+        );
         let http = reqwest::Client::builder()
             .redirect(reqwest::redirect::Policy::none())
             .connect_timeout(Duration::from_secs(30))
@@ -178,6 +183,7 @@ impl State {
             engine: RwLock::new(Arc::new(engine)),
             principal: Principal::local(owner.clone()),
             cfg,
+            occurrences,
             http,
             control: None,
             worker_manager: None,
@@ -325,6 +331,7 @@ impl State {
         let result = f(&mut Cx {
             usage: &mut usage,
             engine: &engine,
+            occurrences: &self.occurrences,
             principal: &self.principal,
             vault: &mut *vault,
             session: &mut *sess,
@@ -360,6 +367,7 @@ impl State {
 pub struct Cx<'a> {
     usage: &'a mut Usage,
     engine: &'a Engine,
+    occurrences: &'a crate::occurrences::OccurrencePolicy,
     principal: &'a Principal,
     vault: &'a mut SqliteVault,
     session: &'a mut Session,
@@ -371,6 +379,11 @@ impl Cx<'_> {
     pub fn mask(&mut self, text: &str) -> anyhow::Result<String> {
         if text.trim().is_empty() {
             return Ok(text.to_string());
+        }
+        // Permissions can expire within a chat. Never reuse a mask decision
+        // for a matched document from an earlier request.
+        if self.occurrences.may_have_grants(text) {
+            return Ok(self.mask_full(&Input::text(text))?.text);
         }
         let key = *blake3::hash(text.as_bytes()).as_bytes();
         if let Some(m) = self.session.cache.get(&key) {
@@ -395,9 +408,15 @@ impl Cx<'_> {
     /// теми же токенами.
     pub fn mask_full(&mut self, input: &Input<'_>) -> anyhow::Result<Masked> {
         self.opts.known = std::mem::take(&mut self.session.known);
-        let r = self
-            .engine
-            .mask_without_s1(input, &self.opts, &mut *self.vault);
+        let r = match self.occurrences.edits(input.text) {
+            Some(edits) => {
+                self.engine
+                    .mask_without_s1_positioned(input, &self.opts, &mut *self.vault, &edits)
+            }
+            None => self
+                .engine
+                .mask_without_s1(input, &self.opts, &mut *self.vault),
+        };
         self.session.known = std::mem::take(&mut self.opts.known);
         let mut m = r?;
         self.usage.add(&Usage::masked(&m));

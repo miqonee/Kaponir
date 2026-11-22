@@ -20,8 +20,8 @@ pub mod types;
 pub mod vault;
 
 pub use engine::{
-    Engine, EngineBuilder, EngineError, Escape, Explained, Known, MaskOptions, Masked, Replacement,
-    Restored, StreamRestorer,
+    Engine, EngineBuilder, EngineError, Escape, Explained, Known, MaskOptions, Masked,
+    PositionEdits, Replacement, Restored, StreamRestorer,
 };
 pub use journal::JournalEntry;
 pub use lexicon::{Lexicon, NameLexicon, PartClass, name_key};
