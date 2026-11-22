@@ -20,6 +20,7 @@ import evaluate_validation_schemes as legacy
 from experiment_inference import LocalClient, sampling_settings
 from experiment_inference import prompts_and_kinds
 from kaponir_worker import FILES, http_json, schema_prompt
+from native_model_profiles import check_thinking, load_profile
 from privacy_expansion_profiles import NEW_CATALOG, expansion_profile, model_ids, research_registration
 from recover_privacy_transport import wait_for_verified_model
 from run_privacy_policy_suite import atomic_json, file_sha, runtime_processes, utc
@@ -73,6 +74,15 @@ def prepare(args):
         profile['response_format'] = args.response_format
     producers = list(dict.fromkeys(PRODUCERS + ['evaluate_model_schemes.py', 'privacy_expansion_profiles.py',
                                                'recover_privacy_transport.py']))
+    native_profile = getattr(args, 'native_profile', None)
+    if native_profile:
+        require(not reference_model and args.response_format is None, 'native_retest_locked_settings')
+        chosen = load_profile(native_profile, args.model, args.profile, args.new_catalog)
+        profile.update(chosen['settings'], max_candidates=24,
+                       transport_timeout_seconds=chosen['settings']['timeout'],
+                       worker_configuration_timeout_seconds=chosen['settings']['timeout'],
+                       native_retest=chosen['profile_sha256'])
+        producers.append('native_model_profiles.py')
     if reference_model:
         producers.append('scheme_reference.py')
     extraction, _, kinds = prompts_and_kinds()
@@ -94,6 +104,8 @@ def prepare(args):
         'failure_handling': 'durable raw transport; retries only for returned length truncation; invalid finals never rehabilitated',
         'transport_note': 'client wait extended to 3600; request bodies retain the declared token/sampling profile',
         'capabilities_verified_during_preparation': False}
+    if native_profile:
+        plan['transport_note'] = 'Native retest uses the recorded profile and a 1200-second HTTP budget.'
     if reference_model:
         from scheme_reference import REQUESTED_REFERENCE, verify_reference_inputs
         plan['legacy_reference_mode'] = REQUESTED_REFERENCE
@@ -218,6 +230,8 @@ class MeasuredClient(LocalClient):
             record['reasoning_text_chars'] = len(thought) if isinstance(thought, str) else 0
             record['reasoning_text_tokens'] = self.token_count(thought) if isinstance(thought, str) and thought else 0
             require(choice.get('finish_reason') in ('stop', 'length'), 'model_nonstop_response')
+            if self.profile.get('native_retest'):
+                record['reasoning_text_tokens'] = check_thinking(reply, self.profile, self.token_count)
             require(choice.get('finish_reason') != 'length', 'model_response_truncated')
             # Preserve the historical final parser. The unchanged validator still
             # decides applicability; short privacy-contract runs use strict_json.
@@ -326,6 +340,7 @@ def main(argv=None):
     parser.add_argument('--model', required=True)
     parser.add_argument('--new-catalog', type=Path, default=NEW_CATALOG)
     parser.add_argument('--profile', choices=['common', 'native'], default='common')
+    parser.add_argument('--native-profile', type=Path, help='Frozen manufacturer profile for the native retest')
     parser.add_argument('--response-format', choices=['auto', 'grammar', 'prompt'])
     parser.add_argument('--legacy-reference', help='Replay a recorded old-model protocol on a new model')
     parser.add_argument('--model-dir', type=Path)

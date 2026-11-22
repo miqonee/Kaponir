@@ -19,6 +19,7 @@ from evaluate_privacy_policy import (execute, file_sha, make_plan, parse_respons
 from experiment_inference import prompts_and_kinds, sampling_settings
 from privacy_policy_experiment import (VARIANTS, common_batches, metrics, payload,
     prompts, strict_json, technical_review, transitions, validate)
+from recheck_mask_evidence import validate_mask_evidence
 from validation_pipeline import Candidate, opaque_id
 
 
@@ -113,6 +114,37 @@ class PrivacyPolicyTests(unittest.TestCase):
             extra = copy.deepcopy(good)
             extra['decisions'][0]['reason'] = reason
             self.assertFalse(validate(extra, cases, {}, [], 'D')[cases[0].id]['valid'])
+
+    def test_mask_evidence_formatting_requires_the_same_source_text_and_valid_fields(self):
+        text = 'Internal\tcharge: 30 USD\n'
+        case = self.case(text, '30 USD')
+        _, contexts = payload('B', [case], {'doc': text})
+        row = {'id': case.id, 'verdict': 'mask', 'reason': 'Internal charge.', 'kind': 'AMOUNT',
+               'scope': 'global', 'evidence': '  «Internal charge: 30 USD»  '}
+        kinds = ['AMOUNT', 'SVC']
+        reply = {'decisions': [row]}
+        self.assertFalse(validate(reply, [case], contexts, kinds, 'B')[case.id]['valid'])
+        checked = validate_mask_evidence(reply, [case], contexts, kinds, 'B')[case.id]
+        self.assertTrue(checked['valid'])
+        self.assertEqual(checked['evidence'], text.rstrip('\n'))
+        self.assertEqual(row['evidence'], '  «Internal charge: 30 USD»  ')
+
+        for changes in [{'evidence': 'Internal charge: 31 USD'}, {'evidence': 'internal charge: 30 USD'},
+                        {'evidence': '«  »'}, {'evidence': ' ' * 160 + '30 USD'},
+                        {'kind': 'SVC'}, {'verdict': 'keep'}]:
+            with self.subTest(changes=changes):
+                result = validate_mask_evidence({'decisions': [{**row, **changes}]},
+                                                [case], contexts, kinds, 'B')
+                self.assertFalse(result[case.id]['valid'])
+
+    def test_mask_evidence_formatting_cannot_salvage_a_duplicate_id_batch(self):
+        text = 'Internal charge: 30 USD\nOther charge: 40 USD\n'
+        cases = [self.case(text, value) for value in ['30 USD', '40 USD']]
+        _, contexts = payload('B', cases, {'doc': text})
+        row = {'id': cases[0].id, 'verdict': 'mask', 'reason': 'Internal charge.', 'kind': 'AMOUNT',
+               'scope': 'global', 'evidence': '«Internal charge: 30 USD»'}
+        result = validate_mask_evidence({'decisions': [row, {**row}]}, cases, contexts, ['AMOUNT'], 'B')
+        self.assertTrue(all(item['error'] == 'invalid_review_batch' for item in result.values()))
 
     def test_scoring_separates_semantic_technical_explicit_and_unattempted(self):
         text = 'private1 private2 public1 public2 private3'

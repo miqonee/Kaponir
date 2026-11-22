@@ -1,0 +1,845 @@
+{
+  "abcd_variants": 4,
+  "archive": "evidence.tar.gz",
+  "archive_bytes": 1174179,
+  "archive_sha256": "b97edd342a067782bb6f0d6132d14cd4eb5f6ccf77f26edd127f1911e9b3068a",
+  "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+  "captured_at_utc": "2026-11-20T02:40:50Z",
+  "files": {
+    "abcd/gemma4-e4b-it-q4km/plan.json": {
+      "bytes": 392602,
+      "sha256": "384bfdd0d1895f7cfe4385308e8c5348be3d2a8fc2a006e735359946a5ceab31"
+    },
+    "abcd/gemma4-e4b-it-q4km/result.json": {
+      "bytes": 1011155,
+      "sha256": "b3296721b49d31c4cfe7c5f461b32470392669942a729174155d9d4943c42cfa"
+    },
+    "abcd/gemma4-e4b-it-q4km/session-1795132934122556862.json": {
+      "bytes": 7988,
+      "sha256": "c68b0240a05cf38222012af21145cb0dd2f9f56fe7a0019fba39895fa5762f9f"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/02-02-application/mask.json": {
+      "bytes": 71410,
+      "sha256": "5e72e77af3a53f70300fdc603ce51301740a52186495fc3e6635658f32bfdf1f"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "c7c85d70294176bc17fd05d79b8e52109c9915bff5e617da8d51aec2226dad5e"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 45531,
+      "sha256": "b834d15c6b5f88a6e7f6f7e1ab7299a9a23e75b415bd6e154600cba1478a8bbe"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10553,
+      "sha256": "600d6df540a5c2d354324bd7e431b34b3935a6b6dbb3a12451f581cd3c29a091"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/02-02-application/mask.json": {
+      "bytes": 72554,
+      "sha256": "1e79af9c276f26ce351b236efa420f169f98d9e29e2eae6cb7091bf085f24286"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10691,
+      "sha256": "6c4fdf7bbf38d5149fa1961705a8fdd7f3581d9f74f0e0121e3e56b10a0f39af"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/A/result.json": {
+      "bytes": 7543,
+      "sha256": "47110936ef903c07550afdafaedf37ab79181b08938443cfb7b76e0cfc1a54d2"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/02-02-application/mask.json": {
+      "bytes": 71276,
+      "sha256": "acd1444026488ea2b698f575871e286f7548547722aa36f9575da8e3f7644977"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "5e4fd8f3f767cc0fb399224a34e1e37cb4303d2f0b35009647ed9fd34e90e3ee"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 45135,
+      "sha256": "3d4c024ae36bd0d7ddfd0f980ae3bb0973f9c6604c6339baf81ae751cf2f9a51"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10427,
+      "sha256": "53d4ea5f32ea2d6381f429c7d3c514a85e13164b56fe6104b3cc1846474a2888"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "980ec4fea033a98627dc34986c3a0275dc052b77fccfa57fd6c8f19cf6e09a35"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/02-02-application/mask.json": {
+      "bytes": 101982,
+      "sha256": "71ab4778badae23cfe5ed8947e55c416ea84b947e0675fa00470777c641ed049"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10775,
+      "sha256": "9771b7930b5e1b8a2552c9f2501e56c92118aea06405f50800026039e4d34b11"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "8300911dc5eddd95af3b0b57b6e59bd6793d5d0e1f79c8f35d2728fb36035748"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/B/result.json": {
+      "bytes": 7545,
+      "sha256": "efc766bdd766b2c81b463b03175c7cdb2f5d2bcfebf3835645fac6460b440576"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/02-02-application/mask.json": {
+      "bytes": 71284,
+      "sha256": "08c592da481a7819f5ada1a7409b7daf19010f00da4af365f32848fb160bbf59"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "c7c936c2c44ef88401843c4234b89c34521d68858cfa25169fe0856384dd950d"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 43990,
+      "sha256": "6d912ca3aed6bc6373ff17e2d26ffaa07fdc9dfe6cc0ebca914708f37777dbf3"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10421,
+      "sha256": "acdfafdc6106d2e3bc2e135b680d796699147df1b246b4e839b64c9ee517e01f"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "15dcae69040d29203b9509c9d2567ee7dc557fe9305dfd2cdf7a0b059e78b8ed"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/02-02-application/mask.json": {
+      "bytes": 100426,
+      "sha256": "0a65f783bdff7744bf5dd2f4e47e9558d88245f4e18b2aa1f543f94d7f259c68"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10781,
+      "sha256": "e62b8e69fa4ef985627b5b6ee6a6f62a4eee00bd792e9583e754ef47ebcf978d"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "23d42cb6adb5ec268695d2b55760a41242cdebbe520d6f1a9e80e13bdf0abcd0"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/C/result.json": {
+      "bytes": 7545,
+      "sha256": "bf6d6205f529750e64c5f20ffb05f4c413006a794269f91a46897646de72cbd4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/02-02-application/mask.json": {
+      "bytes": 71270,
+      "sha256": "2cb0a8c3324167bb7ff199ef2a10fd580e52b023d964a5076b5e5198beac260a"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "4fb54e05835aafe060ca35043fd7a0b8dbf9051064d78f3ed4a800c39ff502a7"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 47020,
+      "sha256": "e8eb99903c1f967c3254404dd9fe7d3de28a3aba065f64c9995cf8cdbed36405"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10424,
+      "sha256": "a0586e44f943f2d94c99ebeaafe4b2dda0231a6dfec4feff5abd7b3712a1fd5f"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/02-02-application/mask.json": {
+      "bytes": 103139,
+      "sha256": "edf40ad1de056b909a702dcf5ccfad552c30f6b2df18b6b20a9cd1ccda0dff3f"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10766,
+      "sha256": "6144db8346ce073664a18a2ced7508569f7105414323d787227d816b308b168c"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "a60fa67fc392811672ac655512d4c5c385bdafd77b0191658ba005b69fb700ae"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-it-q4km/D/result.json": {
+      "bytes": 7546,
+      "sha256": "14d51f73df04ca3db40c123c4b8a5aacbee10e3d1eaefa86094647c22ee464e2"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71326,
+      "sha256": "d73dc5c7f85dc83f36969f296bbf12e80377c00b8775f0317e90ab38346ebf97"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "14a1f65fd684a6f666c985910f72fb28dc5a4c05d0c3b4c1590d6a59590ed674"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 123376,
+      "sha256": "12c39ef95a7228c933d17e15d74e2672d326da5165cda13fa6987b608b208acf"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10258,
+      "sha256": "d28d5f560d4887c260e0c72287c8fd5d4fb18db5ee39b49eb597c42dec47ac24"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "e2b0bd0ad75ed472854d41c3192c0de09da0ddb98fcafb78a9e7af91848aa6f8"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 153848,
+      "sha256": "794990608a693dd6f5a90869399b9259815987bfa17d936579ae46c0a4b50d07"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11119,
+      "sha256": "37c924bf4fc8e2080a99a4d6bba3e61b4cece970b5a8d9dda1595fe5a8e7ef12"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "8542e60d17668b2f82fec249e50cb91431f8b9e430ce3cd0b37a4d601423fc4f"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/current_union/result.json": {
+      "bytes": 7886,
+      "sha256": "f9ee7c1913e08edb6614c1ea0bfe48a3d72cb6d8a18fe0afa73f4cf2fbbad799"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71332,
+      "sha256": "c962f103b13ef528a6f2e14ced04938e6ddb329e489f9f2459f4cb6f625367c2"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "eea4051235c1e500d8d4fec8a1a6375524c60c78bf95e8ba25b56a4a4c77d095"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139844,
+      "sha256": "ebadc0456e9309de98f6abe1c92f586935c498aa8dcf6b2a35bfcb3654571856"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/detector_proposals/result.json": {
+      "bytes": 7886,
+      "sha256": "0bbaad494d289d4aeda20b84d3e04cc9dd357414b02deeb4ccfafb0c45c8841d"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/02-02-application/mask.json": {
+      "bytes": 71250,
+      "sha256": "dafa6a12f417d53ef203f1b07a238d9af0af10f334216979725085cabfbf49f9"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "9411357d7b2bea0e0dda6f03cbe865d2daa0507b807ca68c03b4c27af04bca30"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 42449,
+      "sha256": "a902c97d51c62076bbafeed6c7982595d103940191bcfdd0b3b57503d9ce7cd5"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10557,
+      "sha256": "1e993ca623fe3558dd26bef0cca0b688990c0b737ffda97b2ebb96a28724506f"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90959,
+      "sha256": "4912ad46541c3b5f98163b37c402ed165a372c2e5051f64ef761c7655ebe3c1e"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10742,
+      "sha256": "b58696b19d1891140311349f8c05454ebd18a402d1e69b476ba44827faf1f7af"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/double/result.json": {
+      "bytes": 7876,
+      "sha256": "e3261466b376cd5537f0220eff2675d53ba7649b33f7742a3022e3dc2aa2892b"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/02-02-application/mask.json": {
+      "bytes": 71256,
+      "sha256": "bca1c133015bf7ae0bc28fda0ad4367dabbdea1b3076015eb1de954eca24c3ff"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "afbfb3021f4f3a83cc87cca6b52268c5a11e68186e0a5144cb7dc7dea36c7e3c"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 52566,
+      "sha256": "385156291bc456578b9585d85ef93995c7c8963e70b1e8efe499671c38e6b46b"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10559,
+      "sha256": "a16d67a5e6bf774b4c77cca4d47c936ea07bfab7c1d960cbe294d1c51ca0f5ef"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "c4d49a1cd2bd959b424a3a6c8cd93ac210dfb942609fc6aeb83382b6f6fecea0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 91033,
+      "sha256": "02bbb785180c6b7611127c124c99c21358623e88b262a2c2cb31052fda4f0521"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10742,
+      "sha256": "53d96dc6e1eedf19915edf65441f8935867e1912ba1cf67f4c54df543cf7e5ba"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/point/result.json": {
+      "bytes": 7877,
+      "sha256": "3c26b2a38facba541b4bdcbed6329a5d636270f17a51785eed1a0e212817a570"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71270,
+      "sha256": "bc3317d28026f0ed1eb815152aa3553181100f79dd480c772b0438b856cae26b"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "fc0b0163fb9760d5b1339f4e542befc7a658a5d907de1e3357de41e301e48c91"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 95862,
+      "sha256": "ac5db9530d41ab3e46352393dd38dbd9eb1e2b2293b6a26a9111c533ba6053cb"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10408,
+      "sha256": "d387d72d8448677b5aa6b1c0c5c1e4248b0911f0176a0ed1cd5246774d5ae784"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "08451dec6ec15c2637d8369b3f1be4c9896fb69e10640797de4944ac0fff298d"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 149836,
+      "sha256": "789eaffb985e8447c4b11b3abbd245a560b1b2542a44117acb11e2618c113aba"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10872,
+      "sha256": "cf39f523edfe965a00f10fe65dae20c6113aff8a871ca6129ae2990dd3da3f62"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "e3f87ec163dc0a870ffd04168270a6cbda3a53452b7c427bd61dda3b2fb87e0d"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/regions/result.json": {
+      "bytes": 7877,
+      "sha256": "4a035e901eed80fe33b545b001aed9d889d42ccbeab3529fb0ae19f4235d5f0f"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71222,
+      "sha256": "e78679e54df13a2e47a230a75901e57c8937eafd2b207c09008ce3584f9aee23"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "b06f56687c092c3df7c5325074924290cdba1e15cd2ab48666f4383383a6cdc0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 52566,
+      "sha256": "385156291bc456578b9585d85ef93995c7c8963e70b1e8efe499671c38e6b46b"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10559,
+      "sha256": "a16d67a5e6bf774b4c77cca4d47c936ea07bfab7c1d960cbe294d1c51ca0f5ef"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "c4d49a1cd2bd959b424a3a6c8cd93ac210dfb942609fc6aeb83382b6f6fecea0"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90959,
+      "sha256": "e51a06832a19a25719e5d43a9f55a8cee2fa9d91d4c0e57a3df6d4f7820e22ce"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10756,
+      "sha256": "98ef88532aac61032ae7dd3c382001760ffd16c607ad95bd9d91074453f70a16"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-it-q4km/union_point/result.json": {
+      "bytes": 7884,
+      "sha256": "6e26429ef339daa8b0795648b536daca06595ced648c23f346464e7b1677dd56"
+    },
+    "calibration/gemma4-e4b-it-q4km/off/result.json": {
+      "bytes": 1983,
+      "sha256": "e7ca4ad599b1738f257001c5362fba4aa9606583a6fbd66b18ad2e4baec467b6"
+    },
+    "calibration/gemma4-e4b-it-q4km/off/transports.json": {
+      "bytes": 93429,
+      "sha256": "7b4ba42684e49080b88f0bc0dd4a0cc09c5bd33a3ce5f6e830c159bd6efc9966"
+    },
+    "calibration/gemma4-e4b-it-q4km/plan.json": {
+      "bytes": 3497,
+      "sha256": "1fa2976a2ea522dc5d898f722381cd4c8b65608b945f4a56626e92c2f3d09db2"
+    },
+    "calibration/gemma4-e4b-it-q4km/result.json": {
+      "bytes": 5916,
+      "sha256": "dd753e7d2ab6e852e87573924a249bf56892b69d3fe1659e7248101ef425a1c7"
+    },
+    "calibration/gemma4-e4b-it-q4km/selected-profile.json": {
+      "bytes": 1079,
+      "sha256": "830ccbd42d73237d6532a228fa2481b87095e3e96ae1f52f184ca90f42600e8e"
+    },
+    "calibration/gemma4-e4b-it-q4km/thinking-2048/result.json": {
+      "bytes": 1981,
+      "sha256": "35d143fc5426469e3c95eb4d54eaf6986b9f07391bdb7a5cfd81e50e360e3450"
+    },
+    "calibration/gemma4-e4b-it-q4km/thinking-2048/transports.json": {
+      "bytes": 121490,
+      "sha256": "1f9a1ddbdaceb622523b6475ccc0d540b8b52a551056f7ddd7af307128848625"
+    },
+    "schemes/gemma4-e4b-it-q4km/detectors.json": {
+      "bytes": 42922,
+      "sha256": "545e0a5090b1b325af7ef75308fe58c40562fc24af94c084c462346f8ecea8a5"
+    },
+    "schemes/gemma4-e4b-it-q4km/execution.json": {
+      "bytes": 7021,
+      "sha256": "e8a8cc8f50653e6b89338a37d31ce1376334ad8413dee0e0aac3ee763edf8dee"
+    },
+    "schemes/gemma4-e4b-it-q4km/result.json": {
+      "bytes": 960054,
+      "sha256": "88e1a653cd8de4bd7a23a0cbfbbf2273e57226810ea902128f647da9edf90cd1"
+    },
+    "schemes/gemma4-e4b-it-q4km/scheme-plan.json": {
+      "bytes": 5929,
+      "sha256": "7f25cfe4bff9db4fc9821d3ff132600a051c8c8fdbc3a6b82f26c5cf182db607"
+    },
+    "schemes/gemma4-e4b-it-q4km/transports.json": {
+      "bytes": 1679048,
+      "sha256": "d6dbe04866af435dda4a457e63c3f849168492472c1813f9a6c3efe24d469472"
+    },
+    "schemes/gemma4-e4b-it-q4km/verification.json": {
+      "bytes": 4613,
+      "sha256": "159ab23e5e76f15fc86b3278d219d64f5ad5e6ff7c7a182c392abef354160b67"
+    },
+    "status.json": {
+      "bytes": 3999,
+      "sha256": "6082a33bac3ff6daa6be809bcb5bada3933f746bb858fb637ace23fd7e69413d"
+    }
+  },
+  "model": "gemma4-e4b-it-q4km",
+  "native_exact_roundtrips": 60,
+  "not_a_resume_source": true,
+  "profile_sha256": "4a8865bd56e41dbbbf1390dc429b62d4f7948a65182ac2cf57e1c3ffe39f1d14",
+  "schemes": 6,
+  "series": "native-retest-v1",
+  "version": 1
+}

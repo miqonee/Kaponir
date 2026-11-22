@@ -1,0 +1,113 @@
+{
+  "application_sha256": "fd0cc021a42c7c6071c7559a267e04899757442687480c45552bbdace88d84ec",
+  "evidence_sha256": "da2941b8994ad01edd9ecb8aa35a8e5ee02b6499b01e3059a838c35e0ff10d08",
+  "members": {
+    "apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "apply/baseline/02-02-application/mask.json": "ff297d2b26147435d8d30ab23b4d321edd46978cff32727d4767ef8f8336bc26",
+    "apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "apply/model_masks_added/01-01-cost-estimate/mask.json": "5260e5c191c4a9d6a5ce291473439de259e24f7129bdf0a46cef23a13d80a11c",
+    "apply/model_masks_added/01-01-cost-estimate/restore.json": "e2b0bd0ad75ed472854d41c3192c0de09da0ddb98fcafb78a9e7af91848aa6f8",
+    "apply/model_masks_added/02-02-application/mask.json": "cefd1b5a0d22745c38aedfb51e861b88c0b6d060cdfc7ffaa994289afb92d676",
+    "apply/model_masks_added/02-02-application/restore.json": "1dbec41322b1649f455c9dfbfb8aeb4ae10d20e650d53405c1c74419a4e6d4ac",
+    "apply/model_masks_added/03-08-public-reference/mask.json": "802ea2d77c19a050a0f67f785256b86b7c190eb47c23416d1b2da3366be50539",
+    "apply/model_masks_added/03-08-public-reference/restore.json": "e836d16f80e1c0dc38aa7b4e64847a2e7b79d71f7d518e3c9127a532f369ddb1",
+    "apply/result.json": "6c25e5c47ce386192d7cbbf006552f65cd8d4776f20e572dd807ae5fbc8f4b4e",
+    "discovery.json": "f810d0f5f16f2f7fc2e3a466ad440fb246ccf3e07908263d7ad69047bf112708",
+    "plan.json": "bb35160fff59f0f11f56c5f07028d525174fd6d9f48ce1f5818099a09a4189c6",
+    "producer.py": "1c7ab6914b55fa17345dd0767480fcdae1ce8d9fa69750d325060c45e89d1af2",
+    "result.json": "b0eb6da6ac65f6ee5d4d5904a5ef43ee6c676008e4c56f144347d9a19bee7999",
+    "transports.json": "111309de19a4f67a3275d31d7002b345162fd02f46d1a406d85e70da02a0d0ae"
+  },
+  "model": "lfm2.5-1.2b-instruct",
+  "parameters": {
+    "artifact": [
+      "LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+      730895168,
+      "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5",
+      "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/8ed288026e23958ad9dfa92d53ed773a8eee7125/LFM2.5-1.2B-Instruct-Q4_K_M.gguf"
+    ],
+    "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+    "cpu_affinity": [
+      0,
+      1
+    ],
+    "log_target_input_tokens": 2432,
+    "model": "lfm2.5-1.2b-instruct",
+    "profile": {
+      "batch_size": 8,
+      "context_tokens": 16384,
+      "extra_sampling": {
+        "repeat_penalty": 1.05
+      },
+      "hint_tokens": 256,
+      "max_candidates": 24,
+      "max_fragments": 256,
+      "min_p": 0.0,
+      "mode": "native",
+      "model": "lfm2.5-1.2b-instruct",
+      "native_mode_constraints": {
+        "card_note": "Instruct checkpoint; the separately published Thinking checkpoint is a different model.",
+        "gguf_metadata": {
+          "architecture": "lfm2",
+          "chat_template_sha256": "f05bf4b967dc993bdc7a2fe6e43759ee218eb0eb340d68b063e1c4f8ad148176",
+          "context": {
+            "lfm2.context_length": 128000
+          },
+          "native_runtime_verified": false,
+          "result_path": "artifacts/model-expansion-phase2/pinned-metadata/lfm2.5-1.2b-instruct.json"
+        },
+        "status": "not_yet_probed"
+      },
+      "native_retest": "fbb89a930417e98bf12daef549c6bee41265701a7fa1aa5d463a25128f505339",
+      "output_tokens": 4096,
+      "reasoning": "auto",
+      "reasoning_budget": -1,
+      "reasoning_format": "deepseek",
+      "reserve_tokens": 64,
+      "response_format": "grammar",
+      "retry_output_tokens": 8192,
+      "seed": 42,
+      "source_profile": {
+        "legacy_profile_source": null,
+        "mode": "native",
+        "path": "scripts/privacy_expansion_profiles.py",
+        "pinned_catalog": {
+          "path": "docs/experiments/phase2-new-model-artifacts.json",
+          "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+        },
+        "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+      },
+      "temperature": 0.1,
+      "template_kwargs": {
+        "enable_thinking": false
+      },
+      "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+      "thinking_mode": "native_no_thinking",
+      "timeout": 1200,
+      "top_k": 50,
+      "top_p": 0.95,
+      "transport_timeout_seconds": 1200,
+      "worker_configuration_timeout_seconds": 1200
+    },
+    "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+    "source_sha256": {
+      "01-cost-estimate.md": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1",
+      "02-application.log": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9",
+      "08-public-reference.md": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    }
+  },
+  "profile": "log-chunks-full-confirmation",
+  "search": {
+    "exact_roundtrips": 6,
+    "fresh_requests": 6,
+    "guide_replacements": 6,
+    "http_seconds": 133.3295741080001,
+    "private_full_193": 171,
+    "public_lost_87": 4,
+    "wall_search_seconds": 133.6722245689998,
+    "wall_with_start_and_api_seconds": 146.32830767400083
+  }
+}
