@@ -1,0 +1,1088 @@
+{
+  "evidence": "local_receipts",
+  "public_already_touched_by_detectors": 16,
+  "public_changed_by_field_rules": 0,
+  "public_losses": 22,
+  "public_positions": [
+    {
+      "after_field_ranges": [
+        [
+          225,
+          241
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          225,
+          241
+        ]
+      ],
+      "detector_ranges": [
+        [
+          225,
+          241
+        ]
+      ],
+      "end_byte": 241,
+      "field_rules_changed_ranges": false,
+      "group": "v3/wind-balance",
+      "id": "v3/wind-balance/receipt",
+      "kind": "EMAIL",
+      "model_ranges": [],
+      "start_byte": 225
+    },
+    {
+      "after_field_ranges": [
+        [
+          390,
+          397
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          390,
+          397
+        ]
+      ],
+      "detector_ranges": [],
+      "end_byte": 397,
+      "field_rules_changed_ranges": false,
+      "group": "v3/shellac-archive",
+      "id": "v3/shellac-archive/take-card",
+      "kind": "CUSTOM",
+      "model_ranges": [
+        [
+          390,
+          397
+        ]
+      ],
+      "start_byte": 390
+    },
+    {
+      "after_field_ranges": [
+        [
+          187,
+          196
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          187,
+          196
+        ]
+      ],
+      "detector_ranges": [],
+      "end_byte": 196,
+      "field_rules_changed_ranges": false,
+      "group": "v3/shellac-archive",
+      "id": "v3/shellac-archive/detached",
+      "kind": "CUSTOM",
+      "model_ranges": [
+        [
+          187,
+          196
+        ]
+      ],
+      "start_byte": 187
+    },
+    {
+      "after_field_ranges": [
+        [
+          164,
+          171
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          164,
+          171
+        ]
+      ],
+      "detector_ranges": [
+        [
+          164,
+          171
+        ]
+      ],
+      "end_byte": 171,
+      "field_rules_changed_ranges": false,
+      "group": "v3/ferry-dispatch",
+      "id": "v3/ferry-dispatch/station-line",
+      "kind": "USER",
+      "model_ranges": [],
+      "start_byte": 159
+    },
+    {
+      "after_field_ranges": [
+        [
+          370,
+          381
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          370,
+          381
+        ]
+      ],
+      "detector_ranges": [
+        [
+          370,
+          381
+        ]
+      ],
+      "end_byte": 381,
+      "field_rules_changed_ranges": false,
+      "group": "v3/ferry-dispatch",
+      "id": "v3/ferry-dispatch/margin",
+      "kind": "IP",
+      "model_ranges": [],
+      "start_byte": 370
+    },
+    {
+      "after_field_ranges": [
+        [
+          203,
+          219
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          203,
+          219
+        ]
+      ],
+      "detector_ranges": [
+        [
+          203,
+          219
+        ]
+      ],
+      "end_byte": 219,
+      "field_rules_changed_ranges": false,
+      "group": "v3/orchard-irrigation",
+      "id": "v3/orchard-irrigation/nursery",
+      "kind": "EMAIL",
+      "model_ranges": [],
+      "start_byte": 203
+    },
+    {
+      "after_field_ranges": [
+        [
+          248,
+          255
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          248,
+          255
+        ]
+      ],
+      "detector_ranges": [
+        [
+          248,
+          255
+        ]
+      ],
+      "end_byte": 255,
+      "field_rules_changed_ranges": false,
+      "group": "v3/orchard-irrigation",
+      "id": "v3/orchard-irrigation/nursery",
+      "kind": "CLIENT",
+      "model_ranges": [],
+      "start_byte": 243
+    },
+    {
+      "after_field_ranges": [
+        [
+          55,
+          59
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          55,
+          59
+        ]
+      ],
+      "detector_ranges": [
+        [
+          55,
+          59
+        ]
+      ],
+      "end_byte": 62,
+      "field_rules_changed_ranges": false,
+      "group": "v3/seed-lending",
+      "id": "v3/seed-lending/tag-pear",
+      "kind": "CLIENT",
+      "model_ranges": [],
+      "start_byte": 50
+    },
+    {
+      "after_field_ranges": [
+        [
+          82,
+          104
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          82,
+          104
+        ]
+      ],
+      "detector_ranges": [
+        [
+          82,
+          104
+        ]
+      ],
+      "end_byte": 104,
+      "field_rules_changed_ranges": false,
+      "group": "v3/seed-lending",
+      "id": "v3/seed-lending/tag-pear",
+      "kind": "EMAIL",
+      "model_ranges": [],
+      "start_byte": 82
+    },
+    {
+      "after_field_ranges": [
+        [
+          159,
+          164
+        ],
+        [
+          165,
+          174
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          159,
+          164
+        ],
+        [
+          165,
+          174
+        ]
+      ],
+      "detector_ranges": [
+        [
+          159,
+          164
+        ],
+        [
+          165,
+          174
+        ]
+      ],
+      "end_byte": 174,
+      "field_rules_changed_ranges": false,
+      "group": "v3/seed-lending",
+      "id": "v3/seed-lending/counterfoil",
+      "kind": "PERSON",
+      "model_ranges": [],
+      "start_byte": 159
+    },
+    {
+      "after_field_ranges": [
+        [
+          256,
+          267
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          256,
+          267
+        ]
+      ],
+      "detector_ranges": [
+        [
+          256,
+          267
+        ]
+      ],
+      "end_byte": 267,
+      "field_rules_changed_ranges": false,
+      "group": "v3/festival-booth",
+      "id": "v3/festival-booth/margin",
+      "kind": "IP",
+      "model_ranges": [],
+      "start_byte": 256
+    },
+    {
+      "after_field_ranges": [
+        [
+          191,
+          203
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          191,
+          203
+        ]
+      ],
+      "detector_ranges": [
+        [
+          191,
+          203
+        ]
+      ],
+      "end_byte": 203,
+      "field_rules_changed_ranges": false,
+      "group": "v3/ridge-wayfinding",
+      "id": "v3/ridge-wayfinding/radio",
+      "kind": "IP",
+      "model_ranges": [],
+      "start_byte": 191
+    },
+    {
+      "after_field_ranges": [
+        [
+          200,
+          215
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          200,
+          215
+        ]
+      ],
+      "detector_ranges": [
+        [
+          200,
+          215
+        ]
+      ],
+      "end_byte": 215,
+      "field_rules_changed_ranges": false,
+      "group": "v3/repair-counter",
+      "id": "v3/repair-counter/callback",
+      "kind": "PHONE",
+      "model_ranges": [],
+      "start_byte": 200
+    },
+    {
+      "after_field_ranges": [
+        [
+          217,
+          233
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          217,
+          233
+        ]
+      ],
+      "detector_ranges": [
+        [
+          217,
+          233
+        ]
+      ],
+      "end_byte": 233,
+      "field_rules_changed_ranges": false,
+      "group": "v3/repair-counter",
+      "id": "v3/repair-counter/callback",
+      "kind": "EMAIL",
+      "model_ranges": [],
+      "start_byte": 217
+    },
+    {
+      "after_field_ranges": [
+        [
+          233,
+          239
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          233,
+          239
+        ]
+      ],
+      "detector_ranges": [
+        [
+          233,
+          239
+        ]
+      ],
+      "end_byte": 239,
+      "field_rules_changed_ranges": false,
+      "group": "v3/repair-counter",
+      "id": "v3/repair-counter/spares",
+      "kind": "USER",
+      "model_ranges": [],
+      "start_byte": 228
+    },
+    {
+      "after_field_ranges": [
+        [
+          297,
+          308
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          297,
+          308
+        ]
+      ],
+      "detector_ranges": [
+        [
+          297,
+          308
+        ]
+      ],
+      "end_byte": 308,
+      "field_rules_changed_ranges": false,
+      "group": "v3/indigo-dyehouse",
+      "id": "v3/indigo-dyehouse/spindle",
+      "kind": "IP",
+      "model_ranges": [],
+      "start_byte": 297
+    },
+    {
+      "after_field_ranges": [
+        [
+          107,
+          110
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          107,
+          110
+        ]
+      ],
+      "detector_ranges": [],
+      "end_byte": 110,
+      "field_rules_changed_ranges": false,
+      "group": "v3/tactile-edition",
+      "id": "v3/tactile-edition/slug-map",
+      "kind": "CUSTOM",
+      "model_ranges": [
+        [
+          107,
+          110
+        ]
+      ],
+      "start_byte": 107
+    },
+    {
+      "after_field_ranges": [
+        [
+          115,
+          118
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          115,
+          118
+        ]
+      ],
+      "detector_ranges": [],
+      "end_byte": 118,
+      "field_rules_changed_ranges": false,
+      "group": "v3/tactile-edition",
+      "id": "v3/tactile-edition/slug-map",
+      "kind": "CUSTOM",
+      "model_ranges": [
+        [
+          115,
+          118
+        ]
+      ],
+      "start_byte": 115
+    },
+    {
+      "after_field_ranges": [
+        [
+          107,
+          110
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          107,
+          110
+        ]
+      ],
+      "detector_ranges": [],
+      "end_byte": 110,
+      "field_rules_changed_ranges": false,
+      "group": "v3/tactile-edition",
+      "id": "v3/tactile-edition/slug-run",
+      "kind": "CUSTOM",
+      "model_ranges": [
+        [
+          107,
+          110
+        ]
+      ],
+      "start_byte": 107
+    },
+    {
+      "after_field_ranges": [
+        [
+          115,
+          118
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          115,
+          118
+        ]
+      ],
+      "detector_ranges": [],
+      "end_byte": 118,
+      "field_rules_changed_ranges": false,
+      "group": "v3/tactile-edition",
+      "id": "v3/tactile-edition/slug-run",
+      "kind": "CUSTOM",
+      "model_ranges": [
+        [
+          115,
+          118
+        ]
+      ],
+      "start_byte": 115
+    },
+    {
+      "after_field_ranges": [
+        [
+          2908,
+          2916
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          2908,
+          2916
+        ]
+      ],
+      "detector_ranges": [
+        [
+          2908,
+          2916
+        ]
+      ],
+      "end_byte": 2916,
+      "field_rules_changed_ranges": false,
+      "group": "v3/tactile-edition",
+      "id": "v3/tactile-edition/shop-book",
+      "kind": "USER",
+      "model_ranges": [],
+      "start_byte": 2908
+    },
+    {
+      "after_field_ranges": [
+        [
+          181,
+          199
+        ]
+      ],
+      "before_field_ranges": [
+        [
+          181,
+          199
+        ]
+      ],
+      "detector_ranges": [
+        [
+          181,
+          199
+        ]
+      ],
+      "end_byte": 199,
+      "field_rules_changed_ranges": false,
+      "group": "v3/travelling-sky",
+      "id": "v3/travelling-sky/routing",
+      "kind": "EMAIL",
+      "model_ranges": [],
+      "start_byte": 181
+    }
+  ],
+  "public_touched_only_after_model": 6,
+  "sha256": {
+    "after": "8d42ec89da670c4b5e38fe27eccd0571252505f5fbf9a89f73a7d12d0b6b71be",
+    "before": "8d42ec89da670c4b5e38fe27eccd0571252505f5fbf9a89f73a7d12d0b6b71be",
+    "detectors": "42e078c17193d20a2f6dcaa223203b685b42f287d87fd9bb5ba2cef268f3f8e7",
+    "predictions": "1fc4dfa920ed2b33a165c603a9cd0b2b1fbad6874f74244649dec1fe1990337e",
+    "raw": "49c27642c2e3b3b926176795782643670116c4609cf639b2f8b907092de547e3",
+    "rebind_audit": "407380ddfc3476f57315753c6e11d495e7035eaddf4d7928540e52daf84a1ca1",
+    "window_plan": "5b6c955994d503b8dd2c2c98240a3130abd5786e033a68201bf268a168023a13"
+  },
+  "unusable_response_by_joined_error": {
+    "duplicate_or_overlap": 4,
+    "invalid_schema": 4,
+    "ungrounded_occurrence": 16
+  },
+  "unusable_response_positions": [
+    {
+      "end_byte": 73,
+      "group": "v3/wind-balance",
+      "id": "v3/wind-balance/handover",
+      "kind": "DOM",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 66,
+      "windows": [
+        {
+          "id": "v3/wind-balance/handover#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 81,
+      "group": "v3/wind-balance",
+      "id": "v3/wind-balance/handover",
+      "kind": "USER",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 74,
+      "windows": [
+        {
+          "id": "v3/wind-balance/handover#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 149,
+      "group": "v3/wind-balance",
+      "id": "v3/wind-balance/handover",
+      "kind": "CUSTOM",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 141,
+      "windows": [
+        {
+          "id": "v3/wind-balance/handover#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 39,
+      "group": "v3/shellac-archive",
+      "id": "v3/shellac-archive/loan-note",
+      "kind": "AMOUNT",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 27,
+      "windows": [
+        {
+          "id": "v3/shellac-archive/loan-note#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 59,
+      "group": "v3/shellac-archive",
+      "id": "v3/shellac-archive/loan-note",
+      "kind": "CUSTOM",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 48,
+      "windows": [
+        {
+          "id": "v3/shellac-archive/loan-note#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 80,
+      "group": "v3/shellac-archive",
+      "id": "v3/shellac-archive/loan-note",
+      "kind": "PERSON",
+      "outbound_level": "partial",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 69,
+      "windows": [
+        {
+          "id": "v3/shellac-archive/loan-note#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 86,
+      "group": "v3/ferry-dispatch",
+      "id": "v3/ferry-dispatch/ticket",
+      "kind": "ORG",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 71,
+      "windows": [
+        {
+          "id": "v3/ferry-dispatch/ticket#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 109,
+      "group": "v3/ferry-dispatch",
+      "id": "v3/ferry-dispatch/ticket",
+      "kind": "CLIENT",
+      "outbound_level": "partial",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 97,
+      "windows": [
+        {
+          "id": "v3/ferry-dispatch/ticket#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 134,
+      "group": "v3/ferry-dispatch",
+      "id": "v3/ferry-dispatch/ticket",
+      "kind": "AMOUNT",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 122,
+      "windows": [
+        {
+          "id": "v3/ferry-dispatch/ticket#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 163,
+      "group": "v3/ferry-dispatch",
+      "id": "v3/ferry-dispatch/ticket",
+      "kind": "CUSTOM",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 153,
+      "windows": [
+        {
+          "id": "v3/ferry-dispatch/ticket#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 48,
+      "group": "v3/foley-room",
+      "id": "v3/foley-room/login",
+      "kind": "USER",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 42,
+      "windows": [
+        {
+          "id": "v3/foley-room/login#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 104,
+      "group": "v3/foley-room",
+      "id": "v3/foley-room/login",
+      "kind": "CUSTOM",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 95,
+      "windows": [
+        {
+          "id": "v3/foley-room/login#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 126,
+      "group": "v3/foley-room",
+      "id": "v3/foley-room/login",
+      "kind": "HOST",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 113,
+      "windows": [
+        {
+          "id": "v3/foley-room/login#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 48,
+      "group": "v3/foley-room",
+      "id": "v3/foley-room/project",
+      "kind": "PROJ",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 42,
+      "windows": [
+        {
+          "id": "v3/foley-room/project#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 119,
+      "group": "v3/foley-room",
+      "id": "v3/foley-room/project",
+      "kind": "CUSTOM",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 110,
+      "windows": [
+        {
+          "id": "v3/foley-room/project#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 141,
+      "group": "v3/foley-room",
+      "id": "v3/foley-room/project",
+      "kind": "HOST",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "ungrounded_occurrence",
+      "start_byte": 128,
+      "windows": [
+        {
+          "id": "v3/foley-room/project#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "ungrounded_occurrence"
+        }
+      ]
+    },
+    {
+      "end_byte": 79,
+      "group": "v3/festival-booth",
+      "id": "v3/festival-booth/theatre",
+      "kind": "ORG",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "invalid_schema",
+      "start_byte": 56,
+      "windows": [
+        {
+          "id": "v3/festival-booth/theatre#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "invalid_schema"
+        }
+      ]
+    },
+    {
+      "end_byte": 103,
+      "group": "v3/festival-booth",
+      "id": "v3/festival-booth/theatre",
+      "kind": "CLIENT",
+      "outbound_level": "partial",
+      "outcome": "unusable_response",
+      "response_error": "invalid_schema",
+      "start_byte": 90,
+      "windows": [
+        {
+          "id": "v3/festival-booth/theatre#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "invalid_schema"
+        }
+      ]
+    },
+    {
+      "end_byte": 128,
+      "group": "v3/festival-booth",
+      "id": "v3/festival-booth/theatre",
+      "kind": "AMOUNT",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "invalid_schema",
+      "start_byte": 115,
+      "windows": [
+        {
+          "id": "v3/festival-booth/theatre#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "invalid_schema"
+        }
+      ]
+    },
+    {
+      "end_byte": 160,
+      "group": "v3/festival-booth",
+      "id": "v3/festival-booth/theatre",
+      "kind": "SECRET",
+      "outbound_level": "partial",
+      "outcome": "unusable_response",
+      "response_error": "invalid_schema",
+      "start_byte": 141,
+      "windows": [
+        {
+          "id": "v3/festival-booth/theatre#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "invalid_schema"
+        }
+      ]
+    },
+    {
+      "end_byte": 309,
+      "group": "v3/travelling-sky",
+      "id": "v3/travelling-sky/night-book",
+      "kind": "CLIENT",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "duplicate_or_overlap",
+      "start_byte": 296,
+      "windows": [
+        {
+          "id": "v3/travelling-sky/night-book#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "duplicate_or_overlap"
+        },
+        {
+          "id": "v3/travelling-sky/night-book#2",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "valid"
+        }
+      ]
+    },
+    {
+      "end_byte": 347,
+      "group": "v3/travelling-sky",
+      "id": "v3/travelling-sky/night-book",
+      "kind": "CUSTOM",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "duplicate_or_overlap",
+      "start_byte": 338,
+      "windows": [
+        {
+          "id": "v3/travelling-sky/night-book#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "duplicate_or_overlap"
+        },
+        {
+          "id": "v3/travelling-sky/night-book#2",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "valid"
+        }
+      ]
+    },
+    {
+      "end_byte": 1913,
+      "group": "v3/travelling-sky",
+      "id": "v3/travelling-sky/night-book",
+      "kind": "HOST",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "duplicate_or_overlap",
+      "start_byte": 1899,
+      "windows": [
+        {
+          "id": "v3/travelling-sky/night-book#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "duplicate_or_overlap"
+        },
+        {
+          "id": "v3/travelling-sky/night-book#2",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "valid"
+        }
+      ]
+    },
+    {
+      "end_byte": 3246,
+      "group": "v3/travelling-sky",
+      "id": "v3/travelling-sky/night-book",
+      "kind": "SVC",
+      "outbound_level": "open",
+      "outcome": "unusable_response",
+      "response_error": "duplicate_or_overlap",
+      "start_byte": 3231,
+      "windows": [
+        {
+          "id": "v3/travelling-sky/night-book#1",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "duplicate_or_overlap"
+        },
+        {
+          "id": "v3/travelling-sky/night-book#2",
+          "raw_error": null,
+          "rebind": "original",
+          "strict_error": "valid"
+        }
+      ]
+    }
+  ],
+  "unusable_response_private": 24
+}

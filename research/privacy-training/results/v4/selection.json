@@ -1,0 +1,9 @@
+{
+  "adapter_sha256": null,
+  "correction": "csv-explicit-public-amount",
+  "initial_epoch": null,
+  "mode": "correction",
+  "selected_epoch": null,
+  "test_sha256": "bb152b2333e4f8b314256fa4f3b74bef2dcba41c817797c007f06cef63e21cd0",
+  "validation_sha256": "0d4bfd8a188b640ed0b13b8cfd03b2af63e367a9e9da571f1d8cc5781432ea7b"
+}

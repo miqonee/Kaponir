@@ -1,0 +1,383 @@
+{
+  "base_train_sha256": "7e8d2877ac7755b901560c0e7b2eb5ee472f518dadaddf69fb46a052111deced",
+  "base_version": "v3",
+  "evaluation": {
+    "complete_observations_required": true,
+    "max_public_touched_percent": 2,
+    "min_exact_restore_percent": 100,
+    "min_fully_masked_percent": 95,
+    "review_at_boundary": "mask",
+    "unit": "annotated UTF-8 occurrence"
+  },
+  "extension_sha256": "ff619394ee0582668c1ddbdb1f8e3b6974b957950c55ee574fce778ee3596bea",
+  "offsets": "UTF-8 bytes, end exclusive",
+  "policy": "external-model-sharing-v1",
+  "prompt_sha256": "7fb2cad95c16a31cf064a895c5e7f8108ddce9f28ceba225f86dadaebd39328f",
+  "prompt_version": "v3",
+  "regressions": {
+    "v2-test": "e375b7419c8bdb4e58b144c26bbcc105576ea9992233ed482d3101d662d26513",
+    "v3-test": "89eee56cbab68e378922d68caf75facaf029b6e584cba8956d5b87bc160c5cfb",
+    "v3-validation": "4e1e5b1c48af2b71b93148efb55e2b28365d0f5b8037dc35006f3408008e6bff"
+  },
+  "splits": {
+    "test": {
+      "added": 71,
+      "by_action": {
+        "keep": 57,
+        "mask": 57,
+        "review": 17
+      },
+      "by_language": {
+        "en": 62,
+        "ru": 9
+      },
+      "clean": 8,
+      "families_added": {
+        "v4/acoustic-sounding": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/artifact-handoff": {
+          "by_action": {
+            "keep": 15,
+            "mask": 15,
+            "review": 3
+          },
+          "clean": 1,
+          "records": 8
+        },
+        "v4/binding-press-invoice": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/darkroom-schedule": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/observatory-route": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/relay-maintenance-key": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/scholarship-ledger": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/volunteer-lab": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        }
+      },
+      "groups": 8,
+      "records": 71,
+      "sha256": "bb152b2333e4f8b314256fa4f3b74bef2dcba41c817797c007f06cef63e21cd0",
+      "thresholds": {
+        "private_full_min": 55,
+        "public_touched_max": 1,
+        "restored_min": 71
+      }
+    },
+    "train": {
+      "added": 137,
+      "by_action": {
+        "keep": 699,
+        "mask": 1005,
+        "review": 72
+      },
+      "by_language": {
+        "en": 324,
+        "ru": 320
+      },
+      "clean": 23,
+      "families_added": {
+        "v4/authorization-cards": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/broker-query": {
+          "by_action": {
+            "keep": 12,
+            "mask": 12,
+            "review": 4
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/build-codename": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/catalogue-client-literal": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/customer-appeal-ru": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/desktop-pair-ru": {
+          "by_action": {
+            "keep": 15,
+            "mask": 15,
+            "review": 3
+          },
+          "clean": 1,
+          "records": 8
+        },
+        "v4/finance-decimal": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/identity-console": {
+          "by_action": {
+            "keep": 15,
+            "mask": 15,
+            "review": 3
+          },
+          "clean": 1,
+          "records": 8
+        },
+        "v4/inventory-address": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/monitor-host": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/pilot-release-ru": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/publisher-index": {
+          "by_action": {
+            "keep": 1,
+            "mask": 1,
+            "review": 1
+          },
+          "clean": 1,
+          "records": 4
+        },
+        "v4/reconciliation-client": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/runbook-home": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/snapshot-home-ru": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/supplier-catalogue": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        }
+      },
+      "groups": 100,
+      "records": 644,
+      "sha256": "a997bab8e7199e425070c152fc980718c0ae3ef1e3c85aedcc010e49760641cc",
+      "thresholds": {
+        "private_full_min": 955,
+        "public_touched_max": 13,
+        "restored_min": 644
+      }
+    },
+    "validation": {
+      "added": 71,
+      "by_action": {
+        "keep": 57,
+        "mask": 57,
+        "review": 17
+      },
+      "by_language": {
+        "en": 54,
+        "ru": 17
+      },
+      "clean": 8,
+      "families_added": {
+        "v4/accessibility-lesson": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/commission-book": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/infrastructure-switchboard": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/museum-reader-key": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/radio-certificate": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/repair-schedule-pricing": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/rights-dispatch": {
+          "by_action": {
+            "keep": 6,
+            "mask": 6,
+            "review": 2
+          },
+          "clean": 1,
+          "records": 9
+        },
+        "v4/shift-handover": {
+          "by_action": {
+            "keep": 15,
+            "mask": 15,
+            "review": 3
+          },
+          "clean": 1,
+          "records": 8
+        }
+      },
+      "groups": 8,
+      "records": 71,
+      "sha256": "0d4bfd8a188b640ed0b13b8cfd03b2af63e367a9e9da571f1d8cc5781432ea7b",
+      "thresholds": {
+        "private_full_min": 55,
+        "public_touched_max": 1,
+        "restored_min": 71
+      }
+    }
+  },
+  "train_inherited": 507,
+  "version": "v4"
+}

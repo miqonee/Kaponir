@@ -9,7 +9,7 @@ import subprocess
 import sys
 from time import monotonic
 
-from dataset import MAX_PUBLIC_PERCENT, ROOT, check_snapshot, dumps, jsonl, read_jsonl, target_spans
+from dataset import MAX_PUBLIC_PERCENT, PILOT_PROMPT, ROOT, TRAINABLE_VERSIONS, check_snapshot, dumps, jsonl, read_jsonl, target_spans
 from evaluate import AnswerError, ground
 from prepare import CONTEXT, MAX_NEW, MODEL, REVISION, TokenBudget
 
@@ -60,12 +60,12 @@ def attach_lora(base):
     return model
 
 
-def encoded_training(data, budget):
+def encoded_training(data, budget, prompt_version=PILOT_PROMPT):
     from dataset import prompt
 
     batches = []
     for row in data:
-        messages = prompt(row, "v3")
+        messages = prompt(row, prompt_version)
         question = budget.ids(messages, True)
         completion = {"role": "assistant", "content": dumps({"spans": target_spans(row)})}
         tokens = budget.ids(messages + [completion], False)
@@ -104,13 +104,14 @@ def generate(model, budget, window, device):
     return {"id": window["id"], "response": response}
 
 
-def choose(reports):
-    expected = check_snapshot(ROOT / "data" / "v3")["splits"]["validation"]["sha256"]
+def choose(reports, data=ROOT / "data" / "v3"):
+    manifest = check_snapshot(data)
+    expected = manifest["splits"]["validation"]["sha256"]
     if len(reports) != 2 or any(
-        r.get("dataset") != "v3" or r.get("split") != "validation" or r.get("source_sha256") != expected
+        r.get("dataset") != manifest["version"] or r.get("split") != "validation" or r.get("source_sha256") != expected
         for r in reports
     ):
-        raise ValueError("Use two reports on the same frozen v3 validation split")
+        raise ValueError("Use two reports on the same frozen validation split")
     eligible = []
     for epoch, report in enumerate(reports, 1):
         o, m = report["outbound"]["all"], report["model"]
@@ -131,12 +132,12 @@ def train(args):
     from peft import PeftModel
 
     manifest = check_snapshot(args.data)
-    if manifest["version"] != "v3":
-        raise ValueError("The registered training corpus is v3")
+    if manifest["version"] not in TRAINABLE_VERSIONS:
+        raise ValueError("Training requires a registered v3 or v4 corpus")
     if args.output.exists():
         raise ValueError("Use a new directory for each smoke or full training run")
     budget = TokenBudget(args.assets)
-    batches = encoded_training(read_jsonl(args.data / "train.jsonl"), budget)
+    batches = encoded_training(read_jsonl(args.data / "train.jsonl"), budget, args.prompt_version)
     model = attach_lora(base_model())
     model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     model.train()
@@ -149,7 +150,9 @@ def train(args):
         "status": "running",
         "model": MODEL,
         "revision": REVISION,
+        "dataset": manifest["version"],
         "training_sha256": manifest["splits"]["train"]["sha256"],
+        "prompt_version": args.prompt_version,
         "prompt_sha256": manifest["prompt_sha256"],
         "seed": SEED,
         "bf16": True,
@@ -158,7 +161,9 @@ def train(args):
         "context": CONTEXT,
         "rank": 16,
         "alpha": 32,
+        "dropout": 0,
         "lr": 1e-4,
+        "max_new_tokens": MAX_NEW,
         "targets": LORA_TARGETS,
         "schedule": "constant",
         "gpu": torch.cuda.get_device_name(0),
@@ -186,22 +191,28 @@ def train(args):
                     use_cache=False,
                 )
                 loss = output.loss
-                if not math.isfinite(loss.detach().item()):
+                measured_loss = loss.detach().item()
+                if not math.isfinite(measured_loss):
                     raise ValueError("Non-finite training loss")
                 (loss / len(micro)).backward()
                 del output, loss
             torch.nn.utils.clip_grad_norm_(params, 1.0)
             optimizer.step()
             steps += 1
+            if steps % 10 == 0:
+                print(dumps({"epoch": epoch, "step": steps, "last_example_loss": measured_loss,
+                             "seconds": round(monotonic() - start, 2)}), flush=True)
             if args.stage == "smoke" and steps == 20:
                 break
         checkpoint = args.output / ("adapter-smoke" if args.stage == "smoke" else f"epoch-{epoch}")
         model.save_pretrained(checkpoint)
+        print(dumps({"checkpoint": checkpoint.name, "step": steps, "seconds": round(monotonic() - start, 2)}), flush=True)
         if args.stage == "smoke":
             break
     torch.cuda.synchronize()
     audit.update(
         steps=steps,
+        elapsed_seconds=monotonic() - start,
         seconds_per_step=(monotonic() - start) / steps,
         peak_allocated_bytes=torch.cuda.max_memory_allocated(),
     )
@@ -212,7 +223,7 @@ def train(args):
         from dataset import prompt
 
         sample = read_jsonl(args.data / "validation.jsonl")[0]
-        answer = generate(reloaded, budget, {"id": sample["id"], "prompt": prompt(sample, "v3")}, "cuda")
+        answer = generate(reloaded, budget, {"id": sample["id"], "prompt": prompt(sample, args.prompt_version)}, "cuda")
         try:
             ground(sample["text"], answer)
             audit["smoke_answer"] = "valid_grounded_json"
@@ -228,6 +239,7 @@ def main():
     subs = parser.add_subparsers(dest="command", required=True)
     training = subs.add_parser("train")
     training.add_argument("--data", default=ROOT / "data" / "v3", type=Path)
+    training.add_argument("--prompt-version", choices=(PILOT_PROMPT,), default=PILOT_PROMPT)
     training.add_argument("--stage", choices=("smoke", "full"), required=True)
     predicting = subs.add_parser("predict")
     predicting.add_argument("--windows", type=Path, required=True)
@@ -238,11 +250,12 @@ def main():
     selection = subs.add_parser("select")
     selection.add_argument("--epoch1", required=True, type=Path)
     selection.add_argument("--epoch2", required=True, type=Path)
+    selection.add_argument("--data", default=ROOT / "data" / "v3", type=Path)
     args = parser.parse_args()
     if args.command == "select":
         print(
             dumps(
-                {"selected_epoch": choose([json.loads(p.read_bytes()) for p in (args.epoch1, args.epoch2)])}
+                {"selected_epoch": choose([json.loads(p.read_bytes()) for p in (args.epoch1, args.epoch2)], args.data)}
             )
         )
         return

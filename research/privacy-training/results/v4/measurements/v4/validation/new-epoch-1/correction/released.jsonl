@@ -1,0 +1,5 @@
+{"format":"csv","id":"v4/repair-schedule-pricing/public","released_byte_ranges":[[28,36]]}
+{"format":"csv","id":"v4/repair-schedule-pricing/mixed","released_byte_ranges":[[28,36]]}
+{"format":"csv","id":"v4/repair-schedule-pricing/reordered","released_byte_ranges":[[79,87]]}
+{"format":"csv","id":"v4/repair-schedule-pricing/three-copies","released_byte_ranges":[[110,118]]}
+{"format":"csv","id":"v4/repair-schedule-pricing/both-public","released_byte_ranges":[[28,36],[58,66]]}

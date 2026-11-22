@@ -1,0 +1,55 @@
+{
+  "families": {
+    "v4/accessibility-lesson": 6,
+    "v4/commission-book": 6,
+    "v4/infrastructure-switchboard": 6,
+    "v4/rights-dispatch": 6,
+    "v4/shift-handover": 1
+  },
+  "private_remaining": [
+    {
+      "end_byte": 309,
+      "group": "v4/shift-handover",
+      "id": "v4/shift-handover/mixed",
+      "kind": "USER",
+      "outbound_level": "open",
+      "outcome": "different_occurrence",
+      "response_error": null,
+      "start_byte": 287
+    },
+    {
+      "end_byte": 450,
+      "group": "v4/shift-handover",
+      "id": "v4/shift-handover/mixed",
+      "kind": "USER",
+      "outbound_level": "open",
+      "outcome": "different_occurrence",
+      "response_error": null,
+      "start_byte": 428
+    },
+    {
+      "end_byte": 296,
+      "group": "v4/shift-handover",
+      "id": "v4/shift-handover/both-private",
+      "kind": "DOM",
+      "outbound_level": "open",
+      "outcome": "different_occurrence",
+      "response_error": null,
+      "start_byte": 288
+    },
+    {
+      "end_byte": 461,
+      "group": "v4/shift-handover",
+      "id": "v4/shift-handover/both-private",
+      "kind": "USER",
+      "outbound_level": "open",
+      "outcome": "different_occurrence",
+      "response_error": null,
+      "start_byte": 439
+    }
+  ],
+  "public_after_csv_correction": {
+    "detector": 24,
+    "model_only": 1
+  }
+}

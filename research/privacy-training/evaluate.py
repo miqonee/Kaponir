@@ -197,6 +197,28 @@ def validate_trace(text, replacements, received):
     return sorted(ordered)
 
 
+def span_intersections(span, intervals):
+    a, b = span["start_byte"], span["end_byte"]
+    touching = [(l, h, t) for l, h, t in intervals if l < b and a < h]
+    covered = sum(min(b, h) - max(a, l) for l, h, _ in touching)
+    return touching, covered
+
+
+def private_level(raw, span, touching, covered):
+    a, b = span["start_byte"], span["end_byte"]
+    if not covered:
+        return "open"
+    # A literal can survive a substitution when the token and adjacent bytes
+    # form the original value. Check within this occurrence's outbound slice.
+    cursor, visible = a, []
+    for left, right, token in touching:
+        visible.extend((raw[cursor : max(cursor, left)], token.encode()))
+        cursor = min(b, right)
+    if span["value"].encode() in b"".join(visible + [raw[cursor:b]]):
+        return "open"
+    return "full" if covered == b - a else "partial"
+
+
 def outbound_counts(row, observation, by_kind=None):
     spans = row["spans"]
     counts = Counter(
@@ -223,27 +245,16 @@ def outbound_counts(row, observation, by_kind=None):
     counts["restored"] = int(original == observation["restored"])
     counts["changed_clean"] = int(not spans and original != observation["received"])
     annotated_bytes = 0
+    raw = original.encode()
     for s in spans:
-        a, b = s["start_byte"], s["end_byte"]
-        touching = [(l, h, t) for l, h, t in intervals if l < b and a < h]
-        n = sum(min(b, h) - max(a, l) for l, h, _ in touching)
+        touching, n = span_intersections(s, intervals)
         annotated_bytes += n
         if s["action"] == "keep":
             counts["public_touched"] += bool(n)
             if by_kind is not None:
                 by_kind[s["kind"]]["public_touched"] += bool(n)
         else:
-            level = "open"
-            if n:
-                level = "full" if n == b - a else "partial"
-                # Restrict the visibility check to this occurrence's output,
-                # including any unchanged bytes between intersecting replacements.
-                raw, cursor, visible = original.encode(), a, []
-                for left, right, token in touching:
-                    visible.extend((raw[cursor : max(cursor, left)], token.encode()))
-                    cursor = min(b, right)
-                if s["value"].encode() in b"".join(visible + [raw[cursor:b]]):
-                    level = "open"
+            level = private_level(raw, s, touching, n)
             prefix = "private" if s["action"] == "mask" else "review"
             counts[f"{prefix}_{level}"] += 1
             if by_kind is not None:
@@ -251,6 +262,40 @@ def outbound_counts(row, observation, by_kind=None):
     counts["collateral_bytes"] = sum(h - l for l, h, _ in intervals) - annotated_bytes
     counts["documents_with_leak"] = int(counts["private_full"] < counts["private"])
     return counts
+
+
+def positional_comparison(rows, baseline, candidate):
+    """Compare exposure at the same source positions, without cancelling regressions."""
+    report = {
+        "recovered_public": [],
+        "new_public_losses": [],
+        "new_private_disclosures": [],
+        "private_remaining": [],
+    }
+    for row in rows:
+        key, text = row["id"], row["text"]
+        raw = text.encode()
+        before = validate_trace(text, baseline[key]["replacements"], baseline[key]["received"])
+        after = validate_trace(text, candidate[key]["replacements"], candidate[key]["received"])
+        for span in row["spans"]:
+            before_hits, before_bytes = span_intersections(span, before)
+            after_hits, after_bytes = span_intersections(span, after)
+            item = {k: span[k] for k in ("start_byte", "end_byte", "kind")}
+            item.update(id=key, masked_bytes_before=before_bytes, masked_bytes_after=after_bytes)
+            if span["action"] == "keep":
+                if before_bytes and not after_bytes:
+                    report["recovered_public"].append(item)
+                elif after_bytes and not before_bytes:
+                    report["new_public_losses"].append(item)
+            elif span["action"] == "mask":
+                old = private_level(raw, span, before_hits, before_bytes)
+                new = private_level(raw, span, after_hits, after_bytes)
+                if new != "full":
+                    item.update(before=old, after=new)
+                    report["private_remaining"].append(item)
+                    if old == "full":
+                        report["new_private_disclosures"].append(item)
+    return report
 
 
 def outbound_summary(c):
@@ -349,9 +394,12 @@ def main():
     parser.add_argument("--predictions", type=Path)
     parser.add_argument("--observations", type=Path)
     parser.add_argument("--baseline-observations", type=Path)
+    parser.add_argument("--positions", action="store_true", help="compare matched source occurrences")
     args = parser.parse_args()
     if not (args.predictions or args.observations) or (args.baseline_observations and not args.observations):
         parser.error("provide predictions or observations; a baseline needs candidate observations")
+    if args.positions and not args.baseline_observations:
+        parser.error("--positions requires a baseline and candidate observations")
     manifest = check_snapshot(args.data)
     rows = read_jsonl(args.data / f"{args.split}.jsonl")
     report = {
@@ -362,11 +410,17 @@ def main():
     if args.predictions:
         report["model"] = score_model(rows, index_records(args.predictions, rows))
     if args.observations:
-        report["outbound"] = score_outbound(rows, index_records(args.observations, rows))
+        observations = index_records(args.observations, rows)
+        report["outbound"] = score_outbound(rows, observations)
     if args.baseline_observations:
-        baseline = score_outbound(rows, index_records(args.baseline_observations, rows))
+        baseline_observations = index_records(args.baseline_observations, rows)
+        baseline = score_outbound(rows, baseline_observations)
         report["baseline"] = baseline["all"]
         report["paired"] = paired_difference(baseline, report["outbound"])
+        if args.positions:
+            if not baseline["all"]["complete"] or not report["outbound"]["all"]["complete"]:
+                parser.error("--positions requires complete observations in both runs")
+            report["positions"] = positional_comparison(rows, baseline_observations, observations)
     print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
 
 

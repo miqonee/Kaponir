@@ -20,6 +20,7 @@ from dataset import (
     target_spans,
 )
 from evaluate import AnswerError, ground, index_records
+from grounding import ground_client_label
 from kaponir_inference import plan_text
 
 MODEL = "Qwen/Qwen3.5-2B"
@@ -78,7 +79,7 @@ def model_windows(row, version, budget):
     return windows
 
 
-def join_answers(windows, answers):
+def join_answers(windows, answers, grounder=ground):
     groups = defaultdict(list)
     for window in windows:
         groups[window["document_id"]].append(window)
@@ -91,7 +92,7 @@ def join_answers(windows, answers):
             if part["start_byte"] != position or part["end_byte"] != position + len(raw):
                 raise ValueError(f"{row_id}: non-contiguous document windows")
             try:
-                for a, b, k, act in ground(text, answers.get(part["id"])):
+                for a, b, k, act in grounder(text, answers.get(part["id"])):
                     hits.append((position + a, raw[a:b].decode(), k, act))
             except AnswerError as exc:
                 error = error or str(exc)
@@ -173,15 +174,18 @@ def main():
     check = cmds.add_parser("check")
     check.add_argument("--assets", required=True, type=Path)
     check.add_argument("--data", type=Path, default=ROOT / "data" / "v3")
+    check.add_argument("--prompt-version", choices=("v0", "v3"), default="v3")
     check.add_argument("--output", type=Path, help="new directory for SFT data, windows and audit")
     join = cmds.add_parser("join")
     join.add_argument("--windows", required=True, type=Path)
     join.add_argument("--answers", required=True, type=Path)
     join.add_argument("--output", required=True, type=Path)
+    join.add_argument("--grounding", choices=("strict", "client-label"), default="strict")
     args = parser.parse_args()
     if args.cmd == "join":
         windows = read_jsonl(args.windows)
-        joined = join_answers(windows, index_records(args.answers, windows))
+        grounder = ground_client_label if args.grounding == "client-label" else ground
+        joined = join_answers(windows, index_records(args.answers, windows), grounder)
         with args.output.open("xb") as f:
             f.write(jsonl(joined))
         return
@@ -192,7 +196,7 @@ def main():
         "revision": REVISION,
         "assets": ASSETS,
         "dataset": manifest["version"],
-        "prompt_version": "v3",
+        "prompt_version": args.prompt_version,
         "enable_thinking": False,
         "context": CONTEXT,
         "max_new": MAX_NEW,
@@ -201,7 +205,7 @@ def main():
     data = {}
     for split in SPLITS:
         rows = read_jsonl(args.data / f"{split}.jsonl")
-        stats, windows = preflight(rows, "v3", budget, split)
+        stats, windows = preflight(rows, args.prompt_version, budget, split)
         report["splits"][split] = stats
         if split != "train":
             data[f"{split}-windows.jsonl"] = jsonl(windows)
@@ -212,8 +216,8 @@ def main():
         with tempfile.TemporaryDirectory(dir=args.output.parent) as tmp:
             out = Path(tmp) / "export"
             out.mkdir()
-            if manifest["version"] == "v3":
-                export(args.data, out)
+            if manifest["version"] in {"v3", "v4"}:
+                export(args.data, out, args.prompt_version)
             for name, payload in data.items():
                 (out / name).write_bytes(payload)
             (out / "token-audit.json").write_text(dumps(report) + "\n", encoding="utf-8")

@@ -1,0 +1,540 @@
+{
+  "dataset": "v4",
+  "outbound": {
+    "all": {
+      "changed_clean": 0,
+      "changed_empty_requests": {
+        "d": 8,
+        "n": 0,
+        "rate": 0.0
+      },
+      "clean": 8,
+      "collateral_bytes": 70,
+      "complete": true,
+      "documents": 71,
+      "documents_with_leak": 24,
+      "exact_restore": {
+        "d": 71,
+        "n": 71,
+        "rate": 1.0
+      },
+      "full_privacy": {
+        "d": 57,
+        "n": 18,
+        "rate": 0.3157894736842105
+      },
+      "leaking_requests": {
+        "d": 39,
+        "n": 24,
+        "rate": 0.6153846153846154
+      },
+      "observed": 71,
+      "pass": false,
+      "private": 57,
+      "private_documents": 39,
+      "private_full": 18,
+      "private_open": 27,
+      "private_partial": 12,
+      "public": 57,
+      "public_losses": {
+        "d": 57,
+        "n": 30,
+        "rate": 0.5263157894736842
+      },
+      "public_touched": 30,
+      "restored": 71,
+      "review": 17,
+      "review_full": 6,
+      "review_open": 7,
+      "review_partial": 4
+    },
+    "by_format": {
+      "csv": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "clean": 0,
+        "collateral_bytes": 0,
+        "complete": true,
+        "documents": 8,
+        "documents_with_leak": 0,
+        "exact_restore": {
+          "d": 8,
+          "n": 8,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 6,
+          "n": 6,
+          "rate": 1.0
+        },
+        "leaking_requests": {
+          "d": 5,
+          "n": 0,
+          "rate": 0.0
+        },
+        "observed": 8,
+        "pass": false,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "private_open": 0,
+        "private_partial": 0,
+        "public": 6,
+        "public_losses": {
+          "d": 6,
+          "n": 6,
+          "rate": 1.0
+        },
+        "public_touched": 6,
+        "restored": 8,
+        "review": 2,
+        "review_full": 2,
+        "review_open": 0,
+        "review_partial": 0
+      },
+      "json": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "clean": 0,
+        "collateral_bytes": 0,
+        "complete": true,
+        "documents": 7,
+        "documents_with_leak": 4,
+        "exact_restore": {
+          "d": 7,
+          "n": 7,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 15,
+          "n": 0,
+          "rate": 0.0
+        },
+        "leaking_requests": {
+          "d": 4,
+          "n": 4,
+          "rate": 1.0
+        },
+        "observed": 7,
+        "pass": false,
+        "private": 15,
+        "private_documents": 4,
+        "private_full": 0,
+        "private_open": 15,
+        "private_partial": 0,
+        "public": 15,
+        "public_losses": {
+          "d": 15,
+          "n": 0,
+          "rate": 0.0
+        },
+        "public_touched": 0,
+        "restored": 7,
+        "review": 3,
+        "review_full": 0,
+        "review_open": 3,
+        "review_partial": 0
+      },
+      "text": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 8,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 8,
+        "collateral_bytes": 70,
+        "complete": true,
+        "documents": 56,
+        "documents_with_leak": 20,
+        "exact_restore": {
+          "d": 56,
+          "n": 56,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 36,
+          "n": 12,
+          "rate": 0.3333333333333333
+        },
+        "leaking_requests": {
+          "d": 30,
+          "n": 20,
+          "rate": 0.6666666666666666
+        },
+        "observed": 56,
+        "pass": false,
+        "private": 36,
+        "private_documents": 30,
+        "private_full": 12,
+        "private_open": 12,
+        "private_partial": 12,
+        "public": 36,
+        "public_losses": {
+          "d": 36,
+          "n": 24,
+          "rate": 0.6666666666666666
+        },
+        "public_touched": 24,
+        "restored": 56,
+        "review": 12,
+        "review_full": 4,
+        "review_open": 4,
+        "review_partial": 4
+      }
+    },
+    "by_group": {
+      "v4/accessibility-lesson": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 70,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/commission-book": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 5,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_partial": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_partial": 2
+      },
+      "v4/infrastructure-switchboard": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/museum-reader-key": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 5,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_open": 6,
+        "public": 6,
+        "public_touched": 0,
+        "restored": 9,
+        "review": 2,
+        "review_open": 2
+      },
+      "v4/radio-certificate": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 5,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_open": 6,
+        "public": 6,
+        "public_touched": 0,
+        "restored": 9,
+        "review": 2,
+        "review_open": 2
+      },
+      "v4/repair-schedule-pricing": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/rights-dispatch": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 5,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_partial": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_partial": 2
+      },
+      "v4/shift-handover": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 8,
+        "documents_with_leak": 4,
+        "observed": 8,
+        "private": 15,
+        "private_documents": 4,
+        "private_open": 15,
+        "public": 15,
+        "public_touched": 0,
+        "restored": 8,
+        "review": 3,
+        "review_open": 3
+      }
+    },
+    "by_input": {
+      "text_only": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 8,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 8,
+        "collateral_bytes": 70,
+        "complete": true,
+        "documents": 71,
+        "documents_with_leak": 24,
+        "exact_restore": {
+          "d": 71,
+          "n": 71,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 57,
+          "n": 18,
+          "rate": 0.3157894736842105
+        },
+        "leaking_requests": {
+          "d": 39,
+          "n": 24,
+          "rate": 0.6153846153846154
+        },
+        "observed": 71,
+        "pass": false,
+        "private": 57,
+        "private_documents": 39,
+        "private_full": 18,
+        "private_open": 27,
+        "private_partial": 12,
+        "public": 57,
+        "public_losses": {
+          "d": 57,
+          "n": 30,
+          "rate": 0.5263157894736842
+        },
+        "public_touched": 30,
+        "restored": 71,
+        "review": 17,
+        "review_full": 6,
+        "review_open": 7,
+        "review_partial": 4
+      }
+    },
+    "by_kind": {
+      "AMOUNT": {
+        "keep": 6,
+        "mask": 6,
+        "private_full": 6,
+        "public_touched": 6,
+        "review": 2,
+        "review_full": 2
+      },
+      "CLIENT": {
+        "keep": 6,
+        "mask": 6,
+        "private_partial": 6,
+        "public_touched": 6,
+        "review": 2,
+        "review_partial": 2
+      },
+      "DOM": {
+        "keep": 5,
+        "mask": 5,
+        "private_open": 5,
+        "public_touched": 0,
+        "review": 1,
+        "review_open": 1
+      },
+      "HOST": {
+        "keep": 6,
+        "mask": 6,
+        "private_open": 6,
+        "public_touched": 0,
+        "review": 2,
+        "review_open": 2
+      },
+      "IP": {
+        "keep": 6,
+        "mask": 6,
+        "private_full": 6,
+        "public_touched": 6,
+        "review": 2,
+        "review_full": 2
+      },
+      "PROJ": {
+        "keep": 6,
+        "mask": 6,
+        "private_partial": 6,
+        "public_touched": 6,
+        "review": 2,
+        "review_partial": 2
+      },
+      "SECRET": {
+        "keep": 6,
+        "mask": 6,
+        "private_open": 6,
+        "public_touched": 0,
+        "review": 2,
+        "review_open": 2
+      },
+      "USER": {
+        "keep": 16,
+        "mask": 16,
+        "private_full": 6,
+        "private_open": 10,
+        "public_touched": 6,
+        "review": 4,
+        "review_full": 2,
+        "review_open": 2
+      }
+    },
+    "by_language": {
+      "en": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 6,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 6,
+        "collateral_bytes": 70,
+        "complete": true,
+        "documents": 54,
+        "documents_with_leak": 15,
+        "exact_restore": {
+          "d": 54,
+          "n": 54,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 36,
+          "n": 18,
+          "rate": 0.5
+        },
+        "leaking_requests": {
+          "d": 30,
+          "n": 15,
+          "rate": 0.5
+        },
+        "observed": 54,
+        "pass": false,
+        "private": 36,
+        "private_documents": 30,
+        "private_full": 18,
+        "private_open": 12,
+        "private_partial": 6,
+        "public": 36,
+        "public_losses": {
+          "d": 36,
+          "n": 24,
+          "rate": 0.6666666666666666
+        },
+        "public_touched": 24,
+        "restored": 54,
+        "review": 12,
+        "review_full": 6,
+        "review_open": 4,
+        "review_partial": 2
+      },
+      "ru": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 2,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 2,
+        "collateral_bytes": 0,
+        "complete": true,
+        "documents": 17,
+        "documents_with_leak": 9,
+        "exact_restore": {
+          "d": 17,
+          "n": 17,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 21,
+          "n": 0,
+          "rate": 0.0
+        },
+        "leaking_requests": {
+          "d": 9,
+          "n": 9,
+          "rate": 1.0
+        },
+        "observed": 17,
+        "pass": false,
+        "private": 21,
+        "private_documents": 9,
+        "private_full": 0,
+        "private_open": 15,
+        "private_partial": 6,
+        "public": 21,
+        "public_losses": {
+          "d": 21,
+          "n": 6,
+          "rate": 0.2857142857142857
+        },
+        "public_touched": 6,
+        "restored": 17,
+        "review": 5,
+        "review_full": 0,
+        "review_open": 3,
+        "review_partial": 2
+      }
+    }
+  },
+  "source_sha256": "0d4bfd8a188b640ed0b13b8cfd03b2af63e367a9e9da571f1d8cc5781432ea7b",
+  "split": "validation"
+}

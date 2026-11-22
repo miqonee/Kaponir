@@ -14,7 +14,9 @@ from synthetic_cases import synthetic_rows
 ROOT = Path(__file__).resolve().parent
 SNAPSHOT = ROOT / "data" / "v0"
 SEEDS = ROOT / "data" / "seeds"
-VERSIONS = ("v0", "v1", "v2", "v3")
+VERSIONS = ("v0", "v1", "v2", "v3", "v4")
+TRAINABLE_VERSIONS = ("v3", "v4")
+PILOT_PROMPT = "v3"
 SPLITS = ("train", "validation", "test")
 CONTRASTS = {"order", "role", "provenance", "format"}
 SHARING_ACTION = {"public": "keep", "internal": "mask", "restricted": "mask", "unknown": "review"}
@@ -48,7 +50,7 @@ SYSTEM_V3 = SYSTEM + (
 
 
 def instruction(version):
-    return SYSTEM_V3 if version == "v3" else SYSTEM
+    return SYSTEM_V3 if version == PILOT_PROMPT or version == "v4" else SYSTEM
 
 
 def dumps(value):
@@ -219,9 +221,82 @@ def add_v3(splits, extension):
     return regression
 
 
+def anonymised_shape(row):
+    raw = row["text"].encode()
+    for span in reversed(row["spans"]):
+        raw = raw[:span["start_byte"]] + b"{value}" + raw[span["end_byte"]:]
+    return " ".join(unicodedata.normalize("NFKC", raw.decode()).casefold().split())
+
+
+def build_v4():
+    from collections import defaultdict
+    from synthetic_v4 import extension_rows
+
+    older, base = build("v3")
+    registered = {key: [json.loads(line) for line in older[f"{key}.jsonl"].splitlines()] for key in SPLITS}
+    additions = {key: [] for key in SPLITS}
+    source = list(extension_rows())
+    for item in source:
+        row = {key: value for key, value in item.items() if key not in {"split", "annotated"}}
+        text, spans = read_marked(item["annotated"])
+        additions[item["split"]].append({**row, "text": text, "spans": spans})
+
+    splits = {**additions, "train": registered["train"] + additions["train"]}
+    validate({**splits, "v3-validation": registered["validation"], "v3-test": registered["test"]})
+    shapes = {}
+    for split, rows in splits.items():
+        for row in rows:
+            if row["id"].startswith("v4/") and shapes.setdefault(anonymised_shape(row), split) != split:
+                raise ValueError(f"{row['id']}: a v4 template crosses splits")
+    for split in ("validation", "test"):
+        previous = {anonymised_shape(row) for rows in registered.values() for row in rows}
+        if previous.intersection(anonymised_shape(row) for row in splits[split]):
+            raise ValueError(f"{split}: a v3 template occurs in a v4 evaluation split")
+
+    manifest = {
+        "version": "v4", "base_version": "v3", "base_train_sha256": base["splits"]["train"]["sha256"],
+        "train_inherited": len(registered["train"]), "prompt_version": PILOT_PROMPT,
+        "prompt_sha256": sha256(instruction(PILOT_PROMPT).encode()).hexdigest(),
+        "extension_sha256": sha256(jsonl(source)).hexdigest(), "policy": base["policy"], "offsets": base["offsets"],
+        "evaluation": base["evaluation"], "regressions": {
+            "v2-test": base["regression_test_v2_sha256"],
+            "v3-test": base["splits"]["test"]["sha256"],
+            "v3-validation": base["splits"]["validation"]["sha256"],
+        },
+        "splits": {},
+    }
+    files = {}
+    for split, rows in splits.items():
+        groups = defaultdict(list)
+        for row in additions[split]:
+            groups[row["group"]].append(row)
+        actions = Counter(span["action"] for row in rows for span in row["spans"])
+        payload = jsonl(rows)
+        files[f"{split}.jsonl"] = payload
+        manifest["splits"][split] = {
+            "records": len(rows), "groups": len({row["group"] for row in rows}), "added": len(additions[split]),
+            "clean": sum(not row["spans"] for row in rows), "by_action": dict(actions),
+            "by_language": dict(Counter(row["language"] for row in rows)),
+            "sha256": sha256(payload).hexdigest(),
+            "families_added": {name: {
+                "records": len(members), "clean": sum(not row["spans"] for row in members),
+                "by_action": dict(Counter(span["action"] for row in members for span in row["spans"])),
+            } for name, members in sorted(groups.items())},
+            "thresholds": {
+                "private_full_min": (MIN_FULL_PERCENT * actions["mask"] + 99) // 100,
+                "public_touched_max": MAX_PUBLIC_PERCENT * actions["keep"] // 100,
+                "restored_min": len(rows),
+            },
+        }
+    files["manifest.json"] = (json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode()
+    return files, manifest
+
+
 def build(version="v0"):
     if version not in VERSIONS:
         raise ValueError(f"Unsupported dataset version: {version}")
+    if version == "v4":
+        return build_v4()
     splits = {name: [] for name in SPLITS}
     for source in (seed_rows(), synthetic_rows()):
         for split, row in source:
@@ -288,8 +363,9 @@ def prompt(row, version="v0"):
     return [{"role": "system", "content": instruction(version)}, {"role": "user", "content": dumps(payload)}]
 
 
-def export(directory, output):
-    version = json.loads((directory / "manifest.json").read_bytes())["version"]
+def export(directory, output, prompt_version=None):
+    manifest = json.loads((directory / "manifest.json").read_bytes())
+    version = prompt_version or manifest.get("prompt_version", manifest["version"])
     for split in SPLITS:
         rows = read_jsonl(directory / f"{split}.jsonl")
         if split == "test":

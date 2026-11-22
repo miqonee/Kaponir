@@ -1,0 +1,8 @@
+{
+  "binary_sha256": "81f321d6cd92e8e27f7236eb944e9c2a158caafb678abab93240ad6603c0e8e4",
+  "client_label_sha256": "cc0e4247d1a9f5c36b1ee651dd18715836cf28fd946add8425f054e7d86228d8",
+  "control_adapter_sha256": "2edb1214de188e38b9f7fbafd1d95bc766dcd5b821495ba92113a3fce5c1dd27",
+  "field_policy_sha256": "7fd4ef9513ebf8a1f7892dc0185c35ae9753c0c6152d83cc2a62b88d6c9aaf9b",
+  "test_windows_sha256": "ef52293aa66cc5cec9ae797e5aae547cd836a7ca6afcd48845e5a62f087aacc9",
+  "validation_windows_sha256": "765af30f610e892bba4cd1744953cce3b9b1170200a50a3a6fec56c777847634"
+}

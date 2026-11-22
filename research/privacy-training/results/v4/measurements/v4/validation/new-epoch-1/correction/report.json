@@ -1,0 +1,1265 @@
+{
+  "after": {
+    "changed_clean": 0,
+    "changed_empty_requests": {
+      "d": 8,
+      "n": 0,
+      "rate": 0.0
+    },
+    "clean": 8,
+    "collateral_bytes": 70,
+    "complete": true,
+    "documents": 71,
+    "documents_with_leak": 4,
+    "exact_restore": {
+      "d": 71,
+      "n": 71,
+      "rate": 1.0
+    },
+    "full_privacy": {
+      "d": 57,
+      "n": 50,
+      "rate": 0.8771929824561403
+    },
+    "leaking_requests": {
+      "d": 39,
+      "n": 4,
+      "rate": 0.10256410256410256
+    },
+    "observed": 71,
+    "pass": false,
+    "private": 57,
+    "private_documents": 39,
+    "private_full": 50,
+    "private_open": 5,
+    "private_partial": 2,
+    "public": 57,
+    "public_losses": {
+      "d": 57,
+      "n": 25,
+      "rate": 0.43859649122807015
+    },
+    "public_touched": 25,
+    "restored": 71,
+    "review": 17,
+    "review_full": 16,
+    "review_open": 0,
+    "review_partial": 1
+  },
+  "before": {
+    "changed_clean": 0,
+    "changed_empty_requests": {
+      "d": 8,
+      "n": 0,
+      "rate": 0.0
+    },
+    "clean": 8,
+    "collateral_bytes": 70,
+    "complete": true,
+    "documents": 71,
+    "documents_with_leak": 4,
+    "exact_restore": {
+      "d": 71,
+      "n": 71,
+      "rate": 1.0
+    },
+    "full_privacy": {
+      "d": 57,
+      "n": 50,
+      "rate": 0.8771929824561403
+    },
+    "leaking_requests": {
+      "d": 39,
+      "n": 4,
+      "rate": 0.10256410256410256
+    },
+    "observed": 71,
+    "pass": false,
+    "private": 57,
+    "private_documents": 39,
+    "private_full": 50,
+    "private_open": 5,
+    "private_partial": 2,
+    "public": 57,
+    "public_losses": {
+      "d": 57,
+      "n": 31,
+      "rate": 0.543859649122807
+    },
+    "public_touched": 31,
+    "restored": 71,
+    "review": 17,
+    "review_full": 16,
+    "review_open": 0,
+    "review_partial": 1
+  },
+  "correction": "csv-explicit-public-amount",
+  "dataset": "v4",
+  "model": {
+    "all_spans": {
+      "f1": {
+        "d": 254,
+        "n": 174,
+        "rate": 0.6850393700787402
+      },
+      "fn": 44,
+      "fp": 36,
+      "precision": {
+        "d": 123,
+        "n": 87,
+        "rate": 0.7073170731707317
+      },
+      "recall": {
+        "d": 131,
+        "n": 87,
+        "rate": 0.6641221374045801
+      },
+      "tp": 87
+    },
+    "by_action": {
+      "keep": {
+        "f1": {
+          "d": 110,
+          "n": 76,
+          "rate": 0.6909090909090909
+        },
+        "fn": 19,
+        "fp": 15,
+        "precision": {
+          "d": 53,
+          "n": 38,
+          "rate": 0.7169811320754716
+        },
+        "recall": {
+          "d": 57,
+          "n": 38,
+          "rate": 0.6666666666666666
+        },
+        "tp": 38
+      },
+      "mask": {
+        "f1": {
+          "d": 116,
+          "n": 80,
+          "rate": 0.6896551724137931
+        },
+        "fn": 17,
+        "fp": 19,
+        "precision": {
+          "d": 59,
+          "n": 40,
+          "rate": 0.6779661016949152
+        },
+        "recall": {
+          "d": 57,
+          "n": 40,
+          "rate": 0.7017543859649122
+        },
+        "tp": 40
+      },
+      "review": {
+        "f1": {
+          "d": 28,
+          "n": 18,
+          "rate": 0.6428571428571429
+        },
+        "fn": 8,
+        "fp": 2,
+        "precision": {
+          "d": 11,
+          "n": 9,
+          "rate": 0.8181818181818182
+        },
+        "recall": {
+          "d": 17,
+          "n": 9,
+          "rate": 0.5294117647058824
+        },
+        "tp": 9
+      }
+    },
+    "by_input": {
+      "text_only": {
+        "d": 71,
+        "n": 47,
+        "rate": 0.6619718309859155
+      }
+    },
+    "by_kind": {
+      "AMOUNT": {
+        "f1": {
+          "d": 28,
+          "n": 26,
+          "rate": 0.9285714285714286
+        },
+        "fn": 1,
+        "fp": 1,
+        "precision": {
+          "d": 14,
+          "n": 13,
+          "rate": 0.9285714285714286
+        },
+        "recall": {
+          "d": 14,
+          "n": 13,
+          "rate": 0.9285714285714286
+        },
+        "tp": 13
+      },
+      "CLIENT": {
+        "f1": {
+          "d": 28,
+          "n": 26,
+          "rate": 0.9285714285714286
+        },
+        "fn": 1,
+        "fp": 1,
+        "precision": {
+          "d": 14,
+          "n": 13,
+          "rate": 0.9285714285714286
+        },
+        "recall": {
+          "d": 14,
+          "n": 13,
+          "rate": 0.9285714285714286
+        },
+        "tp": 13
+      },
+      "CUSTOM": {
+        "f1": {
+          "d": 1,
+          "n": 0,
+          "rate": 0.0
+        },
+        "fn": 0,
+        "fp": 1,
+        "precision": {
+          "d": 1,
+          "n": 0,
+          "rate": 0.0
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "DOM": {
+        "f1": {
+          "d": 22,
+          "n": 18,
+          "rate": 0.8181818181818182
+        },
+        "fn": 2,
+        "fp": 2,
+        "precision": {
+          "d": 11,
+          "n": 9,
+          "rate": 0.8181818181818182
+        },
+        "recall": {
+          "d": 11,
+          "n": 9,
+          "rate": 0.8181818181818182
+        },
+        "tp": 9
+      },
+      "EMAIL": {
+        "f1": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "fn": 0,
+        "fp": 0,
+        "precision": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "HOST": {
+        "f1": {
+          "d": 16,
+          "n": 4,
+          "rate": 0.25
+        },
+        "fn": 12,
+        "fp": 0,
+        "precision": {
+          "d": 2,
+          "n": 2,
+          "rate": 1.0
+        },
+        "recall": {
+          "d": 14,
+          "n": 2,
+          "rate": 0.14285714285714285
+        },
+        "tp": 2
+      },
+      "IP": {
+        "f1": {
+          "d": 28,
+          "n": 28,
+          "rate": 1.0
+        },
+        "fn": 0,
+        "fp": 0,
+        "precision": {
+          "d": 14,
+          "n": 14,
+          "rate": 1.0
+        },
+        "recall": {
+          "d": 14,
+          "n": 14,
+          "rate": 1.0
+        },
+        "tp": 14
+      },
+      "MODULE": {
+        "f1": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "fn": 0,
+        "fp": 0,
+        "precision": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "ORG": {
+        "f1": {
+          "d": 1,
+          "n": 0,
+          "rate": 0.0
+        },
+        "fn": 0,
+        "fp": 1,
+        "precision": {
+          "d": 1,
+          "n": 0,
+          "rate": 0.0
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "PATH": {
+        "f1": {
+          "d": 9,
+          "n": 0,
+          "rate": 0.0
+        },
+        "fn": 0,
+        "fp": 9,
+        "precision": {
+          "d": 9,
+          "n": 0,
+          "rate": 0.0
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "PERSON": {
+        "f1": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "fn": 0,
+        "fp": 0,
+        "precision": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "PHONE": {
+        "f1": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "fn": 0,
+        "fp": 0,
+        "precision": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "PROJ": {
+        "f1": {
+          "d": 19,
+          "n": 8,
+          "rate": 0.42105263157894735
+        },
+        "fn": 10,
+        "fp": 1,
+        "precision": {
+          "d": 5,
+          "n": 4,
+          "rate": 0.8
+        },
+        "recall": {
+          "d": 14,
+          "n": 4,
+          "rate": 0.2857142857142857
+        },
+        "tp": 4
+      },
+      "SECRET": {
+        "f1": {
+          "d": 23,
+          "n": 8,
+          "rate": 0.34782608695652173
+        },
+        "fn": 10,
+        "fp": 5,
+        "precision": {
+          "d": 9,
+          "n": 4,
+          "rate": 0.4444444444444444
+        },
+        "recall": {
+          "d": 14,
+          "n": 4,
+          "rate": 0.2857142857142857
+        },
+        "tp": 4
+      },
+      "SUB": {
+        "f1": {
+          "d": 3,
+          "n": 0,
+          "rate": 0.0
+        },
+        "fn": 0,
+        "fp": 3,
+        "precision": {
+          "d": 3,
+          "n": 0,
+          "rate": 0.0
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "SVC": {
+        "f1": {
+          "d": 5,
+          "n": 0,
+          "rate": 0.0
+        },
+        "fn": 0,
+        "fp": 5,
+        "precision": {
+          "d": 5,
+          "n": 0,
+          "rate": 0.0
+        },
+        "recall": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "tp": 0
+      },
+      "USER": {
+        "f1": {
+          "d": 71,
+          "n": 56,
+          "rate": 0.7887323943661971
+        },
+        "fn": 8,
+        "fp": 7,
+        "precision": {
+          "d": 35,
+          "n": 28,
+          "rate": 0.8
+        },
+        "recall": {
+          "d": 36,
+          "n": 28,
+          "rate": 0.7777777777777778
+        },
+        "tp": 28
+      }
+    },
+    "contrast_sets": {
+      "order": {
+        "d": 8,
+        "n": 4,
+        "rate": 0.5
+      },
+      "provenance": {
+        "d": 8,
+        "n": 5,
+        "rate": 0.625
+      }
+    },
+    "diagnostics": {
+      "inexact_boundary": 5,
+      "no_span": 8,
+      "wrong_action": 6,
+      "wrong_kind": 26
+    },
+    "documents": 71,
+    "errors": {
+      "duplicate_or_overlap": 1
+    },
+    "exact_documents": {
+      "d": 71,
+      "n": 47,
+      "rate": 0.6619718309859155
+    },
+    "valid_documents": {
+      "d": 71,
+      "n": 70,
+      "rate": 0.9859154929577465
+    }
+  },
+  "new_exposures": [],
+  "new_public_losses": [],
+  "outbound": {
+    "all": {
+      "changed_clean": 0,
+      "changed_empty_requests": {
+        "d": 8,
+        "n": 0,
+        "rate": 0.0
+      },
+      "clean": 8,
+      "collateral_bytes": 70,
+      "complete": true,
+      "documents": 71,
+      "documents_with_leak": 4,
+      "exact_restore": {
+        "d": 71,
+        "n": 71,
+        "rate": 1.0
+      },
+      "full_privacy": {
+        "d": 57,
+        "n": 50,
+        "rate": 0.8771929824561403
+      },
+      "leaking_requests": {
+        "d": 39,
+        "n": 4,
+        "rate": 0.10256410256410256
+      },
+      "observed": 71,
+      "pass": false,
+      "private": 57,
+      "private_documents": 39,
+      "private_full": 50,
+      "private_open": 5,
+      "private_partial": 2,
+      "public": 57,
+      "public_losses": {
+        "d": 57,
+        "n": 25,
+        "rate": 0.43859649122807015
+      },
+      "public_touched": 25,
+      "restored": 71,
+      "review": 17,
+      "review_full": 16,
+      "review_open": 0,
+      "review_partial": 1
+    },
+    "by_format": {
+      "csv": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "clean": 0,
+        "collateral_bytes": 0,
+        "complete": true,
+        "documents": 8,
+        "documents_with_leak": 0,
+        "exact_restore": {
+          "d": 8,
+          "n": 8,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 6,
+          "n": 6,
+          "rate": 1.0
+        },
+        "leaking_requests": {
+          "d": 5,
+          "n": 0,
+          "rate": 0.0
+        },
+        "observed": 8,
+        "pass": true,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "private_open": 0,
+        "private_partial": 0,
+        "public": 6,
+        "public_losses": {
+          "d": 6,
+          "n": 0,
+          "rate": 0.0
+        },
+        "public_touched": 0,
+        "restored": 8,
+        "review": 2,
+        "review_full": 2,
+        "review_open": 0,
+        "review_partial": 0
+      },
+      "json": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 0,
+          "n": 0,
+          "rate": null
+        },
+        "clean": 0,
+        "collateral_bytes": 0,
+        "complete": true,
+        "documents": 7,
+        "documents_with_leak": 2,
+        "exact_restore": {
+          "d": 7,
+          "n": 7,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 15,
+          "n": 10,
+          "rate": 0.6666666666666666
+        },
+        "leaking_requests": {
+          "d": 4,
+          "n": 2,
+          "rate": 0.5
+        },
+        "observed": 7,
+        "pass": false,
+        "private": 15,
+        "private_documents": 4,
+        "private_full": 10,
+        "private_open": 5,
+        "private_partial": 0,
+        "public": 15,
+        "public_losses": {
+          "d": 15,
+          "n": 1,
+          "rate": 0.06666666666666667
+        },
+        "public_touched": 1,
+        "restored": 7,
+        "review": 3,
+        "review_full": 3,
+        "review_open": 0,
+        "review_partial": 0
+      },
+      "text": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 8,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 8,
+        "collateral_bytes": 70,
+        "complete": true,
+        "documents": 56,
+        "documents_with_leak": 2,
+        "exact_restore": {
+          "d": 56,
+          "n": 56,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 36,
+          "n": 34,
+          "rate": 0.9444444444444444
+        },
+        "leaking_requests": {
+          "d": 30,
+          "n": 2,
+          "rate": 0.06666666666666667
+        },
+        "observed": 56,
+        "pass": false,
+        "private": 36,
+        "private_documents": 30,
+        "private_full": 34,
+        "private_open": 0,
+        "private_partial": 2,
+        "public": 36,
+        "public_losses": {
+          "d": 36,
+          "n": 24,
+          "rate": 0.6666666666666666
+        },
+        "public_touched": 24,
+        "restored": 56,
+        "review": 12,
+        "review_full": 11,
+        "review_open": 0,
+        "review_partial": 1
+      }
+    },
+    "by_group": {
+      "v4/accessibility-lesson": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 70,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/commission-book": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/infrastructure-switchboard": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/museum-reader-key": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 2,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 4,
+        "private_partial": 2,
+        "public": 6,
+        "public_touched": 0,
+        "restored": 9,
+        "review": 2,
+        "review_full": 1,
+        "review_partial": 1
+      },
+      "v4/radio-certificate": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 0,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/repair-schedule-pricing": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 0,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/rights-dispatch": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 9,
+        "documents_with_leak": 0,
+        "observed": 9,
+        "private": 6,
+        "private_documents": 5,
+        "private_full": 6,
+        "public": 6,
+        "public_touched": 6,
+        "restored": 9,
+        "review": 2,
+        "review_full": 2
+      },
+      "v4/shift-handover": {
+        "changed_clean": 0,
+        "clean": 1,
+        "collateral_bytes": 0,
+        "documents": 8,
+        "documents_with_leak": 2,
+        "observed": 8,
+        "private": 15,
+        "private_documents": 4,
+        "private_full": 10,
+        "private_open": 5,
+        "public": 15,
+        "public_touched": 1,
+        "restored": 8,
+        "review": 3,
+        "review_full": 3
+      }
+    },
+    "by_input": {
+      "text_only": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 8,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 8,
+        "collateral_bytes": 70,
+        "complete": true,
+        "documents": 71,
+        "documents_with_leak": 4,
+        "exact_restore": {
+          "d": 71,
+          "n": 71,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 57,
+          "n": 50,
+          "rate": 0.8771929824561403
+        },
+        "leaking_requests": {
+          "d": 39,
+          "n": 4,
+          "rate": 0.10256410256410256
+        },
+        "observed": 71,
+        "pass": false,
+        "private": 57,
+        "private_documents": 39,
+        "private_full": 50,
+        "private_open": 5,
+        "private_partial": 2,
+        "public": 57,
+        "public_losses": {
+          "d": 57,
+          "n": 25,
+          "rate": 0.43859649122807015
+        },
+        "public_touched": 25,
+        "restored": 71,
+        "review": 17,
+        "review_full": 16,
+        "review_open": 0,
+        "review_partial": 1
+      }
+    },
+    "by_kind": {
+      "AMOUNT": {
+        "keep": 6,
+        "mask": 6,
+        "private_full": 6,
+        "public_touched": 0,
+        "review": 2,
+        "review_full": 2
+      },
+      "CLIENT": {
+        "keep": 6,
+        "mask": 6,
+        "private_full": 6,
+        "public_touched": 6,
+        "review": 2,
+        "review_full": 2
+      },
+      "DOM": {
+        "keep": 5,
+        "mask": 5,
+        "private_full": 4,
+        "private_open": 1,
+        "public_touched": 0,
+        "review": 1,
+        "review_full": 1
+      },
+      "HOST": {
+        "keep": 6,
+        "mask": 6,
+        "private_full": 6,
+        "public_touched": 0,
+        "review": 2,
+        "review_full": 2
+      },
+      "IP": {
+        "keep": 6,
+        "mask": 6,
+        "private_full": 6,
+        "public_touched": 6,
+        "review": 2,
+        "review_full": 2
+      },
+      "PROJ": {
+        "keep": 6,
+        "mask": 6,
+        "private_full": 6,
+        "public_touched": 6,
+        "review": 2,
+        "review_full": 2
+      },
+      "SECRET": {
+        "keep": 6,
+        "mask": 6,
+        "private_full": 4,
+        "private_partial": 2,
+        "public_touched": 0,
+        "review": 2,
+        "review_full": 1,
+        "review_partial": 1
+      },
+      "USER": {
+        "keep": 16,
+        "mask": 16,
+        "private_full": 12,
+        "private_open": 4,
+        "public_touched": 7,
+        "review": 4,
+        "review_full": 4
+      }
+    },
+    "by_language": {
+      "en": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 6,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 6,
+        "collateral_bytes": 70,
+        "complete": true,
+        "documents": 54,
+        "documents_with_leak": 2,
+        "exact_restore": {
+          "d": 54,
+          "n": 54,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 36,
+          "n": 34,
+          "rate": 0.9444444444444444
+        },
+        "leaking_requests": {
+          "d": 30,
+          "n": 2,
+          "rate": 0.06666666666666667
+        },
+        "observed": 54,
+        "pass": false,
+        "private": 36,
+        "private_documents": 30,
+        "private_full": 34,
+        "private_open": 0,
+        "private_partial": 2,
+        "public": 36,
+        "public_losses": {
+          "d": 36,
+          "n": 18,
+          "rate": 0.5
+        },
+        "public_touched": 18,
+        "restored": 54,
+        "review": 12,
+        "review_full": 11,
+        "review_open": 0,
+        "review_partial": 1
+      },
+      "ru": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 2,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 2,
+        "collateral_bytes": 0,
+        "complete": true,
+        "documents": 17,
+        "documents_with_leak": 2,
+        "exact_restore": {
+          "d": 17,
+          "n": 17,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 21,
+          "n": 16,
+          "rate": 0.7619047619047619
+        },
+        "leaking_requests": {
+          "d": 9,
+          "n": 2,
+          "rate": 0.2222222222222222
+        },
+        "observed": 17,
+        "pass": false,
+        "private": 21,
+        "private_documents": 9,
+        "private_full": 16,
+        "private_open": 5,
+        "private_partial": 0,
+        "public": 21,
+        "public_losses": {
+          "d": 21,
+          "n": 7,
+          "rate": 0.3333333333333333
+        },
+        "public_touched": 7,
+        "restored": 17,
+        "review": 5,
+        "review_full": 5,
+        "review_open": 0,
+        "review_partial": 0
+      }
+    }
+  },
+  "paired": {
+    "private_full": {
+      "ci95_pp": [
+        0.0,
+        0.0
+      ],
+      "delta_pp": 0.0,
+      "groups": 8,
+      "replicates_used": 2000
+    },
+    "public_touched": {
+      "ci95_pp": [
+        -37.5,
+        0.0
+      ],
+      "delta_pp": -10.526315789473685,
+      "groups": 8,
+      "replicates_used": 2000
+    }
+  },
+  "positions": {
+    "new_private_disclosures": [],
+    "new_public_losses": [],
+    "private_remaining": [
+      {
+        "after": "open",
+        "before": "open",
+        "end_byte": 309,
+        "id": "v4/shift-handover/mixed",
+        "kind": "USER",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 0,
+        "start_byte": 287
+      },
+      {
+        "after": "open",
+        "before": "open",
+        "end_byte": 450,
+        "id": "v4/shift-handover/mixed",
+        "kind": "USER",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 0,
+        "start_byte": 428
+      },
+      {
+        "after": "open",
+        "before": "open",
+        "end_byte": 124,
+        "id": "v4/shift-handover/reordered",
+        "kind": "USER",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 0,
+        "start_byte": 102
+      },
+      {
+        "after": "open",
+        "before": "open",
+        "end_byte": 249,
+        "id": "v4/shift-handover/reordered",
+        "kind": "DOM",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 0,
+        "start_byte": 241
+      },
+      {
+        "after": "open",
+        "before": "open",
+        "end_byte": 273,
+        "id": "v4/shift-handover/reordered",
+        "kind": "USER",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 0,
+        "start_byte": 251
+      },
+      {
+        "after": "partial",
+        "before": "partial",
+        "end_byte": 101,
+        "id": "v4/museum-reader-key/reordered",
+        "kind": "SECRET",
+        "masked_bytes_after": 36,
+        "masked_bytes_before": 36,
+        "start_byte": 60
+      },
+      {
+        "after": "partial",
+        "before": "partial",
+        "end_byte": 101,
+        "id": "v4/museum-reader-key/three-copies",
+        "kind": "SECRET",
+        "masked_bytes_after": 36,
+        "masked_bytes_before": 36,
+        "start_byte": 60
+      }
+    ],
+    "recovered_public": [
+      {
+        "end_byte": 36,
+        "id": "v4/repair-schedule-pricing/public",
+        "kind": "AMOUNT",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 8,
+        "start_byte": 28
+      },
+      {
+        "end_byte": 36,
+        "id": "v4/repair-schedule-pricing/mixed",
+        "kind": "AMOUNT",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 8,
+        "start_byte": 28
+      },
+      {
+        "end_byte": 87,
+        "id": "v4/repair-schedule-pricing/reordered",
+        "kind": "AMOUNT",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 8,
+        "start_byte": 79
+      },
+      {
+        "end_byte": 118,
+        "id": "v4/repair-schedule-pricing/three-copies",
+        "kind": "AMOUNT",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 8,
+        "start_byte": 110
+      },
+      {
+        "end_byte": 36,
+        "id": "v4/repair-schedule-pricing/both-public",
+        "kind": "AMOUNT",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 8,
+        "start_byte": 28
+      },
+      {
+        "end_byte": 66,
+        "id": "v4/repair-schedule-pricing/both-public",
+        "kind": "AMOUNT",
+        "masked_bytes_after": 0,
+        "masked_bytes_before": 8,
+        "start_byte": 58
+      }
+    ]
+  },
+  "predictions_sha256": "45a43bdfa159dcdba9a7d6608e6f506365239443ad8c40a630c1fc625de4c900",
+  "public_values_recovered_by_family": {
+    "v4/repair-schedule-pricing": 6
+  },
+  "remaining_public_losses_by_family": {
+    "v4/accessibility-lesson": 6,
+    "v4/commission-book": 6,
+    "v4/infrastructure-switchboard": 6,
+    "v4/rights-dispatch": 6,
+    "v4/shift-handover": 1
+  },
+  "source_sha256": "0d4bfd8a188b640ed0b13b8cfd03b2af63e367a9e9da571f1d8cc5781432ea7b",
+  "split": "validation",
+  "windows_with_release": 5
+}

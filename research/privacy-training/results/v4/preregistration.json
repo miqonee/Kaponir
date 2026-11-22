@@ -1,0 +1,122 @@
+{
+  "dataset": "v4",
+  "failure_policy": "At most one targeted correction on validation; apply it to all validation variants. Test is reserved when no epoch is selected.",
+  "selection": "Complete validation, exact restore for every document, public loss <= 2%; maximum exact model mask recall, earlier epoch breaks ties.",
+  "sha256": {
+    "source/field-experiment/field_policy.py": "7fd4ef9513ebf8a1f7892dc0185c35ae9753c0c6152d83cc2a62b88d6c9aaf9b",
+    "source/field-experiment/rebind.py": "cc0e4247d1a9f5c36b1ee651dd18715836cf28fd946add8425f054e7d86228d8",
+    "source/field-experiment/replay_fields.py": "570b363e7da1058a45787fae613151f76111080b9dbc5d8b47ba0fd7f075ce6a",
+    "source/research/privacy-training/context_controls.py": "724f3a8139074bdf3d7857882a80f539fa9a17473863c5519145daa2ea97fa88",
+    "source/research/privacy-training/context_policy.py": "56dffcea73c74e0e5a0342e27b84968ded54959f549e91174f9a8c9d8dc1c079",
+    "source/research/privacy-training/data/v4/manifest.json": "8efb6e18b10e01a82e0ef6a629a25a5663aa536ea6f5195ac81c5afb3a825f9e",
+    "source/research/privacy-training/data/v4/test.jsonl": "bb152b2333e4f8b314256fa4f3b74bef2dcba41c817797c007f06cef63e21cd0",
+    "source/research/privacy-training/data/v4/train.jsonl": "a997bab8e7199e425070c152fc980718c0ae3ef1e3c85aedcc010e49760641cc",
+    "source/research/privacy-training/data/v4/validation.jsonl": "0d4bfd8a188b640ed0b13b8cfd03b2af63e367a9e9da571f1d8cc5781432ea7b",
+    "source/research/privacy-training/dataset.py": "31a34e6ddaf27095440a4090b7d27b0c80d0d58be1e365e84a6efac21c68702a",
+    "source/research/privacy-training/evaluate.py": "7cfbfc8ac6f5bf4823b8ef1df0d8541b38f0178d7d858507da8b206aabb35e7f",
+    "source/research/privacy-training/grounding.py": "65aeb768412336df39248f30f10efd468e54aa0de813930cde4b9c6fffce9ba1",
+    "source/research/privacy-training/laptop.py": "bf62b24c63d2acbab60e98af2e921411b49cbfb6adf92bbb0cef7954111cafd7",
+    "source/research/privacy-training/prepare.py": "00d7ac33a4f70c4ab4496153418d8f7a7794ec76303412e17604fadfd1d4dde3",
+    "source/research/privacy-training/replay.py": "5914baf3290fc3ebe6e749ec69a551c92a73202906ce4debdb496e778ac7aa24",
+    "source/research/privacy-training/synthetic_cases.py": "220927427f48356b45d21a0d6a92566e20af6dc659b69d51fcc94fcb53cf9c24",
+    "source/research/privacy-training/synthetic_v4.py": "ad5b739c3dc718ee95c3baa3e946f8ee006bbecbe6594a0e8fcb3c056f03d0de",
+    "source/research/privacy-training/test_context_policy.py": "5d991379c04726313499a7110ca5d01ea8981aa9704cc1519fb939a71e9d5e6c",
+    "source/research/privacy-training/test_pilot.py": "0f410882d7b3d568a98598fc682478bee6b0152e07b0bf217e9a4d8e78bb2f5b"
+  },
+  "test": {
+    "added": 71,
+    "by_action": {
+      "keep": 57,
+      "mask": 57,
+      "review": 17
+    },
+    "by_language": {
+      "en": 62,
+      "ru": 9
+    },
+    "clean": 8,
+    "families_added": {
+      "v4/acoustic-sounding": {
+        "by_action": {
+          "keep": 6,
+          "mask": 6,
+          "review": 2
+        },
+        "clean": 1,
+        "records": 9
+      },
+      "v4/artifact-handoff": {
+        "by_action": {
+          "keep": 15,
+          "mask": 15,
+          "review": 3
+        },
+        "clean": 1,
+        "records": 8
+      },
+      "v4/binding-press-invoice": {
+        "by_action": {
+          "keep": 6,
+          "mask": 6,
+          "review": 2
+        },
+        "clean": 1,
+        "records": 9
+      },
+      "v4/darkroom-schedule": {
+        "by_action": {
+          "keep": 6,
+          "mask": 6,
+          "review": 2
+        },
+        "clean": 1,
+        "records": 9
+      },
+      "v4/observatory-route": {
+        "by_action": {
+          "keep": 6,
+          "mask": 6,
+          "review": 2
+        },
+        "clean": 1,
+        "records": 9
+      },
+      "v4/relay-maintenance-key": {
+        "by_action": {
+          "keep": 6,
+          "mask": 6,
+          "review": 2
+        },
+        "clean": 1,
+        "records": 9
+      },
+      "v4/scholarship-ledger": {
+        "by_action": {
+          "keep": 6,
+          "mask": 6,
+          "review": 2
+        },
+        "clean": 1,
+        "records": 9
+      },
+      "v4/volunteer-lab": {
+        "by_action": {
+          "keep": 6,
+          "mask": 6,
+          "review": 2
+        },
+        "clean": 1,
+        "records": 9
+      }
+    },
+    "groups": 8,
+    "records": 71,
+    "sha256": "bb152b2333e4f8b314256fa4f3b74bef2dcba41c817797c007f06cef63e21cd0",
+    "thresholds": {
+      "private_full_min": 55,
+      "public_touched_max": 1,
+      "restored_min": 71
+    }
+  },
+  "validation_sha256": "0d4bfd8a188b640ed0b13b8cfd03b2af63e367a9e9da571f1d8cc5781432ea7b"
+}
