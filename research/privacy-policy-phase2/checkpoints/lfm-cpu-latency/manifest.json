@@ -1,0 +1,3021 @@
+{
+  "application_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+  "archive": {
+    "bytes": 961661,
+    "members": 266,
+    "path": "evidence.tar.gz",
+    "sha256": "4727c2d3e7ec14a4f10bf9657633792c91b521514734ba57a282a6516c4e6063"
+  },
+  "common_configuration": {
+    "architecture": "x86_64 AMD EPYC 9V74",
+    "candidate_schema": "typed JSON",
+    "context_per_slot": 16384,
+    "cpu_quota": 4,
+    "default_max_candidates_per_group": 24,
+    "gpu_offload": 0,
+    "max_output_tokens": 4096,
+    "seed": 42,
+    "weights": "Q4_K_M"
+  },
+  "dataset_counts": {
+    "02-application.log": {
+      "private": 113,
+      "public": 32
+    },
+    "nightly-export.log": {
+      "private": 69,
+      "public": 34
+    },
+    "public-protocol-guide.log": {
+      "private": 0,
+      "public": 12
+    }
+  },
+  "latency": {
+    "elapsed_seconds": "wall time from start to finish of the extraction jobs on a ready server, including client preparation and validation; excludes model startup and local mask application",
+    "http_seconds": "sum of completed generation HTTP requests"
+  },
+  "runtime_commit": "a7a490a49",
+  "runtime_sha256": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+  "selection": {
+    "calibration_result_sha256": {
+      "12-prefill4-decode2": "ded506e0d23b841ffe834cdc8e05e60e7ce301407b1af23d6c3ed77ce90cf908",
+      "12-reference-replay2": "a0cecbb529d1bfdb95e865aec754d999d46b4f54ef90c49bf61553c02863ce13",
+      "12-threads4-prefill2": "fca2792b215c143a0c3cd25c78e75a0fb26c5844476d80135a572077416735ce",
+      "12-threads4-serial": "2b24a9b3bc4e42c4b5f3c8f0cddb1fdb3529ff9c35ebba8d60d726f9cb472d5d",
+      "26-pairs-1536": "ae2eab477afb94df2fa8a04d22daacca6a06e035e312d339881df161a9fb23d5",
+      "26-pairs-2048": "93067464adbffd93167a068cc2c0cd8cce40b47140a447a1e4e5cf9a25553a87",
+      "26-pairs-2048-grid": "3eeee51c4f6167897d8f56b6709764e6d2ce145fbd682c25eeeb644a764e25d1",
+      "26-reference-1536": "a69c596b36839ef2f00e0fc88b89f8d172cd0d6f17005a7dc3f8ab7cfa67b18f",
+      "26-reference-zero": "893a2f70e5724d1c9005725179579ff53e48c09419246475d72a7b5c44f8213a",
+      "26-slots2-2048": "ec63af878d9c8fca48bb1815ea9c63bf332d6242b76f5b6415242c1018d35240",
+      "26-whole-2048": "13978e2a48f1608e0e11f149e488ff2a74b1d6f661a7a30efd370be63ded5c7d",
+      "8-pairs-1024": "444a28f810840a0fe0d3dedb70ec43314fd076a72e79aa70905009cda0273eee",
+      "8-prefill4-decode2": "aa58f18fc2b78f13aa45ea48797d3c2e632dda3c49e01aafeebee3b8ac7a5119",
+      "8-reference-896": "486080a541a1e3d2539d5d8bbb868d121e48b1eb713568bda58d9b07833f2384",
+      "8-reference-zero": "0b52ed295e43949cf03de6c7fd284ec0af37b6eeb31b72493616051755a288e9",
+      "8-slots2-1024": "9dcf370005cb80e6c6e47bc688a43606ca76a6564684aefda4cbf52b2ab7f235",
+      "8-slots2-2threads": "c9924275eae19eef9ae2121cb3502090ce6078a47178872ab0c294d3d022ff15",
+      "8-threads4-prefill2": "c17e09c79d65e7b7ec14f4ae2e082350291d55c14ab6507c44dce7a87f4b9583",
+      "8-threads4-serial": "2d414a29e89391f89634d8cfc876a071ae6f77c9100351108db7adf89b4b6c7f",
+      "8-whole-1024": "f43ecc1c565f2031a8b426d23151908fa95685d3f0068fa8a9a0830ffe5efb86",
+      "8-whole-cap48": "77999c0272258a61fab72a056d30d64053eb92a52f659cfe1392b0286394ccab",
+      "8-whole-cap80": "a73f66fc92d2ee25ebf804e53d80914eeaaa13ab83dd48e151300dcd7257b778"
+    },
+    "choices": {
+      "12": {
+        "baseline_2t": "12-fresh-reference-2t"
+      },
+      "26": {
+        "baseline_2t": "26-fresh-reference-2t",
+        "one_group_tradeoff": {
+          "holdout": "26-fresh-whole",
+          "long": "26-whole-2048"
+        },
+        "quality_preserving_elapsed": {
+          "holdout": "26-fresh-sum",
+          "long": "26-pairs-2048-grid"
+        },
+        "quality_preserving_sum": {
+          "holdout": "26-fresh-sum",
+          "long": "26-pairs-2048-grid"
+        }
+      },
+      "8": {
+        "baseline_2t": "8-fresh-reference-2t",
+        "one_group_tradeoff": {
+          "holdout": "8-fresh-whole",
+          "long": "8-whole-cap48"
+        },
+        "quality_preserving_elapsed": {
+          "holdout": "8-fresh-sum",
+          "long": "8-prefill4-decode2"
+        },
+        "quality_preserving_sum": {
+          "holdout": "8-fresh-sum",
+          "long": "8-prefill4-decode2"
+        }
+      }
+    },
+    "equivalent_groups": "Both holdout inputs have at most two original fragments, so adjacent pairs and the entire document yield identical source and context in this validation.",
+    "frozen_before_first_holdout_response": true,
+    "jobs": [
+      {
+        "batch_threads": 2,
+        "budget": -1,
+        "confidence_grid": false,
+        "dataset": "holdout",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "12",
+        "name": "12-fresh-reference-2t",
+        "slots": 1,
+        "threads": 2
+      },
+      {
+        "batch_threads": 2,
+        "budget": 2048,
+        "confidence_grid": false,
+        "dataset": "holdout",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "26",
+        "name": "26-fresh-reference-2t",
+        "slots": 1,
+        "threads": 2
+      },
+      {
+        "batch_threads": 2,
+        "budget": 2048,
+        "confidence_grid": true,
+        "dataset": "holdout",
+        "group": "pairs",
+        "max_candidates": 24,
+        "model": "26",
+        "name": "26-fresh-sum",
+        "slots": 1,
+        "threads": 2
+      },
+      {
+        "batch_threads": 2,
+        "budget": 2048,
+        "confidence_grid": false,
+        "dataset": "holdout",
+        "group": "whole",
+        "max_candidates": 24,
+        "model": "26",
+        "name": "26-fresh-whole",
+        "slots": 1,
+        "threads": 2
+      },
+      {
+        "batch_threads": 2,
+        "budget": 1024,
+        "confidence_grid": false,
+        "dataset": "holdout",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "8",
+        "name": "8-fresh-reference-2t",
+        "slots": 1,
+        "threads": 2
+      },
+      {
+        "batch_threads": 4,
+        "budget": 1024,
+        "confidence_grid": false,
+        "dataset": "holdout",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "8",
+        "name": "8-fresh-sum",
+        "slots": 1,
+        "threads": 2
+      },
+      {
+        "batch_threads": 2,
+        "budget": 1024,
+        "confidence_grid": false,
+        "dataset": "holdout",
+        "group": "whole",
+        "max_candidates": 48,
+        "model": "8",
+        "name": "8-fresh-whole",
+        "slots": 1,
+        "threads": 2
+      }
+    ],
+    "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+    "reference_holdout_threads": 2,
+    "resource_controls": "Run the same two-thread reference for every model and preserve each finalist tested thread and slot counts. Add a matched four-thread serial control for any four-thread concurrent finalist.",
+    "selection_rule_sha256": "05c177fe0b0285d89598d91d09148531fb1f1fe891e8ba1f1fd03df6152250c8"
+  },
+  "study": "LFM2.5 CPU latency in Kaponir",
+  "verified_profiles": {
+    "12-archive": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/reports": 3,
+            "gateway.cedar.test": 5
+          },
+          "private_spans_fully_covered": 104,
+          "private_spans_partly_covered": 9,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 130
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795173257,
+      "generated_tokens": 1612,
+      "http_seconds": 96.9567,
+      "last_reply_unix_utc": 1795173326,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "budget": -1,
+        "dataset": "long",
+        "group": "reference",
+        "model": "lfm2.5-1.2b-instruct",
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "12-fresh-reference-2t": {
+      "complete": true,
+      "complete_json_requests": 3,
+      "completed_groups": {
+        "nightly-export.log": [
+          "1",
+          "2"
+        ],
+        "public-protocol-guide.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "nightly-export.log": {
+          "private_occurrence_spans": 69,
+          "private_occurrences_before": 69,
+          "private_occurrences_visible": 8,
+          "private_shortfalls": {
+            "/opt/lantern/queue.blue": 3,
+            "/srv/prism/exports Set B": 3,
+            "ORD-LM-44721": 4,
+            "mira_ops": 4
+          },
+          "private_spans_fully_covered": 55,
+          "private_spans_partly_covered": 6,
+          "private_spans_untouched": 8,
+          "private_values_annotated": 18,
+          "public_losses": {
+            "HTTP/2": 2,
+            "OpenMetrics": 4,
+            "tr-71b4": 5
+          },
+          "public_occurrences_before": 34,
+          "public_occurrences_lost": 11,
+          "replacements": 72
+        },
+        "public-protocol-guide.log": {
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_losses": {},
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        }
+      },
+      "elapsed_seconds": 58.8182,
+      "exact_restores_checked": 4,
+      "first_reply_unix_utc": 1795192205,
+      "generated_tokens": 1041,
+      "http_seconds": 58.7584,
+      "last_reply_unix_utc": 1795192233,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 2,
+      "schema_violations": [
+        {
+          "request_sha256": "8b9345bea52bae3d7c46718afe2c7aea9bfd1894d376b71ad3e486b6129c86e5",
+          "returned": {
+            "confidence": 12345,
+            "kind": "IP",
+            "value": "192.168.1.10"
+          },
+          "row": 1
+        },
+        {
+          "request_sha256": "8b9345bea52bae3d7c46718afe2c7aea9bfd1894d376b71ad3e486b6129c86e5",
+          "returned": {
+            "confidence": 67890,
+            "kind": "IP",
+            "value": "10.0.0.5"
+          },
+          "row": 2
+        },
+        {
+          "request_sha256": "8b9345bea52bae3d7c46718afe2c7aea9bfd1894d376b71ad3e486b6129c86e5",
+          "returned": {
+            "confidence": 54321,
+            "kind": "DOM",
+            "value": "http://internal.example.com/api/v1"
+          },
+          "row": 3
+        }
+      ],
+      "settings": {
+        "batch_threads": 2,
+        "budget": -1,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "holdout",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-1.2b-instruct",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "12-prefill4-decode2": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/reports": 3,
+            "gateway.cedar.test": 5
+          },
+          "private_spans_fully_covered": 104,
+          "private_spans_partly_covered": 9,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 130
+        }
+      },
+      "elapsed_seconds": 98.6971,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795191624,
+      "generated_tokens": 1612,
+      "http_seconds": 98.6235,
+      "last_reply_unix_utc": 1795191691,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 4,
+        "budget": -1,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-1.2b-instruct",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "12-reference-replay2": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/reports": 3,
+            "gateway.cedar.test": 5
+          },
+          "private_spans_fully_covered": 104,
+          "private_spans_partly_covered": 9,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 130
+        }
+      },
+      "elapsed_seconds": 107.2149,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795190247,
+      "generated_tokens": 1612,
+      "http_seconds": 107.1489,
+      "last_reply_unix_utc": 1795190325,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": -1,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-1.2b-instruct",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "12-threads4-prefill2": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 17,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/reports": 3,
+            "/var/lib/cedar/spool": 12,
+            "cache01.cedar.test": 1,
+            "cedar_events": 13,
+            "gateway.cedar.test": 5,
+            "helpdesk-demo": 2,
+            "pg01.cedar.test": 2,
+            "svc_cedar": 4
+          },
+          "private_spans_fully_covered": 69,
+          "private_spans_partly_covered": 27,
+          "private_spans_untouched": 17,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 113
+        }
+      },
+      "elapsed_seconds": 70.7304,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795190870,
+      "generated_tokens": 676,
+      "http_seconds": 70.6334,
+      "last_reply_unix_utc": 1795190923,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": -1,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-1.2b-instruct",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 4
+      }
+    },
+    "12-threads4-serial": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 17,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/reports": 3,
+            "/var/lib/cedar/spool": 12,
+            "cache01.cedar.test": 1,
+            "cedar_events": 13,
+            "gateway.cedar.test": 5,
+            "helpdesk-demo": 2,
+            "pg01.cedar.test": 2,
+            "svc_cedar": 4
+          },
+          "private_spans_fully_covered": 69,
+          "private_spans_partly_covered": 27,
+          "private_spans_untouched": 17,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 113
+        }
+      },
+      "elapsed_seconds": 47.933,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795189079,
+      "generated_tokens": 676,
+      "http_seconds": 47.8405,
+      "last_reply_unix_utc": 1795189118,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "budget": -1,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-1.2b-instruct",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "f1f7aa6d2e6ac137f02b090bfea38f79332ed764a0674c73a46cc375e895c2cb",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 4
+      }
+    },
+    "26-archive": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1
+          },
+          "private_spans_fully_covered": 112,
+          "private_spans_partly_covered": 1,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 182
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795178408,
+      "generated_tokens": 10523,
+      "http_seconds": 994.4665,
+      "last_reply_unix_utc": 1795179140,
+      "prefill_seconds": null,
+      "reasoning_tokens": 8191,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "budget": 2048,
+        "dataset": "long",
+        "group": "reference",
+        "model": "lfm2.5-2.6b",
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "26-fresh-reference-2t": {
+      "complete": true,
+      "complete_json_requests": 3,
+      "completed_groups": {
+        "nightly-export.log": [
+          "1",
+          "2"
+        ],
+        "public-protocol-guide.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "nightly-export.log": {
+          "private_occurrence_spans": 69,
+          "private_occurrences_before": 69,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 69,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 18,
+          "public_losses": {
+            "OpenMetrics": 4,
+            "OpenTelemetry": 1,
+            "req-2041": 5,
+            "tr-71b4": 5
+          },
+          "public_occurrences_before": 34,
+          "public_occurrences_lost": 15,
+          "replacements": 84
+        },
+        "public-protocol-guide.log": {
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_losses": {},
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        }
+      },
+      "elapsed_seconds": 616.4113,
+      "exact_restores_checked": 4,
+      "first_reply_unix_utc": 1795192414,
+      "generated_tokens": 7403,
+      "http_seconds": 616.3367,
+      "last_reply_unix_utc": 1795192795,
+      "prefill_seconds": null,
+      "reasoning_tokens": 6144,
+      "schema_valid_requests": 3,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 2048,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "holdout",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "26-fresh-sum": {
+      "complete": true,
+      "complete_json_requests": 2,
+      "completed_groups": {
+        "nightly-export.log": [
+          "1"
+        ],
+        "public-protocol-guide.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "nightly-export.log": {
+          "private_occurrence_spans": 69,
+          "private_occurrences_before": 69,
+          "private_occurrences_visible": 8,
+          "private_shortfalls": {
+            "/srv/prism/exports Set B": 3,
+            "ORD-LM-44721": 4,
+            "slate.dispatch": 4,
+            "Лидия Ракитина": 3
+          },
+          "private_spans_fully_covered": 55,
+          "private_spans_partly_covered": 6,
+          "private_spans_untouched": 8,
+          "private_values_annotated": 18,
+          "public_losses": {
+            "OpenTelemetry": 1
+          },
+          "public_occurrences_before": 34,
+          "public_occurrences_lost": 1,
+          "replacements": 65
+        },
+        "public-protocol-guide.log": {
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_losses": {},
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        }
+      },
+      "elapsed_seconds": 372.1373,
+      "exact_restores_checked": 4,
+      "first_reply_unix_utc": 1795193004,
+      "generated_tokens": 5079,
+      "http_seconds": 372.0906,
+      "last_reply_unix_utc": 1795193175,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 2,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 2048,
+        "confidence_grid": true,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "holdout",
+        "group": "pairs",
+        "max_candidates": 24,
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "26-fresh-whole": {
+      "complete": true,
+      "complete_json_requests": 2,
+      "completed_groups": {
+        "nightly-export.log": [
+          "1"
+        ],
+        "public-protocol-guide.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "nightly-export.log": {
+          "private_occurrence_spans": 69,
+          "private_occurrences_before": 69,
+          "private_occurrences_visible": 4,
+          "private_shortfalls": {
+            "/srv/prism/exports Set B": 3,
+            "ORD-LM-44721": 4
+          },
+          "private_spans_fully_covered": 62,
+          "private_spans_partly_covered": 3,
+          "private_spans_untouched": 4,
+          "private_values_annotated": 18,
+          "public_losses": {
+            "OpenMetrics": 4,
+            "OpenTelemetry": 1
+          },
+          "public_occurrences_before": 34,
+          "public_occurrences_lost": 5,
+          "replacements": 70
+        },
+        "public-protocol-guide.log": {
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_losses": {},
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        }
+      },
+      "elapsed_seconds": 358.915,
+      "exact_restores_checked": 4,
+      "first_reply_unix_utc": 1795193385,
+      "generated_tokens": 4809,
+      "http_seconds": 358.8665,
+      "last_reply_unix_utc": 1795193541,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 1,
+      "schema_violations": [
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 2,
+            "kind": "HOST",
+            "value": "job-17.lantern.test"
+          },
+          "row": 3
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 3,
+            "kind": "USER",
+            "value": "mira_ops"
+          },
+          "row": 4
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 4,
+            "kind": "CUSTOM",
+            "value": "CUST-LM-930"
+          },
+          "row": 5
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 5,
+            "kind": "DOM",
+            "value": "ember_ledger"
+          },
+          "row": 6
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 6,
+            "kind": "HOST",
+            "value": "spool-rill"
+          },
+          "row": 7
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 7,
+            "kind": "USER",
+            "value": "spool-rill"
+          },
+          "row": 8
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 8,
+            "kind": "CUSTOM",
+            "value": "fixture_Zirra9yk7Va4"
+          },
+          "row": 9
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 9,
+            "kind": "MODULE",
+            "value": "OpenTelemetry"
+          },
+          "row": 10
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 10,
+            "kind": "DOM",
+            "value": "OpenMetrics"
+          },
+          "row": 11
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 11,
+            "kind": "HOST",
+            "value": "lantern.test"
+          },
+          "row": 12
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 12,
+            "kind": "USER",
+            "value": "Лидия Ракитина"
+          },
+          "row": 13
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 13,
+            "kind": "CUSTOM",
+            "value": "OPS-GM-718"
+          },
+          "row": 14
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 14,
+            "kind": "DOM",
+            "value": "prism-west"
+          },
+          "row": 15
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 15,
+            "kind": "HOST",
+            "value": "job-17.lantern.test"
+          },
+          "row": 16
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 16,
+            "kind": "USER",
+            "value": "copper-ferry"
+          },
+          "row": 17
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 17,
+            "kind": "CUSTOM",
+            "value": "tenant-6418"
+          },
+          "row": 18
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 18,
+            "kind": "DOM",
+            "value": "slate.dispatch"
+          },
+          "row": 19
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 19,
+            "kind": "HOST",
+            "value": "lantern.test"
+          },
+          "row": 20
+        },
+        {
+          "request_sha256": "858966942c8c909195c5c5660f9a82e90c387f2295471a5cec8f79400b28fcae",
+          "returned": {
+            "confidence": 20,
+            "kind": "USER",
+            "value": "night-shift"
+          },
+          "row": 21
+        }
+      ],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 2048,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "holdout",
+        "group": "whole",
+        "max_candidates": 24,
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "26-pairs-1536": {
+      "complete": true,
+      "complete_json_requests": 2,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1
+          },
+          "private_spans_fully_covered": 112,
+          "private_spans_partly_covered": 1,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "HTTP/1.1": 1,
+            "TLSv1.3": 1,
+            "gemini-3.8-flash": 1,
+            "rq-0001": 5
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 8,
+          "replacements": 163
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795188019,
+      "generated_tokens": 4484,
+      "http_seconds": 471.873,
+      "last_reply_unix_utc": 1795188246,
+      "prefill_seconds": null,
+      "reasoning_tokens": 3072,
+      "schema_valid_requests": 2,
+      "schema_violations": [],
+      "settings": {
+        "budget": 1536,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "long",
+        "draft": false,
+        "group": "pairs",
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "temperature": 0.1,
+        "threads": 2
+      }
+    },
+    "26-pairs-2048": {
+      "complete": true,
+      "complete_json_requests": 2,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1
+          },
+          "private_spans_fully_covered": 112,
+          "private_spans_partly_covered": 1,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 127
+        }
+      },
+      "elapsed_seconds": 514.7412,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795189374,
+      "generated_tokens": 4971,
+      "http_seconds": 514.6827,
+      "last_reply_unix_utc": 1795189640,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 1,
+      "schema_violations": [
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 2,
+            "kind": "SECRET",
+            "value": "staging"
+          },
+          "row": 3
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 3,
+            "kind": "PATH",
+            "value": "/etc/cedar/staging.yaml"
+          },
+          "row": 4
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 4,
+            "kind": "HOST",
+            "value": "pg01.cedar.test"
+          },
+          "row": 5
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 5,
+            "kind": "HOST",
+            "value": "cache01.cedar.test"
+          },
+          "row": 6
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 6,
+            "kind": "IP",
+            "value": "10.74.18.23"
+          },
+          "row": 7
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 7,
+            "kind": "USER",
+            "value": "svc_cedar"
+          },
+          "row": 8
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 8,
+            "kind": "SECRET",
+            "value": "Reed!62Cove#918"
+          },
+          "row": 9
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 9,
+            "kind": "DOM",
+            "value": "cedar_events"
+          },
+          "row": 10
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 10,
+            "kind": "HOST",
+            "value": "10.74.19.44"
+          },
+          "row": 11
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 11,
+            "kind": "SECRET",
+            "value": "kpn_fixture_8sD4fP6nR2aW9mV3"
+          },
+          "row": 12
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 12,
+            "kind": "SECRET",
+            "value": "Bearer kpn_fixture_bearer_v7C2r9M4t8X6q1D5"
+          },
+          "row": 13
+        },
+        {
+          "request_sha256": "ce62e25d7014b818f17d64e9e0a5c4705dbf5e8fc9d2dc90a37da5d6053ac716",
+          "returned": {
+            "confidence": 13,
+            "kind": "PATH",
+            "value": "/var/lib/cedar/spool"
+          },
+          "row": 14
+        }
+      ],
+      "settings": {
+        "budget": 2048,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "long",
+        "group": "pairs",
+        "max_candidates": 24,
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "26-pairs-2048-grid": {
+      "complete": true,
+      "complete_json_requests": 2,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1
+          },
+          "private_spans_fully_covered": 112,
+          "private_spans_partly_covered": 1,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 125
+        }
+      },
+      "elapsed_seconds": 514.5183,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795190596,
+      "generated_tokens": 4947,
+      "http_seconds": 514.4602,
+      "last_reply_unix_utc": 1795190848,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 2,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 2048,
+        "confidence_grid": true,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "long",
+        "group": "pairs",
+        "max_candidates": 24,
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "26-reference-1536": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 110,
+          "private_spans_partly_covered": 3,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "gemini-3.8-flash": 1
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 1,
+          "replacements": 164
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795187473,
+      "generated_tokens": 8173,
+      "http_seconds": 738.5733,
+      "last_reply_unix_utc": 1795190212,
+      "prefill_seconds": null,
+      "reasoning_tokens": 6144,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "budget": 1536,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "long",
+        "draft": false,
+        "group": "reference",
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "temperature": 0.1,
+        "threads": 2
+      }
+    },
+    "26-reference-zero": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "2",
+          "1",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 4,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "helpdesk-demo": 2,
+            "svc_cedar": 4
+          },
+          "private_spans_fully_covered": 105,
+          "private_spans_partly_covered": 4,
+          "private_spans_untouched": 4,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 266
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795186920,
+      "generated_tokens": 2516,
+      "http_seconds": 321.4057,
+      "last_reply_unix_utc": 1795187768,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 3,
+      "schema_violations": [
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 2,
+            "kind": "IP",
+            "value": "10.74.19.44"
+          },
+          "row": 2
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 3,
+            "kind": "IP",
+            "value": "gateway.cedar.test"
+          },
+          "row": 3
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 4,
+            "kind": "IP",
+            "value": "cache01.cedar.test"
+          },
+          "row": 4
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 5,
+            "kind": "IP",
+            "value": "cedar-api"
+          },
+          "row": 5
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 6,
+            "kind": "IP",
+            "value": "pg01.cedar.test"
+          },
+          "row": 6
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 7,
+            "kind": "IP",
+            "value": "10.74.18.21"
+          },
+          "row": 7
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 8,
+            "kind": "IP",
+            "value": "ceder-staging.yaml"
+          },
+          "row": 8
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 9,
+            "kind": "DOM",
+            "value": "cedar_events"
+          },
+          "row": 9
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 10,
+            "kind": "DOM",
+            "value": "v1/events"
+          },
+          "row": 10
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 11,
+            "kind": "DOM",
+            "value": "spool"
+          },
+          "row": 11
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 12,
+            "kind": "DOM",
+            "value": "request_id"
+          },
+          "row": 12
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 13,
+            "kind": "DOM",
+            "value": "service"
+          },
+          "row": 13
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 14,
+            "kind": "DOM",
+            "value": "account"
+          },
+          "row": 14
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 15,
+            "kind": "DOM",
+            "value": "user"
+          },
+          "row": 15
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 16,
+            "kind": "DOM",
+            "value": "client_ip"
+          },
+          "row": 16
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 17,
+            "kind": "DOM",
+            "value": "protocol"
+          },
+          "row": 17
+        },
+        {
+          "request_sha256": "ab89f55f2fc7e6157e2979cdffcf3feac4ef99493305bae07e53329779e543d0",
+          "returned": {
+            "confidence": 18,
+            "kind": "DOM",
+            "value": "tls"
+          },
+          "row": 18
+        }
+      ],
+      "settings": {
+        "budget": 0,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "long",
+        "draft": false,
+        "group": "reference",
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "temperature": 0.1,
+        "threads": 2
+      }
+    },
+    "26-slots2-2048": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 110,
+          "private_spans_partly_covered": 3,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "rq-0001": 5
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 5,
+          "replacements": 204
+        }
+      },
+      "elapsed_seconds": 536.9047,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795188504,
+      "generated_tokens": 10825,
+      "http_seconds": 1037.2463,
+      "last_reply_unix_utc": 1795188795,
+      "prefill_seconds": null,
+      "reasoning_tokens": 8192,
+      "schema_valid_requests": 3,
+      "schema_violations": [
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 2,
+            "kind": "HOST",
+            "value": "cedar-api"
+          },
+          "row": 3
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 3,
+            "kind": "HOST",
+            "value": "cedar_events"
+          },
+          "row": 4
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 4,
+            "kind": "PATH",
+            "value": "/var/lib/cedar/spool"
+          },
+          "row": 5
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 5,
+            "kind": "PATH",
+            "value": "/var/lib/cedar/reports"
+          },
+          "row": 6
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 6,
+            "kind": "USER",
+            "value": "marina-ops"
+          },
+          "row": 7
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 7,
+            "kind": "AMOUNT",
+            "value": "2.8.4"
+          },
+          "row": 8
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 8,
+            "kind": "PROJ",
+            "value": "Тихий Причал"
+          },
+          "row": 9
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 9,
+            "kind": "MODULE",
+            "value": "cedar-api"
+          },
+          "row": 10
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 10,
+            "kind": "MODULE",
+            "value": "cedar_events"
+          },
+          "row": 11
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 11,
+            "kind": "AMOUNT",
+            "value": "1435"
+          },
+          "row": 12
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 12,
+            "kind": "AMOUNT",
+            "value": "1572"
+          },
+          "row": 13
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 13,
+            "kind": "AMOUNT",
+            "value": "1709"
+          },
+          "row": 14
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 14,
+            "kind": "PATH",
+            "value": "/var/lib/cedar/reports"
+          },
+          "row": 15
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 15,
+            "kind": "PATH",
+            "value": "/var/lib/cedar/spool"
+          },
+          "row": 16
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 16,
+            "kind": "USER",
+            "value": "marina-ops"
+          },
+          "row": 17
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 17,
+            "kind": "AMOUNT",
+            "value": "10.74.19.44"
+          },
+          "row": 18
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 18,
+            "kind": "MODULE",
+            "value": "cedar-api"
+          },
+          "row": 19
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 19,
+            "kind": "MODULE",
+            "value": "cedar_events"
+          },
+          "row": 20
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 20,
+            "kind": "AMOUNT",
+            "value": "200"
+          },
+          "row": 21
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 21,
+            "kind": "AMOUNT",
+            "value": "429"
+          },
+          "row": 22
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 22,
+            "kind": "AMOUNT",
+            "value": "0"
+          },
+          "row": 23
+        },
+        {
+          "request_sha256": "40061d504eefc9acde9453b83b280738c5eb497bf3bd67304de15f8404f78526",
+          "returned": {
+            "confidence": 23,
+            "kind": "AMOUNT",
+            "value": "2"
+          },
+          "row": 24
+        }
+      ],
+      "settings": {
+        "budget": 2048,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 2,
+        "threads": 4
+      }
+    },
+    "26-whole-2048": {
+      "complete": true,
+      "complete_json_requests": 1,
+      "completed_groups": {
+        "02-application.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 110,
+          "private_spans_partly_covered": 3,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 125
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795187294,
+      "generated_tokens": 2676,
+      "http_seconds": 369.2311,
+      "last_reply_unix_utc": 1795187294,
+      "prefill_seconds": null,
+      "reasoning_tokens": 2048,
+      "schema_valid_requests": 1,
+      "schema_violations": [],
+      "settings": {
+        "budget": 2048,
+        "cpu_affinity": [
+          0,
+          1
+        ],
+        "dataset": "long",
+        "draft": false,
+        "group": "whole",
+        "model": "lfm2.5-2.6b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "temperature": 0.1,
+        "threads": 2
+      }
+    },
+    "8-archive": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "cache01.cedar.test": 1,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 108,
+          "private_spans_partly_covered": 5,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 219
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795177323,
+      "generated_tokens": 6937,
+      "http_seconds": 537.0256,
+      "last_reply_unix_utc": 1795177740,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "budget": 1024,
+        "dataset": "long",
+        "group": "reference",
+        "model": "lfm2.5-8b-a1b",
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "8-fresh-reference-2t": {
+      "complete": true,
+      "complete_json_requests": 3,
+      "completed_groups": {
+        "nightly-export.log": [
+          "1",
+          "2"
+        ],
+        "public-protocol-guide.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "nightly-export.log": {
+          "private_occurrence_spans": 69,
+          "private_occurrences_before": 69,
+          "private_occurrences_visible": 13,
+          "private_shortfalls": {
+            "mira_ops": 4,
+            "prism-west": 3,
+            "slate.dispatch": 4,
+            "spool-rill": 5,
+            "Лидия Ракитина": 3
+          },
+          "private_spans_fully_covered": 50,
+          "private_spans_partly_covered": 6,
+          "private_spans_untouched": 13,
+          "private_values_annotated": 18,
+          "public_losses": {
+            "JSON": 3,
+            "OpenMetrics": 4,
+            "req-2041": 5
+          },
+          "public_occurrences_before": 34,
+          "public_occurrences_lost": 12,
+          "replacements": 72
+        },
+        "public-protocol-guide.log": {
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_losses": {
+            "Avro": 1,
+            "CBOR": 1,
+            "HTTP/2": 1,
+            "JSON": 2,
+            "OpenMetrics": 1,
+            "OpenTelemetry": 1,
+            "POST": 1,
+            "RFC 9110": 1,
+            "UTF-8": 2,
+            "status=202": 1
+          },
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 12,
+          "replacements": 15
+        }
+      },
+      "elapsed_seconds": 303.2031,
+      "exact_restores_checked": 4,
+      "first_reply_unix_utc": 1795192368,
+      "generated_tokens": 4621,
+      "http_seconds": 303.1294,
+      "last_reply_unix_utc": 1795192551,
+      "prefill_seconds": null,
+      "reasoning_tokens": 3072,
+      "schema_valid_requests": 3,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 1024,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "holdout",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "8-fresh-sum": {
+      "complete": true,
+      "complete_json_requests": 3,
+      "completed_groups": {
+        "nightly-export.log": [
+          "1",
+          "2"
+        ],
+        "public-protocol-guide.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "nightly-export.log": {
+          "private_occurrence_spans": 69,
+          "private_occurrences_before": 69,
+          "private_occurrences_visible": 13,
+          "private_shortfalls": {
+            "mira_ops": 4,
+            "prism-west": 3,
+            "slate.dispatch": 4,
+            "spool-rill": 5,
+            "Лидия Ракитина": 3
+          },
+          "private_spans_fully_covered": 50,
+          "private_spans_partly_covered": 6,
+          "private_spans_untouched": 13,
+          "private_values_annotated": 18,
+          "public_losses": {
+            "JSON": 3,
+            "OpenMetrics": 4,
+            "req-2041": 5
+          },
+          "public_occurrences_before": 34,
+          "public_occurrences_lost": 12,
+          "replacements": 72
+        },
+        "public-protocol-guide.log": {
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_losses": {
+            "Avro": 1,
+            "CBOR": 1,
+            "HTTP/2": 1,
+            "JSON": 2,
+            "OpenMetrics": 1,
+            "OpenTelemetry": 1,
+            "POST": 1,
+            "RFC 9110": 1,
+            "UTF-8": 2,
+            "status=202": 1
+          },
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 12,
+          "replacements": 15
+        }
+      },
+      "elapsed_seconds": 225.4976,
+      "exact_restores_checked": 4,
+      "first_reply_unix_utc": 1795193655,
+      "generated_tokens": 4621,
+      "http_seconds": 225.428,
+      "last_reply_unix_utc": 1795193783,
+      "prefill_seconds": null,
+      "reasoning_tokens": 3072,
+      "schema_valid_requests": 3,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 4,
+        "budget": 1024,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "holdout",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "8-fresh-whole": {
+      "complete": true,
+      "complete_json_requests": 2,
+      "completed_groups": {
+        "nightly-export.log": [
+          "1"
+        ],
+        "public-protocol-guide.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "nightly-export.log": {
+          "private_occurrence_spans": 69,
+          "private_occurrences_before": 69,
+          "private_occurrences_visible": 31,
+          "private_shortfalls": {
+            "ORD-LM-44721": 4,
+            "copper-ferry": 8,
+            "ember_ledger": 6,
+            "mira_ops": 4,
+            "prism-west": 3,
+            "slate.dispatch": 4,
+            "spool-rill": 5,
+            "Лидия Ракитина": 3
+          },
+          "private_spans_fully_covered": 32,
+          "private_spans_partly_covered": 6,
+          "private_spans_untouched": 31,
+          "private_values_annotated": 18,
+          "public_losses": {},
+          "public_occurrences_before": 34,
+          "public_occurrences_lost": 0,
+          "replacements": 41
+        },
+        "public-protocol-guide.log": {
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_losses": {
+            "Avro": 1,
+            "CBOR": 1,
+            "HTTP/2": 1,
+            "JSON": 2,
+            "OpenMetrics": 1,
+            "OpenTelemetry": 1,
+            "POST": 1,
+            "RFC 9110": 1,
+            "UTF-8": 2,
+            "status=202": 1
+          },
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 12,
+          "replacements": 15
+        }
+      },
+      "elapsed_seconds": 188.9342,
+      "exact_restores_checked": 4,
+      "first_reply_unix_utc": 1795192670,
+      "generated_tokens": 2791,
+      "http_seconds": 188.8912,
+      "last_reply_unix_utc": 1795192758,
+      "prefill_seconds": null,
+      "reasoning_tokens": 2048,
+      "schema_valid_requests": 2,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 1024,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "holdout",
+        "group": "whole",
+        "max_candidates": 48,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "3addbef576bb09dec2253b17892ce2476412383b49ca887b4e87887e35b5a4df",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "8-pairs-1024": {
+      "complete": true,
+      "complete_json_requests": 2,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 13,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "cedar-api": 14,
+            "cedar_events": 13,
+            "pg01.cedar.test": 2
+          },
+          "private_spans_fully_covered": 82,
+          "private_spans_partly_covered": 18,
+          "private_spans_untouched": 13,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "0750": 1,
+            "::C": 1,
+            "::f": 1,
+            "e::": 1
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 4,
+          "replacements": 116
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795187873,
+      "generated_tokens": 3594,
+      "http_seconds": 330.5376,
+      "last_reply_unix_utc": 1795188041,
+      "prefill_seconds": null,
+      "reasoning_tokens": 2048,
+      "schema_valid_requests": 2,
+      "schema_violations": [],
+      "settings": {
+        "budget": 1024,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "long",
+        "draft": false,
+        "group": "pairs",
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "temperature": 0.2,
+        "threads": 2
+      }
+    },
+    "8-prefill4-decode2": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "cache01.cedar.test": 1,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 108,
+          "private_spans_partly_covered": 5,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 219
+        }
+      },
+      "elapsed_seconds": 464.0716,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795191815,
+      "generated_tokens": 6937,
+      "http_seconds": 463.98,
+      "last_reply_unix_utc": 1795192169,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 4,
+        "budget": 1024,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "8-reference-896": {
+      "complete": false,
+      "complete_json_requests": 1,
+      "completed_groups": {
+        "02-application.log": [
+          "2"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 5,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/reports": 3,
+            "cache01.cedar.test": 1,
+            "cedar_events": 1,
+            "gateway.cedar.test": 5,
+            "helpdesk-demo": 2,
+            "pg01.cedar.test": 2,
+            "svc_cedar": 4
+          },
+          "private_spans_fully_covered": 93,
+          "private_spans_partly_covered": 15,
+          "private_spans_untouched": 5,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "JSON": 12
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 12,
+          "replacements": 297
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795187274,
+      "generated_tokens": 1422,
+      "http_seconds": 119.8108,
+      "last_reply_unix_utc": 1795187274,
+      "prefill_seconds": null,
+      "reasoning_tokens": 896,
+      "schema_valid_requests": 1,
+      "schema_violations": [],
+      "settings": {
+        "budget": 896,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "long",
+        "draft": false,
+        "group": "reference",
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "temperature": 0.2,
+        "threads": 2
+      }
+    },
+    "8-reference-zero": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "2",
+          "1",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 4,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "cache01.cedar.test": 1,
+            "helpdesk-demo": 2,
+            "pg01.cedar.test": 2,
+            "svc_cedar": 4
+          },
+          "private_spans_fully_covered": 102,
+          "private_spans_partly_covered": 7,
+          "private_spans_untouched": 4,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "***": 1,
+            "e::": 1,
+            "gemini-3.8-flash": 1
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 3,
+          "replacements": 124
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795186909,
+      "generated_tokens": 1817,
+      "http_seconds": 230.713,
+      "last_reply_unix_utc": 1795187699,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "budget": 0,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "long",
+        "draft": false,
+        "group": "reference",
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "temperature": 0.2,
+        "threads": 2
+      }
+    },
+    "8-slots2-1024": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "cache01.cedar.test": 1,
+            "pg01.cedar.test": 2
+          },
+          "private_spans_fully_covered": 108,
+          "private_spans_partly_covered": 5,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "HTTP/1.1": 1
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 1,
+          "replacements": 138
+        }
+      },
+      "elapsed_seconds": 254.683,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795188927,
+      "generated_tokens": 5763,
+      "http_seconds": 477.0844,
+      "last_reply_unix_utc": 1795189067,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "budget": 1024,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "selected_indices": null,
+        "slots": 2,
+        "threads": 4
+      }
+    },
+    "8-slots2-2threads": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1
+          },
+          "private_spans_fully_covered": 111,
+          "private_spans_partly_covered": 2,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "JSON": 13,
+            "gemini-3.8-flash": 1
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 14,
+          "replacements": 154
+        }
+      },
+      "elapsed_seconds": 449.5208,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795189599,
+      "generated_tokens": 5612,
+      "http_seconds": 851.8451,
+      "last_reply_unix_utc": 1795189864,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 4,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 1024,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "selected_indices": null,
+        "slots": 2,
+        "threads": 2
+      }
+    },
+    "8-threads4-prefill2": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 110,
+          "private_spans_partly_covered": 3,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "HTTP/1.1": 1,
+            "JSON": 13
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 14,
+          "replacements": 218
+        }
+      },
+      "elapsed_seconds": 340.3843,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795191025,
+      "generated_tokens": 5733,
+      "http_seconds": 340.295,
+      "last_reply_unix_utc": 1795191279,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 3,
+      "schema_violations": [
+        {
+          "request_sha256": "739a29244a79404220721e9da57355419a84dcc09d0a8a16edcaa0dd106fa8a8",
+          "returned": {
+            "confidence": 100,
+            "kind": "IP",
+            "value": "10.74.19.44"
+          },
+          "row": 1
+        },
+        {
+          "request_sha256": "739a29244a79404220721e9da57355419a84dcc09d0a8a16edcaa0dd106fa8a8",
+          "returned": {
+            "confidence": 100,
+            "kind": "IP",
+            "value": "10.74.19.44"
+          },
+          "row": 2
+        },
+        {
+          "request_sha256": "739a29244a79404220721e9da57355419a84dcc09d0a8a16edcaa0dd106fa8a8",
+          "returned": {
+            "confidence": 100,
+            "kind": "USER",
+            "value": "marina-ops"
+          },
+          "row": 3
+        },
+        {
+          "request_sha256": "739a29244a79404220721e9da57355419a84dcc09d0a8a16edcaa0dd106fa8a8",
+          "returned": {
+            "confidence": 100,
+            "kind": "PATH",
+            "value": "/var/lib/cedar/reports"
+          },
+          "row": 4
+        }
+      ],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 1024,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 4
+      }
+    },
+    "8-threads4-serial": {
+      "complete": true,
+      "complete_json_requests": 4,
+      "completed_groups": {
+        "02-application.log": [
+          "1",
+          "2",
+          "3",
+          "4"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/opt/cedar/app/report.py": 1,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 110,
+          "private_spans_partly_covered": 3,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {
+            "HTTP/1.1": 1,
+            "JSON": 13
+          },
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 14,
+          "replacements": 218
+        }
+      },
+      "elapsed_seconds": 292.7395,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795191360,
+      "generated_tokens": 5733,
+      "http_seconds": 292.6297,
+      "last_reply_unix_utc": 1795191587,
+      "prefill_seconds": null,
+      "reasoning_tokens": 4096,
+      "schema_valid_requests": 3,
+      "schema_violations": [
+        {
+          "request_sha256": "739a29244a79404220721e9da57355419a84dcc09d0a8a16edcaa0dd106fa8a8",
+          "returned": {
+            "confidence": 100,
+            "kind": "IP",
+            "value": "10.74.19.44"
+          },
+          "row": 1
+        },
+        {
+          "request_sha256": "739a29244a79404220721e9da57355419a84dcc09d0a8a16edcaa0dd106fa8a8",
+          "returned": {
+            "confidence": 100,
+            "kind": "IP",
+            "value": "10.74.19.44"
+          },
+          "row": 2
+        },
+        {
+          "request_sha256": "739a29244a79404220721e9da57355419a84dcc09d0a8a16edcaa0dd106fa8a8",
+          "returned": {
+            "confidence": 100,
+            "kind": "USER",
+            "value": "marina-ops"
+          },
+          "row": 3
+        },
+        {
+          "request_sha256": "739a29244a79404220721e9da57355419a84dcc09d0a8a16edcaa0dd106fa8a8",
+          "returned": {
+            "confidence": 100,
+            "kind": "PATH",
+            "value": "/var/lib/cedar/reports"
+          },
+          "row": 4
+        }
+      ],
+      "settings": {
+        "batch_threads": 4,
+        "budget": 1024,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "reference",
+        "max_candidates": 24,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 4
+      }
+    },
+    "8-whole-1024": {
+      "complete": true,
+      "complete_json_requests": 1,
+      "completed_groups": {
+        "02-application.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 13,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/reports": 3,
+            "/var/lib/cedar/spool": 12,
+            "cedar_events": 13,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 81,
+          "private_spans_partly_covered": 19,
+          "private_spans_untouched": 13,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 115
+        }
+      },
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795187143,
+      "generated_tokens": 1674,
+      "http_seconds": 224.0061,
+      "last_reply_unix_utc": 1795187143,
+      "prefill_seconds": null,
+      "reasoning_tokens": 1024,
+      "schema_valid_requests": 1,
+      "schema_violations": [],
+      "settings": {
+        "budget": 1024,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "long",
+        "draft": false,
+        "group": "whole",
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "temperature": 0.2,
+        "threads": 2
+      }
+    },
+    "8-whole-cap48": {
+      "complete": true,
+      "complete_json_requests": 1,
+      "completed_groups": {
+        "02-application.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/spool": 8,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 101,
+          "private_spans_partly_covered": 12,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 119
+        }
+      },
+      "elapsed_seconds": 266.6182,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795189399,
+      "generated_tokens": 2382,
+      "http_seconds": 266.5951,
+      "last_reply_unix_utc": 1795189399,
+      "prefill_seconds": null,
+      "reasoning_tokens": 1024,
+      "schema_valid_requests": 1,
+      "schema_violations": [],
+      "settings": {
+        "budget": 1024,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "whole",
+        "max_candidates": 48,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "8-whole-cap80": {
+      "complete": true,
+      "complete_json_requests": 1,
+      "completed_groups": {
+        "02-application.log": [
+          "1"
+        ]
+      },
+      "documents": {
+        "02-application.log": {
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {
+            "/etc/cedar/staging.yaml": 1,
+            "/opt/cedar/app/report.py": 1,
+            "/var/lib/cedar/spool": 12,
+            "helpdesk-demo": 2
+          },
+          "private_spans_fully_covered": 97,
+          "private_spans_partly_covered": 16,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_losses": {},
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 122
+        }
+      },
+      "elapsed_seconds": 339.2558,
+      "exact_restores_checked": 2,
+      "first_reply_unix_utc": 1795190567,
+      "generated_tokens": 3453,
+      "http_seconds": 339.2241,
+      "last_reply_unix_utc": 1795190567,
+      "prefill_seconds": null,
+      "reasoning_tokens": 1024,
+      "schema_valid_requests": 1,
+      "schema_violations": [],
+      "settings": {
+        "batch_threads": 2,
+        "budget": 1024,
+        "confidence_grid": false,
+        "cpu_affinity": [
+          2,
+          3
+        ],
+        "dataset": "long",
+        "group": "whole",
+        "max_candidates": 80,
+        "model": "lfm2.5-8b-a1b",
+        "plan_sha256": "12e50d792b3ad9d6ea5d7e60ce5081dfdab3b656f7214bcfcd581ae9ae979ec2",
+        "prompt_sha256": "e401f9acc1ee1349584fade6f5ebeba57288259829d68cb69d5dd60bfc278f66",
+        "selected_indices": null,
+        "slots": 1,
+        "threads": 2
+      }
+    },
+    "holdout-detector-only": {
+      "complete": true,
+      "complete_json_requests": 0,
+      "documents": {
+        "nightly-export.log": {
+          "private_occurrence_spans": 69,
+          "private_occurrences_before": 69,
+          "private_occurrences_visible": 35,
+          "private_shortfalls": {
+            "/opt/lantern/queue.blue": 3,
+            "/srv/prism/exports Set B": 3,
+            "ORD-LM-44721": 4,
+            "copper-ferry": 8,
+            "ember_ledger": 6,
+            "job-17.lantern.test": 5,
+            "mira_ops": 4,
+            "prism-west": 3,
+            "slate.dispatch": 4,
+            "spool-rill": 5,
+            "tenant-6418": 4,
+            "Лидия Ракитина": 3
+          },
+          "private_spans_fully_covered": 17,
+          "private_spans_partly_covered": 17,
+          "private_spans_untouched": 35,
+          "private_values_annotated": 18,
+          "public_losses": {},
+          "public_occurrences_before": 34,
+          "public_occurrences_lost": 0,
+          "replacements": 37
+        },
+        "public-protocol-guide.log": {
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_shortfalls": {},
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_losses": {},
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        }
+      },
+      "exact_restores_checked": 4,
+      "first_reply_unix_utc": null,
+      "generated_tokens": 0,
+      "http_seconds": 0,
+      "last_reply_unix_utc": null,
+      "prefill_seconds": null,
+      "reasoning_tokens": 0,
+      "schema_valid_requests": 0,
+      "schema_violations": [],
+      "settings": {
+        "dataset": "holdout",
+        "model": "detectors"
+      }
+    }
+  }
+}

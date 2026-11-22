@@ -1,0 +1,1301 @@
+{
+  "abcd_variants": 4,
+  "archive": "evidence.tar.gz",
+  "archive_bytes": 1381812,
+  "archive_sha256": "01502deb862c7df9ba6e84e0b1ff83393beefbadc2b2c5cc7d113ffa5e0f95ae",
+  "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+  "captured_at_utc": "2026-11-19T19:32:13Z",
+  "files": {
+    "abcd/gemma4-e4b-qat/plan.json": {
+      "bytes": 394741,
+      "sha256": "c1cb8f833c77a66c9180f8884eb1bbb4c060755bdf5533bf75856f15056198e9"
+    },
+    "abcd/gemma4-e4b-qat/result.json": {
+      "bytes": 1022909,
+      "sha256": "d218cc3f1bcc84089d5f318b86030188e9d3dfa7d0507ebf226a4f9288c05c10"
+    },
+    "abcd/gemma4-e4b-qat/session-1795104842021930304.json": {
+      "bytes": 7975,
+      "sha256": "f72406a67d63114750732f67d27484917634228f065381a6340e98558b1bbcb6"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/02-02-application/mask.json": {
+      "bytes": 71494,
+      "sha256": "2539b3344e0107418b14e6fef148222ad37d9e842a57800cad90ca28cb504c3a"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "d154ab47a2c44ceeb119b6dec76c732f936fb210e3a424189f811691e0a1d442"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-qat/A/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41454,
+      "sha256": "98db07149600d7d54f472131df51d79d7580783d9e548bbb61ac0cfbf56bf582"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10508,
+      "sha256": "d113c3bb6509f96871069c572887fc5a94676efba2b7777e3cf8d213ee801d0b"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "cad2380d0ce332689e961e9235f996596d26b3794edec3f0022515ceeea19579"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/02-02-application/mask.json": {
+      "bytes": 72610,
+      "sha256": "a72f1529c20790af2b6c5b62a8dc05c3cb373fac513575c32515d783a12b05e0"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10691,
+      "sha256": "a4a7029a3462a114e0e3315c4313601cb1de949f4cfd74011bc919d801f69c5a"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-qat/A/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-qat/A/result.json": {
+      "bytes": 7535,
+      "sha256": "c0b609a2822825a5baed0590c6002fa0c66c8218dec20f50cbf2c88cc496bdef"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/02-02-application/mask.json": {
+      "bytes": 71298,
+      "sha256": "1befad1becb95b5b00052b3a60e336163bddeb7fa29f70a1044b4c3388532d91"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "9c9b303178c2db95068162ae65d97f2da990b41c4717aff87c5ea842bae54b69"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-qat/B/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41924,
+      "sha256": "43dafdc65f71ac4a9968f4a76d501b500ad073935a6eaa523261c671eca6a48b"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10473,
+      "sha256": "04c96ec70b1b0a3a13dba5a96b1862ca58f3fab6abfdebde3009d196f195026d"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "cad2380d0ce332689e961e9235f996596d26b3794edec3f0022515ceeea19579"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/02-02-application/mask.json": {
+      "bytes": 103823,
+      "sha256": "6ec48699d7dfb3a70c4406ea64edd20094dd27a11a98823602e5bb571f20734d"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10806,
+      "sha256": "08335061c21eea72e1de9faa8af752899168405263fa8c4fa9cddacb76705442"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "c04638042fd810efd7eefb65a95d8b950b5e758993285ff576e14c58e1c16352"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-qat/B/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-qat/B/result.json": {
+      "bytes": 7537,
+      "sha256": "f0461a1a4b732a2e9d375969d3b30d0466daa89da086e5d9d87637db2d18f0e0"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/02-02-application/mask.json": {
+      "bytes": 71194,
+      "sha256": "1bba9a4ace3d42e80cab893b78c73e287135708c15feaa2557fe678555dc21be"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "a0292404a76b8cd6e3a9b969f49ea01ab4bf5148ff160ffdd95323d0035d45e7"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-qat/C/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 46589,
+      "sha256": "d3722351aaf17044dcd23e7f97aba479ce5d06c6293bab5fe018fbd55172b5ae"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10423,
+      "sha256": "5f1746ebd7355d8992708d485420e5e6b6d7eac6f6ba9b7406d45370022281c1"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/02-02-application/mask.json": {
+      "bytes": 87035,
+      "sha256": "2a3f71079f49cb027e5382e3399d9dcf161aed9fe00e3f91d87604e64d52f92b"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10708,
+      "sha256": "60f02d9aa068dbc1cd6aa9e721c89a880f66aa107ea90d6d2ac1f1b4e9fafd15"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "bbbf3aeea2de7b290c123a5a4adbe45376c6c6b0110c2ce2e8b981f06d1e585e"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-qat/C/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-qat/C/result.json": {
+      "bytes": 7538,
+      "sha256": "d65cc1a4ef7c4f1dfdcd68e719936bb5674b81860f658a40d29b3cd9235cb86a"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/02-02-application/mask.json": {
+      "bytes": 71410,
+      "sha256": "c3c748f8c9f209a7632b0dc08fd9fdfe1320a7d3faab6bc7acaab385fabea6fe"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "bacd3f76f3f59dced634315289c4760d08a8df8a0593b3f270fc69fa712a8d83"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-qat/D/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 47020,
+      "sha256": "e8eb99903c1f967c3254404dd9fe7d3de28a3aba065f64c9995cf8cdbed36405"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10424,
+      "sha256": "a0586e44f943f2d94c99ebeaafe4b2dda0231a6dfec4feff5abd7b3712a1fd5f"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/02-02-application/mask.json": {
+      "bytes": 100774,
+      "sha256": "371dd693c2587bbcbf69230a467e9bf6ee508a5e7686d339fe40fbea87b3ad64"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10781,
+      "sha256": "2c7c672de300df3aa18cf8248b9ecd69e4dd1dfdbca454a908978e32cdfd8a11"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "23d42cb6adb5ec268695d2b55760a41242cdebbe520d6f1a9e80e13bdf0abcd0"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/gemma4-e4b-qat/D/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/gemma4-e4b-qat/D/result.json": {
+      "bytes": 7538,
+      "sha256": "3b0d33a335d7e61ba92a7108e265e5915a88b468b24082087a7bb6caf068dde1"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71220,
+      "sha256": "25088c1625e5bb85ea0445eba5ede1ee0b879fb7837ccb9faf9822aa06a137ec"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "36067001a96d0531b592b4305ae60afbe42b74860c24592bf8e308df4a1bee8a"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 123341,
+      "sha256": "b5aceb342efa3da1d9832de215afd77b3e0638f4bc6538b195e6a6ad4d41803a"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10298,
+      "sha256": "3933ed5e1e00e458b33f88ed563f33b3da97aadb30c1547e35497051d0e1fcaa"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 153000,
+      "sha256": "86c05374c81e68681cf2d1ed587d06d99e98b21c0b660ca9abcce44cf78d9ca6"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11129,
+      "sha256": "0d1b17aa502ebb862399064b77fd00914e4a03e460f511199f6fad075a7e78c6"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "8542e60d17668b2f82fec249e50cb91431f8b9e430ce3cd0b37a4d601423fc4f"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/gemma4-e4b-qat/current_union/result.json": {
+      "bytes": 7882,
+      "sha256": "9e3cbff0bc56788b70546540ca21638e81ba1301a00050dbb1fd05a54d900042"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71228,
+      "sha256": "45204d1cb12b984b040c7e04175815cf9ccf65445803e4a776f81763717e3d85"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "e7c8593ee0d13b2068f4a567a9230851beed18601f4c9c98dda5f51ad03a8f9f"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139844,
+      "sha256": "ebadc0456e9309de98f6abe1c92f586935c498aa8dcf6b2a35bfcb3654571856"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/gemma4-e4b-qat/detector_proposals/result.json": {
+      "bytes": 7882,
+      "sha256": "87152c6c9477215c21f2f22b98d897065d84dd6283654b2564371f49f22e9f37"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/02-02-application/mask.json": {
+      "bytes": 71220,
+      "sha256": "37c75334e0bea0969cced8fd960ca2539e162714cb2f50a18d93a73726d25472"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "b5ac26e3904c6b95699eb09f113deb8f984d1ae44507027d9f9d7844c5824ccf"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 61276,
+      "sha256": "8057423e7bca55b0bd930fe8895078bbe88c4d3d131785535c3a9d95965d2233"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10569,
+      "sha256": "e18c7393d5585177caa907feefd53413d55b1278fdef9b0bc7af2fa97033f076"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "e0c5ecae403680a76b53e5f790e3878de110b698a5e68ad8a16cdbc47373c599"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90444,
+      "sha256": "6d7021b01db7c1a94500232587dd97bd2d852d58b4c9d929b78fa00e93f27251"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10726,
+      "sha256": "b0ea000670c8dc514d0827c45c826b02eb6d54105e542f5d687e0001f0636826"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/double/result.json": {
+      "bytes": 7873,
+      "sha256": "f6965922f206f77ac86cf9fe6753f86864270fceb0415cdc4bbd21bca9354acc"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/02-02-application/mask.json": {
+      "bytes": 71354,
+      "sha256": "10ab78e0c86f6947a98ce16df3a7baa9c8a8c23ce4eec0d8860e488a0ee00d2e"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10662,
+      "sha256": "fa1165595ee868723a391edd621c0c5f212dd5d93e0dd5d431a28c413ddcac47"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 79201,
+      "sha256": "af16aa7f03886d0cdb12a5c86faeb655845b9fe3d6b8c8c7d94b9d8f0112796d"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10600,
+      "sha256": "75577ec098aeda5526dd3c092001ba9852b3cf4dcc8e342fdd3e99795a7ac234"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "766e9806b34af6c1f735eca457548244f915f4cbc6a3039390769cc3d23b9c1c"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 98500,
+      "sha256": "6a61d63fe982be35ad7ed21bd1cb43fc6921996f3055d63cb7cc558bb198fa59"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10753,
+      "sha256": "6bd77f5e96479196c3e1bbb69efbac601981284b4cba81c881ff977b57650806"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ea7fca0decce7965f681cb9955b95a22c0f7c250e20395a69e6219bd457599ad"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/point/result.json": {
+      "bytes": 7871,
+      "sha256": "d159fe7f32c99ad527d8f32185d6ffcc62c68885657d173bcba9eff58b33933f"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71248,
+      "sha256": "bc511956531017cd987249d416b63b7fc2760864fea60bd0629917967d431e83"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "b7a4e8337139bd54442884fb7fc8c322e1185fd9a8df86eae4e7c959353d8a84"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 72570,
+      "sha256": "928fa6bd454481864c6e44dfc682b1ab6dd0a62c2545f8185c8aeedfefb584ac"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10378,
+      "sha256": "fe133d30ef3515f17089f2930a018e871347a82904ff2c8502ae72c74233cb96"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "84d8d4a8e27366e93e789040395356434c425ad9552cf94f9e2f218fa8a34f2f"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 157030,
+      "sha256": "4d5cf335a995403e4208e2f641514c653a8a52c15014865ef019355be50d09ab"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10844,
+      "sha256": "a9f5eb384017c132c0ef7f1ab3832c46cdbc0e9ef0654ac63b82fda2d53ad4be"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "47f1d873bcb9357bbfb29dea4b5251ffac3959e338606e6457a669e18a625b35"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/regions/result.json": {
+      "bytes": 7874,
+      "sha256": "133bbb5d32923ea11cac96f03289a1d15e85ae03002b389d07c2c74c74cfe80a"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71304,
+      "sha256": "44b3413595e18d256b654d6355a588ea1e6aba3d2d7a2d7d4eae35ac37d691ee"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "b38c5c204424810934ae692c9fc5257079339f7bcc0cfbd082cdf413e08948ee"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 79201,
+      "sha256": "af16aa7f03886d0cdb12a5c86faeb655845b9fe3d6b8c8c7d94b9d8f0112796d"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10600,
+      "sha256": "75577ec098aeda5526dd3c092001ba9852b3cf4dcc8e342fdd3e99795a7ac234"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "766e9806b34af6c1f735eca457548244f915f4cbc6a3039390769cc3d23b9c1c"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 98445,
+      "sha256": "68145d73de6a8722f5481746043a00e09a9da170c5e52f60f248ab321058e5cb"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10753,
+      "sha256": "6bd77f5e96479196c3e1bbb69efbac601981284b4cba81c881ff977b57650806"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ea7fca0decce7965f681cb9955b95a22c0f7c250e20395a69e6219bd457599ad"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/gemma4-e4b-qat/union_point/result.json": {
+      "bytes": 7878,
+      "sha256": "f97b5f6134b70ad6d30173d19af53c9209ff1109fb25f6601dc9d1abec3e9412"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71438,
+      "sha256": "394643ea57e548e2a896984fc325e9494c7c329b40623a5aac86d73648f049ae"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "0550cb1a83e6a3eaa574c85f515926e401ec30c1235b2894e8981d5ee4b654fe"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 124370,
+      "sha256": "4f6e476982e115ad8aa1ca32e4931787a6a5c46fbdf4e58bdc9956900f3dbf3b"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10274,
+      "sha256": "c528992a8fe8eaeb2d700285dc80780851e2d258633e6003380a74421ca3ca86"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "fb33cec8d32147ebc86fc003817ecb85ea7f3a1bb3a92c023126aa22618dcc48"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 197838,
+      "sha256": "e310d570d5792b860425c3dc5174ceb07aadf3c64390d43ec30ebe2f3b79e15e"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11151,
+      "sha256": "bf4af63ef708bfc917039884255da1ab1f591ecab1024d269ae493b8d92e1961"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "4504ddeb171653d0b423adcba2aae51b298058f1d7367e2bd3d135c9797562f9"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 11302,
+      "sha256": "7d3562ac18c96531a0adf85a1b08c15f1855cf5601f5245c5196b37527a0c190"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3445,
+      "sha256": "8ebc71e9e2457726525f961b4f1b12416800fc006b177c386fd55323cd7e3884"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "962b903727d1f6abeaff42f80212dd08270875449a32fb398068dbd428bf906c"
+    },
+    "baseline-application/gemma4-e4b-qat/current_union/result.json": {
+      "bytes": 7790,
+      "sha256": "c9911a1797dbb62cbdd24aea26552c5f699194afd64ad60d2526638eb9643a35"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71444,
+      "sha256": "1be64374dbc4c745af44f34397599dfad4c36181b821859646a475470e234597"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "4fce399f3254a96014f0104ef401200cb5789f28305f33fe5f831468a00e1a80"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139841,
+      "sha256": "e32c055fcc03e6f068227f8ba1c14de44f8e219603214130e75749bfee0e2e60"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "baseline-application/gemma4-e4b-qat/detector_proposals/result.json": {
+      "bytes": 7792,
+      "sha256": "1c428b72e90e2895456f474da23e4a30de4a6da0d68eeaabdd04ce0ff03f9137"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/02-02-application/mask.json": {
+      "bytes": 71410,
+      "sha256": "d43dc0ebf420206f4257bdacbf55a19ec6f6521e719ac4d0762ea9fdf84fc8fc"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "2f3740b0762b936fe254bfa7d66f5fe316d84c576bbaf96288dcc8318e12611b"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90506,
+      "sha256": "6bc3f8392d447ca4691d201bd335c877b14ba4927906ad535cdadb667b323bb0"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "0c2018d0f04b32e14a3f8ad7abaa0b3a81767dde5d48f6c1e440b5be24c547f7"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/double/result.json": {
+      "bytes": 7778,
+      "sha256": "4522db958a6961aba36b1f8f3839ba411a7ac8123381f517180e4130ffad8868"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/02-02-application/mask.json": {
+      "bytes": 71242,
+      "sha256": "635732e2af4b89f938418392a95292c21444ca7695f7c30fa77854892b197915"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "9a23a97ef63a4f4f9acaa61a61412312b1aeac8eb805f2c1643defb832e47129"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90446,
+      "sha256": "98b2336f878e22a370734a7d243c9da5be0fc2a55eb18a661981031693ac29da"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10712,
+      "sha256": "c5aed24314d70171ee9bd3829b63e9bf0b3aaecb46ce11faf087733e9876328d"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/point/result.json": {
+      "bytes": 7774,
+      "sha256": "8b473b023e9c33283f4b331606758fbe1e8294d4029f2cc87fb90d16dd827673"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71270,
+      "sha256": "16b11fcd5ceb97339e78d56547019b8b59ea7bef2833ce14824cc649646617aa"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "4a7712d95cd94f4b2c3d1e90581eb30a9d712b1f4fad6a95278e77ad3389d980"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 46190,
+      "sha256": "d6fd95e183b7a3b4c95148bbe03158ef444a2af2b81eca699918a2a707195775"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10408,
+      "sha256": "b272733ab1df47a5b499fea4ced5c43ed6028e04e12034bd0441435cfc9e6b10"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "cad2380d0ce332689e961e9235f996596d26b3794edec3f0022515ceeea19579"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 144707,
+      "sha256": "7badea57ee8bede68bb50ca0b4b228fda6c8a506122e74050c8ae855ec0ab3af"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10898,
+      "sha256": "ce95ae67eb8be5bcc5d1661233beddf73d3d19ce639711ef0b4927abac957c2b"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "7f94744e80e0d9d8976ef3379aef8d7cc5c83141131d47c8f186426959d70643"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6192,
+      "sha256": "22583d4b71c49bcb70351db1f96a063b928b24bfd05fb79fbc4e5801bfedcc91"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3496,
+      "sha256": "fc8e1bfbcafd261e2ba16942263857d049a0646ff73fcbbc69557a40fe8c4359"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "baseline-application/gemma4-e4b-qat/regions/result.json": {
+      "bytes": 7782,
+      "sha256": "ac205953bd7f5d84cd7f3e7006d6aabd94d47f37ba528a31820dcc0314dcd8a5"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71326,
+      "sha256": "dcef6134ae1b35b62792e11ca09ff7bf5fe3448b3d35a7378f7ea362b9a08a66"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "8a86ed2767df3bc608ab7738b2ae4fd4cf3ac49e091bc16b719c6f862afea791"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90500,
+      "sha256": "b49a24740de027489b96a4ee70bf82702a30d4285c6c61be92867a70c6e0e7ed"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "0ac12a29f68d16a83b43f3966086d0eb8d3440c8b40fb4d0a5b36b8e1ca24d0a"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/gemma4-e4b-qat/union_point/result.json": {
+      "bytes": 7782,
+      "sha256": "a992225a1f9639fb68b057bc776c0d238fb7a8071cadc7ab1dc1f7465665ec79"
+    },
+    "calibration/gemma4-e4b-qat/off/result.json": {
+      "bytes": 2260,
+      "sha256": "1ff01fddea4e568d0d5d75570858f798735c5e2d50a8023bfa08acaa0abb93ac"
+    },
+    "calibration/gemma4-e4b-qat/off/transports.json": {
+      "bytes": 107955,
+      "sha256": "26c5a9c74052e2ef2fa8f811d570e360b4a2a0687878c0ce40e3033fae6be767"
+    },
+    "calibration/gemma4-e4b-qat/plan.json": {
+      "bytes": 3841,
+      "sha256": "e35cbaca64236c1af2fa1867cbf27e4f2be6926b01e115f08311d91563db6928"
+    },
+    "calibration/gemma4-e4b-qat/result.json": {
+      "bytes": 6557,
+      "sha256": "4edcbbe66eca07b2ac3719c303698e34f13db02ffe74575099e1065b37c5778c"
+    },
+    "calibration/gemma4-e4b-qat/selected-profile.json": {
+      "bytes": 1241,
+      "sha256": "258adbd31c8af16fffd6d9e932eb5b29951fb123c984f2ccc6bc5e0dae0106c2"
+    },
+    "calibration/gemma4-e4b-qat/thinking-2048/result.json": {
+      "bytes": 2149,
+      "sha256": "f8b0514ce83e5af60f77064f6550a707fc737009045a3fbc5112d7a04b3ca90e"
+    },
+    "calibration/gemma4-e4b-qat/thinking-2048/transports.json": {
+      "bytes": 125990,
+      "sha256": "d3cd65714d5c56315186df1c7b5c08b21b7acc2dd4ea0e030f38080cc93c66c0"
+    },
+    "schemes/gemma4-e4b-qat/detectors.json": {
+      "bytes": 42922,
+      "sha256": "545e0a5090b1b325af7ef75308fe58c40562fc24af94c084c462346f8ecea8a5"
+    },
+    "schemes/gemma4-e4b-qat/execution.json": {
+      "bytes": 7056,
+      "sha256": "bed97516d9d93c5eae794756249c20ce262808068f4846a6fca4302988870f1c"
+    },
+    "schemes/gemma4-e4b-qat/result.json": {
+      "bytes": 910511,
+      "sha256": "fd4b9fdea07fb596c3348b08dc5f7099be12eb4aef7f89295e8e98ba69c19c8c"
+    },
+    "schemes/gemma4-e4b-qat/scheme-plan.json": {
+      "bytes": 5524,
+      "sha256": "2eec8f1ddc86ab6802d8b3163c531802073f8f783e03e423ae6043fc15ee8f69"
+    },
+    "schemes/gemma4-e4b-qat/transports.json": {
+      "bytes": 1555125,
+      "sha256": "35454d91f5f89893ef02681f35eea76295a969a5368ca5a122295bf778825854"
+    },
+    "schemes/gemma4-e4b-qat/verification.json": {
+      "bytes": 4613,
+      "sha256": "dd9fbf3d40af693a8de1e89ccef5f039e57b04033e0ef60bc205cc99a8cea3a9"
+    },
+    "status.json": {
+      "bytes": 3947,
+      "sha256": "80c1f1c7dbf8fcd40453612fb77301c5df924202f98c0d6f2160eb3650389d68"
+    }
+  },
+  "model": "gemma4-e4b-qat",
+  "native_exact_roundtrips": 60,
+  "not_a_resume_source": true,
+  "profile_sha256": "6bdcf9f4a11821b72f3b16c1a4c100497e029612a5161c84712844adda36e9cc",
+  "schemes": 6,
+  "series": "native-retest-v1",
+  "version": 1
+}

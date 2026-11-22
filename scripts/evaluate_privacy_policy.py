@@ -350,6 +350,13 @@ def perform_request(state, save, worker, args, planned, output, input_tokens):
             except Exception:
                 entry['record']['reasoning_text_tokens'] = None
                 entry['record']['reasoning_token_measurement'] = 'unavailable'
+            if getattr(args, 'native_profile', None) and not entry.get('error'):
+                from native_model_profiles import check_thinking
+                try:
+                    entry['record']['reasoning_text_tokens'] = check_thinking(
+                        entry['raw_reply'], args.model_profile, worker.count_text_tokens)
+                except ValueError as exc:
+                    entry['error'] = str(exc)
         except (KeyError, TypeError, IndexError):
             pass
         entry['record']['throughput'] = throughput_metrics(

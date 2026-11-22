@@ -1,0 +1,1737 @@
+{
+  "archive_sha256": "1f19d2876e37c5aa6fab2af5116a3739d54a3a9ee572ac462455d5997eda801d",
+  "corpus": "synthetic Kaponir search corpora",
+  "fresh_requests_only": true,
+  "fresh_trials": [
+    {
+      "H": 184,
+      "P": 7,
+      "R": 4,
+      "application_file": "research/privacy-policy-phase2/checkpoints/four-models-fresh-tuning/gemma4-e4b-qat-greedy-rep108-application.json.gz",
+      "application_sha256": "bf80a30399e254e89a3cc1e221c3236955c767b370f2e0630bcf81e10ac64496",
+      "by_document": {
+        "01-cost-estimate.md": {
+          "private_spans_fully_covered": 78,
+          "public_occurrences_lost": 0,
+          "replacements": 85
+        },
+        "02-application.log": {
+          "private_spans_fully_covered": 106,
+          "public_occurrences_lost": 5,
+          "replacements": 135
+        },
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 2,
+          "replacements": 4
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        1025,
+        765,
+        96
+      ],
+      "exact_restores": 6,
+      "http_seconds": 690.0736167100076,
+      "input_tokens": [
+        6205,
+        2828,
+        893
+      ],
+      "invalid_requests": [],
+      "model": "gemma4-e4b-qat",
+      "option": "greedy-rep108",
+      "phase": "full",
+      "private_total": 193,
+      "public_total": 87,
+      "reasoning_tokens": [
+        0,
+        0,
+        0
+      ],
+      "requests": 3,
+      "score": 84.48233066554913,
+      "search_wall_seconds": 690.3051289489995,
+      "total_wall_seconds": 703.4534815040024,
+      "trial_directory": "gemma/full-greedy-rep108"
+    },
+    {
+      "H": 190,
+      "P": 5,
+      "R": 2,
+      "application_file": "research/privacy-policy-phase2/checkpoints/four-models-fresh-tuning/gemma4-e4b-qat-short-thought384-long-direct-application.json.gz",
+      "application_sha256": "e38cb46b81b0d5a8695200e56f9031eba4ddba3141539c0f96a7ab221b7da055",
+      "by_document": {
+        "01-cost-estimate.md": {
+          "private_spans_fully_covered": 79,
+          "public_occurrences_lost": 0,
+          "replacements": 86
+        },
+        "02-application.log": {
+          "private_spans_fully_covered": 111,
+          "public_occurrences_lost": 5,
+          "replacements": 149
+        },
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 2
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        1047,
+        807,
+        402
+      ],
+      "exact_restores": 6,
+      "http_seconds": 735.4876744709982,
+      "input_tokens": [
+        6205,
+        2828,
+        895
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "gemma4-e4b-qat",
+      "option": "short-thought384-long-direct",
+      "phase": "full",
+      "private_total": 193,
+      "public_total": 87,
+      "reasoning_tokens": [
+        0,
+        0,
+        383
+      ],
+      "requests": 3,
+      "score": 87.21349447727174,
+      "search_wall_seconds": 735.861059339004,
+      "total_wall_seconds": 748.926558733001,
+      "trial_directory": "gemma/full-short-thought384-long-direct"
+    },
+    {
+      "H": 0,
+      "P": 2,
+      "R": 4,
+      "by_document": {
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 2,
+          "replacements": 4
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        96
+      ],
+      "exact_restores": 2,
+      "http_seconds": 48.11042786399776,
+      "input_tokens": [
+        893
+      ],
+      "invalid_requests": [],
+      "model": "gemma4-e4b-qat",
+      "option": "greedy-rep108",
+      "phase": "guide",
+      "private_total": 0,
+      "public_total": 43,
+      "reasoning_tokens": [
+        0
+      ],
+      "requests": 1,
+      "search_wall_seconds": 48.174100980999356,
+      "total_wall_seconds": 59.818856343001244,
+      "trial_directory": "gemma/guide-greedy-rep108"
+    },
+    {
+      "H": 0,
+      "P": 0,
+      "R": 2,
+      "by_document": {
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 2
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        402
+      ],
+      "exact_restores": 2,
+      "http_seconds": 75.98662767800124,
+      "input_tokens": [
+        895
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "gemma4-e4b-qat",
+      "option": "short-thought",
+      "phase": "guide",
+      "private_total": 0,
+      "public_total": 43,
+      "reasoning_tokens": [
+        383
+      ],
+      "requests": 1,
+      "search_wall_seconds": 76.08697830999881,
+      "total_wall_seconds": 88.8480610810002,
+      "trial_directory": "gemma/guide-short-thought"
+    },
+    {
+      "H": 0,
+      "P": 5,
+      "R": 7,
+      "by_document": {
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 5,
+          "replacements": 7
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        212
+      ],
+      "exact_restores": 2,
+      "http_seconds": 58.598075621001044,
+      "input_tokens": [
+        893
+      ],
+      "invalid_requests": [],
+      "model": "gemma4-e4b-qat",
+      "option": "soft025",
+      "phase": "guide",
+      "private_total": 0,
+      "public_total": 43,
+      "reasoning_tokens": [
+        0
+      ],
+      "requests": 1,
+      "search_wall_seconds": 58.66625860599743,
+      "total_wall_seconds": 76.52507304100072,
+      "trial_directory": "gemma/guide-soft025"
+    },
+    {
+      "H": 9,
+      "P": 0,
+      "R": 0,
+      "by_document": {
+        "handover-cost.md": {
+          "private_spans_fully_covered": 6,
+          "public_occurrences_lost": 0,
+          "replacements": 6
+        },
+        "http-guide.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        },
+        "mirror-worker.log": {
+          "private_spans_fully_covered": 3,
+          "public_occurrences_lost": 0,
+          "replacements": 8
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        107,
+        218,
+        145
+      ],
+      "exact_restores": 6,
+      "http_seconds": 82.48552870499407,
+      "input_tokens": [
+        374,
+        208,
+        197
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "gemma4-e4b-qat",
+      "option": "baseline",
+      "phase": "holdout",
+      "private_total": 19,
+      "public_total": 21,
+      "reasoning_tokens": [
+        0,
+        0,
+        0
+      ],
+      "requests": 3,
+      "search_wall_seconds": 82.56952225900022,
+      "total_wall_seconds": 96.54112016499857,
+      "trial_directory": "gemma/holdout-baseline"
+    },
+    {
+      "H": 19,
+      "P": 0,
+      "R": 0,
+      "by_document": {
+        "handover-cost.md": {
+          "private_spans_fully_covered": 6,
+          "public_occurrences_lost": 0,
+          "replacements": 6
+        },
+        "http-guide.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        },
+        "mirror-worker.log": {
+          "private_spans_fully_covered": 13,
+          "public_occurrences_lost": 0,
+          "replacements": 13
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        641,
+        599,
+        377
+      ],
+      "exact_restores": 6,
+      "http_seconds": 221.15820086399617,
+      "input_tokens": [
+        376,
+        210,
+        199
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "gemma4-e4b-qat",
+      "option": "short-thought384-long-direct",
+      "phase": "holdout",
+      "private_total": 19,
+      "public_total": 21,
+      "reasoning_tokens": [
+        383,
+        383,
+        358
+      ],
+      "requests": 3,
+      "search_wall_seconds": 221.24858429999585,
+      "total_wall_seconds": 234.51493267699698,
+      "trial_directory": "gemma/holdout-short-thought384-long-direct"
+    },
+    {
+      "H": 161,
+      "P": 3,
+      "R": 5,
+      "application_file": "research/privacy-policy-phase2/checkpoints/four-models-fresh-tuning/lfm2.5-2.6b-split-copy192-application.json.gz",
+      "application_sha256": "9d4ae6a2cc536b587cd9caef7fcee4bda971feb4b41c93fe6ff3345f0b54d767",
+      "by_document": {
+        "01-cost-estimate.md": {
+          "private_spans_fully_covered": 75,
+          "public_occurrences_lost": 0,
+          "replacements": 85
+        },
+        "02-application.log": {
+          "private_spans_fully_covered": 86,
+          "public_occurrences_lost": 0,
+          "replacements": 144
+        },
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 3,
+          "replacements": 5
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        446,
+        383,
+        714,
+        321,
+        333,
+        331,
+        298,
+        413,
+        976,
+        315
+      ],
+      "exact_restores": 6,
+      "http_seconds": 535.6401191749901,
+      "input_tokens": [
+        725,
+        953,
+        947,
+        942,
+        954,
+        944,
+        889,
+        941,
+        2886,
+        969
+      ],
+      "invalid_requests": [],
+      "model": "lfm2.5-2.6b",
+      "option": "split-copy192",
+      "phase": "full",
+      "private_total": 193,
+      "public_total": 87,
+      "reasoning_tokens": [
+        192,
+        192,
+        192,
+        192,
+        192,
+        192,
+        192,
+        192,
+        192,
+        192
+      ],
+      "requests": 10,
+      "score": 79.50823934494487,
+      "search_wall_seconds": 536.3909824080001,
+      "total_wall_seconds": 549.6469764870017,
+      "trial_directory": "lfm/full-split-copy192"
+    },
+    {
+      "H": 161,
+      "P": 0,
+      "R": 2,
+      "application_file": "research/privacy-policy-phase2/checkpoints/four-models-fresh-tuning/lfm2.5-2.6b-split-nohint384-application.json.gz",
+      "application_sha256": "a4a2cba69295c83ec1e29c6d17d887e2bd81da3a02383de75817fab9ed5f1745",
+      "by_document": {
+        "01-cost-estimate.md": {
+          "private_spans_fully_covered": 72,
+          "public_occurrences_lost": 0,
+          "replacements": 84
+        },
+        "02-application.log": {
+          "private_spans_fully_covered": 89,
+          "public_occurrences_lost": 0,
+          "replacements": 125
+        },
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 2
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        1048,
+        638,
+        1601,
+        639,
+        1056,
+        431
+      ],
+      "exact_restores": 6,
+      "http_seconds": 571.8481547889896,
+      "input_tokens": [
+        1270,
+        1270,
+        1280,
+        1205,
+        2886,
+        969
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "lfm2.5-2.6b",
+      "option": "split-nohint384",
+      "phase": "full",
+      "private_total": 193,
+      "public_total": 87,
+      "reasoning_tokens": [
+        384,
+        384,
+        384,
+        384,
+        386,
+        384
+      ],
+      "requests": 6,
+      "score": 80.89224565864545,
+      "search_wall_seconds": 572.2955397379992,
+      "total_wall_seconds": 586.9561278580004,
+      "trial_directory": "lfm/full-split-nohint384"
+    },
+    {
+      "H": 16,
+      "P": 0,
+      "R": 0,
+      "by_document": {
+        "handover-cost.md": {
+          "private_spans_fully_covered": 6,
+          "public_occurrences_lost": 0,
+          "replacements": 7
+        },
+        "http-guide.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        },
+        "mirror-worker.log": {
+          "private_spans_fully_covered": 10,
+          "public_occurrences_lost": 0,
+          "replacements": 13
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        535,
+        518,
+        392
+      ],
+      "exact_restores": 6,
+      "http_seconds": 115.42844110599253,
+      "input_tokens": [
+        317,
+        221,
+        199
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "lfm2.5-2.6b",
+      "option": "baseline",
+      "phase": "holdout",
+      "private_total": 19,
+      "public_total": 21,
+      "reasoning_tokens": [
+        384,
+        384,
+        384
+      ],
+      "requests": 3,
+      "search_wall_seconds": 115.52529381099885,
+      "total_wall_seconds": 129.95699511900602,
+      "trial_directory": "lfm/holdout-baseline"
+    },
+    {
+      "H": 16,
+      "P": 0,
+      "R": 0,
+      "by_document": {
+        "handover-cost.md": {
+          "private_spans_fully_covered": 6,
+          "public_occurrences_lost": 0,
+          "replacements": 7
+        },
+        "http-guide.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        },
+        "mirror-worker.log": {
+          "private_spans_fully_covered": 10,
+          "public_occurrences_lost": 0,
+          "replacements": 13
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        563,
+        518,
+        392
+      ],
+      "exact_restores": 6,
+      "http_seconds": 114.50177090700163,
+      "input_tokens": [
+        290,
+        221,
+        199
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "lfm2.5-2.6b",
+      "option": "split-nohint384",
+      "phase": "holdout",
+      "private_total": 19,
+      "public_total": 21,
+      "reasoning_tokens": [
+        384,
+        384,
+        384
+      ],
+      "requests": 3,
+      "search_wall_seconds": 114.60589118699863,
+      "total_wall_seconds": 128.56904254300025,
+      "trial_directory": "lfm/holdout-split-nohint384"
+    },
+    {
+      "H": 188,
+      "P": 2,
+      "R": 2,
+      "application_file": "research/privacy-policy-phase2/checkpoints/four-models-fresh-tuning/nanbeige42-3b-split-t020-application.json.gz",
+      "application_sha256": "f0c2bdb781c0c47af5e57bff41056caa18a7d74b7ba53af3ade7f9164d5f25eb",
+      "by_document": {
+        "01-cost-estimate.md": {
+          "private_spans_fully_covered": 79,
+          "public_occurrences_lost": 1,
+          "replacements": 88
+        },
+        "02-application.log": {
+          "private_spans_fully_covered": 109,
+          "public_occurrences_lost": 1,
+          "replacements": 126
+        },
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 2
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        714,
+        877,
+        192,
+        283,
+        326,
+        443,
+        624,
+        1050,
+        10
+      ],
+      "exact_restores": 6,
+      "http_seconds": 2210.5857216699987,
+      "input_tokens": [
+        1711,
+        1149,
+        1137,
+        1159,
+        1151,
+        1063,
+        1130,
+        3492,
+        1059
+      ],
+      "invalid_requests": [],
+      "model": "nanbeige42-3b",
+      "option": "split-t020",
+      "phase": "full",
+      "private_total": 193,
+      "public_total": 87,
+      "reasoning_tokens": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "requests": 9,
+      "score": 83.92152957665863,
+      "search_wall_seconds": 2211.2255270139976,
+      "total_wall_seconds": 2221.547042369999,
+      "trial_directory": "nano/full-split-t020"
+    },
+    {
+      "H": 191,
+      "P": 3,
+      "R": 2,
+      "application_file": "research/privacy-policy-phase2/checkpoints/four-models-fresh-tuning/nanbeige42-3b-wide-t020-application.json.gz",
+      "application_sha256": "895f99926ead29420bdddd37ebdd34070d06c918d13c4559064d72a22d573d5a",
+      "by_document": {
+        "01-cost-estimate.md": {
+          "private_spans_fully_covered": 79,
+          "public_occurrences_lost": 1,
+          "replacements": 88
+        },
+        "02-application.log": {
+          "private_spans_fully_covered": 112,
+          "public_occurrences_lost": 2,
+          "replacements": 132
+        },
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 2
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        714,
+        293,
+        241,
+        1007,
+        1050,
+        10
+      ],
+      "exact_restores": 6,
+      "http_seconds": 2324.374565443999,
+      "input_tokens": [
+        1711,
+        1911,
+        1936,
+        1813,
+        3492,
+        1059
+      ],
+      "invalid_requests": [],
+      "log_screen": {
+        "H_log": 112,
+        "P_log": 2,
+        "full_confirmation": true,
+        "log_http_seconds": 1456.7584743479965,
+        "passed": false,
+        "reference_log_http_seconds": 1434.7738592509959
+      },
+      "model": "nanbeige42-3b",
+      "option": "wide-t020",
+      "phase": "full",
+      "private_total": 193,
+      "public_total": 87,
+      "reasoning_tokens": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "requests": 6,
+      "score": 84.40750854560052,
+      "search_wall_seconds": 2325.5225770960024,
+      "total_wall_seconds": 2336.8287071500017,
+      "trial_directory": "nano/full-wide-t020"
+    },
+    {
+      "H": 11,
+      "P": 0,
+      "R": 0,
+      "by_document": {
+        "handover-cost.md": {
+          "private_spans_fully_covered": 6,
+          "public_occurrences_lost": 0,
+          "replacements": 6
+        },
+        "http-guide.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        },
+        "mirror-worker.log": {
+          "private_spans_fully_covered": 5,
+          "public_occurrences_lost": 0,
+          "replacements": 12
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        210,
+        213,
+        10
+      ],
+      "exact_restores": 6,
+      "http_seconds": 142.3560480209926,
+      "input_tokens": [
+        386,
+        253,
+        219
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "nanbeige42-3b",
+      "option": "baseline",
+      "phase": "holdout",
+      "private_total": 19,
+      "public_total": 21,
+      "reasoning_tokens": [
+        0,
+        0,
+        0
+      ],
+      "requests": 3,
+      "search_wall_seconds": 142.40954410400445,
+      "total_wall_seconds": 150.75514157200087,
+      "trial_directory": "nano/holdout-baseline"
+    },
+    {
+      "H": 13,
+      "P": 2,
+      "R": 0,
+      "by_document": {
+        "handover-cost.md": {
+          "private_spans_fully_covered": 6,
+          "public_occurrences_lost": 0,
+          "replacements": 6
+        },
+        "http-guide.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        },
+        "mirror-worker.log": {
+          "private_spans_fully_covered": 7,
+          "public_occurrences_lost": 2,
+          "replacements": 12
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        252,
+        213,
+        10
+      ],
+      "exact_restores": 6,
+      "http_seconds": 129.6194410370008,
+      "input_tokens": [
+        386,
+        253,
+        219
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "nanbeige42-3b",
+      "option": "wide-t020",
+      "phase": "holdout",
+      "private_total": 19,
+      "public_total": 21,
+      "reasoning_tokens": [
+        0,
+        0,
+        0
+      ],
+      "requests": 3,
+      "search_wall_seconds": 129.68277479099925,
+      "total_wall_seconds": 140.28280816099868,
+      "trial_directory": "nano/holdout-wide-t020"
+    },
+    {
+      "H": 112,
+      "P": 2,
+      "R": null,
+      "by_document": {
+        "02-application.log": {
+          "private_spans_fully_covered": 112,
+          "public_occurrences_lost": 2,
+          "replacements": 132
+        }
+      },
+      "completed": false,
+      "completion_tokens": [
+        714,
+        293,
+        241,
+        1007
+      ],
+      "exact_restores": 2,
+      "http_seconds": 1135.244694111003,
+      "input_tokens": [
+        1711,
+        1911,
+        1936,
+        1813
+      ],
+      "invalid_requests": [],
+      "log_screen": {
+        "H_log": 112,
+        "P_log": 2,
+        "log_http_seconds": 1135.244694111003,
+        "passed": false,
+        "reference_log_http_seconds": 1434.7738592509959
+      },
+      "model": "nanbeige42-3b",
+      "option": "wide-t020",
+      "phase": "log_screen",
+      "private_total": 113,
+      "public_total": 32,
+      "reasoning_tokens": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "requests": 4,
+      "search_wall_seconds": 1136.2352791349986,
+      "total_wall_seconds": 1146.8340979200002,
+      "trial_directory": "nano/screen-wide-t020"
+    },
+    {
+      "H": 151,
+      "P": 1,
+      "R": 2,
+      "application_file": "research/privacy-policy-phase2/checkpoints/four-models-fresh-tuning/qwen3.5-4b-split-cool-application.json.gz",
+      "application_sha256": "05a28b1297ecae62e6ee8b8e7466457fc8a2871afcfe6aab0c2ddb7868bdee93",
+      "by_document": {
+        "01-cost-estimate.md": {
+          "private_spans_fully_covered": 77,
+          "public_occurrences_lost": 0,
+          "replacements": 87
+        },
+        "02-application.log": {
+          "private_spans_fully_covered": 74,
+          "public_occurrences_lost": 1,
+          "replacements": 126
+        },
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 2
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        428,
+        244,
+        244,
+        144,
+        241,
+        197,
+        300,
+        401,
+        1077,
+        1001,
+        184,
+        87
+      ],
+      "exact_restores": 6,
+      "http_seconds": 985.8834513829861,
+      "input_tokens": [
+        861,
+        1090,
+        1086,
+        1065,
+        1091,
+        1083,
+        1010,
+        1058,
+        2738,
+        1824,
+        1143,
+        869
+      ],
+      "invalid_requests": [],
+      "model": "qwen3.5-4b",
+      "option": "split-cool",
+      "phase": "full",
+      "private_total": 193,
+      "public_total": 87,
+      "reasoning_tokens": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "requests": 12,
+      "score": 75.72755290428852,
+      "search_wall_seconds": 986.7731125860009,
+      "total_wall_seconds": 1002.1769557739972,
+      "trial_directory": "qwen/full-split-cool"
+    },
+    {
+      "H": 173,
+      "P": 6,
+      "R": 6,
+      "application_file": "research/privacy-policy-phase2/checkpoints/four-models-fresh-tuning/qwen3.5-4b-split-greedy-application.json.gz",
+      "application_sha256": "ee6aae91e1f90d275dd2a0bc767cada31ac348f3d63a3ac320e17b3215b7570f",
+      "by_document": {
+        "01-cost-estimate.md": {
+          "private_spans_fully_covered": 78,
+          "public_occurrences_lost": 2,
+          "replacements": 89
+        },
+        "02-application.log": {
+          "private_spans_fully_covered": 95,
+          "public_occurrences_lost": 1,
+          "replacements": 129
+        },
+        "08-public-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 3,
+          "replacements": 6
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        356,
+        243,
+        241,
+        901,
+        957,
+        987,
+        370
+      ],
+      "exact_restores": 6,
+      "http_seconds": 903.4295036070034,
+      "input_tokens": [
+        1590,
+        1790,
+        1813,
+        1701,
+        2308,
+        692,
+        869
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "qwen3.5-4b",
+      "option": "split-greedy",
+      "phase": "full",
+      "private_total": 193,
+      "public_total": 87,
+      "reasoning_tokens": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "requests": 7,
+      "score": 80.2704159969588,
+      "search_wall_seconds": 904.115460039,
+      "total_wall_seconds": 918.9071810379974,
+      "trial_directory": "qwen/full-split-greedy"
+    },
+    {
+      "H": 9,
+      "P": 0,
+      "R": 0,
+      "by_document": {
+        "handover-cost.md": {
+          "private_spans_fully_covered": 5,
+          "public_occurrences_lost": 0,
+          "replacements": 5
+        },
+        "http-guide.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        },
+        "mirror-worker.log": {
+          "private_spans_fully_covered": 4,
+          "public_occurrences_lost": 0,
+          "replacements": 8
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        131,
+        166,
+        6
+      ],
+      "exact_restores": 6,
+      "http_seconds": 60.5423379900094,
+      "input_tokens": [
+        361,
+        206,
+        194
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "qwen3.5-4b",
+      "option": "baseline",
+      "phase": "holdout",
+      "private_total": 19,
+      "public_total": 21,
+      "reasoning_tokens": [
+        0,
+        0,
+        0
+      ],
+      "requests": 3,
+      "search_wall_seconds": 60.640283287000784,
+      "total_wall_seconds": 76.68157224499737,
+      "trial_directory": "qwen/holdout-baseline"
+    },
+    {
+      "H": 17,
+      "P": 2,
+      "R": 0,
+      "by_document": {
+        "handover-cost.md": {
+          "private_spans_fully_covered": 6,
+          "public_occurrences_lost": 0,
+          "replacements": 6
+        },
+        "http-guide.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 0,
+          "replacements": 0
+        },
+        "mirror-worker.log": {
+          "private_spans_fully_covered": 11,
+          "public_occurrences_lost": 2,
+          "replacements": 15
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        307,
+        205,
+        6
+      ],
+      "exact_restores": 6,
+      "http_seconds": 76.12071547299274,
+      "input_tokens": [
+        361,
+        206,
+        194
+      ],
+      "invalid_requests": [],
+      "log_screen": null,
+      "model": "qwen3.5-4b",
+      "option": "split-greedy",
+      "phase": "holdout",
+      "private_total": 19,
+      "public_total": 21,
+      "reasoning_tokens": [
+        0,
+        0,
+        0
+      ],
+      "requests": 3,
+      "search_wall_seconds": 76.20420554400334,
+      "total_wall_seconds": 91.01277236999886,
+      "trial_directory": "qwen/holdout-split-greedy"
+    },
+    {
+      "H": 10,
+      "P": 4,
+      "R": 5,
+      "by_document": {
+        "delivery-retry.log": {
+          "private_spans_fully_covered": 10,
+          "public_occurrences_lost": 0,
+          "replacements": 19
+        },
+        "open-visitor-reference.md": {
+          "private_spans_fully_covered": 0,
+          "public_occurrences_lost": 4,
+          "replacements": 5
+        }
+      },
+      "completed": true,
+      "completion_tokens": [
+        328,
+        201
+      ],
+      "exact_restores": 4,
+      "http_seconds": 95.18863904500176,
+      "input_tokens": [
+        466,
+        272
+      ],
+      "invalid_requests": [],
+      "model": "qwen3.5-4b",
+      "option": "split-cool",
+      "phase": "pilot",
+      "private_total": 14,
+      "public_total": 16,
+      "reasoning_tokens": [
+        0,
+        0
+      ],
+      "requests": 2,
+      "search_wall_seconds": 95.25718968699948,
+      "total_wall_seconds": 109.50674679000076,
+      "trial_directory": "qwen/pilot-split-cool"
+    }
+  ],
+  "holdout_fixture_sha256": "42eaaf369f6cdf1efcee489a3346c2d8ffb21126d11c3cf347aa101face517a6",
+  "members_sha256": {
+    "holdout/detectors.json": "5f556a8e4beb82068eed283dc01918ed8c4424e39a22221d05e9b934774d49ed",
+    "holdout/fixture.json": "42eaaf369f6cdf1efcee489a3346c2d8ffb21126d11c3cf347aa101face517a6",
+    "holdout/selection-policy.json": "ff3abe8da28c45d5da517c26513b952732d12d3f8d34a91a6cc3f190a9e5e3fd",
+    "pilot/fixture.json": "0051a8255530c396b9a2238e9bf4abb2f05bff0d32941be9a07cbfdc0730b9eb",
+    "producers/archive-kaponir-four.py": "b388eb6b3ff950f71a1fc78b65dbccfa10f2676962a80c90903df72aa82275c6",
+    "producers/check-kaponir-granite-nanbeige.py": "2a4b6ffd343e16249a5baae19a50bc4822895bd30de45b8ead045df5c2e214f5",
+    "producers/check-kaponir-lfm-large.py": "918ed25dfb8cff0cc816a767cbd77de2c87e3e72aa3ce1c4a98ae4ff81fcc9e1",
+    "producers/compare-kaponir-four.py": "7806a0097caa20b6aff654cb952bc29879795dd2c42a5480af3a24152a5274be",
+    "producers/finish-kaponir-four.py": "38699d2259a579c4adc91036de8620eb9e1a8f879eeea27abdfbcb196991775c",
+    "producers/freeze-kaponir-four-holdout.py": "a926d5ba8f111a9e724df4d520dd8e8269e8185db06d9e0655b609b6428a65d1",
+    "producers/holdout-kaponir-four.py": "0d0bea4a391a28f5d88a7640e0745ba670b7b909af6df309efa109c512ade6a3",
+    "producers/tune-kaponir-four-before-confirmation.py": "c059ef97791e4a18ff16142fe8a98ffd76357cc13dd7f8bf94153989c27bb53f",
+    "producers/tune-kaponir-four-before-prose-ceiling.py": "bc31b6259fed7f7fa35e1dc6840b515be845b963c0074fdc5bdd068fd7ef4fc4",
+    "producers/tune-kaponir-four-before-wide.py": "cb92631aff912e49b018166e559e44320c0a4c662cde620a591b96567d1bd7de",
+    "producers/tune-kaponir-four-initial.py": "b4604d91c818fbc434107a7e5f88ae2c2301167316242c0d31c5e4b245e09161",
+    "producers/tune-kaponir-four-with-cutoff.py": "994a7f8232b276ad9850f107c380fbf3a4eca7417cc07a4e53d47528dadd1b72",
+    "producers/tune-kaponir-four-with-short-rep.py": "b6bdca0416ff7040049d3a495d33b410db6cacfcf1486ad8780854064b4ad934",
+    "producers/tune-kaponir-four.py": "39c38fbc8e497a9f9abdd3c6389298e8b16b53c648a607781d4058cd488c93c9",
+    "runs/gemma/full-greedy-rep108/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "runs/gemma/full-greedy-rep108/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "runs/gemma/full-greedy-rep108/apply/baseline/02-02-application/mask.json": "ffc1a58e29d0939516dc1c5d4c3e8837f8c32cad550069b8b495eb962f99fbc9",
+    "runs/gemma/full-greedy-rep108/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/gemma/full-greedy-rep108/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/gemma/full-greedy-rep108/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/gemma/full-greedy-rep108/apply/model_masks_added/01-01-cost-estimate/mask.json": "aa40dba0f34f0e7fb438983d1baf5bc22885d8c9dc643122b28170afede7adf6",
+    "runs/gemma/full-greedy-rep108/apply/model_masks_added/01-01-cost-estimate/restore.json": "e2b0bd0ad75ed472854d41c3192c0de09da0ddb98fcafb78a9e7af91848aa6f8",
+    "runs/gemma/full-greedy-rep108/apply/model_masks_added/02-02-application/mask.json": "d636f1afe01853b91bb00ee5bb19d930e206abf348e2e43557c42e0d1c3e7fe0",
+    "runs/gemma/full-greedy-rep108/apply/model_masks_added/02-02-application/restore.json": "a7d9d62b2c2abf452895264abb094131fc78c1dbb5eaeb000d04c103fae561b4",
+    "runs/gemma/full-greedy-rep108/apply/model_masks_added/03-08-public-reference/mask.json": "434a4c81ecd0f1b43a51501109edd36560642aafa17eedd84d2f8652a24d5950",
+    "runs/gemma/full-greedy-rep108/apply/model_masks_added/03-08-public-reference/restore.json": "d525b08e4532a93cc793480225646ae312f6f2487e6e82bf0c51ef8ecb8cbeda",
+    "runs/gemma/full-greedy-rep108/apply/result.json": "9e6c067f3efbc051bc1ff920ffa2f1b18c1f071ea591866f0ff8bf1a27b54c7c",
+    "runs/gemma/full-greedy-rep108/discovery.json": "33bd8e0d968a0398a2a6c0e592c6e5e6b7bf11a4d29386c5d02b5a8f6a6ef4c9",
+    "runs/gemma/full-greedy-rep108/plan.json": "3a8015e522b182711d6183a5189cd3a4805e67c09f4c0c9a72e117cbb20d2c0e",
+    "runs/gemma/full-greedy-rep108/result.json": "8c0c2f9fdc39b50c64d4e7d1622e0c67504c1dfcad4187061fd0bc1fc8e5159a",
+    "runs/gemma/full-greedy-rep108/transports.json": "09247cf3191ded3cdf83370c46bf32a210225e7568ad4ef25d81926e5dbc9df4",
+    "runs/gemma/full-short-thought384-long-direct/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "runs/gemma/full-short-thought384-long-direct/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "runs/gemma/full-short-thought384-long-direct/apply/baseline/02-02-application/mask.json": "32d849aed1d657ca743c87511c7f154324352a5392ff0b065986e99256f0c942",
+    "runs/gemma/full-short-thought384-long-direct/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/gemma/full-short-thought384-long-direct/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/gemma/full-short-thought384-long-direct/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/gemma/full-short-thought384-long-direct/apply/model_masks_added/01-01-cost-estimate/mask.json": "78d1ad95ba3378b6bcc30fa9e789951339688e8db586827116a7843df83f103b",
+    "runs/gemma/full-short-thought384-long-direct/apply/model_masks_added/01-01-cost-estimate/restore.json": "fb33cec8d32147ebc86fc003817ecb85ea7f3a1bb3a92c023126aa22618dcc48",
+    "runs/gemma/full-short-thought384-long-direct/apply/model_masks_added/02-02-application/mask.json": "4c95aaf342e595ad09f17761241b2a71be90a8b9e266ad95a41ffb963ab09af5",
+    "runs/gemma/full-short-thought384-long-direct/apply/model_masks_added/02-02-application/restore.json": "dc32fc7195329563766f8b2821d3ce8eafeaa9722b3f94ec424dd2e810b75e96",
+    "runs/gemma/full-short-thought384-long-direct/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "runs/gemma/full-short-thought384-long-direct/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "runs/gemma/full-short-thought384-long-direct/apply/result.json": "b1fe1215c1bfcbd6c7e9c5c76e6f22bb1f0e37ce44a3b3db3dd249345b1cad82",
+    "runs/gemma/full-short-thought384-long-direct/discovery.json": "0fa2816125bc7bd9a7339f2ad02254fd60df3619760ba973f908d249bfc649f8",
+    "runs/gemma/full-short-thought384-long-direct/plan.json": "22c7b95034f13f12d237cd5100814229fc6034c3a44c794a4efdfb1d5ac9ad30",
+    "runs/gemma/full-short-thought384-long-direct/result.json": "21b18dcf71abc34b27aeec507e8cf74f8f63b533ef9e7f2a7ef3fc174db00f07",
+    "runs/gemma/full-short-thought384-long-direct/transports.json": "689f07524c6b0aad3c5da0fb96d160aa03bcc9c1f0a229b7cb999addae0d74a3",
+    "runs/gemma/guide-greedy-rep108/apply/baseline/01-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/gemma/guide-greedy-rep108/apply/baseline/01-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/gemma/guide-greedy-rep108/apply/model_masks_added/01-08-public-reference/mask.json": "434a4c81ecd0f1b43a51501109edd36560642aafa17eedd84d2f8652a24d5950",
+    "runs/gemma/guide-greedy-rep108/apply/model_masks_added/01-08-public-reference/restore.json": "d525b08e4532a93cc793480225646ae312f6f2487e6e82bf0c51ef8ecb8cbeda",
+    "runs/gemma/guide-greedy-rep108/apply/result.json": "80c4c3549c4c5795ff52f311f3bcb0c343335b6172f557198ba58bce98314d62",
+    "runs/gemma/guide-greedy-rep108/discovery.json": "bd7ae9b3dcf56ea14ff2515082c51bee684eab9f00fe3501cf2e714ea0c38b45",
+    "runs/gemma/guide-greedy-rep108/plan.json": "6965476dbf17074a078fbc7312bec22cbf0975552d31d92f0273e37a0627c673",
+    "runs/gemma/guide-greedy-rep108/result.json": "f66e47189ae295b8b7a9a7590ca98d7ef86b22a0614a2950524171c9d46913b0",
+    "runs/gemma/guide-greedy-rep108/transports.json": "889dffb8c581f1be9d3cd95b1eac53f7f999b45618ed2244227de00724754ccf",
+    "runs/gemma/guide-short-thought/apply/baseline/01-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/gemma/guide-short-thought/apply/baseline/01-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/gemma/guide-short-thought/apply/model_masks_added/01-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "runs/gemma/guide-short-thought/apply/model_masks_added/01-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "runs/gemma/guide-short-thought/apply/result.json": "ada85aaa46082fd35e8243ab0cd9e06035d98eecc64afa837347489550052796",
+    "runs/gemma/guide-short-thought/discovery.json": "ab324a4a31d76329fe4fcd0e917f81c5ae05ada1a6c3acdb64501f5a99bf357c",
+    "runs/gemma/guide-short-thought/plan.json": "da665e62c6572c5454e9dd5011cd814143ec9ba1ae71b1e41e18f1d318bdc93b",
+    "runs/gemma/guide-short-thought/result.json": "3857c71113514ca51cc2e3b3e3c8c16588a4d5437865c5bddbee50f7c08077b7",
+    "runs/gemma/guide-short-thought/transports.json": "ffa9de29c0791cbcb289ebaab3232adf7258dd46089549eeed144fb4b1733a75",
+    "runs/gemma/guide-soft025/apply/baseline/01-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/gemma/guide-soft025/apply/baseline/01-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/gemma/guide-soft025/apply/model_masks_added/01-08-public-reference/mask.json": "7d3562ac18c96531a0adf85a1b08c15f1855cf5601f5245c5196b37527a0c190",
+    "runs/gemma/guide-soft025/apply/model_masks_added/01-08-public-reference/restore.json": "962b903727d1f6abeaff42f80212dd08270875449a32fb398068dbd428bf906c",
+    "runs/gemma/guide-soft025/apply/result.json": "4d71b06d310dcdbcbb587d0fb9116a060c57b43f8cc5f09f9a9bf380c62d84c0",
+    "runs/gemma/guide-soft025/discovery.json": "a51e0ee2598d1bd319801b3a1aa93dcdf569601403c671a219241577ec461ea0",
+    "runs/gemma/guide-soft025/plan.json": "cf59119b045510f3fe88bfcf7b3220769fe29eb28155ef655851774d6f2a4bdb",
+    "runs/gemma/guide-soft025/result.json": "399758c67c121f7c3fac3a73b14e171d3e95323d052fbd8afb5c92e3ca8aca50",
+    "runs/gemma/guide-soft025/transports.json": "a99db6f4fc199eadc69c7474d2ef25b9ae0f2a2e209cec5ac76f6b49310a57cd",
+    "runs/gemma/holdout-baseline/apply/baseline/01-handover-cost/mask.json": "26e26a578b4ac5ff741930051d4a0ef405c84c40b67e90bd9713835966a4c222",
+    "runs/gemma/holdout-baseline/apply/baseline/01-handover-cost/restore.json": "636c1040828bf8257634c07dff400c03eb78477a187e6de6169adbda9d8612f3",
+    "runs/gemma/holdout-baseline/apply/baseline/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/gemma/holdout-baseline/apply/baseline/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/gemma/holdout-baseline/apply/baseline/03-mirror-worker/mask.json": "bf042711186a58d372a1a1a0b0f28e30addcf2c9158d5084472ad2a6dae02bfd",
+    "runs/gemma/holdout-baseline/apply/baseline/03-mirror-worker/restore.json": "ddc5b3715438697efe7d9fe2a4e783d915eaeb7bf2f15c0925d4018ee0593806",
+    "runs/gemma/holdout-baseline/apply/model_masks_added/01-handover-cost/mask.json": "6c3a9007fa14f941dc06566019644755f69f549b7000d7b2a3f7098e8a6f4eb3",
+    "runs/gemma/holdout-baseline/apply/model_masks_added/01-handover-cost/restore.json": "1bc962d5301d92eb8d29239928e7192a858d0cf15e5c4c1831689a9189e7a453",
+    "runs/gemma/holdout-baseline/apply/model_masks_added/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/gemma/holdout-baseline/apply/model_masks_added/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/gemma/holdout-baseline/apply/model_masks_added/03-mirror-worker/mask.json": "72ad46c925ae884d24d9dd3812c552c42c6d808c8291df23ae9dd6b3d9a3a1a1",
+    "runs/gemma/holdout-baseline/apply/model_masks_added/03-mirror-worker/restore.json": "25fa292d33c7782e7fc290690e31d8a843092f39f84c21601f5158564bfdf7fb",
+    "runs/gemma/holdout-baseline/apply/result.json": "50e325ebef9d0293ce820073214261396840e1caff452e894d31f6ecaec36687",
+    "runs/gemma/holdout-baseline/discovery.json": "182405ad0895472f65de7e9c87856637f6f9493588c6f8f08439004a8a3c0f86",
+    "runs/gemma/holdout-baseline/plan.json": "3730bb317f024bddbbe30cb6047eb3f48520217df8201640a0b19f4ff27020e1",
+    "runs/gemma/holdout-baseline/result.json": "95269383fc963edc79a1764b754eda2de74fea04ff07909f2cc6ef0459f603ab",
+    "runs/gemma/holdout-baseline/transports.json": "f8349f7bf22e5bd89d2f60114afc914bb5e80e0d3e816834ab6bf58403f375f5",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/baseline/01-handover-cost/mask.json": "26e26a578b4ac5ff741930051d4a0ef405c84c40b67e90bd9713835966a4c222",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/baseline/01-handover-cost/restore.json": "636c1040828bf8257634c07dff400c03eb78477a187e6de6169adbda9d8612f3",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/baseline/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/baseline/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/baseline/03-mirror-worker/mask.json": "3666f9fe3c1a19ef7bf25b9d81a16bc587062401db6bd6f7e796bcb456354923",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/baseline/03-mirror-worker/restore.json": "ddc5b3715438697efe7d9fe2a4e783d915eaeb7bf2f15c0925d4018ee0593806",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/model_masks_added/01-handover-cost/mask.json": "6c3a9007fa14f941dc06566019644755f69f549b7000d7b2a3f7098e8a6f4eb3",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/model_masks_added/01-handover-cost/restore.json": "1bc962d5301d92eb8d29239928e7192a858d0cf15e5c4c1831689a9189e7a453",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/model_masks_added/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/model_masks_added/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/model_masks_added/03-mirror-worker/mask.json": "df5ad3786a9e2597cc093cb1ab53c82967118304b5b936e40e5616f73d33066a",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/model_masks_added/03-mirror-worker/restore.json": "db1f4764ce278381e421cf9aa03f995450a9706af36d3b02f5d78a34979edefd",
+    "runs/gemma/holdout-short-thought384-long-direct/apply/result.json": "11229125872c217e34bd4780898fcac012335031a02c7c07ea7afede8e519522",
+    "runs/gemma/holdout-short-thought384-long-direct/discovery.json": "4bebcccf4c90ab81666f0253d1489f0cd459874df6468801b727568c00a2ab1e",
+    "runs/gemma/holdout-short-thought384-long-direct/plan.json": "1215bcf0ede764fcdea9beeed027e7d2d7c798ab28d1802a53755595195f7408",
+    "runs/gemma/holdout-short-thought384-long-direct/result.json": "eb853dd211a46277046c1232dbfdbb0a5977dc4e8071f683bc23aeebcdf2b646",
+    "runs/gemma/holdout-short-thought384-long-direct/transports.json": "02be09bde21962c5042f85f0eb040de125be38130ef4b6e697b51ba34c404b74",
+    "runs/lfm/full-split-copy192/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "runs/lfm/full-split-copy192/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "runs/lfm/full-split-copy192/apply/baseline/02-02-application/mask.json": "c8f2db723074008873941703d2799979f6cb6c7f6c05475e206961c00f903951",
+    "runs/lfm/full-split-copy192/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/lfm/full-split-copy192/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/lfm/full-split-copy192/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/lfm/full-split-copy192/apply/model_masks_added/01-01-cost-estimate/mask.json": "f64864d46eab7eede99b319c892fb93e8297f08a7a48c51cb01f816b75905d2d",
+    "runs/lfm/full-split-copy192/apply/model_masks_added/01-01-cost-estimate/restore.json": "e2b0bd0ad75ed472854d41c3192c0de09da0ddb98fcafb78a9e7af91848aa6f8",
+    "runs/lfm/full-split-copy192/apply/model_masks_added/02-02-application/mask.json": "1c0cc00b7cc4c53b560002667f8ce4f40c3c3613c1121473164022628d80d31e",
+    "runs/lfm/full-split-copy192/apply/model_masks_added/02-02-application/restore.json": "98aef4516a4706c7fd5195c4f4c70360f6422fdd5c57c3a31dbf88834e4366ff",
+    "runs/lfm/full-split-copy192/apply/model_masks_added/03-08-public-reference/mask.json": "fce92435ba548c6cb7eb934688f201f7c5e8e730aab1a1b4db478cd7e5bcc673",
+    "runs/lfm/full-split-copy192/apply/model_masks_added/03-08-public-reference/restore.json": "e058817b0db8d025881f1df7848ce5aa9e8f92df67f32471e46c2239b459bd11",
+    "runs/lfm/full-split-copy192/apply/result.json": "7ce0b81c101c69ca0c91f3feb4dfeb5cbe7c8cbb9d1133866a03a5277e52f31f",
+    "runs/lfm/full-split-copy192/discovery.json": "7635c71afcb37b1fcd7b8040eb2d926eaa4e5068d713122406c6e18f37d57814",
+    "runs/lfm/full-split-copy192/plan.json": "618878238da8fefef7eafa69f18c855e539d180198b80bab26d9804dd1744e77",
+    "runs/lfm/full-split-copy192/result.json": "db5f9db1dbdea7ba276094dca7a73d59889c421842fc335d33f182f40b05a3f3",
+    "runs/lfm/full-split-copy192/transports.json": "dd92ebcee22739f8b6064f0a80879c9fb63c9f49950071a0f6d997392ed1249c",
+    "runs/lfm/full-split-nohint384/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "runs/lfm/full-split-nohint384/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "runs/lfm/full-split-nohint384/apply/baseline/02-02-application/mask.json": "71f3c977a6f3c076a66d46591d4ecc9f53a5277dfbafc578677054a1d57d6e14",
+    "runs/lfm/full-split-nohint384/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/lfm/full-split-nohint384/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/lfm/full-split-nohint384/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/lfm/full-split-nohint384/apply/model_masks_added/01-01-cost-estimate/mask.json": "49409a5072839a9320823c399821efe28cfcedb1755bae6211ce68cca250f367",
+    "runs/lfm/full-split-nohint384/apply/model_masks_added/01-01-cost-estimate/restore.json": "728ed13848c1335ed690e8a864986f7aa21d06d594abbb634cd1890ed9dabfa7",
+    "runs/lfm/full-split-nohint384/apply/model_masks_added/02-02-application/mask.json": "196eb0e26e27cc7f0b76caf3a8f6633216e335b5654737b137f9442ed5ee34be",
+    "runs/lfm/full-split-nohint384/apply/model_masks_added/02-02-application/restore.json": "e738aed7b7cac78e0e02d8256487f386708b999884e9a921b039191d31ee82b7",
+    "runs/lfm/full-split-nohint384/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "runs/lfm/full-split-nohint384/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "runs/lfm/full-split-nohint384/apply/result.json": "82003d6979e1de45751b102df6580ed7ecb434520fb3880fe5d112d4476e4841",
+    "runs/lfm/full-split-nohint384/discovery.json": "a2b2a4622ce2c637597b078766bb221efb8513f5df14f6fe7929c0897b5dfc0b",
+    "runs/lfm/full-split-nohint384/plan.json": "2f0f4c784f63c2adb2452a73727d1d61245bb32acfc147318b537d50e4bba3f1",
+    "runs/lfm/full-split-nohint384/result.json": "e6eb8e9bd253059ecca814a7de3455ee128b7a70ea7b5d08c6ed81317f77280a",
+    "runs/lfm/full-split-nohint384/transports.json": "aaf0bc4a39fbd0ab45d3e9cd40ffe58179e82ac88800372f9bddb634448ff104",
+    "runs/lfm/holdout-baseline/apply/baseline/01-handover-cost/mask.json": "26e26a578b4ac5ff741930051d4a0ef405c84c40b67e90bd9713835966a4c222",
+    "runs/lfm/holdout-baseline/apply/baseline/01-handover-cost/restore.json": "636c1040828bf8257634c07dff400c03eb78477a187e6de6169adbda9d8612f3",
+    "runs/lfm/holdout-baseline/apply/baseline/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/lfm/holdout-baseline/apply/baseline/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/lfm/holdout-baseline/apply/baseline/03-mirror-worker/mask.json": "ae1202d79ebcda04f03c4954e8db09a37e44c354ef72acdbf093d5cf9bde4240",
+    "runs/lfm/holdout-baseline/apply/baseline/03-mirror-worker/restore.json": "ddc5b3715438697efe7d9fe2a4e783d915eaeb7bf2f15c0925d4018ee0593806",
+    "runs/lfm/holdout-baseline/apply/model_masks_added/01-handover-cost/mask.json": "fd81a47c341347c1c3c3b942bd0cf1def8e245cbd8d6d19a8227cc8c943f2c2b",
+    "runs/lfm/holdout-baseline/apply/model_masks_added/01-handover-cost/restore.json": "4dc53ef417dd8345f2e065a3f516ee7b6213a2af94721c7ccf6ec581cfb73cff",
+    "runs/lfm/holdout-baseline/apply/model_masks_added/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/lfm/holdout-baseline/apply/model_masks_added/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/lfm/holdout-baseline/apply/model_masks_added/03-mirror-worker/mask.json": "49b3ece43bf64d5f7efc0d887017895765362ebf587450c66cc3bec8cb1a1475",
+    "runs/lfm/holdout-baseline/apply/model_masks_added/03-mirror-worker/restore.json": "db1f4764ce278381e421cf9aa03f995450a9706af36d3b02f5d78a34979edefd",
+    "runs/lfm/holdout-baseline/apply/result.json": "4b7ac4702484346bb444a7cde015f9cf43f7f648c8cf79b5891a12737fbc2700",
+    "runs/lfm/holdout-baseline/discovery.json": "dd695f61a86d91b91d5ee75b3e8a7e1dcf635e67b78b793bacbccf753bb62dfc",
+    "runs/lfm/holdout-baseline/plan.json": "4daeb97a14165eddba770d70f5479b22461870c1805ade3d0a607c5282004c3e",
+    "runs/lfm/holdout-baseline/result.json": "2030c55ad195a5ec384804d33c4212d81e98d8f669062976cf1d07f007721d59",
+    "runs/lfm/holdout-baseline/transports.json": "b42b06bbde97ffc12554642a16d7c5dc181518081583cd2728e68f60ef89ff3d",
+    "runs/lfm/holdout-split-nohint384/apply/baseline/01-handover-cost/mask.json": "26e26a578b4ac5ff741930051d4a0ef405c84c40b67e90bd9713835966a4c222",
+    "runs/lfm/holdout-split-nohint384/apply/baseline/01-handover-cost/restore.json": "636c1040828bf8257634c07dff400c03eb78477a187e6de6169adbda9d8612f3",
+    "runs/lfm/holdout-split-nohint384/apply/baseline/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/lfm/holdout-split-nohint384/apply/baseline/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/lfm/holdout-split-nohint384/apply/baseline/03-mirror-worker/mask.json": "9a23a5647d0827a6ef276b69d2077b9ab96ea3c4f612ad44c179c6d93937a494",
+    "runs/lfm/holdout-split-nohint384/apply/baseline/03-mirror-worker/restore.json": "ddc5b3715438697efe7d9fe2a4e783d915eaeb7bf2f15c0925d4018ee0593806",
+    "runs/lfm/holdout-split-nohint384/apply/model_masks_added/01-handover-cost/mask.json": "fd81a47c341347c1c3c3b942bd0cf1def8e245cbd8d6d19a8227cc8c943f2c2b",
+    "runs/lfm/holdout-split-nohint384/apply/model_masks_added/01-handover-cost/restore.json": "4dc53ef417dd8345f2e065a3f516ee7b6213a2af94721c7ccf6ec581cfb73cff",
+    "runs/lfm/holdout-split-nohint384/apply/model_masks_added/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/lfm/holdout-split-nohint384/apply/model_masks_added/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/lfm/holdout-split-nohint384/apply/model_masks_added/03-mirror-worker/mask.json": "7751a2bfcb1c52421c5cda5f1858d22c80900759c39e3ddaa04cd58fa91f6c79",
+    "runs/lfm/holdout-split-nohint384/apply/model_masks_added/03-mirror-worker/restore.json": "db1f4764ce278381e421cf9aa03f995450a9706af36d3b02f5d78a34979edefd",
+    "runs/lfm/holdout-split-nohint384/apply/result.json": "ad6f9740660dd6786d4a764ad0431c0af1665e22b9e814395129e85dbd5c9e7f",
+    "runs/lfm/holdout-split-nohint384/discovery.json": "024b7392c4a70034bf261f5d0f93ecdb7d9dcf055a0e14660210f34b5aea8f28",
+    "runs/lfm/holdout-split-nohint384/plan.json": "ee5963b29f9b5a72b23eeec58409854de3ff06327353660ff81a82d155267785",
+    "runs/lfm/holdout-split-nohint384/result.json": "1aac534d40cd2701000c55142dbf51486cc52f79833b001219d5da8d0439e0d0",
+    "runs/lfm/holdout-split-nohint384/transports.json": "0a54cc4b6c37ca955ff4478f1e9d8d6ebb30903bf41de60556dba162c2bba2b9",
+    "runs/nano/full-split-t020/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "runs/nano/full-split-t020/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "runs/nano/full-split-t020/apply/baseline/02-02-application/mask.json": "1f72bffc1c3288bd31a788cce2f4a7985c23d38e8d49ddb1490e8f4bc46ee83d",
+    "runs/nano/full-split-t020/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/nano/full-split-t020/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/nano/full-split-t020/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/nano/full-split-t020/apply/model_masks_added/01-01-cost-estimate/mask.json": "fd7f7130aee98a754b479315fc39c72b0d5f8bfcd1bf7938abb267f78d8eb088",
+    "runs/nano/full-split-t020/apply/model_masks_added/01-01-cost-estimate/restore.json": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422",
+    "runs/nano/full-split-t020/apply/model_masks_added/02-02-application/mask.json": "d19c93455369f68af00473efe720af731c84250c04713362673ff7434c0f27cb",
+    "runs/nano/full-split-t020/apply/model_masks_added/02-02-application/restore.json": "4589d1715ae4dbbef03035fc41a68b8ab9f46f90d9081d0ca715e168a3c11421",
+    "runs/nano/full-split-t020/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "runs/nano/full-split-t020/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "runs/nano/full-split-t020/apply/result.json": "4f3ff884e2d72b5870ca434b601338cc91701a70d858c1f04e9422cd6bbb0d49",
+    "runs/nano/full-split-t020/discovery.json": "08d9c29c46417572d439d0237adbc50eee6ec9735391c22f4149952a12485f0a",
+    "runs/nano/full-split-t020/plan.json": "43275a3793a7f58d40e910c7dc8c7fbcd1b8b7526d1de307fb47478c21de7174",
+    "runs/nano/full-split-t020/result.json": "a8f5f9398fdd89ec93fb11685d91a45bb4426f16ebb075be2c1b8d7bcd1deb17",
+    "runs/nano/full-split-t020/transports.json": "57e838f9035e9ef3caa3a30c8fa4a6229ab82b11f3763e940a0e603c65f1dce2",
+    "runs/nano/full-wide-t020/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "runs/nano/full-wide-t020/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "runs/nano/full-wide-t020/apply/baseline/02-02-application/mask.json": "65097f2919179046c5e0f96dcd5084ade664710305fdf41ac4266c61ac71142f",
+    "runs/nano/full-wide-t020/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/nano/full-wide-t020/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/nano/full-wide-t020/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/nano/full-wide-t020/apply/model_masks_added/01-01-cost-estimate/mask.json": "fd7f7130aee98a754b479315fc39c72b0d5f8bfcd1bf7938abb267f78d8eb088",
+    "runs/nano/full-wide-t020/apply/model_masks_added/01-01-cost-estimate/restore.json": "7f445ceb840ec72b32eabc25fdc2901f60c5f63f2fbbc67ec8bef1605f2df422",
+    "runs/nano/full-wide-t020/apply/model_masks_added/02-02-application/mask.json": "345a6242f8f54da405e8063a9469af533f328599a477161afa5e7268b4b90227",
+    "runs/nano/full-wide-t020/apply/model_masks_added/02-02-application/restore.json": "98a5d045e184fcf642f52e42f027a20eb800e172a79b3e0379c9991e55a4c66f",
+    "runs/nano/full-wide-t020/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "runs/nano/full-wide-t020/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "runs/nano/full-wide-t020/apply/result.json": "8d70c357655f72d68cbb493f9c2cd168d9798eff7c6b03b8ab4dc0bca0c0ddb0",
+    "runs/nano/full-wide-t020/discovery.json": "0c48932bf9a2dcf47b2458330a3f13867c4da95689512330419f3c575d0ff954",
+    "runs/nano/full-wide-t020/log-check/apply/baseline/01-02-application/mask.json": "e22a276877b7ca0b371c64644b2c28db608b6be4dc0494d9e5616dbe5a4139f0",
+    "runs/nano/full-wide-t020/log-check/apply/baseline/01-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/nano/full-wide-t020/log-check/apply/model_masks_added/01-02-application/mask.json": "4d536adcb89f9032b8ae5d02cec6a6031291f8160015372bba2884e4e30680fc",
+    "runs/nano/full-wide-t020/log-check/apply/model_masks_added/01-02-application/restore.json": "98a5d045e184fcf642f52e42f027a20eb800e172a79b3e0379c9991e55a4c66f",
+    "runs/nano/full-wide-t020/log-check/apply/result.json": "0dee9ebf4d97b9a83eff1ba6d622bd9d2f1dfac74e1f86bed01717e2dff2c783",
+    "runs/nano/full-wide-t020/log-screen.json": "e01d14584336e7e643fa77467fd875479481ec7fa3709d344861947a9e2f72cc",
+    "runs/nano/full-wide-t020/plan.json": "eb1b612045401ea85b1204e617394f02730a341b14dbbf1f7edf91b62b2fef9c",
+    "runs/nano/full-wide-t020/result.json": "bb7a384f2518a688a8851439ac6c1e02f64b1c3928607cba3eed8a8ba6fd8a69",
+    "runs/nano/full-wide-t020/transports.json": "b70829fd80e6dbf196c9be4c00b3672df8d7c4a26629884a271f67ed0c3a64ff",
+    "runs/nano/holdout-baseline/apply/baseline/01-handover-cost/mask.json": "26e26a578b4ac5ff741930051d4a0ef405c84c40b67e90bd9713835966a4c222",
+    "runs/nano/holdout-baseline/apply/baseline/01-handover-cost/restore.json": "636c1040828bf8257634c07dff400c03eb78477a187e6de6169adbda9d8612f3",
+    "runs/nano/holdout-baseline/apply/baseline/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/nano/holdout-baseline/apply/baseline/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/nano/holdout-baseline/apply/baseline/03-mirror-worker/mask.json": "b2260af6c0c5f74c2f7b6ed321be3a9bbaac062c45a223969b1f4572690a553d",
+    "runs/nano/holdout-baseline/apply/baseline/03-mirror-worker/restore.json": "ddc5b3715438697efe7d9fe2a4e783d915eaeb7bf2f15c0925d4018ee0593806",
+    "runs/nano/holdout-baseline/apply/model_masks_added/01-handover-cost/mask.json": "6c3a9007fa14f941dc06566019644755f69f549b7000d7b2a3f7098e8a6f4eb3",
+    "runs/nano/holdout-baseline/apply/model_masks_added/01-handover-cost/restore.json": "1bc962d5301d92eb8d29239928e7192a858d0cf15e5c4c1831689a9189e7a453",
+    "runs/nano/holdout-baseline/apply/model_masks_added/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/nano/holdout-baseline/apply/model_masks_added/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/nano/holdout-baseline/apply/model_masks_added/03-mirror-worker/mask.json": "6757950b08fff45504392f3b7bf45ad3e84cad8d99afe245868b563cfb22fb38",
+    "runs/nano/holdout-baseline/apply/model_masks_added/03-mirror-worker/restore.json": "7885e8c5029f866b4daa39f52735df0320b741f4cd357b51c23b8fb38571773a",
+    "runs/nano/holdout-baseline/apply/result.json": "83609740afdf6dbdb11d2844c4c4f0cc277dbb376d6c7d01d69e4cc4ad8d5ca2",
+    "runs/nano/holdout-baseline/discovery.json": "3a592ae18d00bb46b6b2d60589ffaf61af77e11e4b278d97aea95d380799c702",
+    "runs/nano/holdout-baseline/plan.json": "016b471e5603e5599e31057dc3a6b8162a5fb0b9f49ee0cfd3168d5a842becef",
+    "runs/nano/holdout-baseline/result.json": "89b572c738ad957fd5754c0cd5316988df8c9329d8613ac991886d18aa8320da",
+    "runs/nano/holdout-baseline/transports.json": "76d58887455567a6f083d73462d34123efb8e73b3c276b8946c8c32c11113803",
+    "runs/nano/holdout-wide-t020/apply/baseline/01-handover-cost/mask.json": "26e26a578b4ac5ff741930051d4a0ef405c84c40b67e90bd9713835966a4c222",
+    "runs/nano/holdout-wide-t020/apply/baseline/01-handover-cost/restore.json": "636c1040828bf8257634c07dff400c03eb78477a187e6de6169adbda9d8612f3",
+    "runs/nano/holdout-wide-t020/apply/baseline/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/nano/holdout-wide-t020/apply/baseline/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/nano/holdout-wide-t020/apply/baseline/03-mirror-worker/mask.json": "f96d83a1938e786e0554773a2ac4569d6f3b28579a84641cd5ae77b5ed732889",
+    "runs/nano/holdout-wide-t020/apply/baseline/03-mirror-worker/restore.json": "ddc5b3715438697efe7d9fe2a4e783d915eaeb7bf2f15c0925d4018ee0593806",
+    "runs/nano/holdout-wide-t020/apply/model_masks_added/01-handover-cost/mask.json": "6c3a9007fa14f941dc06566019644755f69f549b7000d7b2a3f7098e8a6f4eb3",
+    "runs/nano/holdout-wide-t020/apply/model_masks_added/01-handover-cost/restore.json": "1bc962d5301d92eb8d29239928e7192a858d0cf15e5c4c1831689a9189e7a453",
+    "runs/nano/holdout-wide-t020/apply/model_masks_added/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/nano/holdout-wide-t020/apply/model_masks_added/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/nano/holdout-wide-t020/apply/model_masks_added/03-mirror-worker/mask.json": "45f9036a0a2ea29d2fe538fa9f504c08fec9396fa377be78c1d28fdf09283a19",
+    "runs/nano/holdout-wide-t020/apply/model_masks_added/03-mirror-worker/restore.json": "7885e8c5029f866b4daa39f52735df0320b741f4cd357b51c23b8fb38571773a",
+    "runs/nano/holdout-wide-t020/apply/result.json": "8e7f9f402543c7142dd32c1e7656a369577929d715150bae50cc6e7fefc7a160",
+    "runs/nano/holdout-wide-t020/discovery.json": "190367ec8035f0039684452f4ed7552bcac2a1434930fcd00c85014ae52db693",
+    "runs/nano/holdout-wide-t020/plan.json": "99f810a120b53e0b91c3427e5f96056548f87d22969e7b98c80cb377f3048866",
+    "runs/nano/holdout-wide-t020/result.json": "e5357fa377964c79f66f538a9edab3a7d204a5ab22275ac88a788ea8a240d456",
+    "runs/nano/holdout-wide-t020/transports.json": "230ee0b5ffafc5c7f11f5e835202885a8a34e227b8a2a017953572c0bee6dcd8",
+    "runs/nano/screen-wide-t020/apply/baseline/01-02-application/mask.json": "d93360bcf3cce133b0735a7c61f1e14207c00a1600996610019610a25d21cf83",
+    "runs/nano/screen-wide-t020/apply/baseline/01-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/nano/screen-wide-t020/apply/model_masks_added/01-02-application/mask.json": "345a6242f8f54da405e8063a9469af533f328599a477161afa5e7268b4b90227",
+    "runs/nano/screen-wide-t020/apply/model_masks_added/01-02-application/restore.json": "98a5d045e184fcf642f52e42f027a20eb800e172a79b3e0379c9991e55a4c66f",
+    "runs/nano/screen-wide-t020/apply/result.json": "4d596f3f9a18c61ca887fa6c5cb0131fc67b4ead89032ef476854286b9e08602",
+    "runs/nano/screen-wide-t020/discovery.json": "e09ae6aaea3e0c2c98565616625b169e219bfc1e064e3374b4d9f7ae7a96dff2",
+    "runs/nano/screen-wide-t020/log-check/apply/baseline/01-02-application/mask.json": "aad1f33e01daf4563db7eaefe24b7aab0666a17db132a956c25f9163babb33cc",
+    "runs/nano/screen-wide-t020/log-check/apply/baseline/01-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/nano/screen-wide-t020/log-check/apply/model_masks_added/01-02-application/mask.json": "7954b9f36325937c9b8d354a4c34b4fb988091c4904a078631b6e9f94df67ab7",
+    "runs/nano/screen-wide-t020/log-check/apply/model_masks_added/01-02-application/restore.json": "98a5d045e184fcf642f52e42f027a20eb800e172a79b3e0379c9991e55a4c66f",
+    "runs/nano/screen-wide-t020/log-check/apply/result.json": "00d7341cb78b216a9b698c91df9007c6d618bbf303e372ec11b46982a6e5161a",
+    "runs/nano/screen-wide-t020/log-screen.json": "d8132ccaf720e68bac981625448ae7ab54265054bfce306658f3b9db0e8f2a9a",
+    "runs/nano/screen-wide-t020/plan.json": "bd560c01a0a74d47b57c3200c6b476af444cd999033978519a3001dad5482245",
+    "runs/nano/screen-wide-t020/result.json": "7bbf47bde646395f941bd638446a3d1cf3c44f721df8fac696c148a999b38259",
+    "runs/nano/screen-wide-t020/transports.json": "b4a00ff7437cec03021d0729f6b317160ace3e81b77914e9428c0b69930805a9",
+    "runs/qwen/full-split-cool/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "runs/qwen/full-split-cool/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "runs/qwen/full-split-cool/apply/baseline/02-02-application/mask.json": "aa4e49504ac47a9b50b77a219a3155a2ac1b779b6933370b1f996af079bdb31c",
+    "runs/qwen/full-split-cool/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/qwen/full-split-cool/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/qwen/full-split-cool/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/qwen/full-split-cool/apply/model_masks_added/01-01-cost-estimate/mask.json": "a766d1a3394b26878da0fe86ac97d0d1c9256e33ee4cce78d1dee92abbe342fb",
+    "runs/qwen/full-split-cool/apply/model_masks_added/01-01-cost-estimate/restore.json": "9503efcf956a464db50701795a3fe42f8e2fa1ba5b78c42ff894208e38c0488e",
+    "runs/qwen/full-split-cool/apply/model_masks_added/02-02-application/mask.json": "7bcdd910af000fd5864d3c49834b540711d2b897620c2ac3789ca03a799d6970",
+    "runs/qwen/full-split-cool/apply/model_masks_added/02-02-application/restore.json": "4589d1715ae4dbbef03035fc41a68b8ab9f46f90d9081d0ca715e168a3c11421",
+    "runs/qwen/full-split-cool/apply/model_masks_added/03-08-public-reference/mask.json": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9",
+    "runs/qwen/full-split-cool/apply/model_masks_added/03-08-public-reference/restore.json": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256",
+    "runs/qwen/full-split-cool/apply/result.json": "1a656054074764897552d4ca293e97f95db93b9bc85fcdcdecfdd07b2ec1dfe1",
+    "runs/qwen/full-split-cool/discovery.json": "6a6f526d47d27e0b5c2b87d0f0d7176a9e0e01636a2c53d52761758beb008bfe",
+    "runs/qwen/full-split-cool/plan.json": "d1d9189964e684b4fcb78a3a6ab8d60d1f5e411f2585e5bbdd86c5cd05877604",
+    "runs/qwen/full-split-cool/result.json": "0609ac54dde710ae2e4cadfcfe58202ed0d78b70f73aeb97f485f4dd7c84d0f6",
+    "runs/qwen/full-split-cool/transports.json": "42dbcda3ed3ded861fdc889eeffa86eff927ebc6d6f76f50c74a975fcbf20671",
+    "runs/qwen/full-split-greedy/apply/baseline/01-01-cost-estimate/mask.json": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29",
+    "runs/qwen/full-split-greedy/apply/baseline/01-01-cost-estimate/restore.json": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0",
+    "runs/qwen/full-split-greedy/apply/baseline/02-02-application/mask.json": "c383dae3385d984baa99abe87e251225ff7705c765b37db0d7b1c2fa6107061d",
+    "runs/qwen/full-split-greedy/apply/baseline/02-02-application/restore.json": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba",
+    "runs/qwen/full-split-greedy/apply/baseline/03-08-public-reference/mask.json": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28",
+    "runs/qwen/full-split-greedy/apply/baseline/03-08-public-reference/restore.json": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836",
+    "runs/qwen/full-split-greedy/apply/model_masks_added/01-01-cost-estimate/mask.json": "6b7c0ac7e37e8f9023d2c54c9587f17ba9e13d083144ff960e48543e331e6904",
+    "runs/qwen/full-split-greedy/apply/model_masks_added/01-01-cost-estimate/restore.json": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d",
+    "runs/qwen/full-split-greedy/apply/model_masks_added/02-02-application/mask.json": "c63ccdc10f780c3f2bfa2201f3f6fb7f548cd42a148477d7feb8509405117d48",
+    "runs/qwen/full-split-greedy/apply/model_masks_added/02-02-application/restore.json": "b3b2bccb5504fee48f960120af14982697ee58287a0e1f639329b1c95cd03e74",
+    "runs/qwen/full-split-greedy/apply/model_masks_added/03-08-public-reference/mask.json": "f94fbef80b7465e34dbe0b33fa72cd4ec4b8c07539ca91fa4bfc924fbae99caf",
+    "runs/qwen/full-split-greedy/apply/model_masks_added/03-08-public-reference/restore.json": "e836d16f80e1c0dc38aa7b4e64847a2e7b79d71f7d518e3c9127a532f369ddb1",
+    "runs/qwen/full-split-greedy/apply/result.json": "9130983ddcd21fefb912354f6fddd2604087a0d578fb59d43ae63d36ec749d4e",
+    "runs/qwen/full-split-greedy/discovery.json": "f3e908de92abdf2b9f2ce82affba3f0792875023bf8e57765d0a3ad1b5c56474",
+    "runs/qwen/full-split-greedy/plan.json": "ac3b9434d9701538c17672cf61ce811a79c05663b6ce872482400d192a9767f1",
+    "runs/qwen/full-split-greedy/result.json": "5ca403e5335c94842d2cf3072c8722b6cac657eaabcfa0200e460e78291839c8",
+    "runs/qwen/full-split-greedy/transports.json": "74ceec5f190ed1b507784aa0ef61ae9c56e18d62d145d3a65b61b2eddefdf6dd",
+    "runs/qwen/holdout-baseline/apply/baseline/01-handover-cost/mask.json": "26e26a578b4ac5ff741930051d4a0ef405c84c40b67e90bd9713835966a4c222",
+    "runs/qwen/holdout-baseline/apply/baseline/01-handover-cost/restore.json": "636c1040828bf8257634c07dff400c03eb78477a187e6de6169adbda9d8612f3",
+    "runs/qwen/holdout-baseline/apply/baseline/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/qwen/holdout-baseline/apply/baseline/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/qwen/holdout-baseline/apply/baseline/03-mirror-worker/mask.json": "48c398ab8ef2677229fa8a64b4155b193d205904272201b1f9b6c9942b9ae90c",
+    "runs/qwen/holdout-baseline/apply/baseline/03-mirror-worker/restore.json": "ddc5b3715438697efe7d9fe2a4e783d915eaeb7bf2f15c0925d4018ee0593806",
+    "runs/qwen/holdout-baseline/apply/model_masks_added/01-handover-cost/mask.json": "075ef0e6e16f291b7883a3ff89e701679ee85ec6d65dbe967910f1ffae925979",
+    "runs/qwen/holdout-baseline/apply/model_masks_added/01-handover-cost/restore.json": "6243846a559ed5764040c338d60f5b44341142606bb902c2f578fda71508c660",
+    "runs/qwen/holdout-baseline/apply/model_masks_added/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/qwen/holdout-baseline/apply/model_masks_added/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/qwen/holdout-baseline/apply/model_masks_added/03-mirror-worker/mask.json": "7ec942a81503f89516816c8eb8d679faac08fdbbdfe71baf6dac127c6a3558e5",
+    "runs/qwen/holdout-baseline/apply/model_masks_added/03-mirror-worker/restore.json": "25fa292d33c7782e7fc290690e31d8a843092f39f84c21601f5158564bfdf7fb",
+    "runs/qwen/holdout-baseline/apply/result.json": "6e6093f2426177f59fcdca385531a2d890ab6b06d21216677c892f2560f4a43c",
+    "runs/qwen/holdout-baseline/discovery.json": "698732f2771daf880f8acf766c84b1a12ba17c8314ca0968c82ad276aba2a832",
+    "runs/qwen/holdout-baseline/plan.json": "b08efbe85a926d2ce4f8a2c2e8507d535e7f507f56072f22ae2c24f88a04114a",
+    "runs/qwen/holdout-baseline/result.json": "f1de003f8cc3f245e183a0d5ec885158b4594d567bae15f86dd895f7b324810b",
+    "runs/qwen/holdout-baseline/transports.json": "1e43e1097ccd2acc6080a1607aba66aa3839938b44bb39f53693d707d5d6bb4d",
+    "runs/qwen/holdout-split-greedy/apply/baseline/01-handover-cost/mask.json": "26e26a578b4ac5ff741930051d4a0ef405c84c40b67e90bd9713835966a4c222",
+    "runs/qwen/holdout-split-greedy/apply/baseline/01-handover-cost/restore.json": "636c1040828bf8257634c07dff400c03eb78477a187e6de6169adbda9d8612f3",
+    "runs/qwen/holdout-split-greedy/apply/baseline/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/qwen/holdout-split-greedy/apply/baseline/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/qwen/holdout-split-greedy/apply/baseline/03-mirror-worker/mask.json": "a5584f8ad5a1ffc2343ecce19bc2ec0d3178067f49543fa264d74a31b7618266",
+    "runs/qwen/holdout-split-greedy/apply/baseline/03-mirror-worker/restore.json": "ddc5b3715438697efe7d9fe2a4e783d915eaeb7bf2f15c0925d4018ee0593806",
+    "runs/qwen/holdout-split-greedy/apply/model_masks_added/01-handover-cost/mask.json": "6756dd98cdd368be2fafcfe119755a11805fa999b5b9db0c8fd5eca5e6f87301",
+    "runs/qwen/holdout-split-greedy/apply/model_masks_added/01-handover-cost/restore.json": "1bc962d5301d92eb8d29239928e7192a858d0cf15e5c4c1831689a9189e7a453",
+    "runs/qwen/holdout-split-greedy/apply/model_masks_added/02-http-guide/mask.json": "93577ef5312c7514505850b3933e990deffe80058f49257234baed3c1aa543f8",
+    "runs/qwen/holdout-split-greedy/apply/model_masks_added/02-http-guide/restore.json": "55996bcb258fcc14a94c08a2522a26c3e80f0470f0e616f1aa51cdb78aaba022",
+    "runs/qwen/holdout-split-greedy/apply/model_masks_added/03-mirror-worker/mask.json": "b3b532affdd0dd6e4965e31d01eaa37091de93333a8111d8531a8f39f7d5efde",
+    "runs/qwen/holdout-split-greedy/apply/model_masks_added/03-mirror-worker/restore.json": "ee5e1edd9b5578bc8cd455ef3f2ce668425dd078eb4177189cc6f09266d0a8ca",
+    "runs/qwen/holdout-split-greedy/apply/result.json": "1024abaca483a3ab1d63bf0cc74dd18d7fe7f0c9b782842ed98900345537dbb3",
+    "runs/qwen/holdout-split-greedy/discovery.json": "b1d10e161a263c3dcf913d4d884ed04da938beba811dee8ddb5daff846c6088c",
+    "runs/qwen/holdout-split-greedy/plan.json": "8530fe085866e4f8c552310919156748b2314a0775471e6a494d9e7a6e65f5f0",
+    "runs/qwen/holdout-split-greedy/result.json": "b24ad5ec736050902922646852d230c40eb5c86341d5bbeff66219af270945c2",
+    "runs/qwen/holdout-split-greedy/transports.json": "0d330d2cce27a018b5eeee161fa228d5e62f32544059eba70c189823852cda4a",
+    "runs/qwen/pilot-split-cool/apply/baseline/01-delivery-retry/mask.json": "de333ebd5ffe2865774ccd8259fe5f17e49f6ae4abc347604f2068b98399b4ba",
+    "runs/qwen/pilot-split-cool/apply/baseline/01-delivery-retry/restore.json": "e3b349b311e0d3718384da1941bf49fc6d6c1d5259d10ce4d35985365e66b175",
+    "runs/qwen/pilot-split-cool/apply/baseline/02-open-visitor-reference/mask.json": "68e2fbd929155870fcc878f1546bb7be21ca83b2b8f88a1c7531f2ae4fde09f7",
+    "runs/qwen/pilot-split-cool/apply/baseline/02-open-visitor-reference/restore.json": "642c08b80b3ace5b59e1afee7109b0e6b79f308ea4d07b42ed10818dbcb20859",
+    "runs/qwen/pilot-split-cool/apply/model_masks_added/01-delivery-retry/mask.json": "00daf8d1a6d38dfbf1c451cc70773cdbb080e3dd530f963add9d211aa5369185",
+    "runs/qwen/pilot-split-cool/apply/model_masks_added/01-delivery-retry/restore.json": "bb82f0c7757490a8243ea2dca53d60dec556351ddd236a2e4768409a322c1acf",
+    "runs/qwen/pilot-split-cool/apply/model_masks_added/02-open-visitor-reference/mask.json": "6711aab9d9cf6b2f78990cd4090b3edbbc985b27822ff93cf16d9154c0b7c332",
+    "runs/qwen/pilot-split-cool/apply/model_masks_added/02-open-visitor-reference/restore.json": "aec07e56104eda387e5bfaed338681fadc2449ef2af77a38bcab797d9baf3051",
+    "runs/qwen/pilot-split-cool/apply/result.json": "6f8afbd2aeb931869cd786d5707c34b3afe7f8edfb7064c0709b4e387a932a9d",
+    "runs/qwen/pilot-split-cool/discovery.json": "0495de24d2c03f3e132a1bd6f6229d02be2c2fac5f9cd04532e659e29a5f95f8",
+    "runs/qwen/pilot-split-cool/plan.json": "b904e51ecb94d7b21ef9a0167d94c55c4c1342466e9e01682a819981cb4542ba",
+    "runs/qwen/pilot-split-cool/result.json": "41cc0aca9f2473d1b17e1ae4df34d07bb60fb654685b47fa0119f4e3d1b90b5c",
+    "runs/qwen/pilot-split-cool/transports.json": "0c33906158e3e6cf268c0754cf47eb93eaf2a58672fd7b19fba91d2b64b069c0",
+    "selection.json": "af782ca0deeeba6b0e023922182a06dcd2368eb85e9c3af6717b304e902035b7"
+  },
+  "new_requests": 89,
+  "offline_verifier_sha256": "219e5a84248c8de540c2286ded492080670c512eab7a43727a141b1b2302030d",
+  "selected_profiles": {
+    "gemma4-e4b-qat": {
+      "log_target_input_tokens": 0,
+      "option": "short-thought384-long-direct",
+      "ordinary_temperature": 0,
+      "plan_member": "runs/gemma/full-short-thought384-long-direct/plan.json",
+      "score_60_30_15_100": 87.21349447727174,
+      "settings": {
+        "batch_size": 8,
+        "context_tokens": 16384,
+        "extra_sampling": {},
+        "hint_tokens": 256,
+        "max_candidates": 24,
+        "max_fragments": 256,
+        "min_p": 0.0,
+        "mode": "native",
+        "model": "gemma4-e4b-qat",
+        "native_mode_constraints": null,
+        "native_retest": "6bdcf9f4a11821b72f3b16c1a4c100497e029612a5161c84712844adda36e9cc",
+        "output_tokens": 4096,
+        "reasoning": "auto",
+        "reasoning_budget": 384,
+        "reasoning_format": "deepseek",
+        "reserve_tokens": 64,
+        "response_format": "grammar",
+        "retry_output_tokens": 8192,
+        "route": "chat-grammar",
+        "seed": 42,
+        "source_profile": {
+          "legacy_profile_source": {
+            "path": "docs/experiments/phase2-model-profiles.json",
+            "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+          },
+          "mode": "native",
+          "path": "scripts/privacy_expansion_profiles.py",
+          "pinned_catalog": {
+            "path": "docs/experiments/phase2-new-model-artifacts.json",
+            "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+          },
+          "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+        },
+        "temperature": 0,
+        "template_kwargs": {
+          "enable_thinking": true
+        },
+        "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+        "thinking_mode": "bounded",
+        "thinking_source_token_cutoff": 1024,
+        "timeout": 1200,
+        "top_k": 64,
+        "top_p": 0.95,
+        "transport_timeout_seconds": 1800,
+        "worker_configuration_timeout_seconds": 1200
+      }
+    },
+    "lfm2.5-2.6b": {
+      "log_target_input_tokens": 1536,
+      "option": "split-nohint384",
+      "ordinary_temperature": 0.1,
+      "plan_member": "runs/lfm/full-split-nohint384/plan.json",
+      "score_60_30_15_100": 80.89224565864545,
+      "settings": {
+        "batch_size": 8,
+        "context_tokens": 16384,
+        "extra_sampling": {
+          "repeat_penalty": 1.0
+        },
+        "hint_tokens": 256,
+        "log_hint_tokens": 0,
+        "max_candidates": 24,
+        "max_fragments": 256,
+        "min_p": 0.0,
+        "mode": "native",
+        "model": "lfm2.5-2.6b",
+        "native_mode_constraints": {
+          "card_note": "Card explicitly says pure reasoning and always thinks; template injects think. Do not label an unsupported switch as thinking off.",
+          "gguf_metadata": {
+            "architecture": "lfm2",
+            "chat_template_sha256": "ea663864491de7ade391839479860ca95541f892f72665c73251fbd4643b1bef",
+            "context": {
+              "lfm2.context_length": 131072
+            },
+            "native_runtime_verified": false,
+            "result_path": "artifacts/model-expansion-phase2/pinned-metadata/lfm2.5-2.6b.json"
+          },
+          "status": "not_yet_probed"
+        },
+        "native_retest": "aa6f5b0cc47df59c06fca5d8e7fff54f5e983dbf570bbe08d1787487b308f607",
+        "ordinary_repeat_penalty": 1.1,
+        "output_tokens": 4096,
+        "reasoning": "auto",
+        "reasoning_budget": 384,
+        "reasoning_format": "deepseek",
+        "reserve_tokens": 64,
+        "response_format": "grammar",
+        "retry_output_tokens": 8192,
+        "route": "chat-grammar",
+        "seed": 42,
+        "source_profile": {
+          "legacy_profile_source": null,
+          "mode": "native",
+          "path": "scripts/privacy_expansion_profiles.py",
+          "pinned_catalog": {
+            "path": "docs/experiments/phase2-new-model-artifacts.json",
+            "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+          },
+          "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+        },
+        "temperature": 0.1,
+        "template_kwargs": {
+          "enable_thinking": true
+        },
+        "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+        "thinking_mode": "bounded",
+        "timeout": 1200,
+        "top_k": 50,
+        "top_p": 0.95,
+        "transport_timeout_seconds": 1800,
+        "worker_configuration_timeout_seconds": 1200
+      }
+    },
+    "nanbeige42-3b": {
+      "log_target_input_tokens": 2304,
+      "option": "wide-t020",
+      "ordinary_temperature": 0,
+      "plan_member": "runs/nano/full-wide-t020/plan.json",
+      "score_60_30_15_100": 84.40750854560052,
+      "settings": {
+        "batch_size": 8,
+        "context_tokens": 16384,
+        "extra_sampling": {},
+        "hint_tokens": 256,
+        "max_candidates": 24,
+        "max_fragments": 64,
+        "min_p": 0.0,
+        "mode": "native",
+        "model": "nanbeige42-3b",
+        "native_mode_constraints": null,
+        "output_tokens": 4096,
+        "reasoning": "auto",
+        "reasoning_budget": -1,
+        "reasoning_format": "deepseek",
+        "reserve_tokens": 64,
+        "response_format": "prompt",
+        "retry_output_tokens": 8192,
+        "route": "completion-grammar",
+        "seed": 42,
+        "source_profile": {
+          "legacy_profile_source": {
+            "path": "docs/experiments/phase2-model-profiles.json",
+            "sha256": "b86b35f42e3c5ac974d5ba946dff4950a21d667c09797993af84553cd317262e"
+          },
+          "mode": "native",
+          "path": "scripts/privacy_expansion_profiles.py",
+          "pinned_catalog": {
+            "path": "docs/experiments/phase2-new-model-artifacts.json",
+            "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+          },
+          "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+        },
+        "temperature": 0.2,
+        "template_kwargs": {
+          "enable_thinking": false
+        },
+        "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+        "thinking_mode": "native_no_thinking",
+        "top_k": 20,
+        "top_p": 0.95,
+        "transport_timeout_seconds": 1800,
+        "worker_configuration_timeout_seconds": 300
+      }
+    },
+    "qwen3.5-4b": {
+      "log_target_input_tokens": 2432,
+      "option": "split-greedy",
+      "ordinary_temperature": 0,
+      "plan_member": "runs/qwen/full-split-greedy/plan.json",
+      "score_60_30_15_100": 80.2704159969588,
+      "settings": {
+        "batch_size": 8,
+        "context_tokens": 16384,
+        "extra_sampling": {
+          "presence_penalty": 0,
+          "repeat_penalty": 1.0
+        },
+        "hint_tokens": 256,
+        "max_candidates": 24,
+        "max_fragments": 256,
+        "min_p": 0.0,
+        "mode": "native",
+        "model": "qwen3.5-4b",
+        "native_mode_constraints": {
+          "card_note": "Official card provides enable_thinking=False through the serving API; verify the rendered native template and runtime behavior.",
+          "gguf_metadata": {
+            "architecture": "qwen35",
+            "chat_template_sha256": "7f0e529032c25183bcd66c7f238da2d377f43be754a94e2725a58c4e16d2ed67",
+            "context": {
+              "qwen35.context_length": 262144
+            },
+            "native_runtime_verified": false,
+            "result_path": "artifacts/model-expansion-phase2/pinned-metadata/qwen3.5-4b.json"
+          },
+          "status": "not_yet_probed"
+        },
+        "native_retest": "4927213b87e68718017a5907c06589b0b095122d2a29805b673e134623ebd785",
+        "ordinary_target_input_tokens": 2432,
+        "output_tokens": 4096,
+        "reasoning": "auto",
+        "reasoning_budget": -1,
+        "reasoning_format": "deepseek",
+        "reserve_tokens": 64,
+        "response_format": "grammar",
+        "retry_output_tokens": 8192,
+        "route": "chat-grammar",
+        "seed": 42,
+        "source_profile": {
+          "legacy_profile_source": null,
+          "mode": "native",
+          "path": "scripts/privacy_expansion_profiles.py",
+          "pinned_catalog": {
+            "path": "docs/experiments/phase2-new-model-artifacts.json",
+            "sha256": "5f33f41ee0628dcbdf86eb3699ca30ff60a8db26a52420c1c010aa68dd2a1099"
+          },
+          "sha256": "3f70af58565e0ffae4193543c0030f31787d55ccac011df7432dd3beb53aa1e6"
+        },
+        "temperature": 0,
+        "template_kwargs": {
+          "enable_thinking": false
+        },
+        "thinking_claim": "requested mode; actual template and returned reasoning recorded separately",
+        "thinking_mode": "native_no_thinking",
+        "timeout": 1200,
+        "top_k": 40,
+        "top_p": 0.95,
+        "transport_timeout_seconds": 1800,
+        "worker_configuration_timeout_seconds": 1200
+      }
+    }
+  }
+}

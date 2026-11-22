@@ -1,0 +1,1301 @@
+{
+  "abcd_variants": 4,
+  "archive": "evidence.tar.gz",
+  "archive_bytes": 1621280,
+  "archive_sha256": "b34faceaaaa46758c4ad59671d0f9edf8b316971222a29dc6ed75a4c80874bba",
+  "binary_sha256": "fa20e2910bc5942c29f3da21cdf4aa2a84748dc0b17285f1463e864a177f76c2",
+  "captured_at_utc": "2026-11-19T09:07:36Z",
+  "files": {
+    "abcd/spark-x2.6-4b/plan.json": {
+      "bytes": 393252,
+      "sha256": "386d74adca09c68c747f088df84bb8e1015246a27e370b507f98054c94a1ee28"
+    },
+    "abcd/spark-x2.6-4b/result.json": {
+      "bytes": 1194070,
+      "sha256": "a27e48429a890990fd240ffb279a5c40acd4b44b234fd693cc62b144c5cda76d"
+    },
+    "abcd/spark-x2.6-4b/session-1795065569381455331.json": {
+      "bytes": 7989,
+      "sha256": "2f09db67c240678661087214b8fa4eb2be021030e884854c138d0a7fa6fdb676"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/02-02-application/mask.json": {
+      "bytes": 71194,
+      "sha256": "f249c241356d95c8a49dde6b8fea6860e980062551107bfc75e5ca6717009ff1"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "70f40ceb4afb82f9c365b32ccdb618f0d7bda796969544d89d7cc5e58c9e2c2f"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/spark-x2.6-4b/A/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 45531,
+      "sha256": "b834d15c6b5f88a6e7f6f7e1ab7299a9a23e75b415bd6e154600cba1478a8bbe"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10553,
+      "sha256": "600d6df540a5c2d354324bd7e431b34b3935a6b6dbb3a12451f581cd3c29a091"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/02-02-application/mask.json": {
+      "bytes": 71472,
+      "sha256": "e89133ca1faffabca6d7665792ccc013825df4cf880b0664659e67508e2e3d76"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "cd0fe48fb8371211594407ea1d25f8a078885419f869c7b9ecea014f3968657d"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/spark-x2.6-4b/A/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/spark-x2.6-4b/A/result.json": {
+      "bytes": 7565,
+      "sha256": "105a923ed354f821d505c34f9f743409ad167a5c945cd3f82527cdceb1f998de"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/02-02-application/mask.json": {
+      "bytes": 71138,
+      "sha256": "9b4bf9c649c6d30b5412e0181ba80fe71ff9c2a52a8be9f76ebb563490863a31"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/02-02-application/masked.txt": {
+      "bytes": 10662,
+      "sha256": "bd4d9cbeb770a758de91a7d0c6292e2ed78f93ac703a8ae6f0f33e764f2ee04b"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/spark-x2.6-4b/B/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 45531,
+      "sha256": "b834d15c6b5f88a6e7f6f7e1ab7299a9a23e75b415bd6e154600cba1478a8bbe"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10553,
+      "sha256": "600d6df540a5c2d354324bd7e431b34b3935a6b6dbb3a12451f581cd3c29a091"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/02-02-application/mask.json": {
+      "bytes": 73110,
+      "sha256": "70dcba283b8adcc56a0340e44c4c41d6cb5bb47d53bfa206fa9e597deda14fe2"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10700,
+      "sha256": "d8084458363daf4958269c1c99d0b8d14792034a04a8fafa8a47734360b5eb1b"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "e7732ab68d6a525d3f91ad58e927c935c1a63e507b50e60980d2bdbb15e43859"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/spark-x2.6-4b/B/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/spark-x2.6-4b/B/result.json": {
+      "bytes": 7566,
+      "sha256": "75e875c5869b9ae80b70f1750290c5e188aed8b8a392be54503876d72f16a296"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/02-02-application/mask.json": {
+      "bytes": 71228,
+      "sha256": "e7c0cdb8f699a6695aaa56e1d7693010376850eefba3a95301bbd68c352de64c"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "984cf1b3e132830501b0144f0edab4babc1d0815deec604727131ea018a56b49"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/spark-x2.6-4b/C/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 46589,
+      "sha256": "d3722351aaf17044dcd23e7f97aba479ce5d06c6293bab5fe018fbd55172b5ae"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10423,
+      "sha256": "5f1746ebd7355d8992708d485420e5e6b6d7eac6f6ba9b7406d45370022281c1"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/02-02-application/mask.json": {
+      "bytes": 71513,
+      "sha256": "dfd43e1328639b2f8f0694c2e6d5f96ea34e9c30fc1abb38f5c180ec4d962cfc"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "64a471ca1b6d1282a36e34a93ea18a67b761a6d8f095901715d0584413470493"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/spark-x2.6-4b/C/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/spark-x2.6-4b/C/result.json": {
+      "bytes": 7567,
+      "sha256": "2601ee337b9b0c5b8cfc7598c51b4814be3395609c74c6c6b41fcb07a24515a9"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/02-02-application/mask.json": {
+      "bytes": 71228,
+      "sha256": "302898a41082d10c9ae3333dd8fcc8c0ae3e6624d602d02b754b472dc8e3c104"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "8c8f325a42be163d79c2f5560889352f9b6cf2afdccc155a1adc04a2ce15e811"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/spark-x2.6-4b/D/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 47020,
+      "sha256": "e8eb99903c1f967c3254404dd9fe7d3de28a3aba065f64c9995cf8cdbed36405"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10424,
+      "sha256": "a0586e44f943f2d94c99ebeaafe4b2dda0231a6dfec4feff5abd7b3712a1fd5f"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b418cebf02c185390493033107b36526c2b154418a8c2ff8254d593964f53c44"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/02-02-application/mask.json": {
+      "bytes": 85637,
+      "sha256": "217b71e97e348d3582825935d5626db8b013cccd49a4439ebf2a877dca1c5018"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10710,
+      "sha256": "8945650419f49cc73b630c4a221b8a788d6d6fc17ca859ceaf4cd012ac8fb534"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "bbbf3aeea2de7b290c123a5a4adbe45376c6c6b0110c2ce2e8b981f06d1e585e"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/abcd/spark-x2.6-4b/D/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/abcd/spark-x2.6-4b/D/result.json": {
+      "bytes": 7568,
+      "sha256": "58e3a84f41fa6592cfe1ea32b0237a254a7d658d232a662893ec54ebf82e5721"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71250,
+      "sha256": "3e19fbb2d7c04008445f50b416d63777d0abda50e5e087320fbe8a68c6b90b66"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "992754a909f0f48af5dba6f74bf9cab88ac4075af50a50ae9fbe8c1d468b5243"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 125785,
+      "sha256": "d05d6c1a03204af1b6c8d206b04114c30c4de7e24089ea18a45d22a7b021b086"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10263,
+      "sha256": "24c408fbac79c93c051eb6794fb77cdd4bd19838cb439763909ae0823c5eadac"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "9699ae13d8551baec9fd720d0066ed7d34d3845771db1571dd6ad6399a6869d4"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139837,
+      "sha256": "22906bcde7b85e187cc830effe521bd37f426ef894d6780f0539aa344876077b"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/spark-x2.6-4b/current_union/result.json": {
+      "bytes": 7870,
+      "sha256": "e0c5b0046392f4b94224c0fe3436fb4d5cabd4d946943b263acdc91e756e5caa"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71222,
+      "sha256": "d3913ad85bf58beb08fc72cb603e36e06185f6c991be9dd0401fb1dd78d1379d"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "920aaaf693b5cb0e2184a95b30b3dae347161f456f20e2c7c92f8d9563fc30b9"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139840,
+      "sha256": "711d409e621fa268170aa41faf22fd3dac122d7f81cf9a4cc527921937cb5828"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "application/schemes/spark-x2.6-4b/detector_proposals/result.json": {
+      "bytes": 7872,
+      "sha256": "6506b4477f14f34531d90fd17e6fec3e09fb7ca6b8e18fddf8a5d50407cd49cf"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/02-02-application/mask.json": {
+      "bytes": 71250,
+      "sha256": "53ac1c898e5dcf2db4c0733a1bf401125040884608608cf52fd568fd6e82c3f6"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "08a5ff2492e4354ea36f6d93dff7e4d6c07094910c95da8d617b0b021f28ce8e"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41586,
+      "sha256": "532e1463e04522f06e5ae3d4044545fcb9b3a2e73d9f4a0fd950b73c8140de10"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10555,
+      "sha256": "d76b4d22442d94f29a43d05dc23f21a8c1062d7e670c11a83f13b371d5b99e35"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90528,
+      "sha256": "f9c71e1bf5678dc2e2ccb6e870380066a282845953831b019463b970b05a6281"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "a591e2c9dabe8acb6702f5e8d733f337c0742b58031e3109668d5cdd914728b3"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/double/result.json": {
+      "bytes": 7857,
+      "sha256": "357e019472ccdbb7fea148ad8d1bec86f1ab35c6ce86d97d361c3727743f067d"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/02-02-application/mask.json": {
+      "bytes": 71388,
+      "sha256": "afffc195ac6278bfe3cb84346345e802a137004831af23262d9d3ff317e3ee79"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10676,
+      "sha256": "25b7939fb975e866abf2d242343082ab2087e6f8b99241d5a1e0eea1498aaf0b"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 73995,
+      "sha256": "fd291980b78a248c6a5b2ca5d3d2a92d844e6179f6364d879e177f59a96cc3c6"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10567,
+      "sha256": "3a3261f2f6543c4fc26f7ef674ad106e54b14fd9b4ee77b4ba9df8548fdf22c4"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "1da54e20913d22d2ce46dbee60cc8f9bd68303b46cb71905375a1970624307c2"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90636,
+      "sha256": "d4295b6539f98ac7925c1ef62d20a3b7fc6366eb43fb28024a530a27ced5113d"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "2d113fcb291f2d750140a0dd724d2a594c3096541e4240fd3d017f207c53eba9"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/point/result.json": {
+      "bytes": 7860,
+      "sha256": "9e9855a3aa6edf63dfc063d4a5fd4dca44ac079b20943ff82511239f976fb48f"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71200,
+      "sha256": "f9ca9ee09f02c312ff2d09466f4bab1f967dba1ac15eca332aea9d63e7727a17"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "2b203eedf7240ee8fcce0d5cbbfd84dfc97964cba49e8eaf2ed0d9f2e4a7fa63"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 69537,
+      "sha256": "388f1706c09d94445d6770f067c5f4f319eadc87617aaf0ee8cdeab55e87b554"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10369,
+      "sha256": "400307ac99c16f7042223e1169dc32210b617f70589ec9c470959f355b6c9624"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b481448921d548c2345db27e4fda5953f28e84f7be427211a556553f2ffde31c"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 103199,
+      "sha256": "8ad6936b6edbdd5a842a21ff3625de62973f2248b32a4c1e986f8279e9ea7e19"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10727,
+      "sha256": "f922e1998a87fdc30e4a915e09bde1b42dca049a49946512ff83e62893591ac4"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "c669a93031ab1dabd3d9780cf01fc42a222b0a7de14ea8110da782affeac2a46"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/regions/result.json": {
+      "bytes": 7861,
+      "sha256": "75a91944c78d7db0889e3e7251d12baa3b4dcacd2f0d829f8cf461b3fb3e195d"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71298,
+      "sha256": "6e827893b6643b0d209ffd002e53f086f0a9f73bdf1cea67cc9d576da309eaf2"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "71d130a2f785a92b9eee1e98f06dc183fe45b186f8796bd13b58e7227ce9d1ad"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 73995,
+      "sha256": "fd291980b78a248c6a5b2ca5d3d2a92d844e6179f6364d879e177f59a96cc3c6"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10567,
+      "sha256": "3a3261f2f6543c4fc26f7ef674ad106e54b14fd9b4ee77b4ba9df8548fdf22c4"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "1da54e20913d22d2ce46dbee60cc8f9bd68303b46cb71905375a1970624307c2"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90586,
+      "sha256": "093aa105093185ee5b112daa92f6082837a15f31adb88e31210e8f5e60833b14"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "fadb5d9c5beabd4f89603827a435bec2cf6e85b0922e0ad844ea889aef9d4e20"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "application/schemes/spark-x2.6-4b/union_point/result.json": {
+      "bytes": 7868,
+      "sha256": "42bf674d76a63e67f17e1c8cdcd46a0f8284c11641babc4a3b1c829512db508f"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/02-02-application/mask.json": {
+      "bytes": 71192,
+      "sha256": "72ce633411954207ba4ff73d2ea1687cda3d8c203c9388b134ab6780e83dc150"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/02-02-application/masked.txt": {
+      "bytes": 10662,
+      "sha256": "6828287ae8e71f2f05b80425b749a554f9d503f13daf5d2e5c358753b54a7eca"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 125086,
+      "sha256": "1f8f820a28569fa7a45cc4193377c8c3bc5b7d6804edd318633b594e753290a9"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10388,
+      "sha256": "65365e1af4c88819d8caa9b59e4733400ad529c2591bbcd809e5e290121e8784"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/02-02-application/mask.json": {
+      "bytes": 156999,
+      "sha256": "f0808169b51bbfbd20d3445595faf4acb1236a3005388a8c4ae6737b2e4bfe3a"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11146,
+      "sha256": "ba00ede7330515a7515ddbf2e69d587f10ebeaff00d97fca2786895c4ef16950"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11265,
+      "sha256": "47f1d873bcb9357bbfb29dea4b5251ffac3959e338606e6457a669e18a625b35"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "baseline-application/spark-x2.6-4b/current_union/result.json": {
+      "bytes": 7846,
+      "sha256": "1f4bdf366ab9b1267e6f275e0c7af0fc597d8c108afa531e4586592b9aa97b97"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/02-02-application/mask.json": {
+      "bytes": 71242,
+      "sha256": "30b91f856219300e8ae7108b4b7345b3d726b8bb52967c6c5ea1898ac975c1b7"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/02-02-application/masked.txt": {
+      "bytes": 10662,
+      "sha256": "bc5d8be0223e73fe9ef9ba8b480c45fd13edbf5c7d95da7594a17910140d3cfb"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 117970,
+      "sha256": "6a78413cd3c874f4351a23d801547de4a511f6f7752daf8b4e85d2a2a83a28c7"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10562,
+      "sha256": "13cde6a33da3fce45c59c2d84295b7792c4beaecf207c005bc620a059187b0bb"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "47a592961d90871acd54e3a691408059748fb4147dbc1d1d5342d104eaf5a90d"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/02-02-application/mask.json": {
+      "bytes": 139952,
+      "sha256": "754a85c15859e7454d880aa9b6695571d8dd543a27e3ce5ecf34c947c14705f9"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 11077,
+      "sha256": "20c3f04d4fadee1f443d7d83294d39d774f2bdd7414cf363c86a1d2427441651"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "ef9ecd0328c665174cdc1c495cb0794fd785a214e0504058718632a60399b59b"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 6202,
+      "sha256": "2fbc13ab8127141bee399f026ff99e5a9574bd74399c72ded0133b00d7e9aee9"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3490,
+      "sha256": "b39b8fdc97d39ce42a6002b14dbc8e5d6008e74b0f7ced891e39883a42e8cc47"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "2c52400bfdf2071bdb004aaa9fc39f5f4ec659763f228121ffa92e01193f6256"
+    },
+    "baseline-application/spark-x2.6-4b/detector_proposals/result.json": {
+      "bytes": 7846,
+      "sha256": "8a95733a5dd388f209b19e41a16f87597a57409710c1d09a1672f10b5b7afdcf"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/02-02-application/mask.json": {
+      "bytes": 71326,
+      "sha256": "251d170fa8b2e8b0fa5779dd4849f51b02714b501cf96f8b052d8398edbdfa79"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "a93ffa3f46ea9e67cbdd139317fa8f3391d3df0ce33a68b7daaf24cc60813093"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/double/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90500,
+      "sha256": "66c9ce0ec915ad8b6b4457bbce693d8b94733f9649159c57c558aaa5a20503f5"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10754,
+      "sha256": "c575a089e0de248c2e48d6543aeab5c2cae89f95621e89277844244524c23893"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/double/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/double/result.json": {
+      "bytes": 7831,
+      "sha256": "7be1aec125f715a1875899bdd47519401a78e4d34b29b5ccf76d433df50db7c0"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/02-02-application/mask.json": {
+      "bytes": 71500,
+      "sha256": "83858bdc4e20c8a03ceed35b3178eec150b4a3d40b1f17569811c7f08fb65182"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/02-02-application/masked.txt": {
+      "bytes": 10704,
+      "sha256": "d2dc631eb6c4cef3fad12fc9155ee58f24593f735b1428e7ed94f40e98aab446"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90608,
+      "sha256": "2db0aaf58ece16c2fc17ce04d76246f646e9106943e22b59005b40f932874cce"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "0de84acfb92580949db9b4cc0d360e0edf9c9746be50537542d84068684b5c42"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/point/result.json": {
+      "bytes": 7831,
+      "sha256": "c12ed4e485a884b173951646545a2e9adcab7621bb602c6993f429c2904563d3"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/02-02-application/mask.json": {
+      "bytes": 71250,
+      "sha256": "8804afc398d75a6b246e07d38eea15183fc7c5b860752a8d1cb8a369890c0167"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "12c8ca70cbfc666fada3ccc53a76e3c95c713f283483d9c6159868a93d1c6631"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/regions/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 48234,
+      "sha256": "c88639a5a006ad497629a86cea606201e8204a33d015e0a01358ce83fc344352"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10510,
+      "sha256": "9f2c56b4b76d5da4f6c3625d26e151854133d611f91b1d06bbe63edcff482413"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "b421ca0eb30085ce9a088e97615ef5648cac93842dba1cabc5f57742631190b2"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/02-02-application/mask.json": {
+      "bytes": 111157,
+      "sha256": "b2f445329fab806ca4af037c82911b496c89bbbd4ab2a811c492dbc37864e3f0"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10777,
+      "sha256": "aa677d55f4054b6dc968f97836f24583710d1bd0f8dcf178f6d58478a02ae3f7"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "a60fa67fc392811672ac655512d4c5c385bdafd77b0191658ba005b69fb700ae"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/regions/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/regions/result.json": {
+      "bytes": 7835,
+      "sha256": "962491134828c3935ef15ea583f8effe191f114e901ebe2c24b3f57d0e6a1a96"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/02-02-application/mask.json": {
+      "bytes": 71194,
+      "sha256": "47c2ee4550c8177ead535acd178720d7ca07288c59d4dc076cc022c55139ffde"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/02-02-application/masked.txt": {
+      "bytes": 10690,
+      "sha256": "2826770cf8bc87bc2b86735ae08817a38affcfa9542c7cb3ef8def2c8833c880"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "677efff54a57110ac09bcb2752f42bd81885ec162ea0b8bd8c663643dd7655ba"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/baseline/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/01-01-cost-estimate/mask.json": {
+      "bytes": 41047,
+      "sha256": "a6c7be5a180715915fc2b8ac332ad3bd3587dde608c2b627c4197457fb04be29"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/01-01-cost-estimate/masked.txt": {
+      "bytes": 10554,
+      "sha256": "62f6a36904e829c71bd9164c8cf19f6514f0ce8defef342f772e34d8c38e73bd"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/01-01-cost-estimate/restore.json": {
+      "bytes": 10788,
+      "sha256": "7ca4acc731da859e6879f8b9bb04252ff799d47df001478a78de6dc2790814d0"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/02-02-application/mask.json": {
+      "bytes": 90472,
+      "sha256": "692964cde965aaf22e83a3e769dbc66774a9e7b1b6e0f974985fc69f143e1200"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/02-02-application/masked.txt": {
+      "bytes": 10740,
+      "sha256": "a7594dfdded79573a73275a8e33354ce4a8401bbb01115c2e57d917f13c73d52"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/02-02-application/restore.json": {
+      "bytes": 11264,
+      "sha256": "b178c13b40996dece16cccf5adaa1ebe5bf19891933097d7fb6da17b0375aedf"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/03-08-public-reference/mask.json": {
+      "bytes": 4188,
+      "sha256": "72fcc77d805a1d777ba9f8b9e3c20172fdfe6b27e11f3b26a39e3343e8118c28"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/03-08-public-reference/masked.txt": {
+      "bytes": 3484,
+      "sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/model_masks_added/03-08-public-reference/restore.json": {
+      "bytes": 3624,
+      "sha256": "ff80be6965451a62916ef1575186c6d2604795eea2a061772e54df09a562e836"
+    },
+    "baseline-application/spark-x2.6-4b/union_point/result.json": {
+      "bytes": 7838,
+      "sha256": "f9f01245a6d0b7963a57ef82d5dd442554ae3209c8a39d4baf64615785043ce4"
+    },
+    "calibration/spark-x2.6-4b/high/result.json": {
+      "bytes": 2009,
+      "sha256": "1fa99af11c51899dc5b0c7e86f8f55db8e0d6e045e482aeb56920f1ce4fb78f4"
+    },
+    "calibration/spark-x2.6-4b/high/transports.json": {
+      "bytes": 173675,
+      "sha256": "9b0974be009403e5d83e9b83f249098569a3cd5c1a76f8b0ca9483469d6e95e8"
+    },
+    "calibration/spark-x2.6-4b/low/result.json": {
+      "bytes": 2007,
+      "sha256": "733cc640cfb3d044b8bc705ecb2dab191e6d60bb974924739bd2b5fb4bb93fd2"
+    },
+    "calibration/spark-x2.6-4b/low/transports.json": {
+      "bytes": 172417,
+      "sha256": "223a44a00696a9203cbbc3e44c1c49de0f0fe53e4cb2e370f132b79c7f0a5d25"
+    },
+    "calibration/spark-x2.6-4b/plan.json": {
+      "bytes": 3546,
+      "sha256": "010c1ef7313b1cb689170dacd954e722dad6ee01a960eef6a1ee7d29385d5475"
+    },
+    "calibration/spark-x2.6-4b/result.json": {
+      "bytes": 5995,
+      "sha256": "dce1fd66cc6f776ff32ced3ba34dbbe3dcba93bd12a347449d7d8ca8d68550a2"
+    },
+    "calibration/spark-x2.6-4b/selected-profile.json": {
+      "bytes": 1101,
+      "sha256": "3915502a51aed3d521bb9b8e47cb9d0821c8fce1ed6176a7feb03b7e4f864882"
+    },
+    "schemes/spark-x2.6-4b/detectors.json": {
+      "bytes": 42922,
+      "sha256": "545e0a5090b1b325af7ef75308fe58c40562fc24af94c084c462346f8ecea8a5"
+    },
+    "schemes/spark-x2.6-4b/execution.json": {
+      "bytes": 7010,
+      "sha256": "05f7d3ad0e1bbb36e51fb1bc27bd9d244e4a4a3b037188e5be2b4306e5cf1b6a"
+    },
+    "schemes/spark-x2.6-4b/result.json": {
+      "bytes": 941418,
+      "sha256": "2b3d72a1a809d14caeead6830922e80bd7e682df4eb8321529989b36846a5ec3"
+    },
+    "schemes/spark-x2.6-4b/scheme-plan.json": {
+      "bytes": 5985,
+      "sha256": "cc5004ed1fa99f4cf3b15aba458bc45d242151b5074f208aca75df47c55461fc"
+    },
+    "schemes/spark-x2.6-4b/transports.json": {
+      "bytes": 1889685,
+      "sha256": "7102035df51870905843083334f817ed8f680e8f1c11f030ee97349a5c397cc3"
+    },
+    "schemes/spark-x2.6-4b/verification.json": {
+      "bytes": 4613,
+      "sha256": "7d46b70d8e4ac6a8e2c5c748590ce0236d5d230dccf90ea81494b4b84ad41970"
+    },
+    "status.json": {
+      "bytes": 3934,
+      "sha256": "64d31bbabe1ae71151b4816d4ffb49a023466503c882b2dc35c041830f4c3d80"
+    }
+  },
+  "model": "spark-x2.6-4b",
+  "native_exact_roundtrips": 60,
+  "not_a_resume_source": true,
+  "profile_sha256": "779b58ecf6cd926163af0d43af722421c8cf30625f04468f1549a1878022d035",
+  "schemes": 6,
+  "series": "native-retest-v1",
+  "version": 1
+}

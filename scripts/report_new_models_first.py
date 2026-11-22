@@ -469,18 +469,26 @@ def main():
     parser.add_argument('--old-applications', type=Path, default=base / 'application-v2')
     parser.add_argument('--new-applications', type=Path, default=base / 'new-models-reference-v2-application')
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--native-study', type=Path, help='Include the manufacturer retest beside the main results')
     args = parser.parse_args()
     require(not args.output.exists(), 'comparison_output_exists_no_overwrite')
     report = build(args.study, args.old_applications, args.new_applications)
-    write_report(report, args.output)
+    write_report(report, args.output, native_study=args.native_study)
     print({key: report[key] for key in ('new_models_complete', 'application_jobs_complete', 'exact_roundtrips', 'rejected_inputs')})
 
 
-def write_report(report, output):
+def write_report(report, output, *, native_study=None):
     require(not output.exists(), 'comparison_output_exists_no_overwrite')
     output.mkdir(parents=True)
     atomic_json(output / 'report.json', report)
-    (output / 'REPORT.md').write_text(render(report), encoding='utf-8')
+    markdown = render(report)
+    if native_study is not None:
+        from report_native_model_retest import build as build_native, render_detail, render_main, update_main
+        native = build_native(native_study)
+        markdown = update_main(markdown, render_main(native))
+        (output / 'NATIVE_MODEL_RETEST.md').write_text(
+            render_detail(native).replace('(NEW_MODELS_RESULTS.md#', '(REPORT.md#'), encoding='utf-8')
+    (output / 'REPORT.md').write_text(markdown, encoding='utf-8')
     columns = ['model', 'group', 'method', 'documents_processed', 'candidates', 'private_proposed',
                'new_private_over_source_pool', 'private_not_proposed', 'private_mask', 'private_not_confirmed',
                'private_keep', 'technical_review',
