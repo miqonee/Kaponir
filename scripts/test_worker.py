@@ -402,6 +402,40 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(payload['top_k'],40)
         self.assertNotIn('response_format',payload)
 
+    def test_gemma_document_cutoff_is_measured_before_splitting(self):
+        self.worker.ocr_base = 'http://fixture'
+        generation = dict(temperature=0,top_k=64,top_p=.95,min_p=0,
+                          reasoning_budget=384,thinking_source_cutoff=1024)
+        body = {'prompt':'fixture','schema':{},'inference':{'local_generation':generation},
+                'input':{'source':'whole document','context':'other context'}}
+        for tokens,expected in [(1024,True),(1025,False)]:
+            with patch.object(self.worker,'start_runtime'), patch.object(self.worker,'count_text_tokens',return_value=tokens) as tokenizer, patch.object(self.worker,'prompt_token_count',return_value=60):
+                plan = self.worker.evaluate({**body,'operation':'plan'})
+                tokenizer.assert_called_once_with('whole document')
+                self.assertEqual(plan['enable_thinking'],expected)
+            resolved = {**generation,'enable_thinking':expected}
+            reply = {'choices':[{'finish_reason':'stop','message':{'content':'{}'}}]}
+            with patch.object(self.worker,'start_runtime'), patch.object(self.worker,'count_text_tokens',side_effect=AssertionError('must use document decision')), patch.object(self.worker,'prompt_token_count',return_value=60), patch('kaponir_worker.http_json',return_value=reply) as http:
+                self.worker.evaluate({**body,'input':{'source':'short fragment'},'inference':{'local_generation':resolved}})
+                self.assertEqual(http.call_args.args[1]['chat_template_kwargs']['enable_thinking'],expected)
+
+    def test_completion_schema_uses_log_sampling_and_distinct_thread_counts(self):
+        self.worker.ocr_base = 'http://fixture'
+        generation = dict(temperature=0,top_p=.95,top_k=20,min_p=0,seed=42,
+                          completion_schema=True,log_temperature=.2,prompt_threads=4,generation_threads=2)
+        for log in [False,True]:
+            with patch.object(self.worker,'start_runtime') as runtime, patch.object(self.worker,'prompt_token_count',return_value=60), patch('kaponir_worker.http_json',side_effect=[{'prompt':'rendered'},{'stop_type':'eos','content':'{}'}]) as http:
+                self.worker.evaluate({'prompt':'fixture','schema':{'type':'object'},'input':{'source':'test'},
+                                      'inference':{'local_generation':{**generation,'is_log':log}}})
+                self.assertEqual(runtime.call_args.kwargs['prompt_threads'],4)
+                self.assertEqual(runtime.call_args.kwargs['generation_threads'],2)
+                url,payload = http.call_args.args
+                self.assertTrue(url.endswith('/completion'))
+                self.assertEqual(payload['temperature'],.2 if log else 0)
+                self.assertEqual(payload['json_schema'],{'type':'object'})
+                self.assertEqual(payload['prompt'],'rendered')
+                self.assertEqual(payload['n_predict'],1600)
+
     def test_context_changes_wait_for_inflight_requests(self):
         self.worker.ocr_base='http://fixture'
         entered=threading.Event();release=threading.Event();contexts=[]

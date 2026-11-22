@@ -72,32 +72,46 @@ const learningError = (code) => tr(learningErrors[code] || code || "—");
 const bytesMiB = (bytes) =>
   bytes == null ? "—" : `${(bytes / 1048576).toFixed(1)} MiB`;
 
-// The expanded models are selectable through HF import. Match the tested GGUF by content.
+// Imported copies of the pinned GGUF get the same preset as the built-in model.
 const studyArtifacts = {
   "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5": "lfm2.5-1.2b-instruct",
   "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed": "lfm2.5-2.6b",
   "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4": "qwen3.5-4b",
+  "91cb2811aebb47ac916aa619d27d4cdd7f4143106b7917accb8ead4cd7f5cbd9": "spark-x2.6-4b",
   "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0": "lfm2.5-8b-a1b",
   "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8": "gemma4-e2b-it-q4km",
-  "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87": "gemma4-e4b-it-q4km"
+  "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87": "gemma4-e4b-it-q4km",
 };
-const studyProfiles = {
-  // Per-role request timeouts in seconds. The seven original rows come from
-  // benchmark/data/validation and docs/experiments/phase2-model-profiles.json.
-  "qwen3.5-2b": {search: 300, review: 600},
-  "qwen3.5-0.8b": {search: 300, review: 600},
-  "huihui-qwen3.5-2b-abliterated": {search: 300, review: 600},
-  "minicpm5-2b": {search: 600, review: 600, fullDocument: true},
-  "nanbeige42-3b": {search: 1200, review: 1200, temperature: 0.6, topK: 20, format: "prompt"},
-  "granite42-3b": {search: 1200, review: 1200, temperature: 1},
-  "gemma4-e4b-qat": {search: 1200, review: 1200, temperature: 1, topK: 64, fullDocument: true},
+// Search settings are from model-search-final.csv and its linked run plans.
+// Classification uses the separately measured A–D settings for the same GGUF.
+const baselineSearch = {context:4096, output:1600, timeout:300};
+const searchProfiles = {
+  "gemma4-e4b-qat": {top_k:64, reasoning_budget:384, thinking_source_cutoff:1024},
+  "nanbeige42-3b": {top_k:20, completion_schema:true, log_temperature:0.2, log_target:2304, prompt_threads:4, maxFragments:64},
+  "lfm2.5-1.2b-instruct": {temperature:0.1, top_k:50, repeat_penalty:1.05, log_target:2432},
+  "lfm2.5-2.6b": {temperature:0.1, top_k:50, reasoning_budget:384, repeat_penalty:1.1, log_repeat_penalty:1, log_target:1536, log_hints:0, prompt_threads:4},
+  "qwen3.5-4b": {repeat_penalty:1, presence_penalty:0, target:2432, prompt_threads:4},
+  "gemma4-e4b-it-q4km": {temperature:1, top_k:64, reasoning_budget:2048},
+  "lfm2.5-8b-a1b": {temperature:0.2, top_k:80, reasoning_budget:1024, repeat_penalty:1.05},
+  "qwen3.5-2b": baselineSearch, "qwen3.5-0.8b": baselineSearch,
+  "granite42-3b": {...baselineSearch, timeout:1200},
+  "spark-x2.6-4b": {...baselineSearch, timeout:1200, prompt_threads:2, generation_threads:2},
+  "minicpm5-2b": {...baselineSearch, timeout:600, format:"auto", limitsOnly:true},
+  "gemma4-e2b-it-q4km": null,
 };
-for (const model of Object.values(studyArtifacts)) {
-  // The expanded A–D runs shared the Gemma reference request profile.
-  const completedSearch = !["lfm2.5-2.6b", "lfm2.5-8b-a1b"].includes(model);
-  studyProfiles[model] = {search: completedSearch ? 1200 : null, review: 1200,
-    temperature: 1, topK: 64, searchFormat: "auto"};
-}
+const reviewProfiles = {
+  "gemma4-e4b-qat": {temperature:1, top_k:64},
+  "gemma4-e4b-it-q4km": {temperature:1, top_k:64},
+  "gemma4-e2b-it-q4km": {temperature:1, top_k:64},
+  "qwen3.5-0.8b": {timeout:600}, "qwen3.5-2b": {timeout:600}, "minicpm5-2b": {timeout:600},
+  "nanbeige42-3b": {top_k:20, reasoning_budget:null, completion_schema:true},
+  "granite42-3b": {temperature:1, reasoning_budget:384, low_effort:true},
+  "lfm2.5-1.2b-instruct": {temperature:0.1, top_k:50, reasoning_budget:null, repeat_penalty:1.05},
+  "lfm2.5-2.6b": {temperature:0.1, top_k:50, repeat_penalty:1.1},
+  "lfm2.5-8b-a1b": {temperature:0.2, top_k:80, reasoning_budget:1024, repeat_penalty:1.05},
+  "spark-x2.6-4b": {temperature:1, top_k:0, reasoning_effort:"low"},
+  "qwen3.5-4b": {temperature:1, top_k:64},
+};
 const inferenceFields = {context_tokens:"context-tokens", max_output_tokens:"output-tokens",
   reserve_tokens:"reserve-tokens", batch_size:"batch-size", response_format:"response-format"};
 const defaultInference = {context_tokens:4096, max_output_tokens:1600, reserve_tokens:64, batch_size:2, response_format:"auto"};
@@ -106,25 +120,22 @@ function chosenLocalPreset(role) {
   const id = modelSelect(role).value;
   const models = WORKER.data?.models || {};
   const sha = models[id]?.sha256;
-  const studyId = sha ? studyArtifacts[sha] || Object.keys(studyProfiles).find(key => models[key]?.sha256 === sha) || id : id;
-  const row = studyProfiles[studyId];
+  const studyId = studyArtifacts[sha] || Object.keys(searchProfiles).find(key => sha && models[key]?.sha256 === sha) || id;
   const search = role !== "categorization";
-  if (!row || (search && !row.search)) return null;
-  const full = !search || row.fullDocument === true;
-  return {
-    inference: {
-      context_tokens: full ? 16384 : 4096, max_output_tokens: full ? 4096 : 1600,
-      reserve_tokens:64, batch_size:8,
-      response_format:(search && row.searchFormat) || row.format || "grammar",
-      local_generation: {
-        temperature: full ? row.temperature || 0 : 0, top_k: full ? row.topK || 40 : 40,
-        top_p:0.95, min_p:0, seed:full ? 42 : null,
-        parse_reasoning:full, reasoning_budget:search ? null : 2048, retry_output_tokens:full ? 8192 : null,
-      },
-    },
-    timeout:search ? row.search : row.review * 1000,
-    maxCandidates:row.fullDocument ? 128 : 24,
+  const row = (search ? searchProfiles : reviewProfiles)[studyId];
+  if (!row) return null;
+  const {context=16384, output=4096, timeout=1200, format="grammar", target=0,
+    maxFragments=256, limitsOnly=false, ...sampling} = row;
+  const full = context === 16384;
+  const generation = limitsOnly ? null : {
+    temperature:0, top_k:40, top_p:0.95, min_p:0, seed:full ? 42 : null,
+    parse_reasoning:full, reasoning_budget:search ? null : 2048, retry_output_tokens:full ? 8192 : null,
+    ...(full ? {prompt_threads:2, generation_threads:2} : {}), ...(target ? {target} : {}), ...sampling,
   };
+  return {inference:{context_tokens:context, max_output_tokens:output, reserve_tokens:64,
+    batch_size:8, response_format:format, local_generation:generation},
+    timeout:search ? timeout : timeout * 1000, maxCandidates:24, target, maxFragments};
+
 }
 function writeInference(role, inference) {
   for (const [key, field] of Object.entries(inferenceFields))
@@ -133,15 +144,22 @@ function writeInference(role, inference) {
 }
 function updateProfileNote(role, g = LearningUI.generation[role]) {
   const note = $(`#${role}-profile-note`);
-  note.hidden = !g;
+  const id = modelSelect(role).value;
+  const partial = role !== "categorization" && (id === "minicpm5-2b" || id === "gemma4-e2b-it-q4km");
+  note.hidden = !g && !partial;
+  if (!g && partial) note.textContent = id === "minicpm5-2b"
+    ? tr("В архиве поиска подтверждены только лимиты контекста и ответа.")
+    : tr("Параметры исторического поиска не подтверждены. Используются обычные настройки.");
+
   if (g) note.textContent = tr("Параметры исследования · температура {{0}}, top_p {{1}}, top_k {{2}}, min_p {{3}}, seed {{4}}, бюджет рассуждений {{5}}.",
     [g.temperature, g.top_p, g.top_k, g.min_p, g.seed ?? "—", g.reasoning_budget ?? 0]);
+  if (g?.thinking_source_cutoff) note.textContent += " " + tr("Рассуждения включаются до {{0}} токенов исходного текста.", [g.thinking_source_cutoff]);
 }
 function applySearchLimits(preset) {
-  $("#analysis-target-input").value = 0;
+  $("#analysis-target-input").value = preset?.target ?? 0;
   $("#analysis-hint-tokens").value = preset ? 256 : 0;
   $("#analysis-max-candidates").value = preset?.maxCandidates ?? 24;
-  $("#analysis-max-fragments").value = 256;
+  $("#analysis-max-fragments").value = preset?.maxFragments ?? 256;
   $("#analysis-chunk-strategy").value = "auto";
 }
 function applyLocalPreset(role) {
@@ -194,9 +212,8 @@ function renderLearningForms() {
     if (!data || LearningUI.dirty.has(role)) continue;
     const s = data.settings;
     writeInference(role, s.inference);
-    updateProfileNote(role);
     LearningUI.providerDrafts[role] = {provider:s.provider};
-    ensureModelChoice(canonicalModel(s.model));
+    ensureModelChoice(canonicalModel(s.model), role);
     $(`#${role}-provider`).value = s.provider;
     if (role === "analysis") {
       $("#analysis-enabled").checked = s.enabled;
@@ -220,6 +237,7 @@ function renderLearningForms() {
       $("#categorization-url").value = s.http.url;
       $("#categorization-timeout").value = s.http.timeout_ms;
     }
+    updateProfileNote(role);
     $(`#${role}-key`).value = "";
     $(`#${role}-clear-key`).checked = false;
     $(`#${role}-key`).placeholder = tr(

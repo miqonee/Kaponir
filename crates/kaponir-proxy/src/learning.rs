@@ -43,6 +43,36 @@ pub struct LocalGeneration {
     pub parse_reasoning: bool,
     pub reasoning_budget: Option<usize>,
     pub retry_output_tokens: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub thinking_source_cutoff: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enable_thinking: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completion_schema: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prompt_threads: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generation_threads: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repeat_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub low_effort: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reasoning_effort: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_target: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_hints: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_temperature: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub log_repeat_penalty: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_log: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target: Option<usize>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -84,6 +114,23 @@ impl InferenceSettings {
                 (0.0..=2.0).contains(&g.temperature)
                     && (0.0..=1.0).contains(&g.top_p)
                     && (0.0..=1.0).contains(&g.min_p)
+                    && g.prompt_threads.is_none_or(|n| (1..=128).contains(&n))
+                    && g.generation_threads.is_none_or(|n| (1..=128).contains(&n))
+                    && [g.log_target, g.log_hints, g.target]
+                        .into_iter()
+                        .flatten()
+                        .all(|n| n < self.context_tokens)
+                    && g.thinking_source_cutoff
+                        .is_none_or(|n| n > 0 && n <= 262144)
+                    && [g.repeat_penalty, g.log_repeat_penalty]
+                        .into_iter()
+                        .flatten()
+                        .all(|n| (0.0..=4.0).contains(&n))
+                    && g.presence_penalty.is_none_or(|n| (-2.0..=2.0).contains(&n))
+                    && g.log_temperature.is_none_or(|n| (0.0..=2.0).contains(&n))
+                    && g.reasoning_effort
+                        .as_deref()
+                        .is_none_or(|v| matches!(v, "low" | "medium" | "high"))
                     && g.top_k <= 1024
                     && g.reasoning_budget
                         .is_none_or(|n| n > 0 && n <= self.context_tokens)
@@ -1399,9 +1446,10 @@ async fn test_analysis(
     validate_analysis(&req.settings).map_err(bad)?;
     let token =
         test_key(&st, "analysis", req.key, req.clear_key, &req.settings.url).map_err(bad)?;
+    let mut settings = req.settings;
     let fragments = plan_chunks(
         &st,
-        &req.settings,
+        &mut settings,
         "Project: Cedar Plum. password: SyntheticFixture_47!",
         "",
     )
@@ -1411,7 +1459,7 @@ async fn test_analysis(
     for fragment in fragments {
         count += extract(
             &st,
-            &req.settings,
+            &settings,
             token.clone(),
             &fragment.source,
             &fragment.context,
@@ -1503,7 +1551,7 @@ async fn documents(
                 for d in req.documents {
                     let id = format!(
                         "learning:job:document:{}",
-                        text_fingerprint(&s.analysis, &d.text, "")
+                        text_fingerprint(&document_settings(&s.analysis, &d.name), &d.text, "")
                     );
                     let job = Job {
                         id: id.clone(),
@@ -1826,9 +1874,24 @@ fn portable_plan(
     );
     Ok(output)
 }
+// The benchmark selects the log policy by file type before splitting a document.
+fn document_settings(settings: &AnalysisSettings, name: &str) -> AnalysisSettings {
+    let mut result = settings.clone();
+    if let Some(g) = &mut result.inference.local_generation {
+        if g.log_target.is_some()
+            || g.log_temperature.is_some()
+            || g.log_repeat_penalty.is_some()
+            || g.log_hints.is_some()
+        {
+            g.is_log = Some(name.to_ascii_lowercase().ends_with(".log"));
+        }
+    }
+    result
+}
+
 async fn plan_chunks(
     st: &Shared,
-    settings: &AnalysisSettings,
+    settings: &mut AnalysisSettings,
     text: &str,
     context: &str,
 ) -> anyhow::Result<Vec<Fragment>> {
@@ -1842,6 +1905,13 @@ async fn plan_chunks(
             "parallelism":settings.parallelism,"inference":settings.inference,"chunking":settings.chunking,"telemetry":true}), settings.timeout_seconds).await?;
         if let Some(code) = reply["error"].as_str() {
             anyhow::bail!(code.to_string());
+        }
+        if let Some(thinking) = reply["enable_thinking"].as_bool() {
+            if let Some(g) = &mut settings.inference.local_generation {
+                if g.thinking_source_cutoff.is_some() {
+                    g.enable_thinking = Some(thinking);
+                }
+            }
         }
         if let Some(fragments) = reply.get("fragments") {
             let fragments: Vec<Fragment> = serde_json::from_value(fragments.clone())?;
@@ -2019,8 +2089,10 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         st.with_vault(|_, v| counter(v, |c| c.skipped_known += 1))?;
         return st.with_vault(|_, v| job_entry_count(v, &job.id));
     }
+    let mut analysis = document_settings(&s.analysis, &job.name);
+    let document_fingerprint = text_fingerprint(&analysis, &filtered, &job.context);
     let mut pending = std::collections::VecDeque::from(
-        plan_chunks(st, &s.analysis, &filtered, &job.context).await?,
+        plan_chunks(st, &mut analysis, &filtered, &job.context).await?,
     );
     let mut errors = Vec::new();
     let mut complete = Vec::new();
@@ -2034,7 +2106,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         let known_chunk = st.with_vault(|_, v| {
             Ok(v.app_record(&format!(
                 "learning:text:{}",
-                text_fingerprint(&s.analysis, chunk, &fragment.context)
+                text_fingerprint(&analysis, chunk, &fragment.context)
             ))?
             .is_some())
         })?;
@@ -2044,7 +2116,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         calls += 1;
         let result = extract(
             st,
-            &s.analysis,
+            &analysis,
             analysis_key.clone(),
             chunk,
             &fragment.context,
@@ -2062,7 +2134,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
                     .len()
                     >= s.analysis.chunking.max_candidates;
                 if !split {
-                    complete.push(text_fingerprint(&s.analysis, chunk, &fragment.context));
+                    complete.push(text_fingerprint(&analysis, chunk, &fragment.context));
                 }
                 candidates
             }
@@ -2255,7 +2327,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         anyhow::bail!(code.clone());
     }
     st.with_vault(|_, v| {
-        complete.push(text_fingerprint(&s.analysis, &filtered, &job.context));
+        complete.push(document_fingerprint);
         for fingerprint in complete {
             put(
                 v,

@@ -36,21 +36,26 @@ const builtinModelChoices = [
   ["qwen3.5-0.8b", "Qwen3.5-0.8B · Q4_K_M", 532517120],
   ["qwen3.5-2b", "Qwen3.5-2B · Q4_K_M", 1280835840],
   ["minicpm5-2b", "MiniCPM5-2B · Q4_K_M", 1561318368],
-  ["huihui-qwen3.5-2b-abliterated", "Huihui-Qwen3.5-2B-abliterated · Q4_K_M", 1270809024],
+  ["lfm2.5-1.2b-instruct", "LFM2.5-1.2B-Instruct", 730895168],
+  ["lfm2.5-2.6b", "LFM2.5-2.6B", 1674455040],
+  ["qwen3.5-4b", "Qwen3.5-4B", 2740937888],
+  ["spark-x2.6-4b", "Spark-X2.6-4B", 3543441312],
+  ["lfm2.5-8b-a1b", "LFM2.5-8B-A1B", 5155564768],
+  ["gemma4-e2b-it-q4km", "Gemma 4 E2B-it · Unsloth Q4_K_M", 3106738272],
+  ["gemma4-e4b-it-q4km", "Gemma 4 E4B-it · Unsloth Q4_K_M", 4977171584],
   ["nanbeige42-3b", "Nanbeige4.2-3B · Q4_K_M", 2684023968],
   ["granite42-3b", "Granite-4.2-3B · Q4_K_M", 2244011552],
   ["gemma4-e4b-qat", "Gemma 4 E4B · QAT Q4_0", 5154941280],
 ].map(([id,label,bytes])=>({id,label,bytes}));
 function modelSelect(role) { return $(role === "worker" ? "#worker-model" : `#${role}-local-model`); }
-function ensureModelChoice(model) {
-  if (!model || !(builtinModelChoices.some((item)=>item.id===model) || /^hf-[a-f0-9]{24}$/.test(model))) return;
-  for (const role of ["analysis","categorization","worker"]) {
-    const select=modelSelect(role);
-    if (![...select.options].some((option)=>option.value===model)) select.append(h("option",{value:model},WORKER.data?.models?.[model]?.label || model));
-  }
+function ensureModelChoice(model, role) {
+  if (!model || !(model === "huihui-qwen3.5-2b-abliterated" || builtinModelChoices.some((item)=>item.id===model) || /^hf-[a-f0-9]{24}$/.test(model))) return;
+  const select=modelSelect(role);
+  if (![...select.options].some((option)=>option.value===model)) select.append(h("option",{value:model},WORKER.data?.models?.[model]?.label || model));
 }
 function syncModelChoices() {
-  const catalog=WORKER.data?.catalog || builtinModelChoices;
+  const catalog=(WORKER.data?.catalog || builtinModelChoices).filter(item =>
+    !["huihui-qwen3.5-2b-abliterated", "tiny-aya-global"].includes(item.id));
   for (const role of ["analysis","categorization","worker"]) {
     const select=modelSelect(role), current=select.value;
     const items=[...catalog];
@@ -422,7 +427,7 @@ function openHfModel(role, initialUrl="") {
     try {
       const result=await workerAction("/models/register",{url:file.url});
       if(!validSession())return;
-      ensureModelChoice(result.model);const select=modelSelect(role);select.value=result.model;
+      ensureModelChoice(result.model, role);const select=modelSelect(role);select.value=result.model;
       select.dispatchEvent(new Event("input",{bubbles:true}));select.dispatchEvent(new Event("change",{bubbles:true}));
       dialog.close();select.focus();renderModelCards();
       toast(tr("Модель добавлена. Скачайте веса в карточке модели и сохраните настройки выбранного этапа."));

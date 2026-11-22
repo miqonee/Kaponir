@@ -11,6 +11,13 @@ pub fn valid_local_id(model: &str) -> bool {
             | "nanbeige42-3b"
             | "granite42-3b"
             | "gemma4-e4b-qat"
+            | "lfm2.5-1.2b-instruct"
+            | "lfm2.5-2.6b"
+            | "qwen3.5-4b"
+            | "spark-x2.6-4b"
+            | "lfm2.5-8b-a1b"
+            | "gemma4-e2b-it-q4km"
+            | "gemma4-e4b-it-q4km"
             | "huihui-qwen3.5-2b-abliterated"
     ) || model.strip_prefix("hf-").is_some_and(|id| {
         id.len() == 24
