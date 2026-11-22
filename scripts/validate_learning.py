@@ -22,6 +22,12 @@ def check_browser(base, api, output):
         browser=playwright.chromium.launch(executable_path=shutil.which('chromium') or shutil.which('google-chrome'),headless=True,args=['--no-sandbox'])
         page=browser.new_page(viewport={'width':1440,'height':1000},locale='ru-RU',color_scheme='dark')
         errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+        page.goto(base+'/ui/#worker')
+        page.locator('#queue-completed').filter(has_text=re.compile(r'^[1-9]')).wait_for()
+        assert page.locator('#queue-chart .queue-bar').count()==24
+        assert page.locator('#queue-average').inner_text()!='—'
+        page.locator('#queue-open-pending').click()
+        page.wait_for_function("() => location.hash==='#review' && document.querySelector('#review-source').value==='learning'")
         page.goto(base+'/ui/#analysis')
         page.wait_for_function("() => document.querySelector('#analysis-provider')?.value==='api'")
         page.locator('#analysis-parallelism').fill('10')
@@ -215,6 +221,10 @@ def main():
             api('/v1/chat/completions',{'model':'fixture-model','messages':[{'role':'user','content':'CedarPaused'}]})
             assert api('/api/v1/ui/learning')['summary']['queued']==0
             assert 'CedarLow84' not in api('/api/v1/anonymize',{'text':'CedarLow84'})['text']
+            stats=result['summary']['activity']
+            assert stats['completed_24h']==sum(stats['hourly'])==result['summary']['totals']['processed']
+            assert stats['average_processing_ms']>0 and len(stats['hourly'])==24
+            tracked_since=result['summary']['activity_since_ms']
             # Durable queue survives restart and is independent of event inspectors.
             configure('analysis',enabled=True);enabled=False
             api('/api/v1/ui/analysis/documents',{'documents':[{'name':'restart','text':'CedarRestart86 QueuePrivateFixture_482'}]})
@@ -222,7 +232,9 @@ def main():
             for path in home.glob('**/*'):
                 if path.is_file() and ('.sqlite' in path.name or path.suffix=='.db'):
                     assert b'QueuePrivateFixture_482' not in path.read_bytes(),path
-            stop();start();assert api('/api/v1/ui/learning')['summary']['queued']==1
+            stop();start();resumed=api('/api/v1/ui/learning')['summary']
+            assert resumed['queued']==1 and resumed['activity_since_ms']==tracked_since
+            assert resumed['activity']['completed_24h']==stats['completed_24h']
             configure('analysis',enabled=True);api('/api/v1/ui/worker/start',{})
             result=wait_for(completed);assert any(e['value']=='CedarRestart86' and e['state']=='active' for e in result['entries'])
             # Truncated output is retried by structural boundary, preserving all child results.
@@ -258,7 +270,12 @@ def main():
             partial_job=next(j for j in result['jobs'] if j['name']=='partial')
             assert partial_job['state']=='failed' and partial_job['extracted']==1 and partial_job['retryable'],partial_job
             check_browser(base,api,args.output)
+            configure('analysis',auto_apply=False)
+            api('/api/v1/ui/analysis/documents',{'documents':[{'name':'evening-review','text':'Private label CedarEveningDraft'}]})
             result=wait_for(completed)
+            evening=next(e for e in result['entries'] if e['value']=='CedarEveningDraft')
+            assert evening['categorization_state']=='succeeded' and evening['state']=='pending',evening
+            assert api('/api/v1/anonymize',{'text':'CedarEveningDraft'})['text']=='CedarEveningDraft'
             report={'passed':True,'nonblocking_request_seconds':round(elapsed,3),'model_peak_concurrency':peak,'summary':result['summary'],'checks':['SSE completion','no LLM wait','history deduplication','strict 85%','grounding','manual approval','rollback','revocation','parallelism','pause','encrypted queue','restart','source deletion']}
             (args.output/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(json.dumps(report,ensure_ascii=False))
         finally:

@@ -19,7 +19,7 @@ use kaponir_vault::SqliteVault;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     sync::{Arc, RwLock},
     time::Duration,
 };
@@ -162,6 +162,69 @@ struct Counters {
     skipped: u64,
     skipped_known: u64,
 }
+// Keep only aggregate measurements. 25 UTC hour slots cover a rolling day,
+// including both partial hours at its boundaries.
+const MINUTE_MS: u64 = 60_000;
+const ACTIVITY_KIND: &str = "learning-activity-hour";
+
+#[derive(Default, Serialize, Deserialize)]
+struct CompletionSample {
+    jobs: u64,
+    processing_ms: u64,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ActivityHour {
+    hour: u64,
+    minutes: BTreeMap<u64, CompletionSample>,
+}
+
+fn record_completion(v: &SqliteVault, now: u64, elapsed: Duration) -> anyhow::Result<()> {
+    let minute = now / MINUTE_MS;
+    let hour = minute / 60;
+    let id = format!("learning:activity:{}", hour % 25);
+    let mut bucket = record::<ActivityHour>(v, &id)?
+        .filter(|row| row.hour == hour)
+        .unwrap_or_else(|| ActivityHour {
+            hour,
+            minutes: BTreeMap::new(),
+        });
+    let sample = bucket.minutes.entry(minute % 60).or_default();
+    sample.jobs += 1;
+    sample.processing_ms += elapsed.as_millis() as u64;
+    put(v, &id, ACTIVITY_KIND, &bucket)
+}
+
+#[derive(Default, Serialize)]
+struct QueueActivity {
+    // Oldest first. Each column covers 60 consecutive minute buckets.
+    hourly: [u64; 24],
+    completed_24h: u64,
+    average_processing_ms: Option<f64>,
+}
+
+fn queue_activity(v: &SqliteVault, now: u64) -> anyhow::Result<QueueActivity> {
+    let now_minute = now / MINUTE_MS;
+    let mut activity = QueueActivity::default();
+    let mut processing_ms = 0;
+    for bucket in list::<ActivityHour>(v, ACTIVITY_KIND, 25)? {
+        for (offset, sample) in bucket.minutes {
+            let Some(age) = now_minute.checked_sub(bucket.hour * 60 + offset) else {
+                continue;
+            };
+            if age < 24 * 60 {
+                activity.hourly[23 - (age / 60) as usize] += sample.jobs;
+                activity.completed_24h += sample.jobs;
+                processing_ms += sample.processing_ms;
+            }
+        }
+    }
+    if activity.completed_24h > 0 {
+        activity.average_processing_ms = Some(processing_ms as f64 / activity.completed_24h as f64);
+    }
+    Ok(activity)
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 struct Job {
     id: String,
@@ -248,6 +311,7 @@ fn mask_action() -> RuleAction {
 }
 
 pub struct Learning {
+    activity_since_ms: u64,
     pub settings: RwLock<Settings>,
 }
 fn decode<T: DeserializeOwned>(bytes: &[u8]) -> anyhow::Result<T> {
@@ -382,12 +446,26 @@ fn confidence(a: Option<f64>, b: Option<f64>) -> Option<f64> {
 impl Learning {
     pub fn load(v: &SqliteVault) -> anyhow::Result<Arc<Self>> {
         let settings = private(v, SETTINGS)?;
+        let activity_since_ms = match record::<u64>(v, "learning:activity:since")? {
+            Some(since) => since,
+            None => {
+                let since = now_ms();
+                put(
+                    v,
+                    "learning:activity:since",
+                    "learning-activity-start",
+                    &since,
+                )?;
+                since
+            }
+        };
         // A crashed request to a worker can be safely replayed: entries and rule IDs are stable.
         for mut job in list::<Job>(v, "learning-job-running", MAX_JOBS)? {
             job.state = "queued".into();
             store_job(v, &job)?;
         }
         Ok(Arc::new(Self {
+            activity_since_ms,
             settings: RwLock::new(settings),
         }))
     }
@@ -2391,17 +2469,47 @@ pub(crate) async fn action(
 }
 async fn history(AxumState(st): AxumState<Shared>, h: HeaderMap) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
-    let value=st.with_vault(|_,v|{
-        let mut jobs=v.app_records_recent("learning-job-meta",100)?.into_iter().map(|(_,b)|decode::<Value>(&b)).collect::<anyhow::Result<Vec<_>>>()?;
-        let queued=v.app_record_count("learning-job-queued")?;let running=v.app_record_count("learning-job-running")?;
-        jobs.sort_by_key(|j|std::cmp::Reverse(j["created"].as_u64().unwrap_or(0)));jobs.truncate(100);
-        let mut entries=learning_entries(v,500,true)?;entries.sort_by_key(|e|std::cmp::Reverse(e.created));
-        let pending=v.app_record_count("learning-entry-pending")?;
-        let history=entries.iter().filter(|e|e.state!="pending").take(500).cloned().collect::<Vec<_>>();
-        entries.retain(|e|e.state=="pending");entries.truncate(500);entries.extend(history);
-        let totals:Counters=private(v,"learning:counters")?;
-        Ok(json!({"jobs":jobs,"entries":entries,"summary":{"queued":queued,"running":running,"queue_bytes":queue_bytes(v)?,"queue_limit_bytes":MAX_QUEUE_BYTES,"pending":pending,"totals":totals},"settings_revision":st.learning.snapshot().revision}))
-    }).map_err(internal)?;
+    let value = st
+        .with_vault(|_, v| {
+            let mut jobs = v
+                .app_records_recent("learning-job-meta", 100)?
+                .into_iter()
+                .map(|(_, b)| decode::<Value>(&b))
+                .collect::<anyhow::Result<Vec<_>>>()?;
+            let queued = v.app_record_count("learning-job-queued")?;
+            let running = v.app_record_count("learning-job-running")?;
+            jobs.sort_by_key(|j| std::cmp::Reverse(j["created"].as_u64().unwrap_or(0)));
+            jobs.truncate(100);
+            let mut entries = learning_entries(v, 500, true)?;
+            entries.sort_by_key(|e| std::cmp::Reverse(e.created));
+            let pending = v.app_record_count("learning-entry-pending")?;
+            let history = entries
+                .iter()
+                .filter(|e| e.state != "pending")
+                .take(500)
+                .cloned()
+                .collect::<Vec<_>>();
+            entries.retain(|e| e.state == "pending");
+            entries.truncate(500);
+            entries.extend(history);
+            let totals: Counters = private(v, "learning:counters")?;
+            Ok(json!({
+                "jobs": jobs,
+                "entries": entries,
+                "summary": {
+                    "queued": queued,
+                    "running": running,
+                    "queue_bytes": queue_bytes(v)?,
+                    "queue_limit_bytes": MAX_QUEUE_BYTES,
+                    "pending": pending,
+                    "totals": totals,
+                    "activity": queue_activity(v, now_ms())?,
+                    "activity_since_ms": st.learning.activity_since_ms,
+                },
+                "settings_revision": st.learning.snapshot().revision,
+            }))
+        })
+        .map_err(internal)?;
     Ok(Json(value))
 }
 fn cleanup(v: &SqliteVault) -> anyhow::Result<()> {
@@ -2588,6 +2696,7 @@ pub(crate) fn start(st: &Shared) {
     });
 }
 async fn run_job(st: Shared, mut job: Job, settings: Settings) {
+    let started = std::time::Instant::now();
     job.inference.clear();
     let result = if job.revision != settings.revision {
         Err(anyhow::anyhow!("configuration_changed"))
@@ -2611,6 +2720,7 @@ async fn run_job(st: Shared, mut job: Job, settings: Settings) {
                 .unwrap_or(0);
         }
     }
+    let processing_time = started.elapsed();
     job.updated = now_ms();
     if st
         .with_vault(|_, v| {
@@ -2620,6 +2730,9 @@ async fn run_job(st: Shared, mut job: Job, settings: Settings) {
                     return Ok(());
                 }
                 store_job(v, &job)?;
+                if succeeded {
+                    record_completion(v, job.updated, processing_time)?;
+                }
                 counter(v, |c| {
                     if succeeded {
                         c.processed += 1;
@@ -2647,6 +2760,36 @@ mod tests {
     fn vault() -> SqliteVault {
         SqliteVault::open_in_memory(&[41; 32]).unwrap()
     }
+    #[test]
+    fn queue_activity_counts_successes_by_completion_minute() {
+        let v = vault();
+        let at = 100 * 60 * MINUTE_MS;
+        assert!(
+            queue_activity(&v, at)
+                .unwrap()
+                .average_processing_ms
+                .is_none()
+        );
+        for (minutes_ago, seconds) in [(1440, 9), (1439, 3), (60, 2), (59, 1), (0, 2), (0, 2)] {
+            record_completion(
+                &v,
+                at - minutes_ago * MINUTE_MS,
+                Duration::from_secs(seconds),
+            )
+            .unwrap();
+        }
+        let stats = queue_activity(&v, at).unwrap();
+        assert_eq!(stats.completed_24h, 5);
+        assert_eq!(stats.hourly[23], 3);
+        assert_eq!(stats.hourly[22], 1);
+        assert_eq!(stats.hourly[0], 1);
+        assert_eq!(stats.average_processing_ms, Some(2000.0));
+        let later = at + 25 * 60 * MINUTE_MS;
+        record_completion(&v, later, Duration::ZERO).unwrap();
+        assert_eq!(queue_activity(&v, later).unwrap().completed_24h, 1);
+        assert_eq!(v.app_record_count(ACTIVITY_KIND).unwrap(), 3);
+    }
+
     #[test]
     fn planning_preserves_utf8_source_and_structural_boundaries() {
         let text = format!(

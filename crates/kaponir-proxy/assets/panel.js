@@ -1090,6 +1090,7 @@ function renderSettings() {
 }
 async function loadAnalysis() {
   await Promise.all([loadLearningSettings(), loadWorkerSummary(), loadLearningHistory()]);
+  renderLearningWidget();
 }
 let rulesView = "list";
 function showRulesView(view) {

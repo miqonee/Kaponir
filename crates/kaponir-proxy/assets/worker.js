@@ -358,7 +358,7 @@ function submitWorkerSource(source) {
 }
 $("#worker-submit").addEventListener("click", () => submitWorkerSource($("#worker-source").value.trim() || "."));
 $("#worker-scan-sessions").addEventListener("click", () => submitWorkerSource("@sessions"));
-Object.assign(TABS, { worker: loadWorker });
+Object.assign(TABS, { worker: loadAnalysis });
 const workerTabs = ["#analysis", "#categorization", "#worker"];
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden && workerTabs.includes(location.hash)) loadWorkerSummary();
