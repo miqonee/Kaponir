@@ -374,7 +374,7 @@ Start with the [documentation index](docs/README.md). Main routes:
 - [Settings transfer](docs/SETTINGS_TRANSFER.md) — shared JSON for CLI and Web.
 - [Architecture](docs/DESIGN.md) — internal contracts and decisions.
 
-For document search and candidate review, use the [tested Qwen profiles, results, and reproduction instructions](research/privacy-training/README.md).
+For a single local Qwen model, see the [installation recommendation, benchmark results, and reproduction instructions](research/privacy-training/README.md).
 Research and historical reports are listed separately in the [documentation index](docs/README.md#исследования-и-история).
 They describe specific runs and do not replace the current guides. The detailed guides are
 currently written in Russian; the Russian project overview is available in [README.ru.md](README.ru.md).
