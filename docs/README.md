@@ -91,7 +91,7 @@
 
 ## Исследования и история
 
-- [Базовая Qwen и адаптер epoch-2](../research/privacy-training/README.md) — какие настройки выбрать для поиска и проверки кандидата, как сверить квитанции и повторить прогон.
+- [Базовая Qwen и адаптер epoch-2](../research/privacy-training/README.md) — какую версию установить, что дало дообучение и как повторить сравнение.
 - [Сводка по 15 моделям](experiments/ALL_MODELS.md) и [настройки моделей по задачам](experiments/FOCUSED_MODEL_RESULTS.md).
 
 Текущий этап — [политика приватности и парный эксперимент A/B/C/D](experiments/PRIVACY_POLICY_PHASE2.md).
