@@ -1,0 +1,2846 @@
+{
+  "source_git_revision": "947fb2434808ed101cf5816cb50793abbf2323be",
+  "verified_adapter_sha256": "a730758be6c676fcbf4f8842bd2487c9da8d159ceb2323c300d633d5f5b96280",
+  "validation_sha256": "0d4bfd8a188b640ed0b13b8cfd03b2af63e367a9e9da571f1d8cc5781432ea7b",
+  "verified_artifact_hashes": 48,
+  "verified_lfs_pointer_hashes": 2,
+  "scores": {
+    "old-epoch-1": {
+      "fields": {
+        "private": 57,
+        "private_full": 41,
+        "public": 57,
+        "public_touched": 32,
+        "documents": 71,
+        "restored": 71,
+        "pass": false
+      },
+      "correction": {
+        "private": 57,
+        "private_full": 41,
+        "public": 57,
+        "public_touched": 27,
+        "documents": 71,
+        "restored": 71,
+        "pass": false
+      }
+    },
+    "new-epoch-1": {
+      "fields": {
+        "private": 57,
+        "private_full": 50,
+        "public": 57,
+        "public_touched": 31,
+        "documents": 71,
+        "restored": 71,
+        "pass": false
+      },
+      "correction": {
+        "private": 57,
+        "private_full": 50,
+        "public": 57,
+        "public_touched": 25,
+        "documents": 71,
+        "restored": 71,
+        "pass": false
+      }
+    },
+    "new-epoch-2": {
+      "fields": {
+        "private": 57,
+        "private_full": 53,
+        "public": 57,
+        "public_touched": 31,
+        "documents": 71,
+        "restored": 71,
+        "pass": false
+      },
+      "correction": {
+        "private": 57,
+        "private_full": 53,
+        "public": 57,
+        "public_touched": 25,
+        "documents": 71,
+        "restored": 71,
+        "pass": false
+      }
+    }
+  },
+  "comparison": {
+    "fields": {
+      "old_model": {
+        "documents": 71,
+        "exact_documents": {
+          "n": 39,
+          "d": 71,
+          "rate": 0.5492957746478874
+        },
+        "valid_documents": {
+          "n": 65,
+          "d": 71,
+          "rate": 0.9154929577464789
+        },
+        "errors": {
+          "duplicate_or_overlap": 4,
+          "invalid_schema": 2
+        },
+        "diagnostics": {
+          "wrong_kind": 6,
+          "wrong_action": 18,
+          "no_span": 37
+        },
+        "all_spans": {
+          "tp": 71,
+          "fp": 28,
+          "fn": 60,
+          "precision": {
+            "n": 71,
+            "d": 99,
+            "rate": 0.7171717171717171
+          },
+          "recall": {
+            "n": 71,
+            "d": 131,
+            "rate": 0.5419847328244275
+          },
+          "f1": {
+            "n": 142,
+            "d": 230,
+            "rate": 0.6173913043478261
+          }
+        },
+        "by_action": {
+          "keep": {
+            "tp": 31,
+            "fp": 13,
+            "fn": 26,
+            "precision": {
+              "n": 31,
+              "d": 44,
+              "rate": 0.7045454545454546
+            },
+            "recall": {
+              "n": 31,
+              "d": 57,
+              "rate": 0.543859649122807
+            },
+            "f1": {
+              "n": 62,
+              "d": 101,
+              "rate": 0.6138613861386139
+            }
+          },
+          "mask": {
+            "tp": 36,
+            "fp": 14,
+            "fn": 21,
+            "precision": {
+              "n": 36,
+              "d": 50,
+              "rate": 0.72
+            },
+            "recall": {
+              "n": 36,
+              "d": 57,
+              "rate": 0.631578947368421
+            },
+            "f1": {
+              "n": 72,
+              "d": 107,
+              "rate": 0.6728971962616822
+            }
+          },
+          "review": {
+            "tp": 4,
+            "fp": 1,
+            "fn": 13,
+            "precision": {
+              "n": 4,
+              "d": 5,
+              "rate": 0.8
+            },
+            "recall": {
+              "n": 4,
+              "d": 17,
+              "rate": 0.23529411764705882
+            },
+            "f1": {
+              "n": 8,
+              "d": 22,
+              "rate": 0.36363636363636365
+            }
+          }
+        },
+        "by_kind": {
+          "AMOUNT": {
+            "tp": 11,
+            "fp": 1,
+            "fn": 3,
+            "precision": {
+              "n": 11,
+              "d": 12,
+              "rate": 0.9166666666666666
+            },
+            "recall": {
+              "n": 11,
+              "d": 14,
+              "rate": 0.7857142857142857
+            },
+            "f1": {
+              "n": 22,
+              "d": 26,
+              "rate": 0.8461538461538461
+            }
+          },
+          "CLIENT": {
+            "tp": 9,
+            "fp": 3,
+            "fn": 5,
+            "precision": {
+              "n": 9,
+              "d": 12,
+              "rate": 0.75
+            },
+            "recall": {
+              "n": 9,
+              "d": 14,
+              "rate": 0.6428571428571429
+            },
+            "f1": {
+              "n": 18,
+              "d": 26,
+              "rate": 0.6923076923076923
+            }
+          },
+          "CUSTOM": {
+            "tp": 0,
+            "fp": 4,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 4,
+              "rate": 0.0
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 4,
+              "rate": 0.0
+            }
+          },
+          "DOM": {
+            "tp": 1,
+            "fp": 1,
+            "fn": 10,
+            "precision": {
+              "n": 1,
+              "d": 2,
+              "rate": 0.5
+            },
+            "recall": {
+              "n": 1,
+              "d": 11,
+              "rate": 0.09090909090909091
+            },
+            "f1": {
+              "n": 2,
+              "d": 13,
+              "rate": 0.15384615384615385
+            }
+          },
+          "EMAIL": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "HOST": {
+            "tp": 13,
+            "fp": 1,
+            "fn": 1,
+            "precision": {
+              "n": 13,
+              "d": 14,
+              "rate": 0.9285714285714286
+            },
+            "recall": {
+              "n": 13,
+              "d": 14,
+              "rate": 0.9285714285714286
+            },
+            "f1": {
+              "n": 26,
+              "d": 28,
+              "rate": 0.9285714285714286
+            }
+          },
+          "IP": {
+            "tp": 9,
+            "fp": 2,
+            "fn": 5,
+            "precision": {
+              "n": 9,
+              "d": 11,
+              "rate": 0.8181818181818182
+            },
+            "recall": {
+              "n": 9,
+              "d": 14,
+              "rate": 0.6428571428571429
+            },
+            "f1": {
+              "n": 18,
+              "d": 25,
+              "rate": 0.72
+            }
+          },
+          "MODULE": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "ORG": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "PATH": {
+            "tp": 0,
+            "fp": 4,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 4,
+              "rate": 0.0
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 4,
+              "rate": 0.0
+            }
+          },
+          "PERSON": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "PHONE": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "PROJ": {
+            "tp": 7,
+            "fp": 1,
+            "fn": 7,
+            "precision": {
+              "n": 7,
+              "d": 8,
+              "rate": 0.875
+            },
+            "recall": {
+              "n": 7,
+              "d": 14,
+              "rate": 0.5
+            },
+            "f1": {
+              "n": 14,
+              "d": 22,
+              "rate": 0.6363636363636364
+            }
+          },
+          "SECRET": {
+            "tp": 11,
+            "fp": 3,
+            "fn": 3,
+            "precision": {
+              "n": 11,
+              "d": 14,
+              "rate": 0.7857142857142857
+            },
+            "recall": {
+              "n": 11,
+              "d": 14,
+              "rate": 0.7857142857142857
+            },
+            "f1": {
+              "n": 22,
+              "d": 28,
+              "rate": 0.7857142857142857
+            }
+          },
+          "SUB": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "SVC": {
+            "tp": 0,
+            "fp": 2,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 2,
+              "rate": 0.0
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 2,
+              "rate": 0.0
+            }
+          },
+          "USER": {
+            "tp": 10,
+            "fp": 6,
+            "fn": 26,
+            "precision": {
+              "n": 10,
+              "d": 16,
+              "rate": 0.625
+            },
+            "recall": {
+              "n": 10,
+              "d": 36,
+              "rate": 0.2777777777777778
+            },
+            "f1": {
+              "n": 20,
+              "d": 52,
+              "rate": 0.38461538461538464
+            }
+          }
+        },
+        "by_input": {
+          "text_only": {
+            "n": 39,
+            "d": 71,
+            "rate": 0.5492957746478874
+          }
+        },
+        "contrast_sets": {
+          "provenance": {
+            "n": 4,
+            "d": 8,
+            "rate": 0.5
+          },
+          "order": {
+            "n": 1,
+            "d": 8,
+            "rate": 0.125
+          }
+        }
+      },
+      "new_model": {
+        "documents": 71,
+        "exact_documents": {
+          "n": 57,
+          "d": 71,
+          "rate": 0.8028169014084507
+        },
+        "valid_documents": {
+          "n": 71,
+          "d": 71,
+          "rate": 1.0
+        },
+        "errors": {},
+        "diagnostics": {
+          "wrong_kind": 12,
+          "wrong_action": 4,
+          "no_span": 5
+        },
+        "all_spans": {
+          "tp": 110,
+          "fp": 16,
+          "fn": 21,
+          "precision": {
+            "n": 110,
+            "d": 126,
+            "rate": 0.873015873015873
+          },
+          "recall": {
+            "n": 110,
+            "d": 131,
+            "rate": 0.8396946564885496
+          },
+          "f1": {
+            "n": 220,
+            "d": 257,
+            "rate": 0.8560311284046692
+          }
+        },
+        "by_action": {
+          "keep": {
+            "tp": 49,
+            "fp": 8,
+            "fn": 8,
+            "precision": {
+              "n": 49,
+              "d": 57,
+              "rate": 0.8596491228070176
+            },
+            "recall": {
+              "n": 49,
+              "d": 57,
+              "rate": 0.8596491228070176
+            },
+            "f1": {
+              "n": 98,
+              "d": 114,
+              "rate": 0.8596491228070176
+            }
+          },
+          "mask": {
+            "tp": 50,
+            "fp": 5,
+            "fn": 7,
+            "precision": {
+              "n": 50,
+              "d": 55,
+              "rate": 0.9090909090909091
+            },
+            "recall": {
+              "n": 50,
+              "d": 57,
+              "rate": 0.8771929824561403
+            },
+            "f1": {
+              "n": 100,
+              "d": 112,
+              "rate": 0.8928571428571429
+            }
+          },
+          "review": {
+            "tp": 11,
+            "fp": 3,
+            "fn": 6,
+            "precision": {
+              "n": 11,
+              "d": 14,
+              "rate": 0.7857142857142857
+            },
+            "recall": {
+              "n": 11,
+              "d": 17,
+              "rate": 0.6470588235294118
+            },
+            "f1": {
+              "n": 22,
+              "d": 31,
+              "rate": 0.7096774193548387
+            }
+          }
+        },
+        "by_kind": {
+          "AMOUNT": {
+            "tp": 13,
+            "fp": 1,
+            "fn": 1,
+            "precision": {
+              "n": 13,
+              "d": 14,
+              "rate": 0.9285714285714286
+            },
+            "recall": {
+              "n": 13,
+              "d": 14,
+              "rate": 0.9285714285714286
+            },
+            "f1": {
+              "n": 26,
+              "d": 28,
+              "rate": 0.9285714285714286
+            }
+          },
+          "CLIENT": {
+            "tp": 13,
+            "fp": 2,
+            "fn": 1,
+            "precision": {
+              "n": 13,
+              "d": 15,
+              "rate": 0.8666666666666667
+            },
+            "recall": {
+              "n": 13,
+              "d": 14,
+              "rate": 0.9285714285714286
+            },
+            "f1": {
+              "n": 26,
+              "d": 29,
+              "rate": 0.896551724137931
+            }
+          },
+          "CUSTOM": {
+            "tp": 0,
+            "fp": 3,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 3,
+              "rate": 0.0
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 3,
+              "rate": 0.0
+            }
+          },
+          "DOM": {
+            "tp": 10,
+            "fp": 0,
+            "fn": 1,
+            "precision": {
+              "n": 10,
+              "d": 10,
+              "rate": 1.0
+            },
+            "recall": {
+              "n": 10,
+              "d": 11,
+              "rate": 0.9090909090909091
+            },
+            "f1": {
+              "n": 20,
+              "d": 21,
+              "rate": 0.9523809523809523
+            }
+          },
+          "EMAIL": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "HOST": {
+            "tp": 7,
+            "fp": 0,
+            "fn": 7,
+            "precision": {
+              "n": 7,
+              "d": 7,
+              "rate": 1.0
+            },
+            "recall": {
+              "n": 7,
+              "d": 14,
+              "rate": 0.5
+            },
+            "f1": {
+              "n": 14,
+              "d": 21,
+              "rate": 0.6666666666666666
+            }
+          },
+          "IP": {
+            "tp": 14,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 14,
+              "d": 14,
+              "rate": 1.0
+            },
+            "recall": {
+              "n": 14,
+              "d": 14,
+              "rate": 1.0
+            },
+            "f1": {
+              "n": 28,
+              "d": 28,
+              "rate": 1.0
+            }
+          },
+          "MODULE": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "ORG": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 1,
+              "rate": 0.0
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 1,
+              "rate": 0.0
+            }
+          },
+          "PATH": {
+            "tp": 0,
+            "fp": 1,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 1,
+              "rate": 0.0
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 1,
+              "rate": 0.0
+            }
+          },
+          "PERSON": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "PHONE": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "PROJ": {
+            "tp": 10,
+            "fp": 0,
+            "fn": 4,
+            "precision": {
+              "n": 10,
+              "d": 10,
+              "rate": 1.0
+            },
+            "recall": {
+              "n": 10,
+              "d": 14,
+              "rate": 0.7142857142857143
+            },
+            "f1": {
+              "n": 20,
+              "d": 24,
+              "rate": 0.8333333333333334
+            }
+          },
+          "SECRET": {
+            "tp": 14,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 14,
+              "d": 14,
+              "rate": 1.0
+            },
+            "recall": {
+              "n": 14,
+              "d": 14,
+              "rate": 1.0
+            },
+            "f1": {
+              "n": 28,
+              "d": 28,
+              "rate": 1.0
+            }
+          },
+          "SUB": {
+            "tp": 0,
+            "fp": 0,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            }
+          },
+          "SVC": {
+            "tp": 0,
+            "fp": 6,
+            "fn": 0,
+            "precision": {
+              "n": 0,
+              "d": 6,
+              "rate": 0.0
+            },
+            "recall": {
+              "n": 0,
+              "d": 0,
+              "rate": null
+            },
+            "f1": {
+              "n": 0,
+              "d": 6,
+              "rate": 0.0
+            }
+          },
+          "USER": {
+            "tp": 29,
+            "fp": 2,
+            "fn": 7,
+            "precision": {
+              "n": 29,
+              "d": 31,
+              "rate": 0.9354838709677419
+            },
+            "recall": {
+              "n": 29,
+              "d": 36,
+              "rate": 0.8055555555555556
+            },
+            "f1": {
+              "n": 58,
+              "d": 67,
+              "rate": 0.8656716417910447
+            }
+          }
+        },
+        "by_input": {
+          "text_only": {
+            "n": 57,
+            "d": 71,
+            "rate": 0.8028169014084507
+          }
+        },
+        "contrast_sets": {
+          "provenance": {
+            "n": 6,
+            "d": 8,
+            "rate": 0.75
+          },
+          "order": {
+            "n": 5,
+            "d": 8,
+            "rate": 0.625
+          }
+        }
+      },
+      "old": {
+        "private_full": 41,
+        "private_partial": 3,
+        "private_open": 13,
+        "review_full": 16,
+        "review_partial": 0,
+        "review_open": 1,
+        "documents": 71,
+        "private": 57,
+        "public": 57,
+        "review": 17,
+        "clean": 8,
+        "private_documents": 39,
+        "observed": 71,
+        "restored": 71,
+        "changed_clean": 0,
+        "public_touched": 32,
+        "collateral_bytes": 70,
+        "documents_with_leak": 7,
+        "full_privacy": {
+          "n": 41,
+          "d": 57,
+          "rate": 0.7192982456140351
+        },
+        "public_losses": {
+          "n": 32,
+          "d": 57,
+          "rate": 0.5614035087719298
+        },
+        "leaking_requests": {
+          "n": 7,
+          "d": 39,
+          "rate": 0.1794871794871795
+        },
+        "changed_empty_requests": {
+          "n": 0,
+          "d": 8,
+          "rate": 0.0
+        },
+        "exact_restore": {
+          "n": 71,
+          "d": 71,
+          "rate": 1.0
+        },
+        "complete": true,
+        "pass": false
+      },
+      "new": {
+        "private_full": 53,
+        "private_partial": 0,
+        "private_open": 4,
+        "review_full": 16,
+        "review_partial": 1,
+        "review_open": 0,
+        "documents": 71,
+        "private": 57,
+        "public": 57,
+        "review": 17,
+        "clean": 8,
+        "private_documents": 39,
+        "observed": 71,
+        "restored": 71,
+        "changed_clean": 0,
+        "public_touched": 31,
+        "collateral_bytes": 70,
+        "documents_with_leak": 2,
+        "full_privacy": {
+          "n": 53,
+          "d": 57,
+          "rate": 0.9298245614035088
+        },
+        "public_losses": {
+          "n": 31,
+          "d": 57,
+          "rate": 0.543859649122807
+        },
+        "leaking_requests": {
+          "n": 2,
+          "d": 39,
+          "rate": 0.05128205128205128
+        },
+        "changed_empty_requests": {
+          "n": 0,
+          "d": 8,
+          "rate": 0.0
+        },
+        "exact_restore": {
+          "n": 71,
+          "d": 71,
+          "rate": 1.0
+        },
+        "complete": true,
+        "pass": false
+      },
+      "private_decisions": {
+        "old_outcomes": {
+          "exact_mask": 36,
+          "omitted": 1,
+          "different_occurrence": 2,
+          "unusable_response": 14,
+          "wrong_keep": 4
+        },
+        "new_outcomes": {
+          "exact_mask": 50,
+          "different_occurrence": 4,
+          "wrong_kind": 3
+        },
+        "new_wrong_keep": 0,
+        "new_omissions": 0,
+        "newly_exposed": 0,
+        "transitions": [
+          {
+            "id": "v4/accessibility-lesson/mixed",
+            "group": "v4/accessibility-lesson",
+            "kind": "USER",
+            "start_byte": 312,
+            "end_byte": 340,
+            "old_outcome": "omitted",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/accessibility-lesson/both-private",
+            "group": "v4/accessibility-lesson",
+            "kind": "USER",
+            "start_byte": 318,
+            "end_byte": 346,
+            "old_outcome": "different_occurrence",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/mixed",
+            "group": "v4/shift-handover",
+            "kind": "DOM",
+            "start_byte": 277,
+            "end_byte": 285,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/mixed",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 287,
+            "end_byte": 309,
+            "old_outcome": "unusable_response",
+            "new_outcome": "different_occurrence",
+            "old_outbound": "open",
+            "new_outbound": "open"
+          },
+          {
+            "id": "v4/shift-handover/mixed",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 428,
+            "end_byte": 450,
+            "old_outcome": "unusable_response",
+            "new_outcome": "different_occurrence",
+            "old_outbound": "open",
+            "new_outbound": "open"
+          },
+          {
+            "id": "v4/shift-handover/reordered",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 102,
+            "end_byte": 124,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/reordered",
+            "group": "v4/shift-handover",
+            "kind": "DOM",
+            "start_byte": 241,
+            "end_byte": 249,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/reordered",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 251,
+            "end_byte": 273,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "DOM",
+            "start_byte": 100,
+            "end_byte": 108,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 110,
+            "end_byte": 132,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 251,
+            "end_byte": 273,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "DOM",
+            "start_byte": 288,
+            "end_byte": 296,
+            "old_outcome": "unusable_response",
+            "new_outcome": "different_occurrence",
+            "old_outbound": "open",
+            "new_outbound": "open"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 298,
+            "end_byte": 320,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 439,
+            "end_byte": 461,
+            "old_outcome": "unusable_response",
+            "new_outcome": "different_occurrence",
+            "old_outbound": "open",
+            "new_outbound": "open"
+          },
+          {
+            "id": "v4/radio-certificate/private",
+            "group": "v4/radio-certificate",
+            "kind": "HOST",
+            "start_byte": 155,
+            "end_byte": 197,
+            "old_outcome": "exact_mask",
+            "new_outcome": "wrong_kind",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/radio-certificate/reordered",
+            "group": "v4/radio-certificate",
+            "kind": "HOST",
+            "start_byte": 155,
+            "end_byte": 197,
+            "old_outcome": "exact_mask",
+            "new_outcome": "wrong_kind",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/radio-certificate/three-copies",
+            "group": "v4/radio-certificate",
+            "kind": "HOST",
+            "start_byte": 155,
+            "end_byte": 197,
+            "old_outcome": "exact_mask",
+            "new_outcome": "wrong_kind",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/infrastructure-switchboard/mixed",
+            "group": "v4/infrastructure-switchboard",
+            "kind": "IP",
+            "start_byte": 206,
+            "end_byte": 220,
+            "old_outcome": "wrong_keep",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/infrastructure-switchboard/reordered",
+            "group": "v4/infrastructure-switchboard",
+            "kind": "IP",
+            "start_byte": 62,
+            "end_byte": 76,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/repair-schedule-pricing/reordered",
+            "group": "v4/repair-schedule-pricing",
+            "kind": "AMOUNT",
+            "start_byte": 49,
+            "end_byte": 57,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/rights-dispatch/mixed",
+            "group": "v4/rights-dispatch",
+            "kind": "CLIENT",
+            "start_byte": 172,
+            "end_byte": 199,
+            "old_outcome": "wrong_keep",
+            "new_outcome": "exact_mask",
+            "old_outbound": "partial",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/rights-dispatch/both-private",
+            "group": "v4/rights-dispatch",
+            "kind": "CLIENT",
+            "start_byte": 185,
+            "end_byte": 212,
+            "old_outcome": "different_occurrence",
+            "new_outcome": "exact_mask",
+            "old_outbound": "partial",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/commission-book/mixed",
+            "group": "v4/commission-book",
+            "kind": "PROJ",
+            "start_byte": 275,
+            "end_byte": 298,
+            "old_outcome": "wrong_keep",
+            "new_outcome": "exact_mask",
+            "old_outbound": "partial",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/museum-reader-key/mixed",
+            "group": "v4/museum-reader-key",
+            "kind": "SECRET",
+            "start_byte": 231,
+            "end_byte": 272,
+            "old_outcome": "wrong_keep",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          }
+        ]
+      },
+      "positions": {
+        "recovered_public": [
+          {
+            "start_byte": 240,
+            "end_byte": 262,
+            "kind": "USER",
+            "id": "v4/shift-handover/public",
+            "masked_bytes_before": 22,
+            "masked_bytes_after": 0
+          },
+          {
+            "start_byte": 227,
+            "end_byte": 268,
+            "kind": "SECRET",
+            "id": "v4/museum-reader-key/reordered",
+            "masked_bytes_before": 41,
+            "masked_bytes_after": 0
+          }
+        ],
+        "new_public_losses": [
+          {
+            "start_byte": 240,
+            "end_byte": 262,
+            "kind": "USER",
+            "id": "v4/shift-handover/mixed",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 22
+          }
+        ],
+        "new_private_disclosures": [],
+        "private_remaining": [
+          {
+            "start_byte": 287,
+            "end_byte": 309,
+            "kind": "USER",
+            "id": "v4/shift-handover/mixed",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 0,
+            "before": "open",
+            "after": "open"
+          },
+          {
+            "start_byte": 428,
+            "end_byte": 450,
+            "kind": "USER",
+            "id": "v4/shift-handover/mixed",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 0,
+            "before": "open",
+            "after": "open"
+          },
+          {
+            "start_byte": 288,
+            "end_byte": 296,
+            "kind": "DOM",
+            "id": "v4/shift-handover/both-private",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 0,
+            "before": "open",
+            "after": "open"
+          },
+          {
+            "start_byte": 439,
+            "end_byte": 461,
+            "kind": "USER",
+            "id": "v4/shift-handover/both-private",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 0,
+            "before": "open",
+            "after": "open"
+          }
+        ]
+      }
+    },
+    "correction": {
+      "old_model": {
+        "all_spans": {
+          "f1": {
+            "d": 230,
+            "n": 142,
+            "rate": 0.6173913043478261
+          },
+          "fn": 60,
+          "fp": 28,
+          "precision": {
+            "d": 99,
+            "n": 71,
+            "rate": 0.7171717171717171
+          },
+          "recall": {
+            "d": 131,
+            "n": 71,
+            "rate": 0.5419847328244275
+          },
+          "tp": 71
+        },
+        "by_action": {
+          "keep": {
+            "f1": {
+              "d": 101,
+              "n": 62,
+              "rate": 0.6138613861386139
+            },
+            "fn": 26,
+            "fp": 13,
+            "precision": {
+              "d": 44,
+              "n": 31,
+              "rate": 0.7045454545454546
+            },
+            "recall": {
+              "d": 57,
+              "n": 31,
+              "rate": 0.543859649122807
+            },
+            "tp": 31
+          },
+          "mask": {
+            "f1": {
+              "d": 107,
+              "n": 72,
+              "rate": 0.6728971962616822
+            },
+            "fn": 21,
+            "fp": 14,
+            "precision": {
+              "d": 50,
+              "n": 36,
+              "rate": 0.72
+            },
+            "recall": {
+              "d": 57,
+              "n": 36,
+              "rate": 0.631578947368421
+            },
+            "tp": 36
+          },
+          "review": {
+            "f1": {
+              "d": 22,
+              "n": 8,
+              "rate": 0.36363636363636365
+            },
+            "fn": 13,
+            "fp": 1,
+            "precision": {
+              "d": 5,
+              "n": 4,
+              "rate": 0.8
+            },
+            "recall": {
+              "d": 17,
+              "n": 4,
+              "rate": 0.23529411764705882
+            },
+            "tp": 4
+          }
+        },
+        "by_input": {
+          "text_only": {
+            "d": 71,
+            "n": 39,
+            "rate": 0.5492957746478874
+          }
+        },
+        "by_kind": {
+          "AMOUNT": {
+            "f1": {
+              "d": 26,
+              "n": 22,
+              "rate": 0.8461538461538461
+            },
+            "fn": 3,
+            "fp": 1,
+            "precision": {
+              "d": 12,
+              "n": 11,
+              "rate": 0.9166666666666666
+            },
+            "recall": {
+              "d": 14,
+              "n": 11,
+              "rate": 0.7857142857142857
+            },
+            "tp": 11
+          },
+          "CLIENT": {
+            "f1": {
+              "d": 26,
+              "n": 18,
+              "rate": 0.6923076923076923
+            },
+            "fn": 5,
+            "fp": 3,
+            "precision": {
+              "d": 12,
+              "n": 9,
+              "rate": 0.75
+            },
+            "recall": {
+              "d": 14,
+              "n": 9,
+              "rate": 0.6428571428571429
+            },
+            "tp": 9
+          },
+          "CUSTOM": {
+            "f1": {
+              "d": 4,
+              "n": 0,
+              "rate": 0.0
+            },
+            "fn": 0,
+            "fp": 4,
+            "precision": {
+              "d": 4,
+              "n": 0,
+              "rate": 0.0
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "DOM": {
+            "f1": {
+              "d": 13,
+              "n": 2,
+              "rate": 0.15384615384615385
+            },
+            "fn": 10,
+            "fp": 1,
+            "precision": {
+              "d": 2,
+              "n": 1,
+              "rate": 0.5
+            },
+            "recall": {
+              "d": 11,
+              "n": 1,
+              "rate": 0.09090909090909091
+            },
+            "tp": 1
+          },
+          "EMAIL": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "HOST": {
+            "f1": {
+              "d": 28,
+              "n": 26,
+              "rate": 0.9285714285714286
+            },
+            "fn": 1,
+            "fp": 1,
+            "precision": {
+              "d": 14,
+              "n": 13,
+              "rate": 0.9285714285714286
+            },
+            "recall": {
+              "d": 14,
+              "n": 13,
+              "rate": 0.9285714285714286
+            },
+            "tp": 13
+          },
+          "IP": {
+            "f1": {
+              "d": 25,
+              "n": 18,
+              "rate": 0.72
+            },
+            "fn": 5,
+            "fp": 2,
+            "precision": {
+              "d": 11,
+              "n": 9,
+              "rate": 0.8181818181818182
+            },
+            "recall": {
+              "d": 14,
+              "n": 9,
+              "rate": 0.6428571428571429
+            },
+            "tp": 9
+          },
+          "MODULE": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "ORG": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "PATH": {
+            "f1": {
+              "d": 4,
+              "n": 0,
+              "rate": 0.0
+            },
+            "fn": 0,
+            "fp": 4,
+            "precision": {
+              "d": 4,
+              "n": 0,
+              "rate": 0.0
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "PERSON": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "PHONE": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "PROJ": {
+            "f1": {
+              "d": 22,
+              "n": 14,
+              "rate": 0.6363636363636364
+            },
+            "fn": 7,
+            "fp": 1,
+            "precision": {
+              "d": 8,
+              "n": 7,
+              "rate": 0.875
+            },
+            "recall": {
+              "d": 14,
+              "n": 7,
+              "rate": 0.5
+            },
+            "tp": 7
+          },
+          "SECRET": {
+            "f1": {
+              "d": 28,
+              "n": 22,
+              "rate": 0.7857142857142857
+            },
+            "fn": 3,
+            "fp": 3,
+            "precision": {
+              "d": 14,
+              "n": 11,
+              "rate": 0.7857142857142857
+            },
+            "recall": {
+              "d": 14,
+              "n": 11,
+              "rate": 0.7857142857142857
+            },
+            "tp": 11
+          },
+          "SUB": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "SVC": {
+            "f1": {
+              "d": 2,
+              "n": 0,
+              "rate": 0.0
+            },
+            "fn": 0,
+            "fp": 2,
+            "precision": {
+              "d": 2,
+              "n": 0,
+              "rate": 0.0
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "USER": {
+            "f1": {
+              "d": 52,
+              "n": 20,
+              "rate": 0.38461538461538464
+            },
+            "fn": 26,
+            "fp": 6,
+            "precision": {
+              "d": 16,
+              "n": 10,
+              "rate": 0.625
+            },
+            "recall": {
+              "d": 36,
+              "n": 10,
+              "rate": 0.2777777777777778
+            },
+            "tp": 10
+          }
+        },
+        "contrast_sets": {
+          "order": {
+            "d": 8,
+            "n": 1,
+            "rate": 0.125
+          },
+          "provenance": {
+            "d": 8,
+            "n": 4,
+            "rate": 0.5
+          }
+        },
+        "diagnostics": {
+          "no_span": 37,
+          "wrong_action": 18,
+          "wrong_kind": 6
+        },
+        "documents": 71,
+        "errors": {
+          "duplicate_or_overlap": 4,
+          "invalid_schema": 2
+        },
+        "exact_documents": {
+          "d": 71,
+          "n": 39,
+          "rate": 0.5492957746478874
+        },
+        "valid_documents": {
+          "d": 71,
+          "n": 65,
+          "rate": 0.9154929577464789
+        }
+      },
+      "new_model": {
+        "all_spans": {
+          "f1": {
+            "d": 257,
+            "n": 220,
+            "rate": 0.8560311284046692
+          },
+          "fn": 21,
+          "fp": 16,
+          "precision": {
+            "d": 126,
+            "n": 110,
+            "rate": 0.873015873015873
+          },
+          "recall": {
+            "d": 131,
+            "n": 110,
+            "rate": 0.8396946564885496
+          },
+          "tp": 110
+        },
+        "by_action": {
+          "keep": {
+            "f1": {
+              "d": 114,
+              "n": 98,
+              "rate": 0.8596491228070176
+            },
+            "fn": 8,
+            "fp": 8,
+            "precision": {
+              "d": 57,
+              "n": 49,
+              "rate": 0.8596491228070176
+            },
+            "recall": {
+              "d": 57,
+              "n": 49,
+              "rate": 0.8596491228070176
+            },
+            "tp": 49
+          },
+          "mask": {
+            "f1": {
+              "d": 112,
+              "n": 100,
+              "rate": 0.8928571428571429
+            },
+            "fn": 7,
+            "fp": 5,
+            "precision": {
+              "d": 55,
+              "n": 50,
+              "rate": 0.9090909090909091
+            },
+            "recall": {
+              "d": 57,
+              "n": 50,
+              "rate": 0.8771929824561403
+            },
+            "tp": 50
+          },
+          "review": {
+            "f1": {
+              "d": 31,
+              "n": 22,
+              "rate": 0.7096774193548387
+            },
+            "fn": 6,
+            "fp": 3,
+            "precision": {
+              "d": 14,
+              "n": 11,
+              "rate": 0.7857142857142857
+            },
+            "recall": {
+              "d": 17,
+              "n": 11,
+              "rate": 0.6470588235294118
+            },
+            "tp": 11
+          }
+        },
+        "by_input": {
+          "text_only": {
+            "d": 71,
+            "n": 57,
+            "rate": 0.8028169014084507
+          }
+        },
+        "by_kind": {
+          "AMOUNT": {
+            "f1": {
+              "d": 28,
+              "n": 26,
+              "rate": 0.9285714285714286
+            },
+            "fn": 1,
+            "fp": 1,
+            "precision": {
+              "d": 14,
+              "n": 13,
+              "rate": 0.9285714285714286
+            },
+            "recall": {
+              "d": 14,
+              "n": 13,
+              "rate": 0.9285714285714286
+            },
+            "tp": 13
+          },
+          "CLIENT": {
+            "f1": {
+              "d": 29,
+              "n": 26,
+              "rate": 0.896551724137931
+            },
+            "fn": 1,
+            "fp": 2,
+            "precision": {
+              "d": 15,
+              "n": 13,
+              "rate": 0.8666666666666667
+            },
+            "recall": {
+              "d": 14,
+              "n": 13,
+              "rate": 0.9285714285714286
+            },
+            "tp": 13
+          },
+          "CUSTOM": {
+            "f1": {
+              "d": 3,
+              "n": 0,
+              "rate": 0.0
+            },
+            "fn": 0,
+            "fp": 3,
+            "precision": {
+              "d": 3,
+              "n": 0,
+              "rate": 0.0
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "DOM": {
+            "f1": {
+              "d": 21,
+              "n": 20,
+              "rate": 0.9523809523809523
+            },
+            "fn": 1,
+            "fp": 0,
+            "precision": {
+              "d": 10,
+              "n": 10,
+              "rate": 1.0
+            },
+            "recall": {
+              "d": 11,
+              "n": 10,
+              "rate": 0.9090909090909091
+            },
+            "tp": 10
+          },
+          "EMAIL": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "HOST": {
+            "f1": {
+              "d": 21,
+              "n": 14,
+              "rate": 0.6666666666666666
+            },
+            "fn": 7,
+            "fp": 0,
+            "precision": {
+              "d": 7,
+              "n": 7,
+              "rate": 1.0
+            },
+            "recall": {
+              "d": 14,
+              "n": 7,
+              "rate": 0.5
+            },
+            "tp": 7
+          },
+          "IP": {
+            "f1": {
+              "d": 28,
+              "n": 28,
+              "rate": 1.0
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 14,
+              "n": 14,
+              "rate": 1.0
+            },
+            "recall": {
+              "d": 14,
+              "n": 14,
+              "rate": 1.0
+            },
+            "tp": 14
+          },
+          "MODULE": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "ORG": {
+            "f1": {
+              "d": 1,
+              "n": 0,
+              "rate": 0.0
+            },
+            "fn": 0,
+            "fp": 1,
+            "precision": {
+              "d": 1,
+              "n": 0,
+              "rate": 0.0
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "PATH": {
+            "f1": {
+              "d": 1,
+              "n": 0,
+              "rate": 0.0
+            },
+            "fn": 0,
+            "fp": 1,
+            "precision": {
+              "d": 1,
+              "n": 0,
+              "rate": 0.0
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "PERSON": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "PHONE": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "PROJ": {
+            "f1": {
+              "d": 24,
+              "n": 20,
+              "rate": 0.8333333333333334
+            },
+            "fn": 4,
+            "fp": 0,
+            "precision": {
+              "d": 10,
+              "n": 10,
+              "rate": 1.0
+            },
+            "recall": {
+              "d": 14,
+              "n": 10,
+              "rate": 0.7142857142857143
+            },
+            "tp": 10
+          },
+          "SECRET": {
+            "f1": {
+              "d": 28,
+              "n": 28,
+              "rate": 1.0
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 14,
+              "n": 14,
+              "rate": 1.0
+            },
+            "recall": {
+              "d": 14,
+              "n": 14,
+              "rate": 1.0
+            },
+            "tp": 14
+          },
+          "SUB": {
+            "f1": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "fn": 0,
+            "fp": 0,
+            "precision": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "SVC": {
+            "f1": {
+              "d": 6,
+              "n": 0,
+              "rate": 0.0
+            },
+            "fn": 0,
+            "fp": 6,
+            "precision": {
+              "d": 6,
+              "n": 0,
+              "rate": 0.0
+            },
+            "recall": {
+              "d": 0,
+              "n": 0,
+              "rate": null
+            },
+            "tp": 0
+          },
+          "USER": {
+            "f1": {
+              "d": 67,
+              "n": 58,
+              "rate": 0.8656716417910447
+            },
+            "fn": 7,
+            "fp": 2,
+            "precision": {
+              "d": 31,
+              "n": 29,
+              "rate": 0.9354838709677419
+            },
+            "recall": {
+              "d": 36,
+              "n": 29,
+              "rate": 0.8055555555555556
+            },
+            "tp": 29
+          }
+        },
+        "contrast_sets": {
+          "order": {
+            "d": 8,
+            "n": 5,
+            "rate": 0.625
+          },
+          "provenance": {
+            "d": 8,
+            "n": 6,
+            "rate": 0.75
+          }
+        },
+        "diagnostics": {
+          "no_span": 5,
+          "wrong_action": 4,
+          "wrong_kind": 12
+        },
+        "documents": 71,
+        "errors": {},
+        "exact_documents": {
+          "d": 71,
+          "n": 57,
+          "rate": 0.8028169014084507
+        },
+        "valid_documents": {
+          "d": 71,
+          "n": 71,
+          "rate": 1.0
+        }
+      },
+      "old": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 8,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 8,
+        "collateral_bytes": 70,
+        "complete": true,
+        "documents": 71,
+        "documents_with_leak": 7,
+        "exact_restore": {
+          "d": 71,
+          "n": 71,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 57,
+          "n": 41,
+          "rate": 0.7192982456140351
+        },
+        "leaking_requests": {
+          "d": 39,
+          "n": 7,
+          "rate": 0.1794871794871795
+        },
+        "observed": 71,
+        "pass": false,
+        "private": 57,
+        "private_documents": 39,
+        "private_full": 41,
+        "private_open": 13,
+        "private_partial": 3,
+        "public": 57,
+        "public_losses": {
+          "d": 57,
+          "n": 27,
+          "rate": 0.47368421052631576
+        },
+        "public_touched": 27,
+        "restored": 71,
+        "review": 17,
+        "review_full": 16,
+        "review_open": 1,
+        "review_partial": 0
+      },
+      "new": {
+        "changed_clean": 0,
+        "changed_empty_requests": {
+          "d": 8,
+          "n": 0,
+          "rate": 0.0
+        },
+        "clean": 8,
+        "collateral_bytes": 70,
+        "complete": true,
+        "documents": 71,
+        "documents_with_leak": 2,
+        "exact_restore": {
+          "d": 71,
+          "n": 71,
+          "rate": 1.0
+        },
+        "full_privacy": {
+          "d": 57,
+          "n": 53,
+          "rate": 0.9298245614035088
+        },
+        "leaking_requests": {
+          "d": 39,
+          "n": 2,
+          "rate": 0.05128205128205128
+        },
+        "observed": 71,
+        "pass": false,
+        "private": 57,
+        "private_documents": 39,
+        "private_full": 53,
+        "private_open": 4,
+        "private_partial": 0,
+        "public": 57,
+        "public_losses": {
+          "d": 57,
+          "n": 25,
+          "rate": 0.43859649122807015
+        },
+        "public_touched": 25,
+        "restored": 71,
+        "review": 17,
+        "review_full": 16,
+        "review_open": 0,
+        "review_partial": 1
+      },
+      "private_decisions": {
+        "old_outcomes": {
+          "exact_mask": 36,
+          "omitted": 1,
+          "different_occurrence": 2,
+          "unusable_response": 14,
+          "wrong_keep": 4
+        },
+        "new_outcomes": {
+          "exact_mask": 50,
+          "different_occurrence": 4,
+          "wrong_kind": 3
+        },
+        "new_wrong_keep": 0,
+        "new_omissions": 0,
+        "newly_exposed": 0,
+        "transitions": [
+          {
+            "id": "v4/accessibility-lesson/mixed",
+            "group": "v4/accessibility-lesson",
+            "kind": "USER",
+            "start_byte": 312,
+            "end_byte": 340,
+            "old_outcome": "omitted",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/accessibility-lesson/both-private",
+            "group": "v4/accessibility-lesson",
+            "kind": "USER",
+            "start_byte": 318,
+            "end_byte": 346,
+            "old_outcome": "different_occurrence",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/mixed",
+            "group": "v4/shift-handover",
+            "kind": "DOM",
+            "start_byte": 277,
+            "end_byte": 285,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/mixed",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 287,
+            "end_byte": 309,
+            "old_outcome": "unusable_response",
+            "new_outcome": "different_occurrence",
+            "old_outbound": "open",
+            "new_outbound": "open"
+          },
+          {
+            "id": "v4/shift-handover/mixed",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 428,
+            "end_byte": 450,
+            "old_outcome": "unusable_response",
+            "new_outcome": "different_occurrence",
+            "old_outbound": "open",
+            "new_outbound": "open"
+          },
+          {
+            "id": "v4/shift-handover/reordered",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 102,
+            "end_byte": 124,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/reordered",
+            "group": "v4/shift-handover",
+            "kind": "DOM",
+            "start_byte": 241,
+            "end_byte": 249,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/reordered",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 251,
+            "end_byte": 273,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "DOM",
+            "start_byte": 100,
+            "end_byte": 108,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 110,
+            "end_byte": 132,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 251,
+            "end_byte": 273,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "DOM",
+            "start_byte": 288,
+            "end_byte": 296,
+            "old_outcome": "unusable_response",
+            "new_outcome": "different_occurrence",
+            "old_outbound": "open",
+            "new_outbound": "open"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 298,
+            "end_byte": 320,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/shift-handover/both-private",
+            "group": "v4/shift-handover",
+            "kind": "USER",
+            "start_byte": 439,
+            "end_byte": 461,
+            "old_outcome": "unusable_response",
+            "new_outcome": "different_occurrence",
+            "old_outbound": "open",
+            "new_outbound": "open"
+          },
+          {
+            "id": "v4/radio-certificate/private",
+            "group": "v4/radio-certificate",
+            "kind": "HOST",
+            "start_byte": 155,
+            "end_byte": 197,
+            "old_outcome": "exact_mask",
+            "new_outcome": "wrong_kind",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/radio-certificate/reordered",
+            "group": "v4/radio-certificate",
+            "kind": "HOST",
+            "start_byte": 155,
+            "end_byte": 197,
+            "old_outcome": "exact_mask",
+            "new_outcome": "wrong_kind",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/radio-certificate/three-copies",
+            "group": "v4/radio-certificate",
+            "kind": "HOST",
+            "start_byte": 155,
+            "end_byte": 197,
+            "old_outcome": "exact_mask",
+            "new_outcome": "wrong_kind",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/infrastructure-switchboard/mixed",
+            "group": "v4/infrastructure-switchboard",
+            "kind": "IP",
+            "start_byte": 206,
+            "end_byte": 220,
+            "old_outcome": "wrong_keep",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/infrastructure-switchboard/reordered",
+            "group": "v4/infrastructure-switchboard",
+            "kind": "IP",
+            "start_byte": 62,
+            "end_byte": 76,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/repair-schedule-pricing/reordered",
+            "group": "v4/repair-schedule-pricing",
+            "kind": "AMOUNT",
+            "start_byte": 49,
+            "end_byte": 57,
+            "old_outcome": "unusable_response",
+            "new_outcome": "exact_mask",
+            "old_outbound": "full",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/rights-dispatch/mixed",
+            "group": "v4/rights-dispatch",
+            "kind": "CLIENT",
+            "start_byte": 172,
+            "end_byte": 199,
+            "old_outcome": "wrong_keep",
+            "new_outcome": "exact_mask",
+            "old_outbound": "partial",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/rights-dispatch/both-private",
+            "group": "v4/rights-dispatch",
+            "kind": "CLIENT",
+            "start_byte": 185,
+            "end_byte": 212,
+            "old_outcome": "different_occurrence",
+            "new_outcome": "exact_mask",
+            "old_outbound": "partial",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/commission-book/mixed",
+            "group": "v4/commission-book",
+            "kind": "PROJ",
+            "start_byte": 275,
+            "end_byte": 298,
+            "old_outcome": "wrong_keep",
+            "new_outcome": "exact_mask",
+            "old_outbound": "partial",
+            "new_outbound": "full"
+          },
+          {
+            "id": "v4/museum-reader-key/mixed",
+            "group": "v4/museum-reader-key",
+            "kind": "SECRET",
+            "start_byte": 231,
+            "end_byte": 272,
+            "old_outcome": "wrong_keep",
+            "new_outcome": "exact_mask",
+            "old_outbound": "open",
+            "new_outbound": "full"
+          }
+        ]
+      },
+      "positions": {
+        "recovered_public": [
+          {
+            "start_byte": 240,
+            "end_byte": 262,
+            "kind": "USER",
+            "id": "v4/shift-handover/public",
+            "masked_bytes_before": 22,
+            "masked_bytes_after": 0
+          },
+          {
+            "start_byte": 79,
+            "end_byte": 87,
+            "kind": "AMOUNT",
+            "id": "v4/repair-schedule-pricing/reordered",
+            "masked_bytes_before": 8,
+            "masked_bytes_after": 0
+          },
+          {
+            "start_byte": 227,
+            "end_byte": 268,
+            "kind": "SECRET",
+            "id": "v4/museum-reader-key/reordered",
+            "masked_bytes_before": 41,
+            "masked_bytes_after": 0
+          }
+        ],
+        "new_public_losses": [
+          {
+            "start_byte": 240,
+            "end_byte": 262,
+            "kind": "USER",
+            "id": "v4/shift-handover/mixed",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 22
+          }
+        ],
+        "new_private_disclosures": [],
+        "private_remaining": [
+          {
+            "start_byte": 287,
+            "end_byte": 309,
+            "kind": "USER",
+            "id": "v4/shift-handover/mixed",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 0,
+            "before": "open",
+            "after": "open"
+          },
+          {
+            "start_byte": 428,
+            "end_byte": 450,
+            "kind": "USER",
+            "id": "v4/shift-handover/mixed",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 0,
+            "before": "open",
+            "after": "open"
+          },
+          {
+            "start_byte": 288,
+            "end_byte": 296,
+            "kind": "DOM",
+            "id": "v4/shift-handover/both-private",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 0,
+            "before": "open",
+            "after": "open"
+          },
+          {
+            "start_byte": 439,
+            "end_byte": 461,
+            "kind": "USER",
+            "id": "v4/shift-handover/both-private",
+            "masked_bytes_before": 0,
+            "masked_bytes_after": 0,
+            "before": "open",
+            "after": "open"
+          }
+        ]
+      }
+    }
+  },
+  "selection": {
+    "adapter_sha256": null,
+    "correction": "csv-explicit-public-amount",
+    "initial_epoch": null,
+    "mode": "correction",
+    "selected_epoch": null,
+    "test_sha256": "bb152b2333e4f8b314256fa4f3b74bef2dcba41c817797c007f06cef63e21cd0",
+    "validation_sha256": "0d4bfd8a188b640ed0b13b8cfd03b2af63e367a9e9da571f1d8cc5781432ea7b"
+  }
+}

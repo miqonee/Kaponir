@@ -1,0 +1,460 @@
+{
+  "arms": {
+    "epoch2": {
+      "summary": {
+        "private_hidden": 171,
+        "public_lost": 13,
+        "guide_replacements": 12,
+        "http_minutes": 4.634551762483292,
+        "score_50_20_30": 78.85305890182278,
+        "score_60_30_15": 81.44214981788949,
+        "requests": 7,
+        "exact_roundtrips": 6,
+        "archived_reference": {
+          "model": "qwen3.5-2b",
+          "path": "benchmark/data/validation/qwen-calibration--result.json.gz",
+          "archive_sha256": "7568efc89f4792745d27247d565dfe0fb3f4d7009410a7a4f90a8f5a37d793f9",
+          "json_sha256": "9777a724d8242813a25aa1be623c471c6b85480c729f6bdc88d75932db12649b",
+          "old_model_inference_repeated": false
+        },
+        "adapter_sha256": "48cc50e1bd06fdc68d742211d4690094597f1dcd91d86330cf44243235afc68a"
+      },
+      "runtime": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+      "binary": "cfb9c85d972aaa485e8656b1ac4b024854930a99d38be463dd390b8a7abae8b7",
+      "documents": [
+        {
+          "file": "01-cost-estimate.md",
+          "mask_occurrences_requested": 121,
+          "mask_occurrences_still_visible": 0,
+          "mask_values_requested": 94,
+          "mode": "model_masks_added",
+          "persistent_rules_unchanged": true,
+          "private_occurrence_spans": 80,
+          "private_occurrences_before": 80,
+          "private_occurrences_visible": 2,
+          "private_spans_fully_covered": 77,
+          "private_spans_partly_covered": 1,
+          "private_spans_untouched": 2,
+          "private_values_annotated": 67,
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 3,
+          "replacements": 97,
+          "restore_exact": true,
+          "source_sha256": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1"
+        },
+        {
+          "file": "02-application.log",
+          "mask_occurrences_requested": 199,
+          "mask_occurrences_still_visible": 1,
+          "mask_values_requested": 33,
+          "mode": "model_masks_added",
+          "persistent_rules_unchanged": true,
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 0,
+          "private_spans_fully_covered": 94,
+          "private_spans_partly_covered": 19,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 25,
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 163,
+          "restore_exact": true,
+          "source_sha256": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9"
+        },
+        {
+          "file": "08-public-reference.md",
+          "mask_occurrences_requested": 14,
+          "mask_occurrences_still_visible": 2,
+          "mask_values_requested": 14,
+          "mode": "model_masks_added",
+          "persistent_rules_unchanged": true,
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_occurrences_before": 43,
+          "public_occurrences_lost": 10,
+          "replacements": 12,
+          "restore_exact": true,
+          "source_sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+        }
+      ],
+      "completion_tokens": 2441,
+      "ordered_request_sha256": [
+        "0f9e70c9a0bae653a9903657bb4ebb2a533e59d3ee0da7af3c3b16920bc3405d",
+        "acf396c2d30ba1853a125571027c694d31557cd7e6bda1a28efc039a25b92d49",
+        "cc84abbfa8991900ae51bc3519d4c8db0e5c5cbf78a7818ad96e0e5937710cf0",
+        "c5ffcf7050702fdb4351ba275a96e81ae5b97b93956a1f1a0765cefd82817e7f",
+        "a680e95aa70a9011b72985cc817091cea6df68e297eb1889ea5250063eb05c3d",
+        "b0c714b73595b95083444303af67e94f961711fd2d73bea5365040d9feefb53e",
+        "e52fb5e398ff35659a72eff57e43362165a6faf697c300e19f0297c41a95ebcf"
+      ]
+    },
+    "base": {
+      "summary": {
+        "private_hidden": 173,
+        "public_lost": 3,
+        "guide_replacements": 4,
+        "http_minutes": 7.443067849266663,
+        "score_50_20_30": 78.54490971673306,
+        "score_60_30_15": 83.84958435935533,
+        "requests": 7,
+        "technical_failures": 0,
+        "exact_roundtrips": 6,
+        "archived_reference": {
+          "model": "qwen3.5-2b",
+          "path": "benchmark/data/validation/qwen-calibration--result.json.gz",
+          "archive_sha256": "7568efc89f4792745d27247d565dfe0fb3f4d7009410a7a4f90a8f5a37d793f9",
+          "json_sha256": "9777a724d8242813a25aa1be623c471c6b85480c729f6bdc88d75932db12649b",
+          "old_model_inference_repeated": false
+        },
+        "adapter_sha256": null
+      },
+      "runtime": "3e042c4518a74fc3bdb3edb80e07922ee01d6a3455618952af23f3e546508934",
+      "binary": "cfb9c85d972aaa485e8656b1ac4b024854930a99d38be463dd390b8a7abae8b7",
+      "documents": [
+        {
+          "file": "01-cost-estimate.md",
+          "mask_occurrences_requested": 106,
+          "mask_occurrences_still_visible": 0,
+          "mask_values_requested": 84,
+          "mode": "model_masks_added",
+          "persistent_rules_unchanged": true,
+          "private_occurrence_spans": 80,
+          "private_occurrences_before": 80,
+          "private_occurrences_visible": 3,
+          "private_spans_fully_covered": 76,
+          "private_spans_partly_covered": 1,
+          "private_spans_untouched": 3,
+          "private_values_annotated": 67,
+          "public_occurrences_before": 12,
+          "public_occurrences_lost": 1,
+          "replacements": 83,
+          "restore_exact": true,
+          "source_sha256": "351f59c7e7ce4c0723f9163daa9145bd3696ac0a253062e3c25845a7eb9417c1"
+        },
+        {
+          "file": "02-application.log",
+          "mask_occurrences_requested": 170,
+          "mask_occurrences_still_visible": 1,
+          "mask_values_requested": 41,
+          "mode": "model_masks_added",
+          "persistent_rules_unchanged": true,
+          "private_occurrence_spans": 113,
+          "private_occurrences_before": 113,
+          "private_occurrences_visible": 4,
+          "private_spans_fully_covered": 97,
+          "private_spans_partly_covered": 12,
+          "private_spans_untouched": 4,
+          "private_values_annotated": 25,
+          "public_occurrences_before": 32,
+          "public_occurrences_lost": 0,
+          "replacements": 139,
+          "restore_exact": true,
+          "source_sha256": "8b461622d02f3d702834494970e9d293a0476fe9a16d08dff87ab1ba701651e9"
+        },
+        {
+          "file": "08-public-reference.md",
+          "mask_occurrences_requested": 6,
+          "mask_occurrences_still_visible": 2,
+          "mask_values_requested": 6,
+          "mode": "model_masks_added",
+          "persistent_rules_unchanged": true,
+          "private_occurrence_spans": 0,
+          "private_occurrences_before": 0,
+          "private_occurrences_visible": 0,
+          "private_spans_fully_covered": 0,
+          "private_spans_partly_covered": 0,
+          "private_spans_untouched": 0,
+          "private_values_annotated": 0,
+          "public_occurrences_before": 43,
+          "public_occurrences_lost": 2,
+          "replacements": 4,
+          "restore_exact": true,
+          "source_sha256": "7585bc2c1300afbdfa71654653d6363f41ba9fed7bb5cf73ffc2702ea359a5b4"
+        }
+      ],
+      "completion_tokens": 5571,
+      "ordered_request_sha256": [
+        "0f9e70c9a0bae653a9903657bb4ebb2a533e59d3ee0da7af3c3b16920bc3405d",
+        "acf396c2d30ba1853a125571027c694d31557cd7e6bda1a28efc039a25b92d49",
+        "cc84abbfa8991900ae51bc3519d4c8db0e5c5cbf78a7818ad96e0e5937710cf0",
+        "c5ffcf7050702fdb4351ba275a96e81ae5b97b93956a1f1a0765cefd82817e7f",
+        "a680e95aa70a9011b72985cc817091cea6df68e297eb1889ea5250063eb05c3d",
+        "b0c714b73595b95083444303af67e94f961711fd2d73bea5365040d9feefb53e",
+        "e52fb5e398ff35659a72eff57e43362165a6faf697c300e19f0297c41a95ebcf"
+      ]
+    }
+  },
+  "candidate_vs_fresh_base": {
+    "private_new": [
+      [
+        "01-cost-estimate.md",
+        36,
+        47,
+        "КА-26/041"
+      ],
+      [
+        "01-cost-estimate.md",
+        996,
+        1013,
+        "ТЗ-КА-2026-09"
+      ],
+      [
+        "01-cost-estimate.md",
+        8619,
+        8653,
+        "/srv/atlas/commercial/estimate-041"
+      ],
+      [
+        "02-application.log",
+        265,
+        280,
+        "pg01.cedar.test"
+      ],
+      [
+        "02-application.log",
+        296,
+        305,
+        "svc_cedar"
+      ],
+      [
+        "02-application.log",
+        491,
+        509,
+        "cache01.cedar.test"
+      ],
+      [
+        "02-application.log",
+        687,
+        705,
+        "gateway.cedar.test"
+      ],
+      [
+        "02-application.log",
+        759,
+        768,
+        "svc_cedar"
+      ],
+      [
+        "02-application.log",
+        2698,
+        2716,
+        "gateway.cedar.test"
+      ],
+      [
+        "02-application.log",
+        5632,
+        5650,
+        "gateway.cedar.test"
+      ],
+      [
+        "02-application.log",
+        7673,
+        7691,
+        "gateway.cedar.test"
+      ],
+      [
+        "02-application.log",
+        10105,
+        10120,
+        "pg01.cedar.test"
+      ],
+      [
+        "02-application.log",
+        10126,
+        10135,
+        "svc_cedar"
+      ],
+      [
+        "02-application.log",
+        10251,
+        10260,
+        "svc_cedar"
+      ],
+      [
+        "02-application.log",
+        10330,
+        10348,
+        "gateway.cedar.test"
+      ]
+    ],
+    "private_newly_exposed": [
+      [
+        "01-cost-estimate.md",
+        768,
+        795,
+        "Кедровый Атлас"
+      ],
+      [
+        "01-cost-estimate.md",
+        8556,
+        8583,
+        "Кедровый Атлас"
+      ],
+      [
+        "02-application.log",
+        1348,
+        1368,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        1918,
+        1938,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        2488,
+        2508,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        3389,
+        3409,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        3959,
+        3979,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        4061,
+        4083,
+        "/var/lib/cedar/reports"
+      ],
+      [
+        "02-application.log",
+        4288,
+        4310,
+        "/var/lib/cedar/reports"
+      ],
+      [
+        "02-application.log",
+        4852,
+        4872,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        5422,
+        5442,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        6323,
+        6343,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        6893,
+        6913,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        7463,
+        7483,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        8364,
+        8384,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        8934,
+        8954,
+        "/var/lib/cedar/spool"
+      ],
+      [
+        "02-application.log",
+        10222,
+        10244,
+        "/var/lib/cedar/reports"
+      ]
+    ],
+    "public_newly_touched": [
+      [
+        "01-cost-estimate.md",
+        2679,
+        2682,
+        "PoE"
+      ],
+      [
+        "01-cost-estimate.md",
+        8854,
+        8881,
+        "https://www.rfc-editor.org/"
+      ],
+      [
+        "08-public-reference.md",
+        1518,
+        1529,
+        "example.com"
+      ],
+      [
+        "08-public-reference.md",
+        1533,
+        1544,
+        "example.org"
+      ],
+      [
+        "08-public-reference.md",
+        2710,
+        2713,
+        "e::"
+      ],
+      [
+        "08-public-reference.md",
+        2715,
+        2718,
+        "::C"
+      ],
+      [
+        "08-public-reference.md",
+        2722,
+        2725,
+        "::f"
+      ],
+      [
+        "08-public-reference.md",
+        3039,
+        3054,
+        "1024 байта"
+      ],
+      [
+        "08-public-reference.md",
+        3056,
+        3063,
+        "16 МБ"
+      ],
+      [
+        "08-public-reference.md",
+        3067,
+        3083,
+        "2 секунды"
+      ]
+    ],
+    "public_newly_preserved": []
+  },
+  "fresh_base_vs_archive": {
+    "private_new": [],
+    "private_newly_exposed": [],
+    "public_newly_touched": [],
+    "public_newly_preserved": []
+  }
+}
