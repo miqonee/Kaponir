@@ -267,6 +267,7 @@ function renderWorker() {
   for (const id of ["worker-submit", "worker-scan-sessions"])
     $("#" + id).disabled = WORKER.busy || !data.online || !data.enabled || !info.editable;
   const mode = $("#worker-mode").value;
+  updateProfileNote("worker", mode === "qwen" ? chosenLocalPreset("worker")?.inference.local_generation : null);
   $("#worker-s1-field").hidden = mode === "configured";
   $("#worker-s1-help").hidden = mode === "configured";
   $("#worker-mode-help").textContent = tr(mode === "configured"
@@ -348,12 +349,16 @@ for (const id of ["worker-toggle", "analysis-worker-toggle"])
 $("#worker-refresh").addEventListener("click", loadWorker);
 for (const role of ["analysis", "categorization", "worker"])
   $(role === "worker" ? "#worker-model" : `#${role}-local-model`).addEventListener("change", () => {
-    renderModelCards(); loadWorkerSummary();
+    if (role === "worker") renderWorker();
+    else renderModelCards();
+    loadWorkerSummary();
   });
 $("#worker-mode").addEventListener("change", renderWorker);
 function submitWorkerSource(source) {
   const mode = $("#worker-mode").value;
+  const preset = mode === "qwen" ? chosenLocalPreset("worker") : null;
   return runWorkerAction("/jobs", { source, model: $("#worker-model").value,
+    ...(preset ? {inference:preset.inference, timeout_seconds:preset.timeout} : {}),
     use_s1: mode !== "configured" && $("#worker-s1").checked, mode });
 }
 $("#worker-submit").addEventListener("click", () => submitWorkerSource($("#worker-source").value.trim() || "."));

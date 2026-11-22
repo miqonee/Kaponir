@@ -4,6 +4,8 @@ const LearningUI = {
   analysis: null,
   categorization: null,
   history: null,
+  generation: {},
+  providerDrafts: {},
   dirty: new Set(),
   busy: new Set(),
   view: "pending",
@@ -70,6 +72,89 @@ const learningError = (code) => tr(learningErrors[code] || code || "—");
 const bytesMiB = (bytes) =>
   bytes == null ? "—" : `${(bytes / 1048576).toFixed(1)} MiB`;
 
+// The expanded models are selectable through HF import. Match the tested GGUF by content.
+const studyArtifacts = {
+  "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5": "lfm2.5-1.2b-instruct",
+  "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed": "lfm2.5-2.6b",
+  "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4": "qwen3.5-4b",
+  "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0": "lfm2.5-8b-a1b",
+  "740185b21d22ceb83a11c3aa62ad5842ef32c70f6096d756bbee85a1e4ec34b8": "gemma4-e2b-it-q4km",
+  "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87": "gemma4-e4b-it-q4km"
+};
+const studyProfiles = {
+  // Per-role request timeouts in seconds. The seven original rows come from
+  // benchmark/data/validation and docs/experiments/phase2-model-profiles.json.
+  "qwen3.5-2b": {search: 300, review: 600},
+  "qwen3.5-0.8b": {search: 300, review: 600},
+  "huihui-qwen3.5-2b-abliterated": {search: 300, review: 600},
+  "minicpm5-2b": {search: 600, review: 600, fullDocument: true},
+  "nanbeige42-3b": {search: 1200, review: 1200, temperature: 0.6, topK: 20, format: "prompt"},
+  "granite42-3b": {search: 1200, review: 1200, temperature: 1},
+  "gemma4-e4b-qat": {search: 1200, review: 1200, temperature: 1, topK: 64, fullDocument: true},
+};
+for (const model of Object.values(studyArtifacts)) {
+  // The expanded A–D runs shared the Gemma reference request profile.
+  const completedSearch = !["lfm2.5-2.6b", "lfm2.5-8b-a1b"].includes(model);
+  studyProfiles[model] = {search: completedSearch ? 1200 : null, review: 1200,
+    temperature: 1, topK: 64, searchFormat: "auto"};
+}
+const inferenceFields = {context_tokens:"context-tokens", max_output_tokens:"output-tokens",
+  reserve_tokens:"reserve-tokens", batch_size:"batch-size", response_format:"response-format"};
+const defaultInference = {context_tokens:4096, max_output_tokens:1600, reserve_tokens:64, batch_size:2, response_format:"auto"};
+
+function chosenLocalPreset(role) {
+  const id = modelSelect(role).value;
+  const models = WORKER.data?.models || {};
+  const sha = models[id]?.sha256;
+  const studyId = sha ? studyArtifacts[sha] || Object.keys(studyProfiles).find(key => models[key]?.sha256 === sha) || id : id;
+  const row = studyProfiles[studyId];
+  const search = role !== "categorization";
+  if (!row || (search && !row.search)) return null;
+  const full = !search || row.fullDocument === true;
+  return {
+    inference: {
+      context_tokens: full ? 16384 : 4096, max_output_tokens: full ? 4096 : 1600,
+      reserve_tokens:64, batch_size:8,
+      response_format:(search && row.searchFormat) || row.format || "grammar",
+      local_generation: {
+        temperature: full ? row.temperature || 0 : 0, top_k: full ? row.topK || 40 : 40,
+        top_p:0.95, min_p:0, seed:full ? 42 : null,
+        parse_reasoning:full, reasoning_budget:search ? null : 2048, retry_output_tokens:full ? 8192 : null,
+      },
+    },
+    timeout:search ? row.search : row.review * 1000,
+    maxCandidates:row.fullDocument ? 128 : 24,
+  };
+}
+function writeInference(role, inference) {
+  for (const [key, field] of Object.entries(inferenceFields))
+    $(`#${role}-${field}`).value = inference?.[key] ?? defaultInference[key];
+  LearningUI.generation[role] = inference?.local_generation ?? null;
+}
+function updateProfileNote(role, g = LearningUI.generation[role]) {
+  const note = $(`#${role}-profile-note`);
+  note.hidden = !g;
+  if (g) note.textContent = tr("Параметры исследования · температура {{0}}, top_p {{1}}, top_k {{2}}, min_p {{3}}, seed {{4}}, бюджет рассуждений {{5}}.",
+    [g.temperature, g.top_p, g.top_k, g.min_p, g.seed ?? "—", g.reasoning_budget ?? 0]);
+}
+function applySearchLimits(preset) {
+  $("#analysis-target-input").value = 0;
+  $("#analysis-hint-tokens").value = preset ? 256 : 0;
+  $("#analysis-max-candidates").value = preset?.maxCandidates ?? 24;
+  $("#analysis-max-fragments").value = 256;
+  $("#analysis-chunk-strategy").value = "auto";
+}
+function applyLocalPreset(role) {
+  if ($(`#${role}-provider`).value !== "local") return;
+  const preset = chosenLocalPreset(role);
+  writeInference(role, preset?.inference);
+  $(`#${role}-timeout`).value = preset?.timeout ?? (role === "analysis" ? 180 : 30000);
+  if (role === "analysis") {
+    applySearchLimits(preset);
+  }
+  updateProfileNote(role);
+}
+
 function learningFormVisibility() {
   const a = $("#analysis-provider").value,
     c = $("#categorization-provider").value;
@@ -78,8 +163,10 @@ function learningFormVisibility() {
   $("#categorization-local-fields").hidden = c !== "local";
   $("#categorization-api-fields").hidden = c !== "s1";
   $("#categorization-none-note").hidden = c !== "none";
+  $("#categorization-timeout-field").hidden = c === "none";
   $("#categorization-inference-settings").hidden = c === "none" || (c === "s1" && $("#categorization-protocol").value !== "openai");
-  $("#categorization-timeout").max = $("#categorization-protocol").value === "openai" ? "300000" : "60000";
+  $("#analysis-timeout").max = a === "local" ? "1800" : "300";
+  $("#categorization-timeout").max = c === "local" ? "1800000" : $("#categorization-protocol").value === "openai" ? "300000" : "60000";
   $("#analysis-url").required = a === "api";
   $("#analysis-api-model").required = a === "api";
   $("#categorization-url").required = c === "s1";
@@ -106,9 +193,9 @@ function renderLearningForms() {
     const data = LearningUI[role];
     if (!data || LearningUI.dirty.has(role)) continue;
     const s = data.settings;
-    for (const [key, field] of Object.entries({context_tokens:"context-tokens", max_output_tokens:"output-tokens", reserve_tokens:"reserve-tokens", batch_size:"batch-size"}))
-      $(`#${role}-${field}`).value = s.inference?.[key] ?? ({context_tokens:4096,max_output_tokens:1600,reserve_tokens:64,batch_size:2})[key];
-    $(`#${role}-response-format`).value = s.inference?.response_format || "auto";
+    writeInference(role, s.inference);
+    updateProfileNote(role);
+    LearningUI.providerDrafts[role] = {provider:s.provider};
     ensureModelChoice(canonicalModel(s.model));
     $(`#${role}-provider`).value = s.provider;
     if (role === "analysis") {
@@ -180,6 +267,8 @@ function readLearningForm(role) {
   }
   const key = $(`#${role}-key`).value.trim();
   settings.inference = Object.fromEntries(Object.entries({context_tokens:"context-tokens", max_output_tokens:"output-tokens", reserve_tokens:"reserve-tokens", batch_size:"batch-size"}).map(([key,field]) => [key,Number($(`#${role}-${field}`).value)]));
+  if (settings.provider === "local" && LearningUI.generation[role])
+    settings.inference.local_generation = LearningUI.generation[role];
   settings.inference.response_format = $(`#${role}-response-format`).value;
   if (role === "analysis") settings.chunking = {
     discovery_mode: $("#analysis-discovery-mode").value,
@@ -202,6 +291,31 @@ async function loadLearningSettings() {
   renderLearningForms();
 }
 for (const role of ["analysis", "categorization"]) {
+  $(`#${role}-local-model`).addEventListener("change", () => applyLocalPreset(role));
+  $(`#${role}-provider`).addEventListener("change", () => {
+    const drafts = LearningUI.providerDrafts[role];
+    if (!drafts) return;
+    const provider = $(`#${role}-provider`).value;
+    const fieldIds = Object.values(inferenceFields).map(field => `${role}-${field}`);
+    fieldIds.push(`${role}-timeout`);
+    if (role === "analysis") fieldIds.push("analysis-target-input", "analysis-hint-tokens",
+      "analysis-max-candidates", "analysis-max-fragments", "analysis-chunk-strategy");
+    drafts[drafts.provider] = {values:Object.fromEntries(fieldIds.map(id => [id, $("#" + id).value])),
+      generation:LearningUI.generation[role]};
+    drafts.provider = provider;
+    const previous = drafts[provider];
+    if (previous) {
+      for (const [id, value] of Object.entries(previous.values)) $("#" + id).value = value;
+      LearningUI.generation[role] = previous.generation;
+    } else if (provider === "local") {
+      applyLocalPreset(role);
+    } else {
+      writeInference(role, defaultInference);
+      $(`#${role}-timeout`).value = role === "analysis" ? 180 : 30000;
+      if (role === "analysis") applySearchLimits(null);
+    }
+    updateProfileNote(role);
+  });
   for (const event of ["input", "change"])
     $(`#${role}-form`).addEventListener(event, () => {
       LearningUI.dirty.add(role);

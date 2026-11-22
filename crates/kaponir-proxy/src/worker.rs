@@ -50,6 +50,11 @@ pub(crate) async fn forward(
         ));
     };
     let url = format!("{}{}", base.trim_end_matches('/'), path);
+    let evaluate_timeout = body
+        .as_ref()
+        .and_then(|value| value["timeout_seconds"].as_u64())
+        .unwrap_or(300)
+        .clamp(1, 1800);
     let mut request = if let Some(body) = body {
         st.http.post(url).json(&body)
     } else {
@@ -62,7 +67,7 @@ pub(crate) async fn forward(
         .timeout(Duration::from_secs(if path == "/status" {
             1
         } else if path == "/evaluate" {
-            300
+            evaluate_timeout
         } else if matches!(path, "/models/resolve" | "/models/register") {
             20
         } else {

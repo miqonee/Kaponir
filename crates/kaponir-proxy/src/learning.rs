@@ -33,6 +33,19 @@ const MAX_SOURCE: usize = 2 * 1024 * 1024;
 const KINDS: &[&str] = kaponir_core::kinds::STANDARD;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct LocalGeneration {
+    pub temperature: f64,
+    pub top_p: f64,
+    pub top_k: u32,
+    pub min_p: f64,
+    pub seed: Option<u32>,
+    #[serde(default)]
+    pub parse_reasoning: bool,
+    pub reasoning_budget: Option<usize>,
+    pub retry_output_tokens: Option<usize>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct InferenceSettings {
     pub context_tokens: usize,
@@ -40,6 +53,8 @@ pub struct InferenceSettings {
     pub reserve_tokens: usize,
     pub batch_size: usize,
     pub response_format: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub local_generation: Option<LocalGeneration>,
 }
 impl Default for InferenceSettings {
     fn default() -> Self {
@@ -49,6 +64,7 @@ impl Default for InferenceSettings {
             reserve_tokens: 64,
             batch_size: 2,
             response_format: "auto".into(),
+            local_generation: None,
         }
     }
 }
@@ -63,6 +79,19 @@ impl InferenceSettings {
                 && self.max_output_tokens + self.reserve_tokens < self.context_tokens,
             "invalid_inference_settings"
         );
+        if let Some(g) = &self.local_generation {
+            anyhow::ensure!(
+                (0.0..=2.0).contains(&g.temperature)
+                    && (0.0..=1.0).contains(&g.top_p)
+                    && (0.0..=1.0).contains(&g.min_p)
+                    && g.top_k <= 1024
+                    && g.reasoning_budget
+                        .is_none_or(|n| n > 0 && n <= self.context_tokens)
+                    && g.retry_output_tokens
+                        .is_none_or(|n| (1..=131072).contains(&n)),
+                "invalid_inference_settings"
+            );
+        }
         Ok(())
     }
 }
@@ -776,7 +805,11 @@ fn validate_analysis(s: &AnalysisSettings) -> anyhow::Result<()> {
         s.threshold.is_finite() && (0.0..=1.0).contains(&s.threshold),
         "invalid_threshold"
     );
-    anyhow::ensure!((1..=300).contains(&s.timeout_seconds), "invalid_timeout");
+    let max_timeout = if s.provider == "local" { 1800 } else { 300 };
+    anyhow::ensure!(
+        (1..=max_timeout).contains(&s.timeout_seconds),
+        "invalid_timeout"
+    );
     if s.provider == "local" {
         validate_model(&s.model)?;
     } else if s.provider == "api" {
@@ -792,6 +825,10 @@ fn validate_categorization(s: &CategorizationSettings) -> anyhow::Result<()> {
         "invalid_categorization_provider"
     );
     if s.provider == "local" {
+        anyhow::ensure!(
+            (1..=1_800_000).contains(&s.http.timeout_ms),
+            "invalid_timeout"
+        );
         validate_model(&s.model)?;
     }
     if s.provider == "s1" {
@@ -1033,10 +1070,14 @@ fn safe_inference_trace(value: &Value) -> Value {
     }
     trace
 }
-async fn local_request(st: &Shared, body: Value) -> anyhow::Result<Value> {
-    let settings = st.learning.snapshot().analysis;
+async fn local_request(
+    st: &Shared,
+    mut body: Value,
+    timeout_seconds: u64,
+) -> anyhow::Result<Value> {
+    body["timeout_seconds"] = json!(timeout_seconds);
     let call = crate::worker::forward(st, "/evaluate", Some(body));
-    let value = tokio::time::timeout(Duration::from_secs(settings.timeout_seconds), call)
+    let value = tokio::time::timeout(Duration::from_secs(timeout_seconds), call)
         .await
         .map_err(|_| anyhow::anyhow!("model_timeout"))?
         .map_err(|e| anyhow::anyhow!(safe_error(&anyhow::anyhow!(e.message().to_string()))))?;
@@ -1049,12 +1090,14 @@ async fn local_model(
     schema: Value,
     input: Value,
     inference: &InferenceSettings,
+    timeout_seconds: u64,
 ) -> anyhow::Result<InferenceReply> {
     let settings = st.learning.snapshot().analysis;
     let reply = local_request(
         st,
         json!({"model":model,"prompt":prompt,"schema":schema,"input":input,
         "parallelism":settings.parallelism,"inference":inference,"telemetry":true}),
+        timeout_seconds,
     )
     .await?;
     // Older external workers remain readable; packaged workers return diagnostics.
@@ -1194,6 +1237,7 @@ async fn extract(
                 ),
                 input,
                 &s.inference,
+                s.timeout_seconds,
             )
             .await
         }
@@ -1246,6 +1290,14 @@ async fn extract(
     );
     Ok(reply.candidates)
 }
+fn local_categorization_timeout(st: &Shared, s: &CategorizationSettings) -> u64 {
+    // Existing local configurations used the analysis timeout for both roles.
+    if s.inference.local_generation.is_some() {
+        s.http.timeout_ms.div_ceil(1000)
+    } else {
+        st.learning.snapshot().analysis.timeout_seconds
+    }
+}
 async fn classify(
     st: &Shared,
     s: &CategorizationSettings,
@@ -1267,6 +1319,7 @@ async fn classify(
                 classification_schema(candidates.len()),
                 input,
                 &s.inference,
+                local_categorization_timeout(st, s),
             )
             .await?
         } else {
@@ -1786,7 +1839,7 @@ async fn plan_chunks(
     {
         let reply=local_request(st,json!({"model":settings.model,"operation":"plan","prompt":discovery_prompt(settings),
             "schema":extraction_schema(settings.chunking.max_candidates,settings.chunking.discovery_mode=="values"),"input":{"source":text,"context":context},
-            "parallelism":settings.parallelism,"inference":settings.inference,"chunking":settings.chunking,"telemetry":true})).await?;
+            "parallelism":settings.parallelism,"inference":settings.inference,"chunking":settings.chunking,"telemetry":true}), settings.timeout_seconds).await?;
         if let Some(code) = reply["error"].as_str() {
             anyhow::bail!(code.to_string());
         }
@@ -1930,6 +1983,11 @@ pub(crate) async fn review_infer(
             schema,
             input,
             inference,
+            if role == "analysis" {
+                settings.analysis.timeout_seconds
+            } else {
+                local_categorization_timeout(st, &settings.categorization)
+            },
         )
         .await?
         .into_result();

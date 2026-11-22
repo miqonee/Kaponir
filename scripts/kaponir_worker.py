@@ -48,7 +48,31 @@ def inference_settings(value):
         if type(result[name]) is not int or not minimum<=result[name]<=maximum:raise ValueError('invalid_inference_settings')
     if result['response_format'] not in ['auto','grammar','prompt']:raise ValueError('invalid_inference_settings')
     if result['max_output_tokens']+result['reserve_tokens']>=result['context_tokens']:raise ValueError('invalid_inference_settings')
+    generation = result.get('local_generation')
+    if generation is not None:
+        if not isinstance(generation, dict):
+            raise ValueError('invalid_inference_settings')
+        if type(generation.get('parse_reasoning', False)) is not bool:
+            raise ValueError('invalid_inference_settings')
+        for key, maximum in [('temperature', 2), ('top_p', 1), ('min_p', 1)]:
+            number = generation.get(key)
+            if type(number) not in (float, int) or not 0 <= number <= maximum:
+                raise ValueError('invalid_inference_settings')
+        for key, low, high in [('top_k', 0, 1024), ('seed', 0, 2**32-1),
+                               ('reasoning_budget', 1, result['context_tokens']), ('retry_output_tokens', 1, 131072)]:
+            number = generation.get(key)
+            if number is None and key != 'top_k':
+                continue
+            if type(number) is not int or not low <= number <= high:
+                raise ValueError('invalid_inference_settings')
     return result
+
+
+def generation_runtime(generation):
+    budget = generation.get('reasoning_budget')
+    parse = generation.get('parse_reasoning', False) or budget is not None
+    return {'reasoning':'auto' if parse else 'off', 'reasoning_format':'deepseek' if parse else 'auto',
+            'reasoning_budget':budget if budget is not None else -1}
 
 
 class InferenceError(ValueError):
@@ -439,7 +463,7 @@ class Worker:
             db.execute('UPDATE jobs SET updated=?,body=? WHERE id=?',(job['updated'],json.dumps(job),ident))
         return job
 
-    def submit(self, kind, source='.', model=None, use_s1=False, mode='local'):
+    def submit(self, kind, source='.', model=None, use_s1=False, mode='local', inference=None, timeout_seconds=None):
         if kind not in ['scan','download','evaluate']: raise ValueError('invalid job kind')
         if not isinstance(use_s1,bool): raise ValueError('use_s1 must be a boolean')
         if not isinstance(mode, str) or mode not in MODES: raise ValueError('unsupported analysis mode')
@@ -450,6 +474,19 @@ class Worker:
         job={'id':uuid.uuid4().hex,'kind':kind,'source':source,'root':str(self.root),'model':model,'use_s1':bool(use_s1),'mode':mode,
              'state':'queued','created':time.time(),'updated':time.time(),'completed':0,'page':0,'files':None,
              'total':0,'errors':[],'skipped':0,'control':None,'progress':0,'progress_total':0,'current':''}
+        if inference is not None:
+            if kind != 'scan' or mode != 'qwen':
+                raise ValueError('invalid_inference_settings')
+            settings = inference_settings(inference)
+            # Only persist validated settings in the queue, never arbitrary request metadata.
+            job['inference'] = {key:settings[key] for key in ('context_tokens','max_output_tokens','reserve_tokens','batch_size','response_format')}
+            if settings.get('local_generation') is not None:
+                generation = settings['local_generation']
+                job['inference']['local_generation'] = {key:generation[key] for key in
+                    ('temperature','top_p','top_k','min_p','seed','parse_reasoning','reasoning_budget','retry_output_tokens') if key in generation}
+            if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 1800:
+                raise ValueError('invalid_evaluation_timeout')
+            job['timeout_seconds'] = timeout_seconds
         with self.lock, self.connection() as db:
             if kind == 'download':
                 for row in db.execute('SELECT body FROM jobs ORDER BY created'):
@@ -857,6 +894,29 @@ class Worker:
         return {'worker_rss_bytes':own, 'model_rss_bytes':model, 'ocr_rss_bytes':ocr,
                 'total_rss_bytes':None if own is None or model is None or ocr is None else own+model+ocr}
 
+    def complete_local(self, ident, base, payload, settings, input_tokens, deadline):
+        generation = settings.get('local_generation') or {}
+        for key in ('temperature', 'top_p', 'top_k', 'min_p', 'seed'):
+            if generation.get(key) is not None:
+                payload[key] = generation[key]
+        available = settings['context_tokens'] - input_tokens - settings['reserve_tokens']
+        if available < payload['max_tokens']:
+            raise ValueError('model_context_budget_exceeded')
+        limits = [payload['max_tokens']]
+        retry = min(available, generation.get('retry_output_tokens') or 0)
+        if retry > limits[0]:
+            limits.append(retry)
+        for limit in limits:
+            self.check(ident)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError('model_timeout')
+            payload['max_tokens'] = limit
+            reply = http_json(base+'/v1/chat/completions', payload, timeout=remaining)
+            if reply['choices'][0].get('finish_reason') != 'length':
+                break
+        return reply
+
     def evaluate(self, body):
         if not self.enabled: raise ValueError('worker is disabled')
         model = self.canonical_model(body.get('model', self.cfg['model']))
@@ -864,7 +924,15 @@ class Worker:
         if type(slots) is not int or not 1 <= slots <= 10: raise ValueError('invalid parallelism')
         settings=inference_settings(body.get('inference',{}))
         context_tokens=settings['context_tokens']
-        profile=(model,slots,context_tokens)
+        generation = settings.get('local_generation') or {}
+        reasoning_budget = generation.get('reasoning_budget')
+        thinking = reasoning_budget is not None
+        template_kwargs = {'enable_thinking': thinking}
+        runtime = generation_runtime(generation)
+        profile = (model, slots, context_tokens, runtime['reasoning_format'], reasoning_budget)
+        timeout = body.get('timeout_seconds', self.cfg['ocr_timeout_seconds'])
+        if type(timeout) is not int or not 1 <= timeout <= 1800:
+            raise ValueError('invalid_evaluation_timeout')
         prompt, schema, source = body.get('prompt'), body.get('schema'), body.get('input')
         if not isinstance(prompt, str) or not 1 <= len(prompt) <= 8192: raise ValueError('invalid evaluation prompt')
         if not isinstance(schema, dict) or not isinstance(source, dict): raise ValueError('invalid evaluation input')
@@ -886,7 +954,7 @@ class Worker:
         try:
             with self.runtime_lock:
                 self.check(ident)
-                self.start_runtime(ident, model, slots, context_tokens=context_tokens)
+                self.start_runtime(ident, model, slots, context_tokens=context_tokens, **runtime)
                 base = self.ocr_base
                 prompt = self.structured_prompt(prompt,schema,settings['response_format'])
                 supports_schema = settings['response_format']=='grammar' or settings['response_format']=='auto' and self.process_supports_json_schema is not False
@@ -902,23 +970,22 @@ class Worker:
                 def context(offset):
                     return '\n'.join(x for x in [source.get('context',''),document_hint(text,offset,hints,self.count_text_tokens)] if x)
                 def fits(fragment,hint):
-                    tokens=self.prompt_token_count(prompt,{'source':fragment,'context':hint})
+                    tokens=self.prompt_token_count(prompt,{'source':fragment,'context':hint},template_kwargs)
                     return tokens+settings['max_output_tokens']+settings['reserve_tokens']<=context_tokens and (not limit or tokens<=limit)
                 spans=plan_text(text,fits,context,strategy=chunking.get('strategy','auto'),max_fragments=maximum)
                 self.update(ident,state='succeeded')
                 return {'fragments':[{'source':text[s['start']:s['end']],'context':s['context']} for s in spans],'token_count_method':'runtime_tokenizer'}
-            telemetry['prompt_tokens']=self.prompt_token_count(prompt,source)
-            if telemetry['prompt_tokens']+settings['max_output_tokens']+settings['reserve_tokens']>context_tokens:
-                raise ValueError('model_context_budget_exceeded')
+            telemetry['prompt_tokens']=self.prompt_token_count(prompt,source,template_kwargs)
             payload = {
                 'model':'qwen-cpu', 'messages':[{'role':'system','content':prompt},
                     {'role':'user','content':json.dumps(source, ensure_ascii=False)}],
                 'temperature':0, 'max_tokens':settings['max_output_tokens'], 'stream':False, 'cache_prompt':False,
-                'chat_template_kwargs':{'enable_thinking':False},
+                'chat_template_kwargs':template_kwargs,
                 'response_format':{'type':'json_schema','json_schema':{'name':'learning','strict':True,'schema':schema}},
             }
             if not supports_schema:payload.pop('response_format')
-            reply = http_json(base+'/v1/chat/completions',payload,timeout=self.cfg['ocr_timeout_seconds'])
+            reply = self.complete_local(ident, base, payload, settings, telemetry['prompt_tokens'], started + timeout)
+            telemetry['max_output_tokens'] = payload['max_tokens']
             self.check(ident)
             choice = reply['choices'][0]
             telemetry['finish_reason']=choice.get('finish_reason') if choice.get('finish_reason') in ['stop','length','content_filter','error'] else 'other'
@@ -959,28 +1026,33 @@ class Worker:
 
     def extract_text_candidates(self, ident, variant, source):
         """Run the selected local CPU text model directly on a text chunk."""
-        self.start_runtime(ident, variant)
+        job = self.get(ident)
+        settings = inference_settings(job.get('inference', {'max_output_tokens':800}))
+        generation = settings.get('local_generation') or {}
+        self.start_runtime(ident, variant, context_tokens=settings['context_tokens'], **generation_runtime(generation))
+        fmt = settings['response_format']
+        template = {'enable_thinking':generation.get('reasoning_budget') is not None}
         payload = {
             'model': 'qwen3-cpu',
             'messages': [
-                {'role': 'system', 'content': self.structured_prompt(CANDIDATE_PROMPT,CANDIDATE_SCHEMA)},
+                {'role': 'system', 'content': self.structured_prompt(CANDIDATE_PROMPT,CANDIDATE_SCHEMA,fmt)},
                 {'role': 'user', 'content': source},
             ],
             'temperature': 0,
-            'max_tokens': 800,
+            'max_tokens': settings['max_output_tokens'],
             'stream': False,
             'cache_prompt': False,
-            'chat_template_kwargs': {'enable_thinking': False},
+            'chat_template_kwargs': template,
             'response_format': {
                 'type': 'json_schema',
                 'json_schema': {'name': 'candidates', 'strict': True, 'schema': CANDIDATE_SCHEMA},
             },
         }
-        if self.process_supports_json_schema is False:payload.pop('response_format')
-        reserve=inference_settings({})['reserve_tokens']
-        if self.message_token_count(payload['messages'])+payload['max_tokens']+reserve>self.process_context_tokens:
-            raise ValueError('model_context_budget_exceeded')
-        reply = http_json(self.ocr_base + '/v1/chat/completions', payload, timeout=self.cfg['ocr_timeout_seconds'])
+        if fmt == 'prompt' or fmt == 'auto' and self.process_supports_json_schema is False:
+            payload.pop('response_format')
+        input_tokens = self.message_token_count(payload['messages'],template)
+        timeout = job.get('timeout_seconds', self.cfg['ocr_timeout_seconds'])
+        reply = self.complete_local(ident, self.ocr_base, payload, settings, input_tokens, time.monotonic() + timeout)
         self.check(ident)
         choice = reply['choices'][0]
         if choice.get('finish_reason') != 'stop':
@@ -1198,7 +1270,7 @@ def handler(worker, token):
                 if path=='/enable':result=worker.activate(True)
                 elif path=='/disable':result=worker.activate(False)
                 elif path=='/evaluate':result=worker.evaluate(body)
-                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'))
+                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'),body.get('inference'),body.get('timeout_seconds'))
                 elif path=='/models/resolve':result=resolve_hf(body.get('url'))
                 elif path=='/models/register':result=worker.register_model(body.get('url'),body.get('file'))
                 elif path=='/models/download':result=worker.submit('download',model=body.get('model'))
