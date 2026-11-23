@@ -57,7 +57,7 @@ def check_browser(base, api, output):
         pending=next(e for e in api('/api/v1/ui/learning')['entries'] if e['value']=='CedarCat85')
         selector='[data-learning-id="'+pending['id']+'"]'
         page.locator('#review-list').get_by_role('button',name=pending['value'],exact=True).click()
-        page.locator('#finding-detail '+selector).get_by_role('button',name='Создать правило маскирования',exact=True).click()
+        page.locator('#finding-detail '+selector).get_by_role('button',name='Скрыть без ИИ',exact=True).click()
         page.locator('#review-confirm-apply').click()
         wait_for(lambda:any(e['id']==pending['id'] and e['state']=='active' for e in api('/api/v1/ui/learning')['entries']))
         page.locator('[data-review-view=history]').click()

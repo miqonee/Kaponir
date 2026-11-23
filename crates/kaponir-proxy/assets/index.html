@@ -186,7 +186,7 @@
 <div class="toolbar review-tools"><label class="field"><span data-i18n="Строк на странице">Строк на странице</span><select id="review-size"><option>50</option><option selected>100</option><option>250</option></select></label><label class="check"><input id="review-select-page" type="checkbox"/><span data-i18n="Выбрать страницу">Выбрать страницу</span></label><button class="ghost" id="review-groups" aria-pressed="false" data-i18n="Группировать">Группировать</button><span class="grow"></span><button id="review-refresh" class="secondary" data-i18n="Обновить">Обновить</button></div>
 <div id="review-selection" class="panel review-selection" hidden></div><p id="review-result" class="form-status" role="status"></p><div class="finding-layout"><div id="review-list"></div><aside class="finding-detail" hidden id="finding-detail" aria-label="Подробности находки" data-i18n-aria-label="Подробности находки"></aside></div><div id="review-pagination" class="toolbar"></div>
 
-<dialog id="review-confirm" class="review-confirm"></dialog>
+<dialog id="review-confirm" class="review-confirm" aria-labelledby="review-confirm-title"></dialog>
 </section>
 <section class="tab" hidden="" id="tab-rules"><div class="section-tabs" id="rules-view"><button data-go="mask"><svg aria-hidden="true"><use href="#i-flask"></use></svg><span data-i18n="Проверить на примере">Проверить на примере</span></button><button aria-pressed="true" data-i18n="Все правила" data-rules-view="list">Все правила</button><button aria-pressed="false" data-i18n="Аудит правил" data-rules-view="audit">Аудит правил</button></div><article class="panel" hidden="" id="rules-audit"><div class="panel-heading"><div><h2 data-i18n="Проверка накопленных правил">Проверка накопленных правил</h2><p data-i18n="Отключение обратимо. Токены старых ответов сохраняются.">Отключение обратимо. Токены старых ответов сохраняются.</p></div><button class="secondary" data-i18n="Обновить" id="audit-refresh">Обновить</button></div><div class="toolbar" hidden="" id="audit-selection"><span id="audit-selected-count"></span><span class="grow"></span><button class="primary" data-i18n="Отключить выбранное" id="audit-disable">Отключить выбранное</button><button class="secondary" data-i18n="Восстановить выбранное" id="audit-enable">Восстановить выбранное</button></div><div class="table-wrap" id="audit-list"></div></article>
 <form class="card rule-form" id="rf">
@@ -250,7 +250,7 @@
 <button class="ghost" data-i18n="Выбрать все" id="d-all">Выбрать все</button>
 <button class="ghost" data-i18n="Снять выбор" id="d-none">Снять выбор</button>
 <button class="secondary" data-i18n="Отклонить" disabled="" id="d-reject">Отклонить</button>
-<button class="primary" data-i18n="Добавить правила" disabled="" id="d-apply">Добавить правила</button>
+<button class="primary" data-i18n="Скрыть выбранное" disabled="" id="d-apply">Скрыть выбранное</button>
 </div>
 <p class="hint" id="d-source-summary" aria-live="polite"></p><div role="status" class="statusbar" id="d-status"></div>
 <p class="hint selection-help" data-i18n="Отклонение сохраняет отрицательную метку для обучения. KEEP-правило не создаётся.">Отклонение сохраняет отрицательную метку для обучения. KEEP-правило не создаётся.</p>

@@ -14,6 +14,9 @@ pub struct JournalEntry {
     pub shape: String,
     /// Окно вокруг значения; остальные найденные значения в нём уже заменены на `[KIND]`.
     pub context: String,
+    /// UTF-8 byte range of the selected value within the masked window.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_span: Option<[usize; 2]>,
     pub probability: f32,
     /// Что применено по политике.
     pub applied: Verdict,

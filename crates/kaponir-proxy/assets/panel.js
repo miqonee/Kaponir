@@ -769,7 +769,7 @@ async function openInspector(id, initialTab = null) {
         for (const reference of ev.usage?.review_items || []) nodes.push(h("div", { class: "review-card" },
           h("code", {}, reference.value), h("p", {}, `${kindLabel(reference.kind)} · ${tr("Оценка детектора")}: ${(reference.probability * 100).toFixed(1)}%`),
           h("p", { class: "hint" }, tr(reference.applied === "mask" ? "В этом запросе значение замаскировано по политике." : "В этом запросе значение осталось в тексте.")),
-          h("blockquote", {}, reference.context)));
+          h("blockquote", { class: "candidate-fragment" }, candidateExcerpt(reference.context, reference.value, reference.context_span))));
         if (ev.error) nodes.push(h("div", { class: "event-error-banner" }, h("strong", {}, ev.error.kind), h("p", {}, ev.error.message)));
         body.replaceChildren(...(nodes.length ? nodes : [h("p", { class: "hint" }, tr("Причин для проверки не зарегистрировано"))]));
       },

@@ -337,6 +337,8 @@ pub(crate) struct Entry {
     updated: u64,
     value: String,
     quote: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    context_span: Option<[usize; 2]>,
     kind: String,
     scope: Scope,
     extraction_confidence: Option<f64>,
@@ -1822,7 +1824,8 @@ fn new_entry(
     p: Option<f64>,
     model: &str,
 ) -> Entry {
-    let start = source.find(value).unwrap_or(0);
+    let occurrence = source.find(value);
+    let start = occurrence.unwrap_or(0);
     let mut lo = start.saturating_sub(96);
     while !source.is_char_boundary(lo) {
         lo -= 1;
@@ -1844,6 +1847,9 @@ fn new_entry(
         updated: now_ms(),
         value: value.into(),
         quote: source[lo..hi].into(),
+        context_span: occurrence
+            .filter(|at| !value.is_empty() && !source[at + value.len()..hi].contains(value))
+            .map(|at| [at - lo, at - lo + value.len()]),
         kind: kind.into(),
         scope: kaponir_core::s1::default_scope_for_kind(kind),
         extraction_confidence: valid_confidence(p),
@@ -2191,6 +2197,7 @@ fn document_findings(report: &kaponir_core::discover::Report) -> impl Iterator<I
                 "",
             );
             entry.quote = example.context.clone();
+            entry.context_span = example.context_span;
             entry.reason = suggestion.reason.clone();
             entry.categorization_state = "not_run".into();
             entry
@@ -2575,11 +2582,10 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
                 entry.validation_reason = "type_format_conflict".into();
                 entry.reason = "type_format_conflict".into();
             }
-            entry.quote = format!(
-                "{}\n{}",
-                document_context(&job.source, &entry.quote),
-                entry.quote
-            );
+            let heading = document_context(&job.source, &entry.quote);
+            let prefix = heading.len() + 1;
+            entry.context_span = entry.context_span.map(|[a, b]| [a + prefix, b + prefix]);
+            entry.quote = format!("{heading}\n{}", entry.quote);
             entries.push(entry);
             if entries.len() >= 256 {
                 errors.push("candidate_limit".into());

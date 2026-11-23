@@ -1492,5 +1492,15 @@
   "Поиск в сессиях находит значения в сохранённых запросах и ответах прокси. Для проверки найденного моделью откройте находки.": "Session search finds values in saved proxy requests and responses. Open the findings to review them with a model.",
   "Исходные находки": "Source findings",
   "Настройки категоризации": "Categorization settings",
-  "Подготовить модель": "Prepare model"
+  "Подготовить модель": "Prepare model",
+  "Скрыть без ИИ": "Mask without AI",
+  "Скрыть без ИИ · {{0}}": "Mask without AI · {{0}}",
+  "Скрыть выбранное": "Mask selected values",
+  "Почему значение попало в находки": "Why this value was flagged",
+  "Тип и область правила": "Rule type and scope",
+  "Совпадение найдено по тексту. Точное вхождение не сохранено.": "Matched by text. The exact occurrence was not recorded.",
+  "Выбранные значения будут скрываться в будущих запросах.": "The selected values will be masked in future requests.",
+  "В выборке больше нет находок на проверку.": "No findings in this selection are still pending.",
+  "Подсвечены все совпадения. Точное вхождение не сохранено.": "All matches are highlighted. The exact occurrence was not recorded.",
+  "В сохранённом фрагменте этого значения нет.": "This value is absent from the saved excerpt."
 }

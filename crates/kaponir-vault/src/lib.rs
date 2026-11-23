@@ -94,6 +94,8 @@ struct EntryPayload {
 struct JournalPayload {
     value: String,
     context: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    context_span: Option<[usize; 2]>,
     evidence: Vec<kaponir_core::Evidence>,
 }
 
@@ -117,6 +119,8 @@ pub struct JournalRow {
     pub status: String,
     pub value: String,
     pub context: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_span: Option<[usize; 2]>,
     pub evidence: Vec<kaponir_core::Evidence>,
 }
 
@@ -481,6 +485,7 @@ impl SqliteVault {
                         status: r.get(10)?,
                         value: String::new(),
                         context: String::new(),
+                        context_span: None,
                         evidence: Vec::new(),
                     },
                     r.get::<_, Vec<u8>>(11)?,
@@ -496,6 +501,7 @@ impl SqliteVault {
                 serde_json::from_slice(&plain).map_err(|e| VaultError::Other(e.to_string()))?;
             j.value = p.value;
             j.context = p.context;
+            j.context_span = p.context_span;
             j.evidence = p.evidence;
             out.push(j);
         }
@@ -794,6 +800,7 @@ impl Vault for SqliteVault {
         let payload = serde_json::to_vec(&JournalPayload {
             value: e.value.clone(),
             context: e.context.clone(),
+            context_span: e.context_span,
             evidence: e.evidence.clone(),
         })
         .map_err(|err| VaultError::Other(err.to_string()))?;
@@ -1004,6 +1011,7 @@ mod tests {
             value: "zorg".into(),
             shape: "x".into(),
             context: "/srv/zorg/app".into(),
+            context_span: Some([5, 9]),
             probability: 0.6,
             applied: kaponir_core::Verdict::Mask,
             evidence: vec![],
@@ -1014,6 +1022,7 @@ mod tests {
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].count, 2);
         assert_eq!(rows[0].value, "zorg");
+        assert_eq!(rows[0].context_span, Some([5, 9]));
         assert!(v.set_journal_status(rows[0].id, "resolved").unwrap());
         assert!(v.journal(Some("open"), 10).unwrap().is_empty());
     }

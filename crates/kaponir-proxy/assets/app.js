@@ -269,6 +269,42 @@ function byteMap(text) {
   return (b) => map[Math.min(b, map.length - 1)];
 }
 
+function candidateMark(text) {
+  return h('mark', { class: 'candidate-match' }, text);
+}
+
+// A saved span is relative to this already-redacted excerpt, in UTF-8 bytes.
+function candidateExcerpt(text, value, span) {
+  const fragment = document.createDocumentFragment();
+  if (!text || !value) {
+    fragment.append(text || tr('Контекст не сохранён'));
+    return fragment;
+  }
+  if (Array.isArray(span) && span.length === 2 && span.every(Number.isSafeInteger)
+      && span[0] >= 0 && span[0] < span[1]) {
+    const index = byteMap(text);
+    const start = index(span[0]), end = index(span[1]);
+    const surface = text.slice(start, end);
+    if (surface.toLowerCase() === value.toLowerCase() || surface === value.replace(/[\r\n]/g, ' ')) {
+      fragment.append(text.slice(0, start), candidateMark(surface), text.slice(end));
+      return fragment;
+    }
+  }
+  // Older records have no offsets. Show literal matches without attributing an ambiguous occurrence.
+  let cursor = 0, count = 0;
+  for (let at = text.indexOf(value); at >= 0; at = text.indexOf(value, cursor)) {
+    fragment.append(text.slice(cursor, at), candidateMark(value));
+    cursor = at + value.length;
+    count++;
+  }
+  fragment.append(text.slice(cursor));
+  let note = 'В сохранённом фрагменте этого значения нет.';
+  if (count === 1) note = 'Совпадение найдено по тексту. Точное вхождение не сохранено.';
+  if (count > 1) note = 'Подсвечены все совпадения. Точное вхождение не сохранено.';
+  fragment.append(h('small', { class: 'excerpt-note' }, tr(note)));
+  return fragment;
+}
+
 // ---------- всплывающее меню ----------
 
 const pop = $('#pop');
@@ -381,11 +417,12 @@ async function runMask() {
     return null;
   }
   $('#m-status').replaceChildren(h('span', { text: tr("анализ…") }));
+  const body = maskBody(false);
   try {
-    const res = await api('/api/v1/ui/mask', { method: 'POST', body: maskBody(false) });
-    if (seq !== M.seq) return null;
+    const res = await api('/api/v1/ui/mask', { method: 'POST', body });
+    if (seq !== M.seq || body.text !== input.value) return null;
     M.result = res;
-    M.text = input.value;
+    M.text = body.text;
     renderMask();
     return res;
   } catch (e) {
@@ -495,6 +532,21 @@ function renderExplain(res) {
     return;
   }
   const rows = [...res.explain].sort((a, b) => a.start - b.start || b.end - a.end);
+  const source = M.text, index = byteMap(source);
+  function example(x) {
+    const detail = h('details', { class: 'candidate-example' }, h('summary', { class: 'mono' }, x.surface));
+    detail.addEventListener('toggle', () => {
+      if (!detail.open || detail.childElementCount > 1) return;
+      detail.append(h('blockquote', { class: 'candidate-fragment' },
+        source.slice(index(Math.max(0, x.start - 80)), index(x.start)),
+        candidateMark(source.slice(index(x.start), index(x.end))),
+        source.slice(index(x.end), index(x.end + 80))));
+      if (!res.replacements.some(r => r.start <= x.start && x.end <= r.end)) {
+        detail.append(workButton('Замаскировать только здесь', () => addAdhoc(x.surface, x.kind), 'secondary'));
+      }
+    });
+    return detail;
+  }
   t.replaceChildren(
     h('thead', {}, h('tr', {}, ...['', tr("Решение"), 'p', tr("Тип"), tr("Распознаватель"), tr("Значение"), tr("Свидетельства")].map((c) => h('th', { text: c })))),
     h('tbody', {}, rows.map((x) => h('tr', { class: x.applied ? 'applied' : '' },
@@ -507,7 +559,7 @@ function renderExplain(res) {
       h('td', { class: 'num', text: x.probability.toFixed(3) }),
       h('td', {}, kindBadge(x.kind)),
       h('td', { text: x.recognizer }),
-      h('td', { class: 'mono', text: x.surface }),
+      h('td', {}, example(x)),
       h('td', {}, evidenceNodes(x.evidence)),
     ))),
   );
@@ -621,12 +673,15 @@ function uncertainMenu(x, cx, cy) {
 
 async function commitMask() {
   if (!input.value.trim()) return;
+  const body = maskBody(true);
   try {
-    const res = await api('/api/v1/ui/mask', { method: 'POST', body: maskBody(true) });
-    M.persisted=true;
-    M.result = res;
-    M.text = input.value;
-    renderMask();
+    const res = await api('/api/v1/ui/mask', { method: 'POST', body });
+    if (body.text === input.value) {
+      M.persisted=true;
+      M.result = res;
+      M.text = body.text;
+      renderMask();
+    }
     await copy(res.text);
     toast(tr("Скопировано. В vault: {{0}} знач.", [res.replacements.length]) + (res.uncertain ? tr(", спорных {{0}} — см. «Разбор»", [res.uncertain]) : ''));
     await loadInfo();
@@ -822,7 +877,7 @@ function renderDiscover() {
         h('td', {}, checkbox), h('td', {}, kindBadge(s.kind)), h('td', { class: 'mono', text: s.value }),
         h('td', { class: 'num', text: s.count }), h('td', { class: 'num', text: s.documents }),
         h('td', { text: s.reason.split('; ').map(reason => reason.startsWith('кандидат детектора ') ? tr('Кандидат детектора {{0}}', [reason.slice('кандидат детектора '.length)]) : tr(reason)).join('; ') }), h('td', {}, h('details', {}, h('summary', {}, tr('Примеры: {{0}}', [(s.examples||[]).length])+scoreLabel),
-          ...(s.examples||[]).map(e => h('div', {}, h('p', {class:'hint'}, e.document + ' · ' + e.start + '–' + e.end + ' · S1: ' + (e.s1_score == null ? '—' : e.s1_score.toFixed(2))), h('pre', {class:'mono'}, e.context))))));
+          ...(s.examples||[]).map(e => h('div', {}, h('p', {class:'hint'}, e.document + ' · ' + e.start + '–' + e.end + ' · S1: ' + (e.s1_score == null ? '—' : e.s1_score.toFixed(2))), h('pre', {class:'mono candidate-fragment'}, candidateExcerpt(e.context, s.value, e.context_span)))))));
     })))));
 }
 

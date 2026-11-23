@@ -58,6 +58,7 @@ fn trains_only_unique_confirmed_values_and_excludes_conflicts() {
                 value: value.into(),
                 shape: value.into(),
                 context: String::new(),
+                context_span: None,
                 probability: 0.6,
                 applied: Verdict::Mask,
                 evidence: Vec::new(),

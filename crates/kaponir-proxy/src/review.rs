@@ -238,6 +238,11 @@ async fn from_event(
                 context = context.replace(&other.original, "[REDACTED]");
             }
         }
+        let context = redacted_context(&st, &context, &item.original);
+        let mut matches = context.match_indices(&item.original);
+        let context_span = matches.next().and_then(|(at, value)| {
+            (matches.next().is_none() && !value.is_empty()).then_some([at, at + value.len()])
+        });
         selected.push(kaponir_core::journal::JournalEntry {
             kind: item.kind.clone(),
             category: serde_json::from_value(json!(item.category))
@@ -245,7 +250,8 @@ async fn from_event(
             recognizer: item.recognizer.clone().unwrap_or_default(),
             value: item.original.clone(),
             shape: kaponir_core::journal::shape(&item.original),
-            context: redacted_context(&st, &context, &item.original),
+            context,
+            context_span,
             probability: item.probability.unwrap_or(0.5),
             applied: kaponir_core::score::Verdict::Mask,
             evidence: item.evidence.clone(),

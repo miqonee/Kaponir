@@ -561,13 +561,16 @@ impl Engine {
             result.uncertain += 1;
             if opts.journal && !opts.irreversible {
                 let surface = s.c.surface(text);
+                let (context, context_span) =
+                    masked_window(text, s.c.start, s.c.end, &scored, &accepted, 60);
                 let entry = JournalEntry {
                     kind: s.c.kind.clone(),
                     category: s.c.category,
                     recognizer: s.c.recognizer.clone(),
                     value: surface.to_string(),
                     shape: shape(surface),
-                    context: masked_window(text, s.c.start, s.c.end, &scored, &accepted, 60),
+                    context,
+                    context_span,
                     probability: s.c.probability(),
                     applied: if applied {
                         Verdict::Mask
@@ -911,7 +914,7 @@ impl Engine {
                     features: features(surface, self.lexicon.is_word(surface)),
                     surface: (level >= Disclosure::L1).then(|| surface.to_string()),
                     context: (level >= Disclosure::L2).then(|| {
-                        masked_window(text, c.start, c.end, scored, &masks, s1.context_bytes)
+                        masked_window(text, c.start, c.end, scored, &masks, s1.context_bytes).0
                     }),
                 }
             })
@@ -1484,7 +1487,7 @@ fn masked_window(
     scored: &[Scored],
     masks: &[usize],
     context_bytes: usize,
-) -> String {
+) -> (String, Option<[usize; 2]>) {
     let lo = floor_boundary(text, start.saturating_sub(context_bytes));
     let hi = ceil_boundary(text, end.saturating_add(context_bytes).min(text.len()));
     let mut spans: Vec<(usize, usize, &str)> = masks
@@ -1506,9 +1509,15 @@ fn masked_window(
     }
     let mut out = String::new();
     let mut pos = lo;
+    let mut target = Some(start - lo);
     for (a, b, kind) in merged {
         if a < pos {
             continue;
+        }
+        if b <= start {
+            target = target.map(|offset| offset - (b - a) + kind.len() + 2);
+        } else if a < end {
+            target = None;
         }
         out.push_str(&text[pos..a]);
         out.push('[');
@@ -1517,7 +1526,10 @@ fn masked_window(
         pos = b;
     }
     out.push_str(&text[pos..hi]);
-    out.replace(['\n', '\r'], " ")
+    (
+        out.replace(['\n', '\r'], " "),
+        target.map(|at| [at, at + (end - start)]),
+    )
 }
 
 fn push_escaped(out: &mut String, value: &str, escape: Escape) {

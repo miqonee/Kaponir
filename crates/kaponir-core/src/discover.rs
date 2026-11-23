@@ -65,6 +65,9 @@ pub struct Example {
     pub end: usize,
     /// Bounded fragment; other detected values are replaced locally.
     pub context: String,
+    /// UTF-8 byte range of this occurrence within the displayed context.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub context_span: Option<[usize; 2]>,
     pub s1_score: Option<f32>,
 }
 
@@ -243,7 +246,8 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
             continue;
         }
         for span in spans {
-            let value = doc.text[span.start..span.end].trim();
+            let surface = &doc.text[span.start..span.end];
+            let value = surface.trim();
             if value.len() < 3
                 || (span.category != Category::Credential
                     && model_secrets
@@ -284,7 +288,8 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
                 .entry(document_id.clone())
                 .or_default() += 1;
             if suggestion.examples.len() < MAX_EXAMPLES {
-                let context = safe_context(&doc.text, span.start, span.end, &all_masks, 160);
+                let (context, at) = safe_context(&doc.text, span.start, span.end, &all_masks, 160);
+                let at = at + (surface.len() - surface.trim_start().len());
                 let index = suggestion.examples.len();
                 suggestion.examples.push(Example {
                     document: doc.name.clone(),
@@ -292,6 +297,7 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
                     start: span.start,
                     end: span.end,
                     context,
+                    context_span: Some([at, at + value.len()]),
                     s1_score: None,
                 });
                 if options.use_s1
@@ -316,6 +322,7 @@ pub fn analyze_with_options(engine: &Engine, documents: &[Document], options: &O
                                     &all_masks,
                                     s1.context_bytes,
                                 )
+                                .0
                             }),
                         },
                     );
@@ -397,7 +404,7 @@ fn safe_context(
     end: usize,
     masks: &[(usize, usize, String)],
     radius: usize,
-) -> String {
+) -> (String, usize) {
     let mut left = start.saturating_sub(radius.min(4096));
     while !text.is_char_boundary(left) {
         left += 1;
@@ -420,6 +427,7 @@ fn safe_context(
     ranges.sort_by_key(|(a, b, _)| (*a, *b));
     let mut out = String::new();
     let mut cursor = left;
+    let mut target = start - left;
     for (a, b, kind) in ranges {
         if b <= cursor {
             continue;
@@ -427,11 +435,14 @@ fn safe_context(
         if a > cursor {
             out.push_str(&text[cursor..a]);
         }
+        if b <= start {
+            target = target - (b - a.max(cursor)) + kind.len() + 2;
+        }
         out.push_str(&format!("[{kind}]"));
         cursor = b;
     }
     out.push_str(&text[cursor..right]);
-    out
+    (out, target)
 }
 
 #[derive(Clone)]
@@ -626,6 +637,17 @@ pub fn profile_categories() -> HashMap<&'static str, Category> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn context_span_tracks_the_selected_occurrence_after_redaction() {
+        let text = "📄 Секрет Лимон и Лимон.";
+        let secret = text.find("Секрет").unwrap();
+        let target = text.rfind("Лимон").unwrap();
+        let masks = vec![(secret, secret + "Секрет".len(), "SECRET".into())];
+        let (excerpt, at) = safe_context(text, target, target + "Лимон".len(), &masks, 160);
+        assert_eq!(excerpt, "📄 [SECRET] Лимон и Лимон.");
+        assert_eq!(Some(at), excerpt.rfind("Лимон"));
+    }
 
     #[test]
     fn amounts_require_a_currency() {

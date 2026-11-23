@@ -3,7 +3,7 @@
 import argparse,csv,json,os,re,shutil,subprocess,tempfile,threading,time,urllib.request
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import expect, sync_playwright
 from validate_console import free_port,wait_for
 from validate_dataset import check_dataset_ui
 
@@ -103,6 +103,89 @@ def check_local_presets(page, api):
         page.wait_for_function("() => document.querySelector('#analysis-provider').value === 'api'")
 
 
+def check_manual_mask(page, base, api):
+    for role in ('analysis', 'categorization'):
+        path = '/api/v1/ui/' + role
+        settings = api(path)['settings']
+        settings['provider'] = 'none'
+        if role == 'analysis':
+            settings.update(enabled=False, background=False, auto_apply=False)
+        api(path, {'settings': settings}, 'PUT')
+
+    names = ['zorghandfirst', 'zorghandsecond', 'zorghandthird']
+    for name in names:
+        api('/api/v1/ui/mask', {'text': f'📂 Каталог /srv/{name}/config.toml', 'commit': True})
+    jobs = []
+    page.on('request', lambda r: jobs.append(r.url) if r.method == 'POST' and r.url.endswith('/review/jobs') else None)
+    page.goto('about:blank')
+    page.goto(base + '/ui/#review')
+    page.locator('#language-switch label:has(input[value=ru])').click()
+    review = page.locator('#tab-review')
+    filters = review.locator('.finding-filters')
+    if not filters.evaluate('el => el.open'):
+        filters.locator('summary').click()
+    review.locator('#review-query').fill('zorghand')
+    select_all = review.get_by_role('button', name='Выбрать все 3 по фильтру')
+    expect(select_all).to_be_visible()
+    review.get_by_role('button', name=names[0], exact=True).click()
+    detail = review.locator('#finding-detail')
+    expect(detail.locator('blockquote mark')).to_have_text(names[0])
+    expect(detail.locator('blockquote')).to_contain_text('/srv/' + names[0] + '/config.toml')
+    detail.get_by_role('button', name='Скрыть без ИИ', exact=True).click()
+    confirm = page.locator('#review-confirm')
+    expect(confirm.locator('code')).to_have_text(names[0])
+    confirm.get_by_role('button', name='Отмена').click()
+    detail.get_by_role('button', name='Назад к списку').click()
+    select_all.click()
+    review.get_by_role('checkbox', name='Выбрать значение: ' + names[2]).uncheck()
+    review.get_by_role('button', name='Скрыть без ИИ · 2').click()
+    expect(confirm.locator('code')).to_have_count(2)
+    assert sorted(confirm.locator('code').all_text_contents()) == names[:2]
+    confirm.locator('#review-confirm-apply').click()
+    expect(review.locator('#review-result')).to_contain_text('Применено: 2')
+    masked = api('/api/v1/ui/mask', {'text': ' · '.join(names)})
+    assert {r['original'] for r in masked['replacements']} == set(names[:2])
+    assert names[2] in masked['text'] and not jobs
+
+    many = ['zorgmanualpage' + chr(97 + i // 26) + chr(97 + i % 26) for i in range(251)]
+    for start in range(0, len(many), 100):
+        paths = '\n'.join('/srv/' + name + '/config.toml' for name in many[start:start + 100])
+        api('/api/v1/ui/mask', {'text': paths, 'commit': True})
+    review.locator('#review-query').fill('zorgmanualpage')
+    review.get_by_role('button', name='Выбрать все 251 по фильтру').click()
+    review.get_by_role('button', name='Скрыть без ИИ · 251').click()
+    expect(confirm.locator('code')).to_have_count(len(many))
+    assert set(confirm.locator('code').all_text_contents()) == set(many)
+    confirm.get_by_role('button', name='Отмена').click()
+
+    page.goto(base + '/ui/#discover')
+    page.locator('#d-mode').select_option('fast')
+    page.locator('#d-text').fill('📄 Цена 125 000 ₽. Доплата 125 000 ₽.')
+    page.locator('#d-analyze').click()
+    row = page.locator('#d-list tr').filter(has=page.get_by_role('cell', name='125 000 ₽', exact=True))
+    row.locator('summary').click()
+    expect(row.locator('pre')).to_have_count(2)
+    for index, prefix in enumerate(('Цена ', 'Доплата ')):
+        mark = row.locator('pre').nth(index).locator('mark')
+        expect(mark).to_have_text('125 000 ₽')
+        assert mark.evaluate('m => m.previousSibling.textContent').endswith(prefix)
+    page.goto(base + '/ui/#mask')
+    page.locator('#m-input').fill('📄 Файл /srv/zorghandthird/config.toml')
+    page.locator('#tab-mask .explain > summary').click()
+    candidate = page.locator('#m-explain details').filter(has_text=names[2]).first
+    candidate.locator('summary').click()
+    expect(candidate.locator('mark')).to_have_text(names[2])
+    public_url = 'http://github.com/openai'
+    page.locator('#m-input').fill(public_url)
+    public_candidate = page.locator('#m-explain details').filter(has_text='openai')
+    public_candidate.locator('summary').click()
+    expect(public_candidate.locator('mark')).to_have_text('openai')
+    with page.expect_response(lambda r: r.url.endswith('/ui/mask') and bool(r.request.post_data_json.get('adhoc'))) as preview:
+        public_candidate.get_by_role('button', name='Замаскировать только здесь').click()
+    assert {r['original'] for r in preview.value.json()['replacements']} == {'openai'}
+    expect(page.locator('#m-output')).not_to_contain_text('openai')
+    assert api('/api/v1/ui/mask', {'text': public_url})['text'] == public_url
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('binary',type=Path);parser.add_argument('--output',type=Path,default=Path('artifacts/review'));args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
     fail=threading.Event();release=threading.Event();release.set();seen=[];seen_formats=[]
@@ -169,7 +252,9 @@ def main():
                 browser=playwright.chromium.launch(executable_path=shutil.which('chromium') or shutil.which('google-chrome'),headless=True,args=['--no-sandbox'])
                 page=browser.new_page(viewport={'width':1440,'height':1000},locale='ru-RU',color_scheme='dark');errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
                 try:
-                    page.goto(base+'/ui/#settings');check_dataset_ui(page)
+                    page.goto(base+'/ui/#settings')
+                    expect(page.locator('#page-title')).to_have_text('Настройки')
+                    check_dataset_ui(page)
                     def card_for(item):
                         page.locator('#review-list').get_by_role('button',name=item['value'],exact=True).click()
                         return page.locator('#finding-detail [data-review-key="'+item['key']+'"]')
@@ -217,7 +302,10 @@ def main():
                     page.locator('[data-review-view=history]').click();card_for(hidden).get_by_role('button',name='Вернуть на проверку',exact=True).click();wait_for(lambda:any(i['key']==hidden['key'] for i in rows()))
                     page.locator('[data-review-view=pending]').click()
                     public=next(i for i in rows() if i['value']=='zorgreviewpublictool');public_card=card_for(public)
-                    public_card.get_by_role('button',name='Создать исключение',exact=True).click();assert 'KEEP' in page.locator('#review-confirm').inner_text();page.locator('#review-confirm-apply').click()
+                    public_card.get_by_role('button',name='Создать исключение',exact=True).click();assert 'KEEP' in page.locator('#review-confirm').inner_text()
+                    with page.expect_response(lambda r: r.url.endswith('/keep') and r.request.method == 'POST') as kept:
+                        page.locator('#review-confirm-apply').click()
+                    assert kept.value.ok
                     wait_for(lambda:not any(i['key']==public['key'] for i in rows()));assert 'zorgreviewpublictool' in seed('zorgreviewpublictool')['text']
                     # Failures must be explicit and must not turn into heuristic recommendations.
                     fail.set();page.locator('#review-refresh').click();card=card_for(target);card.get_by_role('button',name='Пересмотреть моделью',exact=True).click()
@@ -233,7 +321,7 @@ def main():
                     return_to_findings();uncertain_card=card_for(uncertain);uncertain_card.locator('.review-recommendation').wait_for()
                     assert 'Модели недостаточно данных' in uncertain_card.inner_text()
                     assert uncertain_card.get_by_role('button',name='Применить рекомендацию',exact=True).count()==0
-                    assert uncertain_card.locator('option[value="auto"]').is_disabled()
+                    expect(uncertain_card.get_by_role('button', name='Скрыть без ИИ', exact=True)).to_be_enabled()
                     assert json.dumps(api('/api/v1/rules'))==before
                     # One invalid row must not erase a usable neighboring recommendation.
                     seed('zorgreviewvalidanswer');seed('zorgreviewinvalidanswer');page.locator('#review-refresh').click()
@@ -317,12 +405,17 @@ def main():
                     with page.expect_response(lambda r:r.url.endswith('/analysis/documents') and r.request.method == 'POST') as response:
                         page.locator('#d-analyze').click()
                     assert response.value.json()['queued'] == 0
+                    check_manual_mask(page, base, api)
                     assert not errors,errors
                 except Exception:
                     page.screenshot(path=str(args.output/'failure.png'),full_page=True);(args.output/'browser-errors.json').write_text(json.dumps(errors))
                     (args.output/'failure-state.json').write_text(json.dumps({'learning':api('/api/v1/ui/learning'),'review':rows('all')},ensure_ascii=False,indent=2));raise
                 finally:browser.close()
-            report={'passed':True,'checks':['help popup','honest category stages','async model review','prompt JSON profile roundtrip and API payload','explicit apply','rollback and restore','close and reopen','KEEP exception','no heuristic fallback','inconclusive review stays pending','invalid rows preserve valid neighbors','event links and privacy','explicit review from event','numeric corrections require confirmation','selection and grouping','RU/EN themes and mobile']};(args.output/'result.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
+            report={'passed':True,'checks':['help popup','honest category stages','async model review','prompt JSON profile roundtrip and API payload','explicit apply','rollback and restore','close and reopen','KEEP exception','no heuristic fallback','inconclusive review stays pending','invalid rows preserve valid neighbors','event links and privacy','explicit review from event','numeric corrections require confirmation','selection and grouping','RU/EN themes and mobile',
+                'single and bulk masking without a model', 'selection across server pages',
+                'occurrence highlights in findings, documents and text', 'local-only text masking']}
+            (args.output/'result.json').write_text(json.dumps(report,indent=2)+'\n')
+            print(json.dumps(report))
         finally:release.set();process.terminate();process.wait(timeout=20);log.close();provider.shutdown();provider.server_close()
 
 if __name__=='__main__':main()

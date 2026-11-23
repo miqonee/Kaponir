@@ -839,7 +839,9 @@ td small { display: block; }
 .review-recommendation.inconclusive { border-color: var(--warning); background: var(--warning-bg); }
 .review-evidence { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 14px; font-size: 12px; }
 .review-evidence summary { color: var(--accent); cursor: pointer; }
-.review-evidence blockquote { margin: 12px 0; padding: 12px; background: var(--panel-subtle); border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.finding-fragment { margin: 16px 0 0; }
+.finding-fragment figcaption { font-size: 12px; color: var(--dim); }
+.finding-fragment blockquote { margin: 4px 0 0; padding: 12px; border-radius: 6px; background: var(--panel-subtle); font-size: 14px; line-height: 1.55; }
 .review-card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
 .review-card-actions select { min-width: 120px; max-width: 100%; }
 .review-confirm { width: min(660px,94vw); padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--text); }
@@ -1022,6 +1024,14 @@ td small { display: block; }
 .findings-table tr.picked {background:var(--soft)}
 .finding-value {font-weight:600;text-align:start;justify-content:start;overflow-wrap:anywhere;white-space:normal;border:0;background:transparent;padding:3px 0;min-height:28px}
 .finding-value:hover {text-decoration:underline}
+.candidate-fragment {white-space:pre-wrap;overflow-wrap:anywhere}
+.candidate-match {color:var(--text);background:var(--warning-bg);border-bottom:2px solid var(--warning);font-weight:700}
+.excerpt-note {display:block;margin-top:8px;color:var(--dim)}
+.candidate-example summary,.finding-manual summary {cursor:pointer;color:var(--accent)}
+.candidate-example blockquote {margin:8px 0}
+.finding-manual {display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:12px 0}
+.finding-manual select {max-width:100%;margin-top:8px}
+@media (forced-colors:active){.candidate-match{background:Highlight;color:HighlightText;border-color:HighlightText;forced-color-adjust:none}}
 .findings-table small {display:block}.findings-table .mobile-source {display:none;color:var(--dim)}
 .row-check {display:grid;place-items:center;min-height:32px}
 .row-check input,#review-select-page {appearance:none;display:inline-grid;place-items:center;width:19px;height:19px;border:1.5px solid var(--dim);border-radius:5px;background:var(--panel);padding:0;margin:0;vertical-align:middle}
