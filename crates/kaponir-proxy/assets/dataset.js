@@ -17,6 +17,7 @@ function updateDatasetMode() {
   const enabled = mode === 'on';
   $('#dataset-enable').checked = enabled;
   $('#dataset-new').hidden = !enabled;
+  $('#dataset-create').hidden = !enabled;
   $('#dataset-files').hidden = !mode;
   if (mode) refreshDatasetCount();
   if (!enabled && datasetDialog.open) datasetDialog.close();
@@ -175,7 +176,8 @@ $('#dataset-enable').onchange = e => {
   catch (err) { fail(err); }
   updateDatasetMode();
 };
-$('#dataset-new').onclick = () => openDatasetExample();
+for (const id of ['dataset-new', 'dataset-create'])
+  $('#' + id).onclick = () => openDatasetExample();
 $('#dataset-close').onclick = () => datasetDialog.close();
 datasetDialog.onclose = () => {
   $('#dataset-text').value = '';
@@ -197,5 +199,6 @@ $('#dataset-export').onclick = async () => {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (err) { fail(err); }
 };
+TABS.dataset = refreshDatasetCount;
 window.addEventListener('storage', e => { if (!e.key || e.key === datasetModeKey) updateDatasetMode(); });
 updateDatasetMode();

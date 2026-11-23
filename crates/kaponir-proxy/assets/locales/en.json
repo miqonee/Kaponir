@@ -1281,13 +1281,9 @@
   "Не удалось обновить статистику": "Could not refresh statistics",
   "Учёт с {{0}}": "Tracking since {{0}}",
   "Время обработки успешно завершённых заданий за 24 часа, без ожидания в очереди.": "Processing time for successful jobs in the last 24 hours, excluding time spent waiting in the queue.",
-  "Датасет для Qwen": "Qwen dataset",
-  "Собирать примеры в этом браузере": "Collect examples in this browser",
-  "В «Разборе решений» можно сохранять проверенные фрагменты. Подборка хранится в профиле браузера.": "Save reviewed excerpts in Decision review. The collection stays in this browser profile.",
   "Скачать JSONL": "Download JSONL",
   "Добавить свой пример": "Add your own example",
   "В датасет": "Add to dataset",
-  "Пример для Qwen": "Example for Qwen",
   "Оставьте короткий фрагмент с вымышленными данными. Выделите нужное вхождение и отметьте его.": "Use a short excerpt with fictitious data. Select the occurrence and label it.",
   "Фрагмент": "Excerpt",
   "Оставить открытым": "Keep public",
@@ -1346,5 +1342,9 @@
   "Параметры для этой модели можно задать вручную.": "You can set parameters for this model manually.",
   "После переноса нажмите «Проверить файлы», затем «Проверить запуск».": "After copying the files, choose Verify files and then Check startup.",
   "Результаты сравнения": "Benchmark results",
-  "Файлы готовы. Нажмите «Проверить запуск», чтобы загрузить модель и проверить её токенизатор.": "Files are ready. Choose Check startup to load the model and check its tokenizer."
+  "Файлы готовы. Нажмите «Проверить запуск», чтобы загрузить модель и проверить её токенизатор.": "Files are ready. Choose Check startup to load the model and check its tokenizer.",
+  "Датасет": "Dataset",
+  "Собирать примеры": "Collect examples",
+  "Пример для датасета": "Dataset example",
+  "Каждый пример сохраняется вручную в этом браузере. Находку можно добавить из раздела «Разбор решений».": "Each example is saved manually in this browser. You can add a finding from Review decisions."
 }
