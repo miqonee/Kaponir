@@ -1000,7 +1000,6 @@
   "Проверка весов": "Verifying weights",
   "Проверка возможна после запуска службы анализа.": "Files can be checked after the analysis service starts.",
   "Проверка среды запуска": "Verifying the runtime",
-  "Проверка файлов завершена. Работу модели проверяет кнопка «Проверить запуск» на синтетическом примере.": "File verification is complete. Use “Test model startup” to check the model with a synthetic example.",
   "Проверьте доступ в интернет и настройки прокси на машине анализа или установите файлы без интернета.": "Check internet access and proxy settings on the analysis machine, or install the files offline.",
   "Проверьте права службы анализа на каталог моделей и файл llama-server.": "Check the analysis service permissions for the model directory and llama-server executable.",
   "Проверьте системное время и доверенные сертификаты на машине анализа или перенесите файлы вручную.": "Check the system clock and trusted certificates on the analysis machine, or transfer the files manually.",
@@ -1314,5 +1313,6 @@
   "Профиль для поиска по документам взят из таблицы исследования.": "The document search preset comes from the research results table.",
   "Параметры для этой модели можно задать вручную.": "You can set parameters for this model manually.",
   "После переноса нажмите «Проверить файлы», затем «Проверить запуск».": "After copying the files, choose Verify files and then Check startup.",
-  "Результаты сравнения": "Benchmark results"
+  "Результаты сравнения": "Benchmark results",
+  "Файлы готовы. Нажмите «Проверить запуск», чтобы загрузить модель и проверить её токенизатор.": "Files are ready. Choose Check startup to load the model and check its tokenizer."
 }
