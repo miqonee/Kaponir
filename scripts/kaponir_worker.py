@@ -590,8 +590,8 @@ class Worker:
         model=model or self.cfg['model']
         model=self.canonical_model(model)
         if not isinstance(source,str) or len(source)>1024: raise ValueError('invalid source path')
-        if model == PRIVACY_MODEL and kind != 'evaluate':
-            raise ValueError('privacy_model_for_dataset_only')
+        if model == PRIVACY_MODEL and kind == 'download':
+            raise ValueError('privacy_bundle_requires_local_file')
         if kind=='scan' and source!='@sessions': self.resolve(source)
         job={'id':uuid.uuid4().hex,'kind':kind,'source':source,'root':str(self.root),'model':model,'use_s1':bool(use_s1),'mode':mode,
              'state':'queued','created':time.time(),'updated':time.time(),'completed':0,'page':0,'files':None,
@@ -781,7 +781,11 @@ class Worker:
                     'label':MODEL_LABELS.get(variant,self.custom_models.get(variant,{}).get('label',variant)),
                     'kind':'text-cpu','custom':variant in self.custom_models}
             models[variant] = info
-            if variant in (PRIVACY_MODEL, 'huihui-qwen3.5-2b-abliterated', 'tiny-aya-global'):
+            if variant == PRIVACY_MODEL:
+                info['label'] = 'Kaponir Privacy v4 · epoch-2 · Q4_K_M'
+                if not info['downloaded']:
+                    continue
+            if variant in ('huihui-qwen3.5-2b-abliterated', 'tiny-aya-global'):
                 continue
             catalog.append({'id':{'q4':'qwen3-0.6b','q5':'qwen3-0.6b-q8'}.get(variant,variant),
                 'label':info['label'],'bytes':fsize,'custom':info['custom']})

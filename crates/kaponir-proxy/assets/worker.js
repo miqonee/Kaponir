@@ -49,7 +49,7 @@ const builtinModelChoices = [
 ].map(([id,label,bytes])=>({id,label,bytes}));
 function modelSelect(role) { return $(role === "worker" ? "#worker-model" : `#${role}-local-model`); }
 function ensureModelChoice(model, role) {
-  if (!model || !(model === "huihui-qwen3.5-2b-abliterated" || builtinModelChoices.some((item)=>item.id===model) || /^hf-[a-f0-9]{24}$/.test(model))) return;
+  if (!model || !(model === "huihui-qwen3.5-2b-abliterated" || model === "kaponir-privacy-v4-epoch-2" || builtinModelChoices.some((item)=>item.id===model) || /^hf-[a-f0-9]{24}$/.test(model))) return;
   const select=modelSelect(role);
   if (![...select.options].some((option)=>option.value===model)) select.append(h("option",{value:model},WORKER.data?.models?.[model]?.label || model));
 }
@@ -227,7 +227,7 @@ function renderModelCards() {
       card.errorKey = errorKey;
     }
     card.download.textContent = tr(job?.state === "paused" ? "Продолжить установку" : error ? "Повторить установку" : "Скачать на сервер");
-    card.download.hidden = ready;
+    card.download.hidden = ready || model === "kaponir-privacy-v4-epoch-2";
     card.download.disabled = !editable || busy || !data.online || !data.enabled || !weights || (active && job.state !== "paused");
     card.verify.disabled = !editable || busy || !data.online || !data.model_verification || !weights || weights.state === "checking" || active;
     if (role !== "worker" && $(`#${role}-provider`).value === "local")

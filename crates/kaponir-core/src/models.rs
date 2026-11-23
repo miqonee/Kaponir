@@ -3,6 +3,7 @@ pub fn valid_local_id(model: &str) -> bool {
     matches!(
         model,
         "q4" | "q5"
+            | "kaponir-privacy-v4-epoch-2"
             | "qwen3-0.6b"
             | "qwen3-0.6b-q8"
             | "qwen3.5-0.8b"
