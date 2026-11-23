@@ -9,19 +9,20 @@ function icon(name) {
   return svg;
 }
 const PAGE_META = {
-  overview: ["", "Дашборд", ""],
+  overview: ["", "Обзор", ""],
+  jobs: ["", "Задания", ""],
   events: ["", "События", "Сессии и запросы к моделям."],
   connect: [
     "",
     "Поставщики и API",
     "Подключения и адреса API для ваших приложений.",
   ],
-  analysis: ["", "LLM и Анализ", "Анализ запросов, модели и распределение правил."],
-  worker: ["", "LLM и Анализ", "Фоновый воркер и очередь."],
-  categorization: ["", "LLM и Анализ", "Категоризация найденных данных."],
+  analysis: ["", "Настройки поиска", "Анализ запросов, модели и распределение правил."],
+  worker: ["", "Файловая служба", "Фоновый воркер и очередь."],
+  categorization: ["", "Настройки категоризации", "Категоризация найденных данных."],
   rules: ["", "Правила", ""],
-  review: ["", "Разбор решений", "Спорные находки и подтверждённые решения."],
-  discover: ["", "Правила из документов", ""],
+  review: ["", "Находки", ""],
+  discover: ["", "Найти значения", "Выберите текст, файл или сохранённые запросы и ответы прокси."],
   mask: ["", "Лаборатория", ""],
   restore: ["", "Лаборатория", ""],
   dataset: ["", "Датасет", ""],
@@ -41,8 +42,9 @@ function panelHeading(name) {
   $("#page-description").hidden = !description;
   $("#page-actions").hidden = !["overview", "events"].includes(name);
   $("#lab-navigation").hidden = !["mask", "restore"].includes(name);
+  if(name==="mask" || name==="restore")syncRestoreAction();
   $("#learning-widget").hidden = !["analysis", "categorization", "worker"].includes(name);
-  $("#analysis-navigation").hidden = !["analysis", "categorization", "worker", "discover"].includes(name);
+  $("#analysis-navigation").hidden = !["analysis", "categorization", "worker"].includes(name);
   for (const b of document.querySelectorAll(
     "#lab-navigation [data-go],#analysis-navigation [data-go]",
   ))
@@ -52,7 +54,13 @@ function panelHeading(name) {
   document.title = tr(title) + " · Kaponir";
 }
 for (const b of document.querySelectorAll("[data-go]"))
-  b.addEventListener("click", () => showTab(b.dataset.go));
+  b.addEventListener("click", () => {
+    if(b.dataset.go==="restore" && location.hash==="#mask") {
+      rInput.value=restoreCandidate();
+      runRestore();
+    }
+    showTab(b.dataset.go);
+  });
 $("#menu-toggle").addEventListener("click", () => {
   const open = $("#sidebar").classList.toggle("open");
   $("#menu-toggle").setAttribute("aria-expanded", String(open));
@@ -1552,6 +1560,17 @@ $("#config-export").addEventListener("click", async () => {
     button.disabled = false;
   }
 });
+function previewSettingsImport() {
+  const status=$("#config-status");
+  try {
+    const bundle=JSON.parse($("#config-json").value);
+    if(bundle.format!=="kaponir-settings" || !bundle.config || !bundle.rules || !bundle.providers){status.textContent="";return;}
+    const collections=Object.entries(bundle.rules).map(([scope,rules])=>scopeLabel(scope)+" · "+(rules.rule||[]).length);
+    const connections=bundle.providers.connections || [];
+    status.textContent=tr("Импорт заменит настройки установки, правила и подключения")+" · "+collections.join(" / ")+" · "+tr("Подключения · {{0}}",[connections.length]);
+  }catch{status.textContent="";}
+}
+$("#config-json").addEventListener("input",previewSettingsImport);
 $("#config-file").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -1559,7 +1578,7 @@ $("#config-file").addEventListener("change", async (e) => {
     if (file.size > 1024 * 1024)
       throw new Error(tr("Файл настроек больше 1 МБ"));
     $("#config-json").value = await file.text();
-    $("#config-status").textContent = "";
+    previewSettingsImport();
   } catch (e) {
     fail(e);
   }

@@ -31,3 +31,12 @@ class LocaleTests(unittest.TestCase):
         en=json.loads((ASSETS/'locales/en.json').read_text(encoding='utf-8'))
         self.assertFalse(set(markup.keys)-set(en))
         self.assertEqual(len(markup.ids),len(set(markup.ids)),Counter(markup.ids))
+
+    def test_workspace_actions_have_translations(self):
+        en=json.loads((ASSETS/'locales/en.json').read_text(encoding='utf-8'))
+        for asset in ('review.js','workspace.js'):
+            source=(ASSETS/asset).read_text(encoding='utf-8')
+            actions=re.findall(r'workButton\(\s*"([^"]+)"',source)
+            for label in actions:
+                if re.search('[а-яА-Я]',label):
+                    self.assertIn(label,en,asset)

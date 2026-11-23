@@ -18,6 +18,7 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/worker/start", post(start))
         .route("/api/v1/ui/worker/stop", post(stop))
         .route("/api/v1/ui/worker/jobs", post(submit))
+        .route("/api/v1/ui/worker/calibrate", post(calibrate))
         .route("/api/v1/ui/worker/privacy-suggest", post(privacy_suggest))
         .route("/api/v1/ui/worker/models/download", post(download))
         .route("/api/v1/ui/worker/models/verify", post(verify))
@@ -65,17 +66,19 @@ pub(crate) async fn forward(
         request = request.bearer_auth(token);
     }
     let response = request
-        .timeout(Duration::from_secs(if path == "/status" {
-            1
-        } else if path == "/privacy-suggest" {
-            300
-        } else if path == "/evaluate" {
-            evaluate_timeout
-        } else if matches!(path, "/models/resolve" | "/models/register") {
-            20
-        } else {
-            10
-        }))
+        .timeout(Duration::from_secs(
+            if matches!(path, "/status" | "/workspace/jobs") {
+                1
+            } else if path == "/privacy-suggest" {
+                300
+            } else if path == "/evaluate" {
+                evaluate_timeout
+            } else if matches!(path, "/models/resolve" | "/models/register") {
+                20
+            } else {
+                10
+            },
+        ))
         .send()
         .await
         .map_err(|e| {
@@ -108,6 +111,24 @@ pub(crate) async fn forward(
     }
     Ok(Json(value))
 }
+async fn calibrate(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(body): Json<Value>,
+) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    if st.control.is_none() {
+        return Err(error(StatusCode::FORBIDDEN, "read_only"));
+    }
+    let analysis = st.learning.snapshot().analysis;
+    forward(
+        &st,
+        "/calibrate",
+        Some(json!({"model":body["model"],"inference":analysis.inference})),
+    )
+    .await
+}
+
 async fn status(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
     authorized(&st, &headers, true)?;
     if let Some(m) = &st.worker_manager

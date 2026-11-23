@@ -324,6 +324,17 @@ impl SqliteVault {
         .collect()
     }
 
+    pub fn app_record_ids(&self, kind: &str) -> Result<Vec<String>, VaultError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT id FROM app_records WHERE kind=?1")
+            .map_err(db)?;
+        stmt.query_map([kind], |row| row.get(0))
+            .map_err(db)?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(db)
+    }
+
     pub fn app_record_count(&self, kind: &str) -> Result<usize, VaultError> {
         self.conn
             .query_row(

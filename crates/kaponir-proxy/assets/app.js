@@ -232,21 +232,27 @@ async function loadInfo() {
 const TABS = { mask: () => {}, restore: () => {}, review: () => Promise.all([loadJournal(), loadInfo()]), rules: () => loadRules(), discover: () => renderDiscover(), metrics: () => loadMetrics() };
 
 function showTab(name, push = true) {
+  const route = name || 'overview';
+  if (name.startsWith('jobs/')) name = 'jobs';
   if (name === 's1') name = 'analysis';
   if (!TABS[name]) name = 'overview';
-  const nav = name === 'restore' ? 'mask' : ['worker','categorization'].includes(name) ? 'analysis' : ['setup','metrics'].includes(name) ? 'settings' : name;
+  const nav = ['mask','restore','events'].includes(name) ? 'overview' : name === 'discover' ? 'review' : ['connect','analysis','worker','categorization','setup','metrics'].includes(name) ? 'settings' : name;
   for (const b of document.querySelectorAll('.tabs button')) {
     b.setAttribute('aria-selected', String(b.dataset.tab === nav));
     if (b.dataset.tab === nav) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   for (const s of document.querySelectorAll('.tab')) s.hidden = s.id !== 'tab-' + name;
   hidePop();
-  if (location.hash !== '#' + name) history[push ? 'pushState' : 'replaceState'](null, '', '#' + name);
+  const hash = '#' + (name === 'jobs' ? route : name);
+  if (location.hash !== hash) history[push ? 'pushState' : 'replaceState'](null, '', hash);
   if (typeof panelHeading === 'function') panelHeading(name);
   Promise.resolve(TABS[name]()).catch(fail);
 }
 
-for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => showTab(b.dataset.tab));
+for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => {
+  if (b.dataset.tab === 'review' && (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob)) showReview();
+  else showTab(b.dataset.tab);
+});
 
 // ---------- смещения ----------
 
@@ -366,6 +372,7 @@ function maskBody(commit) {
 }
 
 async function runMask() {
+  M.persisted=false;
   const seq = ++M.seq;
   if (!input.value.trim()) {
     M.result = null;
@@ -407,7 +414,17 @@ function spans() {
   return out.sort((a, b) => a.s - b.s || b.e - a.e);
 }
 
+function restoreCandidate() {
+  const raw=input.value;
+  const codec=info.prefix && new RegExp(info.prefix+"[_-][a-z][a-z0-9]{0,23}[_-](?:h[a-f0-9]{6,16}|[0-9]{1,12})","i");
+  if(codec?.test(raw.replaceAll(String.fromCharCode(92),"")))return raw;
+  return M.persisted && M.text===raw && M.result?.replacements?.length ? M.result.text : "";
+}
+function syncRestoreAction() {
+  $("#lab-navigation [data-go=restore]").hidden=location.hash!=="#restore" && !restoreCandidate();
+}
 function renderMask() {
+  syncRestoreAction();
   const text = input.value;
   const sp = spans();
   const res = M.result && M.text === text ? M.result : null;
@@ -606,6 +623,7 @@ async function commitMask() {
   if (!input.value.trim()) return;
   try {
     const res = await api('/api/v1/ui/mask', { method: 'POST', body: maskBody(true) });
+    M.persisted=true;
     M.result = res;
     M.text = input.value;
     renderMask();
@@ -728,9 +746,10 @@ function syncDiscoveryActions() {
 }
 async function showDiscoverView(view, skipLoad=false) {
   if(D.busy)return;
-  D.views[D.view]={report:D.report,selected:new Set(D.selected),saved:D.saved,documents:D.documents};
+  D.views[D.view]={report:D.report,selected:new Set(D.selected),saved:D.saved,documents:D.documents,scope:D.scope};
   D.view=view;
   const previous=D.views[view];
+  D.scope=view==="saved"?tr("Сохранённые находки"):previous?.scope||"";
   D.report=previous?.report||null;D.selected=previous?.selected||new Set();D.saved=view==='saved';D.documents=previous?.documents||[];
   $('#discover-input-pane').hidden=view!=='input';
   $('#d-input-view').setAttribute('aria-pressed',String(view==='input'));$('#d-saved').setAttribute('aria-pressed',String(view==='saved'));
@@ -761,6 +780,11 @@ function updateDiscoverStatus() {
 }
 
 function renderDiscover() {
+  const foundKeys=D.report?.finding_keys||[];
+  $("#discover-findings").hidden=!foundKeys.length;
+  $("#discover-collect").hidden=!foundKeys.length;
+  $("#discover-collect").textContent=tr("В датасет все {{0}}",[foundKeys.length]);
+  $("#d-source-summary").textContent=D.scope||"";
   syncDiscoveryActions();
   const list = $('#d-list');
   const report = D.report;
@@ -817,6 +841,7 @@ $('#d-analyze').addEventListener('click', async () => {
   button.disabled = true;
   try {
     D.documents = await discoverDocuments();
+    D.scope=D.documents.map(doc=>doc.name).join(", ");
     D.saved = $('#d-remember').checked;
     D.busy = true;
     D.report = null;
@@ -828,7 +853,7 @@ $('#d-analyze').addEventListener('click', async () => {
       const queued=await api('/api/v1/ui/analysis/documents',{method:'POST',body:{documents:D.documents, ...(scenario ? {scenario} : {})}});
       D.busy=false;renderDiscover();
       $('#d-status').textContent=queued.queued?tr('Поставлено в очередь: {{0}}',[queued.queued]):tr('Документы уже обработаны или находятся в очереди');
-      toast(tr('Результаты появятся в разделе «Разбор решений»'));
+      showTab(queued.ids?.length === 1 ? "jobs/learning/" + encodeURIComponent(queued.ids[0]) : "jobs");
       return;
     }
     D.report = await api('/api/v1/ui/discover', { method: 'POST', body: { documents: D.documents, use_s1:$('#d-s1').checked, remember:D.saved } });
@@ -849,20 +874,34 @@ async function decideDiscover(action) {
     const result = await api('/api/v1/ui/discover/apply', { method:'POST', body:{
       documents:D.saved ? [] : D.documents, ids:[...D.selected], scope:$('#d-scope').value, saved:D.saved, action,
     }});
-    D.report = result.report; D.selected.clear();
+    if (D.view === "saved") D.report = result.report;
+    else {
+      D.report.suggestions = D.report.suggestions.filter(s => !D.selected.has(s.id));
+      if(D.report.finding_keys?.length) D.report.finding_keys=result.report.finding_keys;
+    }
+    D.selected.clear();
     toast(tr(action === 'mask' ? 'Сохранено MASK-правил: {{0}}' : 'Сохранено отрицательных меток: {{0}}', [result.applied]));
     if (action === 'mask') await afterRulesChanged();
   } catch(e) { fail(e); }
   finally { D.busy=false; renderDiscover(); }
 }
-$('#d-apply').addEventListener('click', () => decideDiscover('mask'));
+$('#d-apply').addEventListener('click', () => {
+  const dialog=h('dialog',{class:'review-confirm'});
+  const selected=D.report.suggestions.filter(s=>D.selected.has(s.id));
+  dialog.append(h('div',{class:'review-confirm-body'},h('h2',{},tr('Проверить изменения')),
+    h('p',{},tr('Будут созданы правила маскирования · {{0}}',[selected.length]),' · ',scopeLabel($('#d-scope').value)),
+    h('ul',{class:'review-confirm-list'},selected.map(s=>h('li',{},s.value,' · ',kindLabel(s.kind)))),
+    workButton('Применить изменения',()=>{dialog.close();return decideDiscover('mask');},'primary'),
+    workButton('Отмена',()=>dialog.close())));
+  dialog.onclose=()=>dialog.remove();document.body.append(dialog);dialog.showModal();
+});
 $('#d-reject').addEventListener('click', () => decideDiscover('not_sensitive'));
 $('#d-saved').addEventListener('click',()=>showDiscoverView('saved'));
 
 async function analyzeProxySessions() {
   if (D.busy) return;
   showTab('discover');
-  await showDiscoverView('saved',true);
+  await showDiscoverView('input',true);
   D.busy = true;
   renderDiscover();
   $('#d-status').textContent = tr("Анализ завершённых сессий прокси из Vault…");
@@ -872,6 +911,7 @@ async function analyzeProxySessions() {
       body: { use_s1: $('#d-s1') ? $('#d-s1').checked : false, remember: true },
     });
     D.report = res.report;
+    D.scope=tr("Проверено сессий · {{0}}",[res.sessions_analyzed]);
     D.saved = true;
     D.selected.clear();
     toast(tr("Разобрано сессий прокси: {{0}} · кандидатов: {{1}}", [res.sessions_analyzed || 0, (res.report && res.report.suggestions && res.report.suggestions.length) || 0]));
@@ -982,7 +1022,7 @@ async function loadRules() {
           h('thead', {}, h('tr', {}, ...['№', tr("Действие"), tr("Тип"), tr("Что ищем"), '', tr("Заметка"), ''].map((c) => h('th', { text: c })))),
           h('tbody', {}, rules.map((r, i) => {
             const [pt, pv] = rulePattern(r);
-            return h('tr', {class:r.disabled?'disabled-rule':''},
+            return h('tr', {id:'rule-'+set.scope+'-'+(r.id || 'index-'+i),tabindex:-1,class:r.disabled?'disabled-rule':''},
               h('td', { class: 'num', text: r.id || i + 1 }),
               h('td', {}, h('span', { class: 'tag ' + (r.action || 'mask'), text: r.disabled ? tr('Отключено') : r.action === 'keep' ? tr("не маскировать") : tr("маскировать") })),
               h('td', {}, r.action === 'keep' ? '' : kindBadge(r.kind)),
@@ -991,7 +1031,8 @@ async function loadRules() {
                 r.enforced ? h('span', { class: 'tag enf', text: 'enforced' }) : null, ' ',
                 r.case_sensitive ? h('span', { class: 'tag', text: 'Aa' }) : null, ' ',
                 r.strategy ? h('span', { class: 'tag', text: r.strategy }) : null),
-              h('td', { class: 'hint', text: r.note || '' }),
+              h('td', { class: 'hint' },r.note || '',
+                /^(learn-|review-|discovery-)/.test(r.id||'')?workButton('Исходные находки',()=>openRuleFindings(r.id,set.scope)):null),
               h('td', {}, h('button', {
                 class: 'small danger',
                 onclick: async () => {
@@ -1026,7 +1067,7 @@ async function startApp() {
     await loadInfo();
   } catch (e) { fail(e); }
   const tab = location.hash.slice(1);
-  showTab(tab === 's1' ? 'analysis' : TABS[tab] ? tab : 'overview', false);
+  showTab(tab || 'overview', false);
   renderAdhoc();
   renderMask();
 }

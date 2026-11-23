@@ -4,6 +4,7 @@ Python 3.12+. Pillow/pypdfium2 are optional for image/PDF input.
 """
 import argparse
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import contextlib
 import errno
 import hashlib
@@ -37,6 +38,12 @@ try:
     strict_json
 except NameError:
     from kaponir_inference import plan_text, document_hint, strict_json
+
+
+try:
+    hardware_snapshot
+except NameError:
+    from benchmark_resources import hardware_snapshot, cgroup_snapshot, read_process
 
 
 def inference_settings(value):
@@ -493,6 +500,12 @@ class Worker:
         self.runtime_lock = threading.RLock()
         self.evaluation_condition = threading.Condition(self.lock)
         self.evaluations = {}
+        self.hardware = hardware_snapshot()
+        self.last_cpu_sample = None
+        self.last_performance = {}
+        self.calibration = {'state':'idle','trials':[]}
+        self.calibrating = False
+        self.waiting_evaluations = 0
         self.evaluation_limit = 1
         self.process_slots = 1
         self.process_context_tokens = 0
@@ -568,6 +581,14 @@ class Worker:
         with self.connection() as db:
             rows=[json.loads(r[0]) for r in db.execute('SELECT body FROM jobs ORDER BY created DESC LIMIT 200')]
             return [{k:v for k,v in j.items() if k!='files'} for j in rows]
+
+    def workspace_jobs(self, limit=None):
+        # Evaluate calls are already accounted for by the parent proxy job.
+        columns = ('id','kind','source','state','model','error','created','updated','stage','progress_total','progress','total','completed')
+        with self.connection() as db:
+            query = "SELECT body FROM jobs WHERE json_extract(body,'$.kind') != 'evaluate' ORDER BY created DESC"
+            rows = db.execute(query) if limit is None else db.execute(query + ' LIMIT ?', (limit,))
+            return [{key: job.get(key) for key in columns} for (raw,) in rows for job in [json.loads(raw)]]
 
     def get(self, ident):
         with self.connection() as db:
@@ -794,7 +815,7 @@ class Worker:
         runtime = self.runtime_info()
         return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'token_planning':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'runtime_json_schema_supported':self.process_supports_json_schema,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],'catalog':catalog,'hf_import':True,
                 'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
-                'threads':self.cfg['threads'],'max_pages':self.cfg['max_pages'],'active':self.active,'evaluations':len(self.evaluations),'jobs':[j for j in self.jobs() if j['kind'] != 'evaluate']}
+                'threads':self.cfg['threads'],'hardware':self.hardware,'calibration':dict(self.calibration),'active_model':self.process_variant,'slots':self.process_slots,'max_pages':self.cfg['max_pages'],'active':self.active,'evaluations':len(self.evaluations),'jobs':[j for j in self.jobs() if j['kind'] != 'evaluate']}
 
     def scan(self, ident, source):
         path=self.resolve(source)
@@ -1028,16 +1049,98 @@ class Worker:
         raise ValueError('Image/PDF scan OCR requires tesseract installed in PATH')
 
     def resources(self):
-        def rss(pid):
-            if platform.system() != 'Linux': return None
-            try: return int(Path('/proc', str(pid), 'statm').read_text().split()[1]) * os.sysconf('SC_PAGE_SIZE')
-            except (OSError, ValueError, IndexError): return 0
-        own = rss(os.getpid())
-        model_process, ocr_process = self.process, self.ocr_process
-        model = rss(model_process.pid) if model_process and model_process.poll() is None else 0
-        ocr = rss(ocr_process.pid) if ocr_process and ocr_process.poll() is None else 0
-        return {'worker_rss_bytes':own, 'model_rss_bytes':model, 'ocr_rss_bytes':ocr,
-                'total_rss_bytes':None if own is None or model is None or ocr is None else own+model+ocr}
+        worker = read_process(os.getpid())
+        model_pid = self.process.pid if self.process and self.process.poll() is None else None
+        model = read_process(model_pid) if model_pid else {}
+        ocr_pid = self.ocr_process.pid if self.ocr_process and self.ocr_process.poll() is None else None
+        ocr = read_process(ocr_pid) if ocr_pid else {}
+        own = worker.get('rss_bytes')
+        rss = model.get('rss_bytes') if model_pid else 0
+        ocr_rss = ocr.get('rss_bytes') if ocr_pid else 0
+        now = time.monotonic()
+        cpu = None
+        with self.lock:
+            previous = self.last_cpu_sample
+            if model.get('available') and previous and previous[0] == model['start_time_ticks'] and now > previous[1]:
+                cpu = round(max(0,model['cpu_seconds']-previous[2])/(now-previous[1]),3)
+            if model.get('available'):
+                self.last_cpu_sample = (model['start_time_ticks'],now,model['cpu_seconds'])
+        available = None
+        try:
+            match = re.search(r'^MemAvailable:\s+(\d+) kB',Path('/proc/meminfo').read_text(),re.M)
+            if match:
+                available = int(match[1])*1024
+        except OSError:
+            pass
+        limit = self.hardware.get('effective_cgroup_memory_limit_bytes')
+        used = cgroup_snapshot().get('memory_current_bytes')
+        if limit is not None and used is not None:
+            available = min(available if available is not None else limit, max(0,limit-used))
+        peak = None
+        if model_pid:
+            try:
+                match = re.search(r'^VmHWM:\s+(\d+) kB',Path('/proc',str(model_pid),'status').read_text(),re.M)
+                peak = int(match[1])*1024 if match else None
+            except OSError:
+                pass
+        return {'worker_rss_bytes':own,'model_rss_bytes':rss,'ocr_rss_bytes':ocr_rss,
+                'total_rss_bytes':sum((own,rss,ocr_rss)) if None not in (own,rss,ocr_rss) else None,
+                'model_cpu_cores':cpu,'model_peak_rss_bytes':peak,'available_bytes':available,
+                'active_threads':getattr(self,'process_threads',None),'active_requests':len(self.evaluations),**self.last_performance}
+
+    def start_calibration(self, body):
+        model = self.canonical_model(body.get('model') or self.cfg['model'])
+        if not self.enabled or self.model_checks.get(model,{}).get('state') != 'ready':
+            raise ValueError('model_not_ready')
+        inference = inference_settings(body.get('inference') or {})
+        with self.evaluation_condition:
+            if self.active or self.evaluations or self.calibrating:
+                raise ValueError('worker_busy')
+            self.calibrating = True
+            self.calibration = {'state':'running','model':model,'trials':[],'recommended_slots':None}
+        def measure():
+            try:
+                hardware = self.hardware
+                cores = min((v for v in (hardware.get('effective_cgroup_cpu_quota_cores'),hardware.get('affinity_logical_cpus'),hardware.get('host_logical_cpus')) if v),default=1)
+                request = {'model':model,'prompt':'Return a JSON object with ok set to true.',
+                           'schema':{'type':'object','properties':{'ok':{'type':'boolean'}},'required':['ok']},
+                           'input':{'text':'Synthetic CPU calibration'},'inference':inference,'timeout_seconds':120}
+                best_rate = 0
+                for slots in (1,2,4,8):
+                    if slots > max(1,int(cores)) or self.stop.is_set() or self.waiting_evaluations:
+                        break
+                    memory = self.resources()
+                    headroom = memory.get('available_bytes')
+                    size = self.model_files()[model][1] or 0
+                    required = (size if self.process_variant!=model else 0) + max(256*1024**2,(memory.get('model_rss_bytes') or size)//4)*slots
+                    if headroom is not None and required > headroom*.8:
+                        break
+                    if slots > 1 and headroom is None:
+                        break
+                    trial = {**request,'parallelism':slots}
+                    self.evaluate(trial,calibration=True)
+                    started = time.monotonic()
+                    with ThreadPoolExecutor(max_workers=slots) as pool:
+                        replies = list(pool.map(lambda _:self.evaluate(trial,calibration=True),range(max(4,slots))))
+                    if not all(r.get('ok') is True for r in replies):
+                        raise ValueError('invalid_model_response')
+                    rate = len(replies)/max(.001,time.monotonic()-started)
+                    with self.lock:
+                        self.calibration['trials'].append({'slots':slots,'requests_per_second':round(rate,3),'model_rss_bytes':self.resources()['model_rss_bytes']})
+                        if rate > best_rate*1.05:
+                            self.calibration['recommended_slots'] = slots
+                            best_rate = rate
+                        else:
+                            break
+                self.calibration['state'] = 'succeeded' if self.calibration['trials'] else 'insufficient_resources'
+            except Exception:
+                self.calibration['state'] = 'failed'
+            finally:
+                with self.evaluation_condition:
+                    self.calibrating = False
+                    self.evaluation_condition.notify_all()
+        threading.Thread(target=measure,name='cpu-calibration',daemon=True).start()
+        return dict(self.calibration)
 
     def suggest_privacy_spans(self, body):
         text = body.get('text')
@@ -1098,7 +1201,7 @@ class Worker:
                 break
         return reply
 
-    def evaluate(self, body, *, trained_prompt=False):
+    def evaluate(self, body, *, trained_prompt=False, calibration=False):
         if not self.enabled: raise ValueError('worker is disabled')
         model = self.canonical_model(body.get('model', self.cfg['model']))
         slots = body.get('parallelism', 1)
@@ -1119,6 +1222,13 @@ class Worker:
         probe = body.get('operation') == 'probe'
         deadline = time.monotonic() + timeout
         with self.evaluation_condition:
+            if self.calibrating and not calibration:
+                self.waiting_evaluations += 1
+                try:
+                    while self.calibrating and self.enabled and not self.stop.is_set():
+                        self.evaluation_condition.wait(.2)
+                finally:
+                    self.waiting_evaluations -= 1
             while self.active is not None or (self.evaluations and
                   (len(self.evaluations) >= slots or self.evaluation_profile != profile)):
                 if not self.enabled or self.stop.is_set(): raise ValueError('worker is disabled')
@@ -1201,6 +1311,8 @@ class Worker:
             self.last_inference_at = time.time()
             self.update(ident, state='succeeded')
             telemetry['seconds']=round(time.monotonic()-started,3)
+            self.last_performance={'wait_seconds':round(started-(deadline-timeout),3),'response_seconds':telemetry['seconds'],
+                                   'tokens_per_second':round(usage['completion_tokens']/max(.001,telemetry['seconds']),2) if isinstance(usage.get('completion_tokens'),int) else None}
             return {'result':value,'telemetry':telemetry} if body.get('telemetry') else value
         except urllib.error.HTTPError as exc:
             self.update(ident, state='failed')
@@ -1432,7 +1544,7 @@ class Worker:
     def process_one(self, ident):
         with self.inference_lock:
             with self.evaluation_condition:
-                while self.evaluations:
+                while self.evaluations or self.calibrating:
                     if not self.enabled or self.stop.is_set(): return
                     self.evaluation_condition.wait(.2)
                 if not self.enabled: return
@@ -1494,6 +1606,9 @@ def handler(worker, token):
                 if self.headers.get('Origin') and self.headers['Origin']!='http://'+self.headers.get('Host',''):
                     raise ValueError('cross-origin worker request rejected')
                 path=urllib.parse.urlsplit(self.path).path
+                if self.command=='GET' and path=='/workspace/jobs':
+                    self.respond(200,{'online': True, 'jobs': worker.workspace_jobs()})
+                    return
                 if self.command=='GET' and path in ['/status','/health']:
                     self.respond(200,worker.status() if path=='/status' else {'ok':True});return
                 if self.command!='POST':raise ValueError('unknown route')
@@ -1504,6 +1619,7 @@ def handler(worker, token):
                 if not isinstance(body,dict):raise ValueError('expected JSON object')
                 if path=='/enable':result=worker.activate(True)
                 elif path=='/disable':result=worker.activate(False)
+                elif path=='/calibrate':result=worker.start_calibration(body)
                 elif path=='/evaluate':result=worker.evaluate(body)
                 elif path=='/privacy-suggest':result=worker.suggest_privacy_spans(body)
                 elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'),body.get('inference'),body.get('timeout_seconds'),body.get('scenario'))

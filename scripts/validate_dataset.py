@@ -1,4 +1,4 @@
-"""Exercise the optional review notebook in an existing, isolated console session."""
+"""Check migration of the historical browser notebook with original UTF-8 offsets."""
 
 import json
 from pathlib import Path
@@ -11,16 +11,12 @@ def check_dataset_ui(page):
     assert page.url.endswith('#dataset')
     assert page.get_by_role('heading', name='Датасет', exact=True).is_visible()
     assert not page.locator('#dataset-create').is_visible()
+    notebook = page.locator('.legacy-notebook')
+    notebook.locator('summary').click()
     assert not toggle.is_checked()
     toggle.check()
-    page.locator('[data-tab="review"]').click()
-    page.locator('#review-list .review-card').first.get_by_role('button', name='В датасет').click()
-    assert page.locator('#dataset-dialog').is_visible()
-    page.locator('#dataset-close').click()
-
     text = '🧾 Учебная цена 517 USD. Закрытая цена 517 USD.'
     value = '517 USD'
-    dataset_nav.click()
     page.locator('#dataset-create').click()
     editor = page.locator('#dataset-text')
     editor.fill(text)
@@ -37,17 +33,16 @@ def check_dataset_ui(page):
     page.locator('#dataset-dialog').wait_for(state='hidden')
     page.reload()
     assert page.url.endswith('#dataset')
+    notebook.locator('summary').click()
     page.locator('#dataset-count').filter(has_text='Сохранено примеров: 1').wait_for()
     assert toggle.is_checked()
-    page.locator('[data-tab="settings"]').click()
-    page.locator('#tab-settings').get_by_role('button', name='Датасет', exact=True).click()
-    assert page.url.endswith('#dataset')
+    page.locator('#dataset-migrate').click()
+    checked = page.locator('#vault-dataset').get_by_role('button', name=text, exact=True)
+    checked.wait_for()
+    checked.click()
+    assert page.get_by_role('textbox', name='Исходный фрагмент').input_value() == text
     toggle.uncheck()
     assert not page.locator('#dataset-create').is_visible()
-    page.locator('[data-tab="review"]').click()
-    assert not page.locator('#dataset-new').is_visible()
-    assert not page.locator('#review-list').get_by_role('button',name='В датасет').count()
-    dataset_nav.click()
     assert page.evaluate('''async () => {
         try { await storeDatasetExample("disabled", []); } catch { return true; }
         return false;
@@ -62,3 +57,6 @@ def check_dataset_ui(page):
     assert [s['start_byte'] for s in spans] == [text.encode().find(value.encode()), text.encode().rfind(value.encode())]
     assert [s['action'] for s in spans] == ['keep', 'mask']
     assert all(text.encode()[s['start_byte']:s['end_byte']].decode() == value for s in spans)
+    page.locator('[data-tab="review"]').click()
+    page.locator('#review-list .finding-value').first.click()
+    assert page.locator('#finding-detail').get_by_role('button', name='В датасет', exact=True).is_visible()

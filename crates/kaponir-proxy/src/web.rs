@@ -16,7 +16,7 @@ use kaponir_core::rules::{Rule, RuleAction};
 use kaponir_core::{Escape, Format, Input, Known, MaskOptions, Scope, Strategy, TokenForm};
 use kaponir_vault::JournalRow;
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{Value, json};
 
 use crate::Shared;
 use crate::server::{ApiError, authorized, error, internal};
@@ -111,6 +111,15 @@ pub(crate) fn routes() -> Router<Shared> {
                 asset(
                     include_str!("../assets/help.js"),
                     "text/javascript; charset=utf-8",
+                )
+            }),
+        )
+        .route(
+            "/ui/workspace.js",
+            get(|| async {
+                (
+                    [(header::CONTENT_TYPE, "text/javascript; charset=utf-8")],
+                    include_str!("../assets/workspace.js"),
                 )
             }),
         )
@@ -623,7 +632,11 @@ async fn discovery_profile(State(st): State<Shared>, headers: HeaderMap) -> ApiR
     let profile = st
         .with_vault(|_, v| crate::discovery::load(v))
         .map_err(internal)?;
-    Ok(Json(json!({"report":profile.report(), "labels":profile.feedback.len()})).into_response())
+    let report = profile.report();
+    let keys = crate::learning::document_keys(&report);
+    let mut result = serde_json::to_value(report).map_err(|e| internal(e.into()))?;
+    result["finding_keys"] = json!(keys);
+    Ok(Json(json!({"report":result, "labels":profile.feedback.len()})).into_response())
 }
 
 async fn discover(
@@ -634,7 +647,7 @@ async fn discover(
     authorized(&st, &headers, true)?;
     kaponir_core::discover::validate_documents(&req.documents).map_err(bad)?;
     let engine = st.engine();
-    let mut report = tokio::task::spawn_blocking(move || {
+    let report = tokio::task::spawn_blocking(move || {
         kaponir_core::discover::analyze_with_options(
             &engine,
             &req.documents,
@@ -643,21 +656,28 @@ async fn discover(
     })
     .await
     .map_err(|e| internal(e.into()))?;
-    if req.remember {
-        report = st
-            .with_vault(|_, v| {
-                crate::discovery::update(v, |profile| {
-                    profile.merge(&report).map_err(anyhow::Error::msg)?;
-                    let mut combined = profile.report();
-                    combined.s1_status = report.s1_status;
-                    combined.s1_scored = report.s1_scored;
-                    combined.truncated = report.truncated;
-                    Ok(combined)
-                })
+    Ok(Json(discovery_result(&st, report, req.remember)?).into_response())
+}
+
+fn discovery_result(
+    st: &Shared,
+    report: kaponir_core::discover::Report,
+    remember: bool,
+) -> Result<Value, ApiError> {
+    let keys = if remember {
+        st.with_vault(|_, v| {
+            crate::discovery::update(v, |profile| {
+                profile.merge(&report).map_err(anyhow::Error::msg)?;
+                crate::learning::retain_findings(v, &report)
             })
-            .map_err(bad)?;
-    }
-    Ok(Json(report).into_response())
+        })
+        .map_err(bad)?
+    } else {
+        Vec::new()
+    };
+    let mut result = serde_json::to_value(report).map_err(|e| internal(e.into()))?;
+    result["finding_keys"] = json!(keys);
+    Ok(result)
 }
 
 async fn apply_discover(
@@ -669,6 +689,7 @@ async fn apply_discover(
     kaponir_core::discover::validate_documents(&req.documents).map_err(bad)?;
     // Client supplies IDs, never values, scores or training labels. Applying does not call S1.
     let fresh = (!req.saved).then(|| kaponir_core::discover::analyze(&st.engine(), &req.documents));
+    let _guard = st.rule_changes.lock().await;
     let applied = st
         .with_vault(|_, v| {
             crate::discovery::update(v, |profile| {
@@ -680,9 +701,32 @@ async fn apply_discover(
                     .map_err(anyhow::Error::msg)?;
                 if req.action == DiscoverAction::Mask {
                     let ctl = control(&st).map_err(|_| anyhow::anyhow!("rules are read-only"))?;
-                    for rule in &rules {
-                        ctl.add_rule(req.scope, rule.clone())?;
+                    let existing = ctl
+                        .rules()?
+                        .into_iter()
+                        .filter(|s| s.scope == req.scope)
+                        .flat_map(|s| s.file.rules)
+                        .map(|r| (r.id.clone(), r))
+                        .collect::<std::collections::HashMap<_, _>>();
+                    let mut additions = Vec::new();
+                    for (suggestion, mut rule) in req.ids.iter().zip(rules.iter().cloned()) {
+                        rule.id = format!("discovery-{}-{suggestion}", req.scope);
+                        if let Some(old) = existing.get(&rule.id) {
+                            anyhow::ensure!(
+                                serde_json::to_value(old)? == serde_json::to_value(&rule)?,
+                                "rule_was_edited"
+                            );
+                        } else {
+                            additions.push(rule);
+                        }
                     }
+                    for rule in additions {
+                        ctl.add_rule(req.scope, rule)?;
+                    }
+                } else {
+                    let mut selected = report;
+                    selected.suggestions.retain(|s| req.ids.contains(&s.id));
+                    crate::learning::reject_document_findings(v, &selected)?;
                 }
                 Ok(rules.len())
             })
@@ -702,7 +746,10 @@ async fn apply_discover(
         report.suggestions.retain(|s| !req.ids.contains(&s.id));
         report
     };
-    Ok(Json(json!({"applied":applied,"scope":req.scope,"report":report})).into_response())
+    let keys = crate::learning::document_keys(&report);
+    let mut result = serde_json::to_value(report).map_err(|e| internal(e.into()))?;
+    result["finding_keys"] = json!(keys);
+    Ok(Json(json!({"applied":applied,"scope":req.scope,"report":result})).into_response())
 }
 
 #[derive(Deserialize, Default)]
@@ -776,9 +823,7 @@ async fn discover_sessions(
     let (documents, truncated) = session_documents(&st);
     let docs_count = documents.len();
     if documents.is_empty() {
-        let report = st
-            .with_vault(|_, v| Ok(crate::discovery::load(v)?.report()))
-            .map_err(internal)?;
+        let report = kaponir_core::discover::Report::default();
         return Ok(
             Json(json!({"documents_analyzed": 0, "sessions_analyzed":0,"report": report}))
                 .into_response(),
@@ -796,20 +841,7 @@ async fn discover_sessions(
     .await
     .map_err(|e| internal(e.into()))?;
     report.truncated |= truncated;
-    if req.remember {
-        report = st
-            .with_vault(|_, v| {
-                crate::discovery::update(v, |profile| {
-                    profile.merge(&report).map_err(anyhow::Error::msg)?;
-                    let mut combined = profile.report();
-                    combined.s1_status = report.s1_status;
-                    combined.s1_scored = report.s1_scored;
-                    combined.truncated = report.truncated;
-                    Ok(combined)
-                })
-            })
-            .map_err(bad)?;
-    }
+    let report = discovery_result(&st, report, req.remember)?;
     Ok(Json(
         json!({"documents_analyzed": docs_count, "sessions_analyzed":docs_count,"report": report}),
     )

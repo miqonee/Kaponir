@@ -426,7 +426,7 @@ fn store_job(v: &SqliteVault, j: &Job) -> anyhow::Result<()> {
         v,
         &format!("meta:{}", j.id),
         "learning-job-meta",
-        &json!({"id":j.id,"name":j.name,"model":j.model,"kind":j.kind,"state":j.state,"created":j.created,"updated":j.updated,"extracted":j.extracted,"error":j.error,"inference":j.inference,"retryable":!j.source.is_empty()&&j.state=="failed"}),
+        &json!({"id":j.id,"name":j.name,"model":j.model,"scenario":j.scenario,"kind":j.kind,"state":j.state,"created":j.created,"updated":j.updated,"extracted":j.extracted,"error":j.error,"inference":j.inference,"retryable":!j.source.is_empty()&&j.state=="failed"}),
     )
 }
 const ENTRY_STATES: &[&str] = &[
@@ -465,7 +465,10 @@ fn store_entry(v: &SqliteVault, e: &Entry) -> anyhow::Result<()> {
     }
     Ok(())
 }
-fn transaction<T>(v: &SqliteVault, f: impl FnOnce() -> anyhow::Result<T>) -> anyhow::Result<T> {
+pub(crate) fn transaction<T>(
+    v: &SqliteVault,
+    f: impl FnOnce() -> anyhow::Result<T>,
+) -> anyhow::Result<T> {
     v.begin()?;
     match f() {
         Ok(value) => {
@@ -769,7 +772,7 @@ pub(crate) fn enqueue_event(
         return Ok(());
     }
     let job = Job {
-        scenario: None,
+        scenario: Some(settings.categorization.scenario),
         id: format!("learning:job:turn:{:020}", event.id),
         name: format!("{} · {}", session, event.id),
         model: settings.analysis.model.clone(),
@@ -796,6 +799,10 @@ pub(crate) fn enqueue_event(
 pub(crate) fn routes() -> Router<Shared> {
     Router::new()
         .route("/api/v1/ui/analysis", get(get_analysis).put(put_analysis))
+        .route(
+            "/api/v1/ui/workspace/model",
+            get(workspace_model).put(set_workspace_model),
+        )
         .route("/api/v1/ui/analysis/test", post(test_analysis))
         .route(
             "/api/v1/ui/categorization",
@@ -923,6 +930,110 @@ fn bad(e: anyhow::Error) -> ApiError {
         code,
     )
 }
+#[derive(Deserialize)]
+struct WorkspaceModel {
+    #[serde(default)]
+    use_analysis_api: bool,
+    analysis_timeout: Option<u64>,
+    categorization_timeout_ms: Option<u64>,
+    chunking: Option<ChunkSettings>,
+    model: Option<String>,
+    slots: Option<usize>,
+    scenario: Option<Scenario>,
+    analysis_inference: Option<InferenceSettings>,
+    categorization_inference: Option<InferenceSettings>,
+}
+async fn workspace_model(
+    AxumState(st): AxumState<Shared>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    let settings = st.learning.snapshot();
+    let previous = st
+        .with_vault(|_, v| {
+            Ok(v.private_setting("workspace:previous-slots")?
+                .and_then(|b| serde_json::from_slice::<usize>(&b).ok()))
+        })
+        .map_err(internal)?;
+    Ok(Json(
+        json!({"analysis":review_source(&st,"analysis").ok(),"categorization":review_source(&st,"categorization").ok(),
+        "slots":settings.analysis.parallelism,"previous_slots":previous}),
+    ))
+}
+async fn set_workspace_model(
+    AxumState(st): AxumState<Shared>,
+    headers: HeaderMap,
+    Json(change): Json<WorkspaceModel>,
+) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    let _guard = st.learning_changes.lock().await;
+    let mut settings = st.learning.snapshot();
+    let shared_api = change.use_analysis_api;
+    if shared_api {
+        if change.model.is_some() || settings.analysis.provider != "api" {
+            return Err(bad(anyhow::anyhow!("invalid_review_source")));
+        }
+        let source = &settings.analysis;
+        settings.categorization.provider = "s1".into();
+        settings.categorization.http = kaponir_s1::http::HttpSettings {
+            model: Some(source.model.clone()),
+            url: source.url.clone(),
+            protocol: kaponir_s1::http::HttpProtocol::Openai,
+            timeout_ms: source.timeout_seconds * 1000,
+            ..Default::default()
+        };
+        settings.categorization.inference = source.inference.clone();
+    }
+    if let Some(model) = change.model {
+        if settings.analysis.provider == "none" && !settings.analysis.enabled {
+            settings.analysis.enabled = true;
+            settings.analysis.background = false;
+            settings.analysis.auto_apply = false;
+        }
+        validate_model(&model).map_err(bad)?;
+        settings.analysis.provider = "local".into();
+        settings.analysis.model = model.clone();
+        settings.categorization.provider = "local".into();
+        settings.categorization.model = model;
+        if let Some(v) = change.chunking {
+            settings.analysis.chunking = v;
+        }
+        if let Some(v) = change.analysis_timeout {
+            settings.analysis.timeout_seconds = v;
+        }
+        if let Some(v) = change.categorization_timeout_ms {
+            settings.categorization.http.timeout_ms = v;
+        }
+        if let Some(v) = change.scenario {
+            settings.categorization.scenario = v;
+        }
+        if let Some(v) = change.analysis_inference {
+            settings.analysis.inference = v;
+        }
+        if let Some(v) = change.categorization_inference {
+            settings.categorization.inference = v;
+        }
+    }
+    if let Some(slots) = change.slots {
+        settings.analysis.parallelism = slots;
+    }
+    validate_analysis(&settings.analysis).map_err(bad)?;
+    validate_categorization(&settings.categorization).map_err(bad)?;
+    save_settings(
+        &st,
+        if shared_api {
+            "workspace-api"
+        } else {
+            "workspace"
+        },
+        settings,
+        None,
+        false,
+    )
+    .map_err(bad)?;
+    workspace_model(AxumState(st.clone()), headers).await
+}
+
 async fn get_analysis(
     AxumState(st): AxumState<Shared>,
     h: HeaderMap,
@@ -991,6 +1102,21 @@ fn save_settings(
             } else if let Some(k) = new_key {
                 anyhow::ensure!(!k.contains(['\n', '\r']) && k.len() <= 8192, "invalid_key");
                 v.set_private_setting(&format!("learning:{role}:key"), k.as_bytes())?;
+            }
+            if role == "workspace-api" {
+                if let Some(token) = v.private_setting("learning:analysis:key")? {
+                    v.set_private_setting("learning:categorization:key", &token)?;
+                } else {
+                    v.delete_private_setting("learning:categorization:key")?;
+                }
+            }
+            if role.starts_with("workspace")
+                && settings.analysis.parallelism != previous.analysis.parallelism
+            {
+                v.set_private_setting(
+                    "workspace:previous-slots",
+                    &serde_json::to_vec(&previous.analysis.parallelism)?,
+                )?;
             }
             v.set_private_setting(SETTINGS, &serde_json::to_vec(&settings)?)?;
             v.commit()?;
@@ -1185,6 +1311,10 @@ async fn api_model(
     } else {
         s.url.clone()
     };
+    let _slot = st
+        .api_slots
+        .acquire(st.learning.snapshot().analysis.parallelism)
+        .await;
     let started = std::time::Instant::now();
     let prompt = api_prompt(prompt, &schema);
     let mut body = json!({
@@ -1493,7 +1623,7 @@ async fn test_analysis(
             &st,
             &s.model,
             &s.inference,
-            s.parallelism as usize,
+            s.parallelism,
             s.timeout_seconds,
         )
         .await
@@ -1539,7 +1669,7 @@ async fn test_categorization(
             &st,
             &s.model,
             &s.inference,
-            st.learning.snapshot().analysis.parallelism as usize,
+            st.learning.snapshot().analysis.parallelism,
             s.http.timeout_ms.div_ceil(1000),
         )
         .await
@@ -1643,7 +1773,7 @@ async fn documents(
                         )
                     );
                     let job = Job {
-                        scenario: req.scenario,
+                        scenario: Some(categorization.scenario),
                         id: id.clone(),
                         name: d.name,
                         model: s.analysis.model.clone(),
@@ -1968,14 +2098,13 @@ fn portable_plan(
 // The benchmark selects the log policy by file type before splitting a document.
 fn document_settings(settings: &AnalysisSettings, name: &str) -> AnalysisSettings {
     let mut result = settings.clone();
-    if let Some(g) = &mut result.inference.local_generation {
-        if g.log_target.is_some()
+    if let Some(g) = &mut result.inference.local_generation
+        && (g.log_target.is_some()
             || g.log_temperature.is_some()
             || g.log_repeat_penalty.is_some()
-            || g.log_hints.is_some()
-        {
-            g.is_log = Some(name.to_ascii_lowercase().ends_with(".log"));
-        }
+            || g.log_hints.is_some())
+    {
+        g.is_log = Some(name.to_ascii_lowercase().ends_with(".log"));
     }
     result
 }
@@ -1997,12 +2126,11 @@ async fn plan_chunks(
         if let Some(code) = reply["error"].as_str() {
             anyhow::bail!(code.to_string());
         }
-        if let Some(thinking) = reply["enable_thinking"].as_bool() {
-            if let Some(g) = &mut settings.inference.local_generation {
-                if g.thinking_source_cutoff.is_some() {
-                    g.enable_thinking = Some(thinking);
-                }
-            }
+        if let Some(thinking) = reply["enable_thinking"].as_bool()
+            && let Some(g) = &mut settings.inference.local_generation
+            && g.thinking_source_cutoff.is_some()
+        {
+            g.enable_thinking = Some(thinking);
         }
         if let Some(fragments) = reply.get("fragments") {
             let fragments: Vec<Fragment> = serde_json::from_value(fragments.clone())?;
@@ -2046,9 +2174,66 @@ fn document_context(source: &str, excerpt: &str) -> String {
     lines.join("\n").chars().take(650).collect()
 }
 
+fn document_findings(report: &kaponir_core::discover::Report) -> impl Iterator<Item = Entry> + '_ {
+    report.suggestions.iter().flat_map(|suggestion| {
+        suggestion.examples.iter().map(move |example| {
+            let occurrence = format!(
+                "document/{}/{}/{}",
+                example.document_id, example.start, example.end
+            );
+            let mut entry = new_entry(
+                &occurrence,
+                &example.document,
+                &example.context,
+                &suggestion.value,
+                &suggestion.kind,
+                None,
+                "",
+            );
+            entry.quote = example.context.clone();
+            entry.reason = suggestion.reason.clone();
+            entry.categorization_state = "not_run".into();
+            entry
+        })
+    })
+}
+pub(crate) fn reject_document_findings(
+    v: &SqliteVault,
+    report: &kaponir_core::discover::Report,
+) -> anyhow::Result<()> {
+    for item in document_findings(report) {
+        if let Some(mut existing) = record::<Entry>(v, &item.id)?
+            && existing.state == "pending"
+        {
+            existing.state = "rejected".into();
+            existing.updated = now_ms();
+            store_entry(v, &existing)?;
+        }
+    }
+    Ok(())
+}
+pub(crate) fn document_keys(report: &kaponir_core::discover::Report) -> Vec<String> {
+    document_findings(report)
+        .map(|entry| format!("learning:{}", entry.id))
+        .collect()
+}
+pub(crate) fn retain_findings(
+    v: &SqliteVault,
+    report: &kaponir_core::discover::Report,
+) -> anyhow::Result<Vec<String>> {
+    document_findings(report)
+        .map(|entry| {
+            if v.app_record(&entry.id)?.is_none() {
+                store_entry(v, &entry)?;
+            }
+            Ok(format!("learning:{}", entry.id))
+        })
+        .collect()
+}
+
 pub(crate) fn review_entries(st: &State) -> anyhow::Result<Vec<Value>> {
     st.with_vault(|_, v| {
-        learning_entries(v, 1000, true)?
+        learning_entries(v, i64::MAX as usize, true)?
             .into_iter()
             .map(|entry| Ok(serde_json::to_value(entry)?))
             .collect()
@@ -2081,22 +2266,87 @@ pub(crate) fn review_source(st: &State, source: &str) -> anyhow::Result<Value> {
         )
     };
     anyhow::ensure!(provider != "none", "analysis_provider_required");
+    let endpoint = if role == "analysis" {
+        &settings.analysis.url
+    } else {
+        &settings.categorization.http.url
+    };
+    let connection = if provider == "local" {
+        "CPU".to_owned()
+    } else {
+        reqwest::Url::parse(endpoint)
+            .ok()
+            .map(|url| url.origin().ascii_serialization())
+            .unwrap_or_default()
+    };
+    let binding = if provider == "local" {
+        "cpu".to_owned()
+    } else {
+        let protocol = if role == "analysis" {
+            json!("openai")
+        } else {
+            json!(settings.categorization.http.protocol)
+        };
+        let route = endpoint
+            .trim_end_matches('/')
+            .trim_end_matches("/chat/completions");
+        digest(&json!([protocol, route]).to_string())
+    };
     Ok(
-        json!({"role":role,"provider":provider,"model":model,"scenario":if role=="categorization" {settings.categorization.scenario} else {Scenario::Standard},"revision":settings.revision}),
+        json!({"role":role,"provider":provider,"model":model,"connection":connection,"connection_id":binding,"scenario":if role=="categorization" {settings.categorization.scenario} else {Scenario::Standard},"revision":settings.revision}),
     )
+}
+
+pub(crate) fn review_configuration(
+    st: &State,
+    role: &str,
+    mode: Option<&str>,
+) -> anyhow::Result<Value> {
+    let mut source = review_source(st, role)?;
+    let supported =
+        source["role"] == "analysis" || supports_scenarios(&st.learning.snapshot().categorization);
+    source["supports_scenarios"] = json!(supported);
+    if let Some(mode) = mode {
+        let scenario: Scenario =
+            serde_json::from_value(json!(mode)).map_err(|_| anyhow::anyhow!("invalid_scenario"))?;
+        anyhow::ensure!(
+            scenario == Scenario::Standard || supported,
+            "scenario_requires_llm"
+        );
+        source["scenario"] = json!(scenario);
+    }
+    Ok(source)
 }
 
 pub(crate) async fn review_infer(
     st: &Shared,
-    source: &str,
+    selected: &Value,
     items: Value,
     schema: Value,
 ) -> anyhow::Result<Value> {
-    let selected = review_source(st, source)?;
-    let settings = st.learning.snapshot();
+    let mut settings = st.learning.snapshot();
+    anyhow::ensure!(
+        selected["revision"] == settings.revision,
+        "configuration_changed"
+    );
+    settings.categorization.scenario = serde_json::from_value(selected["scenario"].clone())?;
     let role = selected["role"].as_str().unwrap();
     let token = st.with_vault(|_, v| key(v, role))?;
-    if role == "categorization" && settings.categorization.scenario != Scenario::Standard {
+    if settings.categorization.scenario != Scenario::Standard {
+        if role == "analysis" {
+            let a = &settings.analysis;
+            settings.categorization.provider =
+                if a.provider == "local" { "local" } else { "s1" }.into();
+            settings.categorization.model = a.model.clone();
+            settings.categorization.inference = a.inference.clone();
+            settings.categorization.http = kaponir_s1::http::HttpSettings {
+                model: Some(a.model.clone()),
+                url: a.url.clone(),
+                protocol: kaponir_s1::http::HttpProtocol::Openai,
+                timeout_ms: a.timeout_seconds * 1000,
+                ..Default::default()
+            };
+        }
         let items = items
             .as_array()
             .ok_or_else(|| anyhow::anyhow!("invalid_classification_response"))?;

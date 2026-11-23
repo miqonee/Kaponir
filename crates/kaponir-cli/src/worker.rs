@@ -50,14 +50,23 @@ pub fn run(
             "python3".into()
         }
     });
+    // A file-backed stdin also works under Windows' short command-line limit.
+    let code = concat!(
+        include_str!("../../../scripts/benchmark_resources.py"),
+        "\n",
+        include_str!("../../../scripts/kaponir_inference.py"),
+        "\n",
+        include_str!("../../../scripts/kaponir_worker.py")
+    );
+    let nonce = kaponir_vault::key_to_hex(&kaponir_vault::generate_key()?);
+    let path = std::env::temp_dir().join(format!("kaponir-worker-{nonce}.py"));
+    crate::write_secret(&path, code)?;
+    let script = std::fs::File::open(&path)?;
+    std::fs::remove_file(path)?;
     let mut command = std::process::Command::new(python);
     command
-        .arg("-c")
-        .arg(concat!(
-            include_str!("../../../scripts/kaponir_inference.py"),
-            "\n",
-            include_str!("../../../scripts/kaponir_worker.py")
-        ))
+        .stdin(script)
+        .arg("-")
         .args(args)
         .env("KAPONIR_HOME", &home.dir)
         .env("KAPONIR_EXECUTABLE", std::env::current_exe()?);

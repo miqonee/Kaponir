@@ -37,6 +37,49 @@ class WorkerTests(unittest.TestCase):
             time.sleep(.01)
         self.fail('model verification did not finish')
 
+    def test_calibration_respects_effective_cpu_and_memory(self):
+        worker = self.worker
+        worker.enabled = True
+        worker.model_checks['q4'] = {'state': 'ready'}
+        worker.hardware = {'host_logical_cpus': 24, 'effective_cgroup_cpu_quota_cores': 2}
+        samples = []
+        def evaluate(request, calibration=False):
+            self.assertTrue(calibration)
+            samples.append(request['parallelism'])
+            time.sleep(.01)
+            return {'ok': True}
+        def wait_for_result():
+            deadline = time.monotonic() + 5
+            while worker.calibrating and time.monotonic() < deadline:
+                time.sleep(.01)
+            self.assertFalse(worker.calibrating)
+            return worker.calibration
+        with patch.object(worker, 'evaluate', side_effect=evaluate), patch.object(worker, 'resources') as resources:
+            resources.return_value = {'available_bytes': 8 * 1024**3, 'model_rss_bytes': 0}
+            worker.start_calibration({'model':'q4'})
+            result = wait_for_result()
+            self.assertEqual([t['slots'] for t in result['trials']], [1,2])
+            self.assertIn(result['recommended_slots'], (1,2))
+            self.assertEqual(set(samples), {1,2})
+            samples.clear()
+            resources.return_value = {'available_bytes': 32 * 1024**2, 'model_rss_bytes': 0}
+            worker.start_calibration({'model':'q4'})
+            self.assertEqual(wait_for_result()['state'], 'insufficient_resources')
+            self.assertEqual(samples, [])
+            resources.return_value = {'available_bytes': None, 'model_rss_bytes': None}
+            worker.hardware = {}
+            worker.start_calibration({'model':'q4'})
+            self.assertEqual(wait_for_result()['recommended_slots'], 1)
+
+    def test_workspace_history_ignores_inference_jobs_before_paginating(self):
+        with self.worker.connection() as db:
+            for i in range(205):
+                row={'id':str(i),'kind':'scan' if i==0 else 'evaluate','state':'succeeded','source':'contract.txt','files':['private excerpt']}
+                db.execute('INSERT INTO jobs (id,created,updated,body) VALUES (?,?,?,?)',(str(i),i,i,json.dumps(row)))
+        jobs=self.worker.workspace_jobs()
+        self.assertEqual([j['id'] for j in jobs],['0'])
+        self.assertNotIn('files',jobs[0])
+
     def test_offline_verification_while_disabled_detects_same_size_corruption_and_restart(self):
         data = b'fixture-model'
         digest = hashlib.sha256(data).hexdigest()

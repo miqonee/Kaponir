@@ -121,7 +121,8 @@ def main():
                 page.on('pageerror', lambda error: errors.append(str(error)))
                 page.goto(base + '/ui/#overview')
                 page.locator('#summary-cards .metric-value').first.wait_for()
-                assert page.locator('#summary-cards').bounding_box()['y'] < 300
+                assert page.locator('.task-home').bounding_box()['y'] < 300
+                assert page.locator('#summary-cards').bounding_box()['y'] < 800
                 api('/api/v1/connections', {'kind': 'openai', 'name': 'Fixture', 'base_url': upstream, 'api_key': 'fixture-key', 'pool': True, 'models': ['fixture-model'], 'auto_models': False})
                 page.locator('#overview-refresh').click()
                 page.wait_for_function("() => document.querySelector('#welcome-banner').hidden")
@@ -132,7 +133,7 @@ def main():
                 thread = threading.Thread(target=lambda: responses.append(api('/v1/chat/completions', first, {'X-Kaponir-Session': 'console-session'})))
                 thread.start()
                 wait_for(lambda: api('/api/v1/metrics')['traffic']['active'])
-                page.locator('[data-tab="events"]').click()
+                page.locator('#tab-overview [data-go="events"]').first.click()
                 page.locator('#events-table .event-status.in_progress').first.wait_for()
                 thread.join(timeout=20)
                 assert not thread.is_alive()
@@ -173,7 +174,8 @@ def main():
                 assert api('/api/v1/anonymize', {'text':'character','session':'legacy-chat'})['text'] == 'character'
 
 
-                page.locator('[data-tab="analysis"]').click()
+                page.locator('[data-tab="settings"]').click()
+                page.locator('#tab-settings [data-go="analysis"]').click()
                 page.locator('#analysis-provider').select_option('api')
                 page.locator('#analysis-url').fill('http://127.0.0.1:9999/v1/chat/completions')
                 page.locator('#analysis-worker-toggle').click()
@@ -185,7 +187,8 @@ def main():
                 page.wait_for_function("() => document.querySelector('#worker-toggle').textContent==='Запустить обработку'")
                 assert not api('/api/v1/ui/worker')['enabled']
 
-                page.locator('[data-tab="discover"]').click()
+                page.locator('[data-tab="review"]').click()
+                page.locator('#tab-review [data-go="discover"]').click()
                 page.locator('#d-text').fill('Проект: Лунная Слива')
                 page.locator('#discover-input-pane .analysis-options summary').click()
                 page.locator('#d-remember').check()
@@ -201,7 +204,7 @@ def main():
                 page.locator('#language-switch label:has(input[value=en])').click()
                 page.wait_for_function("() => document.documentElement.lang==='en'")
                 assert page.locator('#d-text').input_value() == 'Проект: Лунная Слива'
-                assert page.locator('#page-title').inner_text() == 'Rules from documents'
+                assert page.locator('#page-title').inner_text() == 'Find values'
                 assert page.locator('#analysis-url').input_value() == 'http://127.0.0.1:9999/v1/chat/completions'
                 page.evaluate("showTab('overview')")
                 for theme in ['dark', 'light']:

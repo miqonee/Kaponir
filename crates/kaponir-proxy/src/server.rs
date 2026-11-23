@@ -49,6 +49,7 @@ pub fn router(state: Shared) -> Router {
         .merge(crate::worker::routes())
         .merge(crate::learning::routes())
         .merge(crate::review::routes())
+        .merge(crate::dataset::routes())
         .merge(crate::providers::routes())
         .layer(DefaultBodyLimit::max(64 << 20))
         .layer(middleware::from_fn_with_state(state.clone(), guard_host))

@@ -10,9 +10,11 @@ use axum::{
     http::{HeaderMap, StatusCode},
     routing::{get, post},
 };
+use futures_util::{StreamExt, stream};
 use kaponir_core::Scope;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::collections::{HashMap, HashSet};
 
 type ResultJson = Result<Json<Value>, ApiError>;
 fn bad(code: &str) -> ApiError {
@@ -46,7 +48,15 @@ fn fingerprint(item: &Value) -> String {
     .to_string()
 }
 pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
-    let rows = st.with_vault(|_, v| Ok(v.journal(None, 2000)?))?;
+    let rows = st.with_vault(|_, v| Ok(v.journal(None, i64::MAX as usize)?))?;
+    let mut events = HashMap::new();
+    for event in st.traffic.summary_snapshot().events {
+        for id in event.usage.review_ids {
+            events
+                .entry(id)
+                .or_insert((event.id, event.session_id.clone()));
+        }
+    }
     let mut all = Vec::new();
     for row in rows {
         let mut item = serde_json::to_value(&row)?;
@@ -56,7 +66,27 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
         item["state"] = json!(row.status);
         item["updated"] = json!(row.last_seen.saturating_mul(1000));
         item["protected"] = json!(row.category == "credential");
+        if let Some((event, session)) = events.get(&row.id) {
+            item["event_id"] = json!(event);
+            item["session"] = json!(session);
+            item["source_type"] = json!("session");
+        }
         all.push(item);
+    }
+    let mut document_rules = HashMap::new();
+    if let Some(ctl) = &st.control {
+        for set in ctl.rules()? {
+            for (index, rule) in set.file.rules.iter().enumerate() {
+                if !rule.disabled
+                    && rule.note.starts_with("kaponir discover:")
+                    && let Some(value) = &rule.value
+                {
+                    document_rules
+                        .entry((value.clone(), rule.kind.clone()))
+                        .or_insert(json!({"id":rule.id,"scope":set.scope,"index":index}));
+                }
+            }
+        }
     }
     for mut entry in learning::review_entries(st)? {
         entry["key"] = json!(format!(
@@ -64,29 +94,72 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
             entry["id"].as_str().unwrap_or_default()
         ));
         entry["origin"] = json!("learning");
+        let job_id = entry["job_id"].as_str().unwrap_or_default();
+        let session = job_id.starts_with("learning:job:turn:")
+            || (job_id.starts_with("document/")
+                && entry["source"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .starts_with("session-"));
+        if let Some(event) = job_id
+            .strip_prefix("learning:job:turn:")
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            entry["event_id"] = json!(event);
+        }
+        entry["source_type"] = json!(if session { "session" } else { "document" });
+        let pair = (
+            entry["value"].as_str().unwrap_or_default().to_owned(),
+            entry["kind"].as_str().unwrap_or_default().to_owned(),
+        );
+        if let Some(rule) = document_rules.get(&pair) {
+            entry["document_rule"] = rule.clone();
+            if entry["state"] == "pending" {
+                entry["state"] = json!("covered");
+            }
+        }
         entry["context"] = entry["quote"].clone();
         entry["protected"] = json!(entry["kind"] == "SECRET");
         all.push(entry);
     }
     let revision = st.learning.snapshot().revision;
+    let (mut recommendations, mut decisions, dataset) = st.with_vault(|_, v| {
+        let records = |kind: &str| -> anyhow::Result<HashMap<String, Value>> {
+            v.app_records(kind, i64::MAX as usize)?
+                .into_iter()
+                .map(|(id, data)| Ok((id, serde_json::from_slice(&data)?)))
+                .collect()
+        };
+        Ok((
+            records("review-recommendation")?,
+            records("review-decision")?,
+            v.app_record_ids("dataset-example")?
+                .into_iter()
+                .collect::<HashSet<_>>(),
+        ))
+    })?;
     for item in &mut all {
-        let key = item["key"].as_str().unwrap().to_string();
-        if let Some(mut rec) = read(st, &format!("review-rec:{key}"))? {
+        let key = item["key"].as_str().unwrap().to_owned();
+        if let Some(mut rec) = recommendations.remove(&format!("review-rec:{key}")) {
             if rec["revision"].as_u64() != Some(revision) || rec["fingerprint"] != fingerprint(item)
             {
                 rec["state"] = json!("stale");
             }
             item["recommendation"] = rec;
         }
-        if let Some(decision) = read(st, &format!("review-decision:{key}"))? {
+        if let Some(decision) = decisions.remove(&format!("review-decision:{key}")) {
             item["decision"] = decision;
         }
+        item["in_dataset"] = json!(dataset.contains(&crate::dataset::finding_id(item)));
     }
     Ok(all)
 }
 pub(crate) fn routes() -> Router<Shared> {
     Router::new()
         .route("/api/v1/ui/review", get(list))
+        .route("/api/v1/ui/review/selection", post(selection))
+        .route("/api/v1/ui/jobs", get(jobs))
+        .route("/api/v1/ui/review/jobs/{id}/retry", post(retry))
         .route("/api/v1/ui/review/jobs", post(submit))
         .route("/api/v1/ui/review/from-event", post(from_event))
         .route("/api/v1/ui/review/jobs/{id}", get(job))
@@ -263,12 +336,20 @@ fn cleanup(st: &Shared) {
             "review-job-succeeded",
             "review-job-failed",
             "review-recommendation",
+            "review-selection",
+            "dataset-collection",
         ] {
             for (id, bytes) in v.app_records(kind, 4000)? {
                 let record: Value = serde_json::from_slice(&bytes)?;
                 if now_ms().saturating_sub(record["created"].as_u64().unwrap_or(0))
                     > 30 * 24 * 60 * 60 * 1000
                 {
+                    if let Some(job) = id.strip_prefix("review-job:") {
+                        for packet in v.app_record_ids(&format!("review-results:{job}"))? {
+                            v.delete_app_record(&packet)?;
+                        }
+                        v.delete_app_record(&format!("review-targets:{job}"))?;
+                    }
                     v.delete_app_record(&id)?;
                 }
             }
@@ -277,14 +358,25 @@ fn cleanup(st: &Shared) {
     });
 }
 pub(crate) fn start(st: &Shared) {
+    let _ = st.with_vault(|_, v| {
+        learning::transaction(v, || {
+            if v.private_setting("workspace:discovery-migrated")?.is_none() {
+                learning::retain_findings(v, &crate::discovery::load(v)?.report())?;
+                v.set_private_setting("workspace:discovery-migrated", b"1")?;
+            }
+            Ok(())
+        })
+    });
     cleanup(st);
     // A restart must not silently send old work to another connection.
     let _ = st.with_vault(|_, v| {
         for state in ["queued", "running"] {
-            for (id, bytes) in v.app_records(&format!("review-job-{state}"), 100)? {
+            for (id, bytes) in v.app_records(&format!("review-job-{state}"), i64::MAX as usize)? {
                 let mut job: Value = serde_json::from_slice(&bytes)?;
                 job["state"] = json!("failed");
                 job["error"] = json!("interrupted_review");
+                job["active"] = json!(0);
+                job["updated"] = json!(now_ms());
                 v.put_app_record(&id, "review-job-failed", &serde_json::to_vec(&job)?)?;
             }
         }
@@ -298,8 +390,8 @@ pub(crate) fn start(st: &Shared) {
         }
     });
 }
-#[derive(Default, Deserialize)]
-struct Filters {
+#[derive(Default, Deserialize, Serialize)]
+pub(crate) struct Filters {
     status: Option<String>,
     source: Option<String>,
     q: Option<String>,
@@ -307,16 +399,54 @@ struct Filters {
     action: Option<String>,
     sort: Option<String>,
     keys: Option<String>,
+    snapshot: Option<String>,
+    job_id: Option<String>,
+    learning_job: Option<String>,
+    rule_id: Option<String>,
+    rule_scope: Option<String>,
+    family: Option<String>,
+    id: Option<String>,
+    outcome: Option<String>,
+    stable: Option<bool>,
     offset: Option<usize>,
     limit: Option<usize>,
 }
-async fn list(
-    State(st): State<Shared>,
-    headers: HeaderMap,
-    Query(q): Query<Filters>,
-) -> ResultJson {
-    authorized(&st, &headers, true)?;
-    let all = items(&st).map_err(internal)?;
+fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
+    let all = items(st)?;
+    let snapshot = if let Some(id) = &q.snapshot {
+        Some(selection_keys(st, id)?)
+    } else {
+        None
+    };
+    let allowed = snapshot
+        .as_ref()
+        .map(|keys| keys.iter().map(String::as_str).collect::<HashSet<_>>());
+    let mut historical = Value::Null;
+    let job_keys = if let Some(id) = &q.job_id {
+        let job = full_job(st, id)?.ok_or_else(|| anyhow::anyhow!("job_not_found"))?;
+        historical = job["recommendations"].clone();
+        Some(
+            job["targets"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|target| {
+                    let key = target["key"].as_str()?;
+                    let outcome = job["results"][key].as_str().unwrap_or("unfinished");
+                    q.outcome
+                        .as_ref()
+                        .is_none_or(|s| s.is_empty() || s == outcome)
+                        .then(|| key.to_owned())
+                })
+                .collect::<HashSet<_>>(),
+        )
+    } else {
+        None
+    };
+    let keys = q
+        .keys
+        .as_ref()
+        .map(|s| s.split(',').collect::<HashSet<_>>());
     let pending = all
         .iter()
         .filter(|i| matches!(i["state"].as_str(), Some("open" | "pending")))
@@ -325,27 +455,46 @@ async fn list(
         .into_iter()
         .filter(|item| {
             let is_pending = matches!(item["state"].as_str(), Some("open" | "pending"));
-            (q.status.as_deref() == Some("all")
-                || if q.status.as_deref() == Some("history") {
-                    !is_pending
-                } else {
-                    is_pending
+            let key = item["key"].as_str().unwrap_or_default();
+            allowed.as_ref().is_none_or(|set| set.contains(key))
+                && q.rule_id.as_ref().is_none_or(|id| {
+                    [
+                        (&item["rule_id"], &item["scope"]),
+                        (&item["decision"]["rule_id"], &item["decision"]["scope"]),
+                        (
+                            &item["document_rule"]["id"],
+                            &item["document_rule"]["scope"],
+                        ),
+                    ]
+                    .iter()
+                    .any(|(rule, scope)| {
+                        **rule == *id && q.rule_scope.as_ref().is_none_or(|s| **scope == *s)
+                    })
                 })
+                && q.learning_job
+                    .as_ref()
+                    .is_none_or(|id| item["job_id"] == *id)
+                && job_keys.as_ref().is_none_or(|set| set.contains(key))
+                && (q.status.as_deref() == Some("all")
+                    || if q.status.as_deref() == Some("history") {
+                        !is_pending
+                    } else {
+                        is_pending
+                    })
                 && q.source
                     .as_deref()
-                    .is_none_or(|s| s == "all" || item["origin"] == s)
+                    .is_none_or(|s| s == "all" || item["origin"] == s || item["source_type"] == s)
                 && q.kind
                     .as_deref()
                     .is_none_or(|s| s.is_empty() || item["kind"] == s)
                 && q.action
                     .as_deref()
                     .is_none_or(|s| s.is_empty() || item["applied"] == s)
-                && q.keys
-                    .as_deref()
-                    .is_none_or(|s| s.split(',').any(|key| item["key"] == key))
+                && keys.as_ref().is_none_or(|set| set.contains(key))
                 && q.q.as_ref().is_none_or(|s| {
                     format!(
-                        "{} {}",
+                        "{} {} {}",
+                        item["source"].as_str().unwrap_or_default(),
                         item["value"].as_str().unwrap_or_default(),
                         item["context"].as_str().unwrap_or_default()
                     )
@@ -376,16 +525,58 @@ async fn list(
             .total_cmp(&score(a))
             .then_with(|| b["key"].as_str().cmp(&a["key"].as_str()))
     });
+    if !historical.is_null() {
+        for item in &mut selected {
+            let key = item["key"].as_str().unwrap_or_default();
+            if let Some(recommendation) = historical.get(key) {
+                item["job_recommendation"] = recommendation.clone();
+            }
+        }
+    }
+    if let Some(keys) = snapshot {
+        let order: HashMap<_, _> = keys.into_iter().enumerate().map(|(i, k)| (k, i)).collect();
+        selected.sort_by_key(|item| order.get(item["key"].as_str().unwrap()).copied());
+    }
+    Ok((pending, selected))
+}
+
+async fn list(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Query(q): Query<Filters>,
+) -> ResultJson {
+    authorized(&st, &headers, true)?;
+    let (pending, selected) = filtered(&st, &q).map_err(internal)?;
     let total = selected.len();
+    let snapshot =
+        if q.stable == Some(true) && q.snapshot.is_none() && total > q.limit.unwrap_or(100) {
+            let keys: Vec<_> = selected
+                .iter()
+                .map(|i| i["key"].as_str().unwrap())
+                .collect();
+            let id = blake3::hash(&serde_json::to_vec(&keys).map_err(|e| internal(e.into()))?)
+                .to_hex()
+                .to_string();
+            write(
+                &st,
+                &format!("selection:{id}"),
+                "review-selection",
+                &json!({"created":now_ms(),"keys":keys}),
+            )
+            .map_err(internal)?;
+            Some(id)
+        } else {
+            q.snapshot.clone()
+        };
     let offset = q.offset.unwrap_or(0).min(total);
-    let limit = q.limit.unwrap_or(50).clamp(1, 100);
+    let limit = q.limit.unwrap_or(100).clamp(1, 250);
     let page = selected
         .into_iter()
         .skip(offset)
         .take(limit)
         .collect::<Vec<_>>();
     let sources = ["categorization", "analysis"].map(|role| {
-        learning::review_source(&st, role)
+        learning::review_configuration(&st, role, None)
             .unwrap_or(json!({"role":role,"provider":"none","model":""}))
     });
     let jobs = st
@@ -398,9 +589,71 @@ async fn list(
         })
         .map_err(internal)?;
     Ok(Json(
-        json!({"items":page,"total":total,"pending":pending,"offset":offset,"limit":limit,"sources":sources,"jobs":jobs,"editable":st.control.is_some()}),
+        json!({"snapshot":snapshot,"items":page,"total":total,"pending":pending,"offset":offset,"limit":limit,"sources":sources,"jobs":jobs,"editable":st.control.is_some()}),
     ))
 }
+pub(crate) fn random_id() -> anyhow::Result<String> {
+    let mut bytes = [0u8; 16];
+    getrandom::fill(&mut bytes).map_err(|e| anyhow::anyhow!(e))?;
+    Ok(blake3::hash(&bytes).to_hex().to_string())
+}
+
+fn selection_keys(st: &Shared, id: &str) -> anyhow::Result<Vec<String>> {
+    let saved = read(st, &format!("selection:{id}"))?
+        .ok_or_else(|| anyhow::anyhow!("selection_expired"))?;
+    Ok(serde_json::from_value(saved["keys"].clone())?)
+}
+
+async fn selection(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(q): Json<Filters>,
+) -> ResultJson {
+    authorized(&st, &headers, true)?;
+    let (_, items) = filtered(&st, &q).map_err(internal)?;
+    let keys: Vec<_> = items.iter().map(|i| &i["key"]).collect();
+    let id = random_id().map_err(internal)?;
+    write(
+        &st,
+        &format!("selection:{id}"),
+        "review-selection",
+        &json!({"keys":keys,"created":now_ms()}),
+    )
+    .map_err(internal)?;
+    Ok(Json(json!({"snapshot":id,"total":keys.len()})))
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub(crate) struct Selection {
+    #[serde(default)]
+    pub keys: Vec<String>,
+    pub snapshot: Option<String>,
+    #[serde(default)]
+    pub excluded: Vec<String>,
+}
+
+impl Selection {
+    pub(crate) fn resolve(&self, st: &Shared) -> anyhow::Result<Vec<Value>> {
+        let keys = match self.snapshot.as_deref() {
+            Some(id) => selection_keys(st, id)?,
+            None => self.keys.clone(),
+        };
+        let excluded: HashSet<_> = self.excluded.iter().collect();
+        let mut all: HashMap<_, _> = items(st)?
+            .into_iter()
+            .map(|i| (i["key"].as_str().unwrap().to_owned(), i))
+            .collect();
+        let mut seen = HashSet::new();
+        keys.into_iter()
+            .filter(|key| !excluded.contains(key) && seen.insert(key.clone()))
+            .map(|key| {
+                all.remove(&key)
+                    .ok_or_else(|| anyhow::anyhow!("entry_not_found"))
+            })
+            .collect()
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 struct Target {
     key: String,
@@ -410,15 +663,56 @@ fn model_id(target: &Target) -> String {
     blake3::hash(format!("{}\0{}", target.key, target.fingerprint).as_bytes()).to_hex()[..24]
         .to_owned()
 }
-#[derive(Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 struct Submit {
-    keys: Vec<String>,
+    #[serde(flatten)]
+    selection: Selection,
     #[serde(default = "auto_source")]
     model_source: String,
+    scenario: Option<String>,
+    request_id: Option<String>,
 }
 fn auto_source() -> String {
     "auto".into()
 }
+
+fn full_job(st: &Shared, id: &str) -> anyhow::Result<Option<Value>> {
+    let Some(mut job) = read(st, &format!("review-job:{id}"))? else {
+        return Ok(None);
+    };
+    if job["targets"].is_null() {
+        job["targets"] = read(st, &format!("review-targets:{id}"))?.unwrap_or_else(|| json!([]));
+    }
+    let mut results = serde_json::Map::new();
+    st.with_vault(|_, v| {
+        for (_, bytes) in v.app_records(&format!("review-results:{id}"), i64::MAX as usize)? {
+            let packet: HashMap<String, Value> = serde_json::from_slice(&bytes)?;
+            for (key, rec) in packet {
+                if rec.is_object() {
+                    results.insert(key.clone(), rec["state"].clone());
+                    job["recommendations"][&key] = rec;
+                } else {
+                    results.insert(key, rec);
+                }
+            }
+        }
+        Ok(())
+    })?;
+    // Older jobs kept only the completed prefix and the latest individual recommendations.
+    if results.is_empty() && job["total"].is_null() {
+        for t in job["targets"].as_array().into_iter().flatten() {
+            if let Some(key) = t["key"].as_str()
+                && let Some(rec) = read(st, &format!("review-rec:{key}"))?
+                && rec["job_id"] == id
+            {
+                results.insert(key.to_owned(), rec["state"].clone());
+            }
+        }
+    }
+    job["results"] = Value::Object(results);
+    Ok(Some(job))
+}
+
 async fn submit(
     State(st): State<Shared>,
     headers: HeaderMap,
@@ -428,67 +722,232 @@ async fn submit(
     if st.control.is_none() {
         return Err(bad("read_only"));
     }
-    if req.keys.is_empty() || req.keys.len() > 64 {
-        return Err(bad("select_up_to_64"));
+    let signature = blake3::hash(&serde_json::to_vec(&req).map_err(|e| internal(e.into()))?)
+        .to_hex()
+        .to_string();
+    let id = match &req.request_id {
+        Some(key) if (8..=128).contains(&key.len()) => {
+            blake3::hash(key.as_bytes()).to_hex().to_string()
+        }
+        Some(_) => return Err(bad("invalid_request_id")),
+        None => random_id().map_err(internal)?,
+    };
+    let record_id = format!("review-job:{id}");
+    if let Some(job) = read(&st, &record_id).map_err(internal)? {
+        if job["signature"] != signature {
+            return Err(bad("request_id_conflict"));
+        }
+        return Ok(Json(job));
     }
-    let source = learning::review_source(&st, &req.model_source)
+    let source = learning::review_configuration(&st, &req.model_source, req.scenario.as_deref())
         .map_err(|e| bad(&learning::safe_error(&e)))?;
-    let all = items(&st).map_err(internal)?;
+    let selected = req
+        .selection
+        .resolve(&st)
+        .map_err(|e| bad(&e.to_string()))?;
     let mut targets = Vec::new();
-    for key in &req.keys {
-        let item = all
-            .iter()
-            .find(|i| i["key"] == *key)
-            .ok_or_else(|| bad("entry_not_found"))?;
-        if !matches!(item["state"].as_str(), Some("open" | "pending")) {
-            return Err(bad("entry_not_pending"));
+    let mut skipped = 0;
+    let mut protected = 0;
+    for item in selected {
+        if item["protected"] == true || !matches!(item["state"].as_str(), Some("open" | "pending"))
+        {
+            if item["protected"] == true {
+                protected += 1;
+            }
+            skipped += 1;
+            continue;
         }
-        if item["protected"] == true {
-            return Err(bad("protected_credential"));
-        }
-        if !targets.iter().any(|target: &Target| target.key == *key) {
-            targets.push(Target {
-                key: key.clone(),
-                fingerprint: fingerprint(item),
-            });
-        }
+        targets.push(Target {
+            key: item["key"].as_str().unwrap().into(),
+            fingerprint: fingerprint(&item),
+        });
     }
-    let mut random = [0u8; 16];
-    getrandom::fill(&mut random).map_err(|e| internal(anyhow::anyhow!(e)))?;
-    let id = blake3::hash(&random).to_hex().to_string();
-    let job = json!({"id":id,"state":"queued","created":now_ms(),"revision":source["revision"],"source":source,"targets":targets,"completed":0,"error":""});
-    st.with_vault(|_, v| {
-        anyhow::ensure!(
-            v.app_record_count("review-job-queued")? + v.app_record_count("review-job-running")?
-                < 2,
-            "review_busy"
-        );
-        v.put_app_record(
-            &format!("review-job:{id}"),
-            "review-job-queued",
-            &serde_json::to_vec(&job)?,
-        )?;
-        Ok(())
-    })
-    .map_err(|e| bad(&learning::safe_error(&e)))?;
-    let state = st.clone();
-    let job_copy = job.clone();
+    if targets.is_empty() {
+        return Err(bad(if protected > 0 {
+            "protected_credential"
+        } else if skipped > 0 {
+            "entry_not_pending"
+        } else {
+            "empty_selection"
+        }));
+    }
+    let job = json!({"id":id,"state":"queued","created":now_ms(),"updated":now_ms(),"revision":source["revision"],"source":source,
+        "total":targets.len(),"skipped":skipped,"processed":0,"completed":0,"failed":0,"manual":0,"active":0,"signature":signature,"error":""});
+    let started = st
+        .with_vault(|_, v| {
+            learning::transaction(v, || {
+                if v.app_record(&record_id)?.is_some() {
+                    return Ok(false);
+                }
+                v.put_app_record(
+                    &format!("review-targets:{id}"),
+                    "review-targets",
+                    &serde_json::to_vec(&targets)?,
+                )?;
+                v.put_app_record(&record_id, "review-job-queued", &serde_json::to_vec(&job)?)?;
+                Ok(true)
+            })
+        })
+        .map_err(internal)?;
+    if !started {
+        let saved = read(&st, &record_id)
+            .map_err(internal)?
+            .ok_or_else(|| bad("job_not_found"))?;
+        return if saved["signature"] == signature {
+            Ok(Json(saved))
+        } else {
+            Err(bad("request_id_conflict"))
+        };
+    }
+    let runner = st.clone();
+    let queued = job.clone();
+    let response_targets = serde_json::to_value(&targets).map_err(|e| internal(e.into()))?;
     tokio::spawn(async move {
-        run(state, job_copy).await;
+        run(runner, queued, targets).await;
     });
-    Ok(Json(job))
+    let mut response = job;
+    response["targets"] = response_targets;
+    Ok(Json(response))
 }
-async fn job(State(st): State<Shared>, headers: HeaderMap, Path(id): Path<String>) -> ResultJson {
+
+async fn job(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> ResultJson {
     authorized(&st, &headers, true)?;
-    if id.len() != 64 || !id.bytes().all(|c| c.is_ascii_hexdigit()) {
-        return Err(bad("job_not_found"));
-    }
-    Ok(Json(
+    let result = if query.contains_key("brief") {
         read(&st, &format!("review-job:{id}"))
+    } else {
+        full_job(&st, &id)
+    };
+    Ok(Json(
+        result
             .map_err(internal)?
             .ok_or_else(|| bad("job_not_found"))?,
     ))
 }
+#[derive(Deserialize)]
+struct Retry {
+    request_id: Option<String>,
+}
+async fn retry(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+    Json(req): Json<Retry>,
+) -> ResultJson {
+    authorized(&st, &headers, true)?;
+    let job = full_job(&st, &id)
+        .map_err(internal)?
+        .ok_or_else(|| bad("job_not_found"))?;
+    if job["state"] != "failed" {
+        return Err(bad("invalid_action"));
+    }
+    if job["revision"] != st.learning.snapshot().revision {
+        return Err(bad("configuration_changed"));
+    }
+    let keys = job["targets"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(|target| {
+            let key = target["key"].as_str()?;
+            (!matches!(
+                job["results"][key].as_str(),
+                Some("succeeded" | "needs_review")
+            ))
+            .then(|| key.to_owned())
+        })
+        .collect();
+    submit(
+        State(st),
+        headers,
+        Json(Submit {
+            selection: Selection {
+                keys,
+                ..Default::default()
+            },
+            model_source: job["source"]["role"].as_str().unwrap_or("auto").into(),
+            scenario: job["source"]["scenario"].as_str().map(str::to_owned),
+            request_id: req.request_id,
+        }),
+    )
+    .await
+}
+
+async fn jobs(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Query(q): Query<Filters>,
+) -> ResultJson {
+    authorized(&st, &headers, true)?;
+    if q.family.as_deref() == Some("learning")
+        && let Some(id) = &q.id
+    {
+        let mut jobs = Vec::new();
+        if let Some(mut meta) = read(&st, &format!("meta:{id}")).map_err(internal)?
+            && meta["id"] == *id
+        {
+            meta["family"] = json!("learning");
+            jobs.push(meta);
+        }
+        return Ok(Json(json!({"jobs":jobs,"total":jobs.len()})));
+    }
+    let mut rows=st.with_vault(|_,v|{
+        let mut rows=Vec::new();
+        for kind in ["review-job-running","review-job-queued","review-job-failed","review-job-succeeded","learning-job-meta"] {
+            for (_,bytes) in v.app_records_recent(kind,i64::MAX as usize)? {
+                let j:Value=serde_json::from_slice(&bytes)?;
+                let family=if kind=="learning-job-meta" {"learning"} else {"review"};
+                rows.push(json!({"family":family,"id":j["id"],"name":j["name"],"state":j["state"],"created":j["created"],
+                    "updated":j["updated"],"source":j["source"],"model":j["model"],"scenario":j["scenario"],"total":j["total"].as_u64().or_else(||j["targets"].as_array().map(|x|x.len() as u64)),
+                    "completed":j.get("processed").unwrap_or(&j["completed"]),"extracted":j["extracted"],"active":j["active"],"failed":j["failed"],"retryable":j["retryable"],"error":j["error"]}));
+            }
+        }
+        Ok(rows)
+    }).map_err(internal)?;
+    let worker = match crate::worker::forward(&st, "/workspace/jobs", None).await {
+        Ok(result) if result["jobs"].is_array() => Some(result),
+        Err(err) if err.message() == "worker unavailable" => None,
+        _ => crate::worker::forward(&st, "/status", None).await.ok(),
+    };
+    if let Some(files) = worker.as_ref().and_then(|w| w["jobs"].as_array()) {
+        for j in files {
+            rows.push(json!({"family":"file","id":j["id"],"name":j["source"],"state":j["state"],"model":j["model"],"error":j["error"],
+                "updated":(1000.0*j["updated"].as_f64().unwrap_or_default()) as u64,"created":(1000.0*j["created"].as_f64().unwrap_or_default()) as u64,"total":if j["kind"]=="download"{&j["progress_total"]}else{&j["total"]},"completed":if j["kind"]=="download"{&j["progress"]}else{&j["completed"]}}));
+        }
+    }
+    rows.retain(|row| {
+        q.family.as_ref().is_none_or(|f| row["family"] == *f)
+            && q.id.as_ref().is_none_or(|id| row["id"] == *id)
+    });
+    let running = |s: &Value| {
+        matches!(
+            s["state"].as_str(),
+            Some("running" | "processing" | "queued" | "scanning" | "downloading")
+        )
+    };
+    rows.sort_by_key(|r| {
+        (
+            !running(r),
+            std::cmp::Reverse(r["created"].as_u64().unwrap_or_default()),
+        )
+    });
+    let active = rows.iter().filter(|r| running(r)).count();
+    let total = rows.len();
+    let offset = q.offset.unwrap_or_default();
+    let rows: Vec<_> = rows
+        .into_iter()
+        .skip(offset)
+        .take(q.limit.unwrap_or(100).clamp(1, 250))
+        .collect();
+    Ok(Json(
+        json!({"jobs":rows,"total":total,"active":active,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
+    ))
+}
+
 fn schema(ids: &[String]) -> Value {
     let count = ids.len();
     json!({"type":"object","properties":{"decisions":{"type":"array","minItems":count,"maxItems":count,"items":{"type":"object","properties":{
@@ -524,32 +983,23 @@ fn validate_decision(decision: &Value, value: &str, research: bool) -> anyhow::R
     Ok(())
 }
 
-async fn run(st: Shared, mut job: Value) {
-    let id = job["id"].as_str().unwrap().to_string();
+async fn run(st: Shared, mut job: Value, targets: Vec<Target>) {
+    let _queue = st.review_queue.lock().await;
+    let id = job["id"].as_str().unwrap().to_owned();
+    job["started"] = json!(now_ms());
     job["state"] = json!("running");
-    let _ = write(&st, &format!("review-job:{id}"), "review-job-running", &job);
-    let result = run_inner(&st, &mut job).await;
-    job["state"] = json!(if result.is_ok() {
+    let execution = run_packets(&st, &mut job, &targets).await;
+    let error = execution.err().map(|e| learning::safe_error(&e));
+    if let Some(error) = error {
+        job["error"] = json!(error);
+    }
+    job["state"] = json!(if job["error"] == "" {
         "succeeded"
     } else {
         "failed"
     });
-    if let Err(e) = result {
-        job["error"] = json!(learning::safe_error(&e));
-        if let Ok(targets) = serde_json::from_value::<Vec<Target>>(job["targets"].clone()) {
-            for target in targets
-                .into_iter()
-                .skip(job["completed"].as_u64().unwrap_or(0) as usize)
-            {
-                let _ = write(
-                    &st,
-                    &format!("review-rec:{}", target.key),
-                    "review-recommendation",
-                    &json!({"state":"failed","error":job["error"],"fingerprint":target.fingerprint,"revision":job["revision"],"model":job["source"]["model"],"created":now_ms(),"job_id":id}),
-                );
-            }
-        }
-    }
+    job["active"] = json!(0);
+    job["updated"] = json!(now_ms());
     let _ = write(
         &st,
         &format!("review-job:{id}"),
@@ -557,126 +1007,187 @@ async fn run(st: Shared, mut job: Value) {
         &job,
     );
 }
-async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
-    let targets: Vec<Target> = serde_json::from_value(job["targets"].clone())?;
-    let mut first_row_error = None;
+
+async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow::Result<()> {
     let settings = st.learning.snapshot();
     let batch_size = if job["source"]["role"] == "analysis" {
         settings.analysis.inference.batch_size
     } else {
         settings.categorization.inference.batch_size
     };
-    for batch in targets.chunks(batch_size) {
-        anyhow::ensure!(
-            job["revision"].as_u64() == Some(st.learning.snapshot().revision),
-            "configuration_changed"
-        );
-        let current = items(st)?;
-        let mut input = Vec::new();
-        for target in batch {
-            let item = current
-                .iter()
-                .find(|i| i["key"] == target.key)
-                .ok_or_else(|| anyhow::anyhow!("entry_not_found"))?;
-            anyhow::ensure!(fingerprint(item) == target.fingerprint, "review_stale");
-            let value = item["value"].as_str().unwrap_or_default();
-            anyhow::ensure!(
-                !st.engine()
-                    .analyze(&kaponir_core::Input::text(value))
-                    .iter()
-                    .any(|c| c.hard && c.category == kaponir_core::Category::Credential),
-                "protected_credential"
-            );
-            input.push(json!({"id":model_id(target),"value":item["value"],"kind":item["kind"],"context":redacted_context(st,item["context"].as_str().unwrap_or_default(),value)}));
+    let slots = settings.analysis.parallelism.max(1);
+    let map: HashMap<String, Value> = items(st)?
+        .into_iter()
+        .map(|i| (i["key"].as_str().unwrap().to_owned(), i))
+        .collect();
+    let source = job["source"].clone();
+    let id = job["id"].as_str().unwrap().to_owned();
+    let mut packets = stream::iter((0..targets.len()).step_by(batch_size.max(1)).enumerate())
+        .map(|(index, start)| {
+            let batch = &targets[start..targets.len().min(start + batch_size.max(1))];
+            let source = &source;
+            let map = &map;
+            let id = &id;
+            async move {
+                let start = std::time::Instant::now();
+                let result = infer_packet(st, source, id, map, batch).await;
+                (index, batch, result, start.elapsed().as_secs_f64())
+            }
+        })
+        .buffer_unordered(slots);
+    let save = |job: &Value| write(st, &format!("review-job:{id}"), "review-job-running", job);
+    job["slots"] = json!(slots);
+    job["active"] = json!(targets.len().min(slots * batch_size));
+    save(job)?;
+    let mut first_error = None;
+    while let Some((index, batch, result, seconds)) = packets.next().await {
+        job["last_packet_seconds"] = json!(seconds);
+        let identified = result.is_ok();
+        let records=result.unwrap_or_else(|err| {
+            let code=learning::safe_error(&err);
+            batch.iter().map(|t|(t.key.clone(),json!({"state":"failed","error":code,"fingerprint":t.fingerprint,"job_id":id,"revision":source["revision"],"model":source["model"],"created":now_ms()}))).collect()
+        });
+        let mut outcomes = HashMap::new();
+        for (key, rec) in &records {
+            if rec["state"] == "failed" {
+                first_error.get_or_insert_with(|| {
+                    rec["error"].as_str().unwrap_or("review_failed").to_owned()
+                });
+                job["failed"] = json!(job["failed"].as_u64().unwrap_or(0) + 1);
+            } else if rec["state"] == "needs_review" {
+                job["manual"] = json!(job["manual"].as_u64().unwrap_or(0) + 1);
+            }
+            outcomes.insert(key, rec);
         }
-        let reply = learning::review_infer(
-            st,
-            job["source"]["role"].as_str().unwrap(),
-            json!(input),
-            schema(&batch.iter().map(model_id).collect::<Vec<_>>()),
-        )
-        .await?;
-        anyhow::ensure!(
-            job["revision"].as_u64() == Some(st.learning.snapshot().revision),
-            "configuration_changed"
-        );
-        let decisions = reply["decisions"]
-            .as_array()
-            .ok_or_else(|| anyhow::anyhow!("invalid_classification_response"))?;
-        anyhow::ensure!(
-            decisions.len() == batch.len(),
-            "invalid_classification_response"
-        );
-        // Uncertain identity invalidates the packet. Once every ID is unique and
-        // expected, a row's type/shape error must not discard its neighbors.
-        for target in batch {
-            let id = model_id(target);
-            anyhow::ensure!(
-                decisions.iter().filter(|d| d["id"] == id).count() == 1,
-                "invalid_classification_response"
-            );
+        let completed = job["processed"].as_u64().unwrap_or(0) + batch.len() as u64;
+        job["processed"] = json!(completed);
+        if identified {
+            job["completed"] = json!(job["completed"].as_u64().unwrap_or(0) + batch.len() as u64);
         }
-        let mut validated = Vec::new();
-        for target in batch {
-            let id = model_id(target);
-            let d = decisions.iter().find(|d| d["id"] == id).unwrap();
-            let item = current.iter().find(|i| i["key"] == target.key).unwrap();
-            let mut rec = match validate_decision(
-                d,
-                item["value"].as_str().unwrap_or_default(),
-                job["source"]["scenario"]
-                    .as_str()
-                    .is_some_and(|s| s != "standard"),
-            ) {
-                Ok(()) => {
-                    let mut rec = d.clone();
-                    rec["state"] = json!(if d["action"] == "review" {
-                        "needs_review"
-                    } else {
-                        "succeeded"
-                    });
-                    rec
+        job["active"] = json!((targets.len() - completed as usize).min(slots * batch_size));
+        job["updated"] = json!(now_ms());
+        st.with_vault(|_, v| {
+            learning::transaction(v, || {
+                for (key, rec) in &records {
+                    v.put_app_record(
+                        &format!("review-rec:{key}"),
+                        "review-recommendation",
+                        &serde_json::to_vec(rec)?,
+                    )?;
                 }
-                Err(error) => {
-                    let code = learning::safe_error(&error);
-                    first_row_error.get_or_insert_with(|| code.clone());
-                    job["failed"] = json!(job["failed"].as_u64().unwrap_or(0) + 1);
-                    // Do not retain a malformed action, type or confidence as a
-                    // usable recommendation. Applying this row remains blocked.
-                    json!({"state":"failed","error":code})
-                }
-            };
-            rec["job_id"] = job["id"].clone();
-            rec["revision"] = job["revision"].clone();
-            rec["fingerprint"] = json!(target.fingerprint);
-            rec["model"] = job["source"]["model"].clone();
-            rec["created"] = json!(now_ms());
-            validated.push((target.key.clone(), rec));
-        }
-        for (key, rec) in validated {
-            write(
-                st,
-                &format!("review-rec:{key}"),
-                "review-recommendation",
-                &rec,
-            )?;
-        }
-        job["completed"] = json!(job["completed"].as_u64().unwrap_or(0) + batch.len() as u64);
-        write(
-            st,
-            &format!("review-job:{}", job["id"].as_str().unwrap()),
-            "review-job-running",
-            job,
-        )?;
+                v.put_app_record(
+                    &format!("packet:{id}:{index}"),
+                    &format!("review-results:{id}"),
+                    &serde_json::to_vec(&outcomes)?,
+                )?;
+                v.put_app_record(
+                    &format!("review-job:{id}"),
+                    "review-job-running",
+                    &serde_json::to_vec(&job)?,
+                )?;
+                Ok(())
+            })
+        })?;
     }
-    if let Some(error) = first_row_error {
-        anyhow::bail!(if job["failed"].as_u64() == job["completed"].as_u64() {
+    if let Some(error) = first_error {
+        job["error"] = json!(if job["failed"] == job["processed"] {
             error
         } else {
             "review_partial_failure".into()
         });
     }
     Ok(())
+}
+
+async fn infer_packet(
+    st: &Shared,
+    source: &Value,
+    job_id: &str,
+    current: &HashMap<String, Value>,
+    batch: &[Target],
+) -> anyhow::Result<Vec<(String, Value)>> {
+    anyhow::ensure!(
+        source["revision"] == st.learning.snapshot().revision,
+        "configuration_changed"
+    );
+    let mut input = Vec::new();
+    for target in batch {
+        let item = current
+            .get(&target.key)
+            .ok_or_else(|| anyhow::anyhow!("entry_not_found"))?;
+        anyhow::ensure!(fingerprint(item) == target.fingerprint, "review_stale");
+        let value = item["value"].as_str().unwrap_or_default();
+        anyhow::ensure!(
+            !st.engine()
+                .analyze(&kaponir_core::Input::text(value))
+                .iter()
+                .any(|c| c.hard && c.category == kaponir_core::Category::Credential),
+            "protected_credential"
+        );
+        input.push(json!({"id":model_id(target),"value":item["value"],"kind":item["kind"],"context":redacted_context(st,item["context"].as_str().unwrap_or_default(),value)}));
+    }
+    let reply = learning::review_infer(
+        st,
+        source,
+        json!(input),
+        schema(&batch.iter().map(model_id).collect::<Vec<_>>()),
+    )
+    .await?;
+    anyhow::ensure!(
+        source["revision"].as_u64() == Some(st.learning.snapshot().revision),
+        "configuration_changed"
+    );
+    let decisions = reply["decisions"]
+        .as_array()
+        .ok_or_else(|| anyhow::anyhow!("invalid_classification_response"))?;
+    anyhow::ensure!(
+        decisions.len() == batch.len(),
+        "invalid_classification_response"
+    );
+    // Uncertain identity invalidates the packet. Once every ID is unique and
+    // expected, a row's type/shape error must not discard its neighbors.
+    for target in batch {
+        let id = model_id(target);
+        anyhow::ensure!(
+            decisions.iter().filter(|d| d["id"] == id).count() == 1,
+            "invalid_classification_response"
+        );
+    }
+    let mut validated = Vec::new();
+    for target in batch {
+        let id = model_id(target);
+        let d = decisions.iter().find(|d| d["id"] == id).unwrap();
+        let item = &current[&target.key];
+        let mut rec = match validate_decision(
+            d,
+            item["value"].as_str().unwrap_or_default(),
+            source["scenario"].as_str().is_some_and(|s| s != "standard"),
+        ) {
+            Ok(()) => {
+                let mut rec = d.clone();
+                rec["state"] = json!(if d["action"] == "review" {
+                    "needs_review"
+                } else {
+                    "succeeded"
+                });
+                rec
+            }
+            Err(error) => {
+                let code = learning::safe_error(&error);
+
+                // Do not retain a malformed action, type or confidence as a
+                // usable recommendation. Applying this row remains blocked.
+                json!({"state":"failed","error":code})
+            }
+        };
+        rec["job_id"] = json!(job_id);
+        rec["revision"] = source["revision"].clone();
+        rec["fingerprint"] = json!(target.fingerprint);
+        rec["model"] = source["model"].clone();
+        rec["created"] = json!(now_ms());
+        validated.push((target.key.clone(), rec));
+    }
+    Ok(validated)
 }
 
 fn redacted_context(st: &Shared, context: &str, value: &str) -> String {
@@ -710,6 +1221,7 @@ struct Apply {
     scope: Option<Scope>,
     #[serde(default)]
     use_recommendation: bool,
+    expected_job: Option<String>,
 }
 async fn apply(
     State(st): State<Shared>,
@@ -735,7 +1247,12 @@ async fn apply(
         if rec["state"] == "needs_review" {
             return Err(bad("review_inconclusive"));
         }
-        if rec["state"] != "succeeded" {
+        if rec["state"] != "succeeded"
+            || req
+                .expected_job
+                .as_ref()
+                .is_some_and(|id| rec["job_id"] != *id)
+        {
             return Err(bad("review_stale"));
         }
         kind = rec["kind"].as_str().unwrap().into();
@@ -764,7 +1281,11 @@ async fn apply(
     let ctl = st.control.as_ref().ok_or_else(|| bad("read_only"))?;
     let row_id = id.parse::<i64>().map_err(|_| bad("entry_not_found"))?;
     let row = st
-        .with_vault(|_, v| Ok(v.journal(None, 2000)?.into_iter().find(|r| r.id == row_id)))
+        .with_vault(|_, v| {
+            Ok(v.journal(None, i64::MAX as usize)?
+                .into_iter()
+                .find(|r| r.id == row_id))
+        })
         .map_err(internal)?
         .ok_or_else(|| bad("entry_not_found"))?;
     if row.value != item["value"].as_str().unwrap_or_default()

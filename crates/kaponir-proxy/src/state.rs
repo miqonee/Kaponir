@@ -76,10 +76,55 @@ struct Inner {
     suppressed: HashSet<(String, String)>,
 }
 
+/// Concurrency shared by background discovery and explicit calls to an external model.
+#[derive(Default)]
+pub(crate) struct ApiSlots {
+    count: Mutex<usize>,
+    changed: tokio::sync::Notify,
+}
+pub(crate) struct ApiSlot<'a>(&'a ApiSlots);
+impl ApiSlots {
+    pub(crate) async fn acquire(&self, limit: usize) -> ApiSlot<'_> {
+        loop {
+            let notified = self.changed.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            {
+                let mut count = self
+                    .count
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if *count < limit.max(1) {
+                    *count += 1;
+                    return ApiSlot(self);
+                }
+            }
+            notified.await;
+        }
+    }
+    pub(crate) fn active(&self) -> usize {
+        *self
+            .count
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+impl Drop for ApiSlot<'_> {
+    fn drop(&mut self) {
+        *self
+            .0
+            .count
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) -= 1;
+        self.0.changed.notify_waiters();
+    }
+}
 pub struct State {
+    pub(crate) api_slots: ApiSlots,
     pub(crate) learning: Arc<crate::learning::Learning>,
     pub(crate) learning_changes: tokio::sync::Mutex<()>,
     pub(crate) provider_refresh: tokio::sync::Mutex<()>,
+    pub(crate) review_queue: tokio::sync::Mutex<()>,
     pub(crate) rule_changes: tokio::sync::Mutex<()>,
     pub(crate) worker_actions: tokio::sync::Mutex<()>,
     pub(crate) provider_affinity: Mutex<HashMap<[u8; 32], crate::providers::Binding>>,
@@ -173,6 +218,8 @@ impl State {
             learning,
             learning_changes: tokio::sync::Mutex::new(()),
             provider_refresh: tokio::sync::Mutex::new(()),
+            review_queue: tokio::sync::Mutex::new(()),
+            api_slots: ApiSlots::default(),
             rule_changes: tokio::sync::Mutex::new(()),
             worker_actions: tokio::sync::Mutex::new(()),
             provider_affinity: Mutex::new(HashMap::new()),

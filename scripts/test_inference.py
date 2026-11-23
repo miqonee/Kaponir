@@ -59,9 +59,9 @@ class PlanningTests(unittest.TestCase):
 
     def test_embedded_worker_does_not_require_adjacent_python_module(self):
         root=Path(__file__).resolve().parent
-        code="__name__='embedded_test'\n"+(root/'kaponir_inference.py').read_text()+'\n'+(root/'kaponir_worker.py').read_text()+"\nassert callable(Worker.evaluate)\n"
+        code="__name__='embedded_test'\n"+'\n'.join((root/file).read_text() for file in ['benchmark_resources.py','kaponir_inference.py','kaponir_worker.py'])+"\nassert callable(Worker.evaluate)\n"
         with tempfile.TemporaryDirectory() as cwd:
-            result=subprocess.run([sys.executable,'-c',code],cwd=cwd,capture_output=True,text=True)
+            result=subprocess.run([sys.executable,'-'],input=code,cwd=cwd,capture_output=True,text=True)
         self.assertEqual(result.returncode,0,result.stderr)
 
 

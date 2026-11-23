@@ -250,7 +250,11 @@ function renderWorkerSummary() {
   const data = WORKER.data || {};
   $("#analysis-worker-state").textContent = workerStateLabel(data);
   if (typeof renderLearningWidget === "function") renderLearningWidget();
-  const rows = [["Модель обнаружения", LearningUI.analysis?.settings], ["Модель категоризации", LearningUI.categorization?.settings]];
+  let rows = [["Модель обнаружения", LearningUI.analysis?.settings], ["Модель категоризации", LearningUI.categorization?.settings]];
+  const [search,review]=rows.map(row=>row[1]);
+  if(search?.provider==="local" && review?.provider==="local" && canonicalModel(search.model)===canonicalModel(review.model)){
+    rows=[["Модель поиска и проверки",search]];
+  }
   $("#analysis-worker-summary").replaceChildren(...rows.map(([label, settings]) =>
     h("div", { class: "worker-summary-row" }, h("span", {}, tr(label)),
       h("strong", {}, settings?.provider === "local" ? `${modelName(settings.model)} · ${tr(localModelIssue(settings.model) || "Файлы готовы")}`
@@ -378,7 +382,7 @@ function submitWorkerSource(source) {
   return runWorkerAction("/jobs", { source, model: $("#worker-model").value,
     ...(mode === "configured" && $("#worker-scenario").value ? {scenario:$("#worker-scenario").value} : {}),
     ...(preset ? {inference:preset.inference, timeout_seconds:preset.timeout} : {}),
-    use_s1: mode !== "configured" && $("#worker-s1").checked, mode });
+    use_s1: mode !== "configured" && $("#worker-s1").checked, mode }).then(job=>{if(job?.id)showTab("jobs/file/"+encodeURIComponent(job.id));return job;});
 }
 $("#worker-submit").addEventListener("click", () => submitWorkerSource($("#worker-source").value.trim() || "."));
 $("#worker-scan-sessions").addEventListener("click", () => submitWorkerSource("@sessions"));

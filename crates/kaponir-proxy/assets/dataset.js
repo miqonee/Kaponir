@@ -16,7 +16,6 @@ function updateDatasetMode() {
   const mode = datasetMode();
   const enabled = mode === 'on';
   $('#dataset-enable').checked = enabled;
-  $('#dataset-new').hidden = !enabled;
   $('#dataset-create').hidden = !enabled;
   $('#dataset-files').hidden = !mode;
   if (mode) refreshDatasetCount();
@@ -176,8 +175,7 @@ $('#dataset-enable').onchange = e => {
   catch (err) { fail(err); }
   updateDatasetMode();
 };
-for (const id of ['dataset-new', 'dataset-create'])
-  $('#' + id).onclick = () => openDatasetExample();
+$('#dataset-create').onclick = () => openDatasetExample();
 $('#dataset-close').onclick = () => datasetDialog.close();
 datasetDialog.onclose = () => {
   $('#dataset-text').value = '';

@@ -56,19 +56,22 @@ def check_browser(base, api, output):
         page.locator('[data-review-view=pending]').click()
         pending=next(e for e in api('/api/v1/ui/learning')['entries'] if e['value']=='CedarCat85')
         selector='[data-learning-id="'+pending['id']+'"]'
-        page.locator('#review-list '+selector).get_by_role('button',name='Создать правило маскирования',exact=True).click()
+        page.locator('#review-list').get_by_role('button',name=pending['value'],exact=True).click()
+        page.locator('#finding-detail '+selector).get_by_role('button',name='Создать правило маскирования',exact=True).click()
         page.locator('#review-confirm-apply').click()
         wait_for(lambda:any(e['id']==pending['id'] and e['state']=='active' for e in api('/api/v1/ui/learning')['entries']))
         page.locator('[data-review-view=history]').click()
-        page.locator('#review-list '+selector).get_by_role('button',name='Отменить правило',exact=True).click()
+        page.locator('#review-list').get_by_role('button',name=pending['value'],exact=True).click()
+        page.locator('#finding-detail '+selector).get_by_role('button',name='Отменить правило',exact=True).click()
         page.locator('#review-confirm-apply').click()
         wait_for(lambda:any(e['id']==pending['id'] and e['state']=='rolled_back' for e in api('/api/v1/ui/learning')['entries']))
-        page.locator('[data-tab=discover]').click()
+        page.locator('#tab-review [data-go=discover]').click()
         page.locator('#d-mode').select_option('background')
         page.locator('#d-text').fill('Internal label CedarBrowser86')
         page.locator('#d-analyze').click()
         wait_for(lambda:any(e['value']=='CedarBrowser86' and e['state']=='active' for e in api('/api/v1/ui/learning')['entries']))
-        page.locator('[data-tab=analysis]').click()
+        page.locator('[data-tab=settings]').click()
+        page.locator('#tab-settings [data-go=analysis]').click()
         page.locator('#learning-toggle').click()
         wait_for(lambda:not api('/api/v1/ui/analysis')['settings']['enabled'])
         page.wait_for_function("() => document.querySelector('#learning-state').textContent==='Анализ приостановлен'")
@@ -78,12 +81,12 @@ def check_browser(base, api, output):
             page.set_viewport_size({'width':width,'height':1000})
             for theme in ['dark','light']:
                 page.locator('#theme-switch label:has(input[value='+theme+'])').click()
-                for tab in ['analysis','categorization','review']:
+                for tab in ['analysis','categorization','jobs/learning/'+pending['job_id']]:
                     page.evaluate('(tab)=>showTab(tab)',tab);page.wait_for_timeout(200)
-                    if tab=='review':
+                    if tab.startswith('jobs/'):
                         page.locator('.inference-details').first.evaluate('(node)=>node.open=true')
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,tab)
-                    page.screenshot(path=str(output/f'learning-{tab}-{theme}-{width}.png'),full_page=True)
+                    page.screenshot(path=str(output/f'learning-{tab.split(chr(47))[0]}-{theme}-{width}.png'),full_page=True)
         page.set_viewport_size({'width':1440,'height':1000})
         page.locator('#language-switch label:has(input[value=en])').click()
         page.evaluate("showTab('analysis')")

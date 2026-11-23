@@ -130,8 +130,7 @@ function studyModelId(role) {
   const sha = models[id]?.sha256;
   return studyArtifacts[sha] || Object.keys(searchProfiles).find(key => sha && models[key]?.sha256 === sha) || id;
 }
-function chosenLocalPreset(role) {
-  const studyId = studyModelId(role);
+function chosenLocalPreset(role, studyId = studyModelId(role)) {
   const search = role !== "categorization";
   const row = (search ? searchProfiles : reviewProfiles)[studyId];
   if (!row) return null;
@@ -160,7 +159,14 @@ function updateProfileNote(role, g = LearningUI.generation[role]) {
   const partial = role !== "categorization" && (id === "minicpm5-2b" || id === "gemma4-e2b-it-q4km");
   const preset = chosenLocalPreset(role);
   if (role !== "worker") {
-    $("#" + role + "-preset").hidden = !preset;
+    const fieldsMatch = preset && Object.entries(inferenceFields).every(([key, field]) =>
+      String($("#"+role+"-"+field).value)===String(preset.inference[key]));
+    const samplingMatch = preset && Object.keys({...g,...preset.inference.local_generation}).every(key=>(g?.[key]??null)===(preset.inference.local_generation?.[key]??null));
+    const profileMatch = role==="categorization" ? $("#categorization-scenario").value === preset?.scenario :
+      Number($("#analysis-target-input").value)===(preset?.target??0) && $("#analysis-chunk-strategy").value==="auto" &&
+      Number($("#analysis-max-fragments").value)===(preset?.maxFragments??256) && Number($("#analysis-hint-tokens").value)===256 &&
+      Number($("#analysis-max-candidates").value)===(preset?.maxCandidates??24);
+    $("#" + role + "-preset").hidden = !preset || (fieldsMatch && samplingMatch && profileMatch && Number($("#"+role+"-timeout").value)===preset.timeout);
     const source = $("#" + role + "-study");
     source.hidden = !preset && !partial;
     source.href = id === "kaponir-privacy-v4-epoch-2"
@@ -339,6 +345,9 @@ async function loadLearningSettings() {
   renderLearningForms();
 }
 for (const role of ["analysis", "categorization"]) {
+  for(const event of ["input","change"]) $("#"+role+"-form").addEventListener(event,()=>{
+    if($("#"+role+"-provider").value==="local")updateProfileNote(role);
+  });
   $(`#${role}-local-model`).addEventListener("change", () => applyLocalPreset(role));
   $(`#${role}-provider`).addEventListener("change", () => {
     const drafts = LearningUI.providerDrafts[role];
@@ -588,14 +597,8 @@ async function loadLearningHistory(force = false) {
   $("#queue-updated").textContent = tr("Обновлено {{0}}", [new Date().toLocaleTimeString(I18N.language)]);
   renderLearningWidget();
 }
-$("#queue-open-pending").addEventListener("click", () => {
-  $("#review-source").value = "learning";
-  $("#review-query").value = "";
-  $("#review-action").selectedIndex = 0;
-  $("#review-kind").selectedIndex = 0;
-  showReview([], "pending");
-});
-$("#learning-open-history").addEventListener("click", () => openReview("history"));
+$("#queue-open-pending").addEventListener("click", () => showReview([], "pending", "learning"));
+$("#learning-open-history").addEventListener("click", () => showReview([], "history", "learning"));
 async function loadCategorization() {
   await Promise.all([
     loadLearningSettings(),

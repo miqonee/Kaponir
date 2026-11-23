@@ -9,6 +9,7 @@
 //! ```
 
 pub mod anthropic;
+mod dataset;
 pub mod discovery;
 mod learning;
 mod metrics;
