@@ -127,6 +127,10 @@ function stage(job) {
   return tr(stageNames[job.state] || learningStates[job.state] || job.state);
 }
 function jobTitle(job) {
+  if (job.family === "file") {
+    if (job.kind === "download") return tr("Установка модели");
+    if (job.name === "@sessions") return tr("Сохранённые сессии");
+  }
   return job.family === "review"
     ? tr("Проверка значений · {{0}}", [job.total ?? job.targets?.length ?? 0])
     : job.name || tr(job.family === "file" ? "Обработка файла" : "Фоновый анализ");
@@ -264,7 +268,9 @@ function renderJob(job, family) {
       const trace = inferenceDetails(job);
       if (trace) card.append(trace);
       if (job.retryable) card.append(workButton("Повторить", () => learningAction(job.id, "retry")));
-    } else card.append(workButton("Файловая служба", () => showTab("worker")));
+    } else {
+      card.append(h("p", {}, jobProgress(job)), workButton("Файловая служба", () => showTab("worker")));
+    }
     nodes.push(card);
   }
   if (error) card.append(h("p", { class: "err" }, reviewError(error)));

@@ -187,6 +187,11 @@ def main():
                 page.locator('#worker-mode').select_option('local')
                 assert page.locator('#worker-s1').is_visible()
                 page.locator('#worker-scan-sessions').click()
+                page.wait_for_url('**/#jobs/file/*')
+                job = page.locator('#jobs-content')
+                job.get_by_role('heading', name='Сохранённые сессии').wait_for()
+                job.get_by_text('Нет данных для анализа', exact=True).wait_for()
+                job.get_by_role('button', name='Файловая служба').click()
                 page.locator('#worker-jobs').filter(has_text='Нет данных для анализа').wait_for()
                 legacy = worker.submit('download', model='q4')
                 worker.update(legacy['id'], state='failed', errors=[{'type': 'URLError', 'message': 'worker operation failed'}])
@@ -235,10 +240,12 @@ def main():
                 page.evaluate('loadWorkerSummary()')
                 page.locator('#analysis-model-install .model-state').filter(has_text='проверены и готовы').wait_for()
 
+                # Choosing another model above applied its preset. Edit this model before switching languages.
+                page.locator('#analysis-timeout').fill('79')
                 for language in ['en', 'ru']:
                     page.locator(f'#language-switch label:has(input[value={language}])').click()
                     wait_for(lambda: page.locator('html').get_attribute('lang') == language)
-                    assert page.locator('#analysis-timeout').input_value() == '77'
+                    assert page.locator('#analysis-timeout').input_value() == '79'
                     if language == 'en':
                         assert not re.search('[А-Яа-яЁё]', page.locator('#analysis-model-install').inner_text())
                     for theme in ['light', 'dark']:
@@ -252,10 +259,11 @@ def main():
                             page.evaluate("showTab('analysis')")
                             page.screenshot(path=str(args.output / f'models-{language}-{theme}-{width}.png'), full_page=True)
                 # Real worker/proxy/UI HF flow, with only metadata and tiny GGUF bytes mocked.
+                catalog_ids = {item['id'] for item in api('/api/v1/ui/worker')['catalog']}
                 for role in ['analysis','categorization','worker']:
                     select='#worker-model' if role=='worker' else f'#{role}-local-model'
-                    for model in ['minicpm5-2b','qwen3.5-2b','huihui-qwen3.5-2b-abliterated','nanbeige42-3b','granite42-3b','gemma4-e4b-qat']:
-                        assert page.locator(select+f' option[value="{model}"]').count()==1
+                    options = page.locator(select).evaluate('el => Array.from(el.options, option => option.value)')
+                    assert len(options) == len(catalog_ids) and set(options) == catalog_ids, (role, options)
                 hf_bytes=b'GGUFfixture-custom-model';hf_sha=hashlib.sha256(hf_bytes).hexdigest();revision='a'*40
                 original_open=urllib.request.urlopen;metadata_requests=[]
                 def hf_open(request,*params,**kwargs):
@@ -308,7 +316,7 @@ def main():
             report = {'passed': True, 'downloads': len(downloads), 'cases': ['offline verification', 'network error and retry',
                       'duplicate installation', 'same-size corruption', 'independent model stages', 'waiting and readiness',
                       'unsaved form and focus', 'empty sessions', 'legacy errors', 'partial save', 'old and offline worker',
-                      'languages, themes and viewport sizes','unknown catalog ID','six additional presets','HF repository and file selection',
+                      'languages, themes and viewport sizes','unknown catalog ID','worker catalog matches all model selectors','HF repository and file selection',
                       'invalid HF URL and unsupported format','HF import without hidden download or settings changes',
                       'custom GGUF integrity, selection and reload','custom offline instructions']}
             (args.output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')

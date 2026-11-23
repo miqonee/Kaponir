@@ -270,7 +270,10 @@ function renderReviewSelection() {
   const controls=h("div",{class:"form-actions"},workButton(source?tr(pickedCount()?"Проверить моделью · {{0}}":"Проверить моделью все {{0}}",[count]):tr("Выбрать модель"),()=>requestReview(),"primary",busy || ReviewUI.view==="history"),
     workButton(tr(pickedCount()?"В датасет · {{0}}":"В датасет все {{0}}",[count]),async()=>collectFindings(await selectedPayload()),"secondary",busy));
   if(!ReviewUI.snapshot && data.total>pickedCount())controls.append(workButton(tr("Выбрать все {{0}} по фильтру",[data.total]),async()=>{
-    const snap=await api("/api/v1/ui/review/selection",{method:"POST",body:reviewFilters()});clearPicking();ReviewUI.snapshot=snap;renderReview();
+    const request = ReviewUI.request;
+    const snap = await api("/api/v1/ui/review/selection", {method:"POST", body:reviewFilters()});
+    if (request !== ReviewUI.request) return;
+    clearPicking();ReviewUI.snapshot=snap;renderReview();
   }));
   if(pickedCount())controls.append(workButton("Снять выбор",()=>{clearPicking();renderReview();}));
   const list=[...ReviewUI.selected.values()];
@@ -335,9 +338,15 @@ async function requestReview(items) {
   } catch(e){$("#review-result").textContent=reviewError(e.messageKey||e.message);}
   finally{ReviewUI.busy=false;renderReviewSelection();}
 }
+function lockReviewResults(locked) {
+  for (const id of ["review-pagination", "review-list", "review-selection"]) $("#" + id).inert = locked;
+  $("#review-select-page").disabled = locked;
+}
 async function loadReview() {
+  clearTimeout(ReviewUI.filterTimer);
   const request=++ReviewUI.request;
-  for(const id of ["review-pagination","review-list","review-selection"])$("#"+id).inert=true;
+  lockReviewResults(true);
+  $("#review-list").setAttribute("aria-busy", "true");
   try {
     const params=new URLSearchParams({...reviewFilters(),stable:true,offset:ReviewUI.offset,limit:$("#review-size").value});
     const data=await api("/api/v1/ui/review?"+params);
@@ -346,14 +355,23 @@ async function loadReview() {
     for(const item of data.items)if(ReviewUI.selected.has(item.key))ReviewUI.selected.set(item.key,item);
     $("#review-badge").textContent=data.pending||"";$("#review-badge").hidden=!data.pending;
     renderReview();
-  }catch(e){$("#review-result").textContent=reviewError(e.messageKey||e.message);}
-  finally{if(request===ReviewUI.request)for(const id of ["review-pagination","review-list","review-selection"])$("#"+id).inert=false;}
+    lockReviewResults(false);
+  }catch(e){if(request===ReviewUI.request)$("#review-result").textContent=reviewError(e.messageKey||e.message);}
+  finally{if(request===ReviewUI.request)$("#review-list").setAttribute("aria-busy", "false");}
 }
 $("#review-kind").replaceChildren(h("option",{value:""},tr("Все типы")),...STANDARD_KINDS.map(k=>h("option",{value:k},kindLabel(k))));
-function changedFilter(){ReviewUI.browseSet=null;clearPicking();ReviewUI.offset=0;showFinding(null);loadReview();}
+function changedFilter(event) {
+  ReviewUI.browseSet=null;clearPicking();ReviewUI.offset=0;showFinding(null);
+  if (event?.type !== "input") return loadReview();
+  clearTimeout(ReviewUI.filterTimer);
+  ++ReviewUI.request;
+  lockReviewResults(true);
+  $("#review-list").setAttribute("aria-busy", "true");
+  ReviewUI.filterTimer = setTimeout(loadReview, 250);
+}
 for(const b of document.querySelectorAll("[data-review-view]")) b.onclick=()=>{ReviewUI.view=b.dataset.reviewView;changedFilter();};
 for(const id of ["review-source","review-sort","review-kind","review-action"])$("#"+id).onchange=changedFilter;
-$("#review-query").oninput=debounce(changedFilter,250);
+$("#review-query").oninput=changedFilter;
 $("#review-refresh").onclick=()=>{ReviewUI.browseSet=null;loadReview();};
 $("#review-size").value=localStorage.getItem("kaponir-page-size")||"100";
 $("#review-size").onchange=e=>{localStorage.setItem("kaponir-page-size",e.target.value);ReviewUI.offset=0;loadReview();};

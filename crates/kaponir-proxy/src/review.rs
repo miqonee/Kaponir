@@ -915,8 +915,15 @@ async fn jobs(
     };
     if let Some(files) = worker.as_ref().and_then(|w| w["jobs"].as_array()) {
         for j in files {
-            rows.push(json!({"family":"file","id":j["id"],"name":j["source"],"state":j["state"],"model":j["model"],"error":j["error"],
-                "updated":(1000.0*j["updated"].as_f64().unwrap_or_default()) as u64,"created":(1000.0*j["created"].as_f64().unwrap_or_default()) as u64,"total":if j["kind"]=="download"{&j["progress_total"]}else{&j["total"]},"completed":if j["kind"]=="download"{&j["progress"]}else{&j["completed"]}}));
+            let download = j["kind"] == "download";
+            rows.push(json!({
+                "family": "file", "kind": j["kind"], "stage": j["stage"], "id": j["id"],
+                "name": j["source"], "state": j["state"], "model": j["model"], "error": j["error"],
+                "updated": (1000.0 * j["updated"].as_f64().unwrap_or_default()) as u64,
+                "created": (1000.0 * j["created"].as_f64().unwrap_or_default()) as u64,
+                "total": if download { &j["progress_total"] } else { &j["total"] },
+                "completed": if download { &j["progress"] } else { &j["completed"] }
+            }));
         }
     }
     rows.retain(|row| {

@@ -268,12 +268,15 @@ function renderWorkerSummary() {
   renderModelCards();
 }
 function jobProgress(job) {
-  if (job.kind !== "download") return job.state === "succeeded" && !job.total
-    ? tr("Нет данных для анализа") : `${job.completed} / ${job.total}`;
+  if (job.kind !== "download") {
+    if (job.state === "succeeded" && job.total === 0) return tr("Нет данных для анализа");
+    return job.completed != null && job.total != null ? `${job.completed} / ${job.total}` : "—";
+  }
   if (job.state === "succeeded") return tr("Файлы подготовлены");
   const stage = tr(installationStages[job.stage] || "Установка модели");
-  return job.progress_total && ["model_download", "runtime_download"].includes(job.stage)
-    ? `${stage} · ${formatModelBytes(job.progress)} / ${formatModelBytes(job.progress_total)}` : stage;
+  const total = job.progress_total ?? job.total;
+  return total && ["model_download", "runtime_download"].includes(job.stage)
+    ? `${stage} · ${formatModelBytes(job.progress ?? job.completed)} / ${formatModelBytes(total)}` : stage;
 }
 function renderWorker() {
   const data = WORKER.data || {};
