@@ -517,7 +517,7 @@ class Worker:
             db.execute('UPDATE jobs SET updated=?,body=? WHERE id=?',(job['updated'],json.dumps(job),ident))
         return job
 
-    def submit(self, kind, source='.', model=None, use_s1=False, mode='local', inference=None, timeout_seconds=None):
+    def submit(self, kind, source='.', model=None, use_s1=False, mode='local', inference=None, timeout_seconds=None, scenario=None):
         if kind not in ['scan','download','evaluate']: raise ValueError('invalid job kind')
         if not isinstance(use_s1,bool): raise ValueError('use_s1 must be a boolean')
         if not isinstance(mode, str) or mode not in MODES: raise ValueError('unsupported analysis mode')
@@ -528,6 +528,10 @@ class Worker:
         job={'id':uuid.uuid4().hex,'kind':kind,'source':source,'root':str(self.root),'model':model,'use_s1':bool(use_s1),'mode':mode,
              'state':'queued','created':time.time(),'updated':time.time(),'completed':0,'page':0,'files':None,
              'total':0,'errors':[],'skipped':0,'control':None,'progress':0,'progress_total':0,'current':''}
+        if scenario is not None:
+            if kind != 'scan' or mode != 'configured' or scenario not in ('standard','A','B','C','D'):
+                raise ValueError('invalid_analysis_scenario')
+            job['scenario'] = scenario
         if inference is not None:
             if kind != 'scan' or mode != 'qwen':
                 raise ValueError('invalid_inference_settings')
@@ -537,7 +541,9 @@ class Worker:
             if settings.get('local_generation') is not None:
                 generation = settings['local_generation']
                 job['inference']['local_generation'] = {key:generation[key] for key in
-                    ('temperature','top_p','top_k','min_p','seed','parse_reasoning','reasoning_budget','retry_output_tokens') if key in generation}
+                    ('temperature','top_p','top_k','min_p','seed','parse_reasoning','reasoning_budget','retry_output_tokens',
+                     'target','log_target','log_hints','thinking_source_cutoff','log_temperature','repeat_penalty','log_repeat_penalty',
+                     'presence_penalty','prompt_threads','generation_threads','low_effort','reasoning_effort','completion_schema') if key in generation}
             if type(timeout_seconds) is not int or not 1 <= timeout_seconds <= 1800:
                 raise ValueError('invalid_evaluation_timeout')
             job['timeout_seconds'] = timeout_seconds
@@ -808,7 +814,7 @@ class Worker:
         if not os.access(self.runtime, os.X_OK): raise InstallationError('runtime_not_executable')
         self.update(ident, stage='ready')
 
-    def detect_json_schema(self):
+    def detect_json_schema(self, timeout=None):
         # Probe the loaded runtime, never guess capabilities from a model name.
         # The probe contains no document data and does not evaluate model quality.
         self.process_supports_json_schema = True
@@ -818,7 +824,7 @@ class Worker:
                 'model':'qwen-cpu','messages':[{'role':'user','content':'Return a JSON object.'}],
                 'temperature':0,'max_tokens':1,'stream':False,'cache_prompt':False,
                 'chat_template_kwargs':{'enable_thinking':False},
-                'response_format':{'type':'json_schema','json_schema':{'name':'capability','strict':True,'schema':schema}}},timeout=min(30,self.cfg['ocr_timeout_seconds']))
+                'response_format':{'type':'json_schema','json_schema':{'name':'capability','strict':True,'schema':schema}}},timeout=timeout if timeout is not None else min(30,self.cfg['ocr_timeout_seconds']))
         except urllib.error.HTTPError as exc:
             try:
                 error=json.loads(exc.read(4096))
@@ -835,7 +841,7 @@ class Worker:
         return schema_prompt(prompt,schema) if use_prompt else prompt
 
     def start_runtime(self, ident, variant, slots=1, context_tokens=4096, reasoning='off', reasoning_format='auto', reasoning_budget=-1,
-                      prompt_threads=None, generation_threads=None):
+                      prompt_threads=None, generation_threads=None, deadline=None):
         if reasoning not in ['off','on','auto'] or reasoning_format not in ['auto','none','deepseek','deepseek-legacy']:
             raise ValueError('invalid_reasoning_settings')
         if type(reasoning_budget) is not int or not -1<=reasoning_budget<=context_tokens:
@@ -871,16 +877,24 @@ class Worker:
         self.process_threads = threads
         self.process_reasoning_budget = reasoning_budget
         with self.token_lock:self.token_counts.clear()
-        deadline=time.monotonic()+120
-        while time.monotonic()<deadline:
+        startup_limit = deadline if deadline is not None else time.monotonic()+120
+        while time.monotonic()<startup_limit:
             self.check(ident)
             if self.process.poll() is not None: raise ValueError('model_runtime_start_failed')
             try:
                 http_json(self.ocr_base+'/health',timeout=1)
             except (OSError,ValueError):
                 time.sleep(.25);continue
-            self.detect_json_schema()
+            try:
+                if deadline is None:
+                    self.detect_json_schema()
+                else:
+                    self.detect_json_schema(timeout=max(0.01, deadline - time.monotonic()))
+            except Exception:
+                self.stop_runtime()
+                raise
             return
+        self.stop_runtime()
         raise TimeoutError('LLM runtime startup timeout')
 
     def count_text_tokens(self, text):
@@ -1008,10 +1022,14 @@ class Worker:
         if not isinstance(prompt, str) or not 1 <= len(prompt) <= 8192: raise ValueError('invalid evaluation prompt')
         if not isinstance(schema, dict) or not isinstance(source, dict): raise ValueError('invalid evaluation input')
         if len(json.dumps(source,ensure_ascii=False).encode()) > 2*1024*1024: raise ValueError('evaluation_input_too_large')
+        probe = body.get('operation') == 'probe'
+        deadline = time.monotonic() + timeout
         with self.evaluation_condition:
             while self.active is not None or (self.evaluations and
                   (len(self.evaluations) >= slots or self.evaluation_profile != profile)):
                 if not self.enabled or self.stop.is_set(): raise ValueError('worker is disabled')
+                if probe and time.monotonic() >= deadline:
+                    raise ValueError('model_queue_timeout')
                 self.evaluation_condition.wait(.2)
             if not self.enabled or self.stop.is_set(): raise ValueError('worker is disabled')
             job = self.submit('evaluate', model=model)
@@ -1025,6 +1043,19 @@ class Worker:
         try:
             with self.runtime_lock:
                 self.check(ident)
+                if probe:
+                    if time.monotonic() >= deadline:
+                        raise TimeoutError('model_timeout')
+                    self.start_runtime(ident, model, slots, context_tokens=context_tokens, deadline=deadline, **runtime)
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError('model_timeout')
+                    response = http_json(self.ocr_base+'/tokenize', {'content':'Kaponir','add_special':False}, timeout=remaining)
+                    if not isinstance(response.get('tokens'), list) or not response['tokens']:
+                        raise ValueError('local_probe_failed')
+                    self.check(ident)
+                    self.update(ident, state='succeeded')
+                    return {'ready':True}
                 self.start_runtime(ident, model, slots, context_tokens=context_tokens, **runtime)
                 base = self.ocr_base
                 prompt = self.structured_prompt(prompt,schema,settings['response_format'])
@@ -1088,7 +1119,7 @@ class Worker:
             elif isinstance(exc,urllib.error.URLError):code='model_connection_failed'
             elif str(exc)=='model_fragment_cannot_split' and body.get('operation')=='plan':
                 code='model_input_budget_too_small' if body.get('chunking',{}).get('target_input_tokens') else 'model_context_budget_exceeded'
-            elif str(exc) in ['model_context_budget_exceeded','model_response_truncated','model_runtime_start_failed','model_fragment_cannot_split','document_fragment_limit','invalid_chunk_strategy','invalid_chunk_settings','invalid_evaluation_input','invalid_model_response']:
+            elif str(exc) in ['model_context_budget_exceeded','model_response_truncated','model_runtime_start_failed','local_probe_failed','model_fragment_cannot_split','document_fragment_limit','invalid_chunk_strategy','invalid_chunk_settings','invalid_evaluation_input','invalid_model_response']:
                 code=str(exc)
             else:code='local_model_unavailable'
             telemetry['seconds']=round(time.monotonic()-started,3)
@@ -1189,9 +1220,13 @@ class Worker:
 
     def import_text(self, ident, name, text, use_s1):
         self.check(ident)
-        if self.get(ident).get('mode') == 'configured':
+        job = self.get(ident)
+        if job.get('mode') == 'configured':
             if not self.cfg['api_url']: raise ValueError('configured analysis requires worker.api_url')
-            http_json(self.cfg['api_url'].rstrip('/')+'/api/v1/ui/analysis/documents', {'documents':[{'name':name,'text':text,'format':'auto'}]}, os.getenv('KAPONIR_API_TOKEN',''), timeout=30)
+            payload = {'documents':[{'name':name,'text':text,'format':'auto'}]}
+            if job.get('scenario'):
+                payload['scenario'] = job['scenario']
+            http_json(self.cfg['api_url'].rstrip('/')+'/api/v1/ui/analysis/documents', payload, os.getenv('KAPONIR_API_TOKEN',''), timeout=30)
             return
         if len(text.encode())>2*1024*1024: raise ValueError('extracted text exceeds discover limit')
         docs=[{'name':name,'text':text,'format':'auto'}]
@@ -1374,7 +1409,7 @@ def handler(worker, token):
                 if path=='/enable':result=worker.activate(True)
                 elif path=='/disable':result=worker.activate(False)
                 elif path=='/evaluate':result=worker.evaluate(body)
-                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'),body.get('inference'),body.get('timeout_seconds'))
+                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'),body.get('inference'),body.get('timeout_seconds'),body.get('scenario'))
                 elif path=='/models/resolve':result=resolve_hf(body.get('url'))
                 elif path=='/models/register':result=worker.register_model(body.get('url'),body.get('file'))
                 elif path=='/models/download':result=worker.submit('download',model=body.get('model'))

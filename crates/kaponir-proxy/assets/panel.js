@@ -41,7 +41,7 @@ function panelHeading(name) {
   $("#page-actions").hidden = !["overview", "events"].includes(name);
   $("#lab-navigation").hidden = !["mask", "restore"].includes(name);
   $("#learning-widget").hidden = !["analysis", "categorization", "worker"].includes(name);
-  $("#analysis-navigation").hidden = !["analysis", "categorization", "worker"].includes(name);
+  $("#analysis-navigation").hidden = !["analysis", "categorization", "worker", "discover"].includes(name);
   for (const b of document.querySelectorAll(
     "#lab-navigation [data-go],#analysis-navigation [data-go]",
   ))

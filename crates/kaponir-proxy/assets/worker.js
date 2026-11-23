@@ -60,10 +60,21 @@ function syncModelChoices() {
     const select=modelSelect(role), current=select.value;
     const items=[...catalog];
     if (current && !items.some((item)=>item.id===current)) items.push({id:current,label:WORKER.data?.models?.[current]?.label || current});
-    const signature=JSON.stringify(items.map((item)=>[item.id,item.label,item.bytes]));
-    if (select.dataset.catalog===signature) continue;
-    select.dataset.catalog=signature;
-    select.replaceChildren(...items.map((item)=>h("option",{value:item.id},item.label+(item.bytes ? ` · ${formatModelBytes(item.bytes)}` : ""))));
+    const groups = [[], [], []];
+    for (const item of items) {
+      const files = WORKER.data?.models?.[item.id];
+      const group = files?.downloaded ? 0 : files?.state === "checking" || activeModelDownload(item.id) ? 1 : 2;
+      groups[group].push(item);
+    }
+    const labels = ["Загружены", "Идёт установка или проверка", WORKER.data?.online ? "Доступны для загрузки" : "Каталог моделей"];
+    for (const group of groups) group.sort((a, b) => a.label.localeCompare(b.label, I18N.language, {numeric:true}));
+    const signature = JSON.stringify([I18N.language, labels, groups.map(group => group.map(({id,label,bytes}) => [id,label,bytes]))]);
+    if (select.dataset.catalog === signature) continue;
+    select.dataset.catalog = signature;
+    select.replaceChildren(...groups.flatMap((group, index) => group.length ? [
+      h("optgroup", {label:tr(labels[index])}, group.map(item => h("option", {value:item.id},
+        item.label + (item.bytes ? " · " + formatModelBytes(item.bytes) : ""))))
+    ] : []));
     if (current) select.value=current;
   }
 }
@@ -180,7 +191,7 @@ function offlineInstructions(model, runtime) {
       h("p", { class: "hint" }, tr("Установите совместимую сборку llama-server для этой платформы. Путь задаётся в worker.runtime; после изменения конфигурации перезапустите службу.")));
   }
   nodes.push(h("p", { class: "hint" }, tr("В Docker пути относятся к контейнеру worker: файлы должны попасть в volume моделей, смонтированный в /models, а не в файловую систему прокси.")),
-    h("p", { class: "hint" }, tr("После переноса нажмите «Проверить файлы». Эта проверка не использует интернет и не запускает модель. Затем проверьте запуск на синтетическом примере.")));
+    h("p", { class: "hint" }, tr("После переноса нажмите «Проверить файлы», затем «Проверить запуск».")));
   return nodes;
 }
 function renderModelCards() {
@@ -273,6 +284,7 @@ function renderWorker() {
     $("#" + id).disabled = WORKER.busy || !data.online || !data.enabled || !info.editable;
   const mode = $("#worker-mode").value;
   updateProfileNote("worker", mode === "qwen" ? chosenLocalPreset("worker")?.inference.local_generation : null);
+  $("#worker-scenario-field").hidden = mode !== "configured";
   $("#worker-s1-field").hidden = mode === "configured";
   $("#worker-s1-help").hidden = mode === "configured";
   $("#worker-mode-help").textContent = tr(mode === "configured"
@@ -324,6 +336,7 @@ async function loadWorkerSummary() {
   } catch (error) {
     if (request !== WORKER.request) return;
     WORKER.data = { state: "error", online: false, can_manage: false, error: error.message };
+    syncModelChoices();
   }
   if (location.hash === "#worker") renderWorker();
   else renderWorkerSummary();
@@ -363,6 +376,7 @@ function submitWorkerSource(source) {
   const mode = $("#worker-mode").value;
   const preset = mode === "qwen" ? chosenLocalPreset("worker") : null;
   return runWorkerAction("/jobs", { source, model: $("#worker-model").value,
+    ...(mode === "configured" && $("#worker-scenario").value ? {scenario:$("#worker-scenario").value} : {}),
     ...(preset ? {inference:preset.inference, timeout_seconds:preset.timeout} : {}),
     use_s1: mode !== "configured" && $("#worker-s1").checked, mode });
 }

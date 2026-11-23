@@ -75,7 +75,15 @@ pub(crate) async fn forward(
         }))
         .send()
         .await
-        .map_err(|_| error(StatusCode::BAD_GATEWAY, "worker unavailable"))?;
+        .map_err(|e| {
+            if path == "/evaluate" && e.is_timeout() {
+                error(StatusCode::GATEWAY_TIMEOUT, "model_timeout")
+            } else if path == "/evaluate" {
+                error(StatusCode::BAD_GATEWAY, "model_connection_failed")
+            } else {
+                error(StatusCode::BAD_GATEWAY, "worker unavailable")
+            }
+        })?;
     let status = response.status();
     let mut value: Value = response.json().await.map_err(|e| internal(e.into()))?;
     if !status.is_success() {
