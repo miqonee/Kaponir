@@ -34,7 +34,7 @@ function categoryStage(item) {
 function stageText(item) {
   const stage = categoryStage(item);
   return tr(({ disabled: "Категоризация выключена — тип не проверен", not_run: "Категоризация ещё не выполнялась",
-    running: "Категоризация выполняется", failed: "Категоризация завершилась ошибкой", unknown: "Состояние категоризации не сохранено старой версией" })[stage]
+    running: "Категоризация выполняется", verdict_only: "Тип остаётся на ручной проверке", failed: "Категоризация завершилась ошибкой", unknown: "Состояние категоризации не сохранено старой версией" })[stage]
     || "Тип проверен категоризацией");
 }
 function detectorReason(item) {
@@ -94,14 +94,15 @@ function reviewCard(item) {
     item.validation_reason ? h("p", { class: "hint" }, reviewError(item.validation_reason)) : null);
   article.append(heading, type, current);
   if (reason) article.append(h("p", { class: "hint" }, reason));
+  if (item.scenario_result) article.append(h("p", {}, learningErrors[item.scenario_result.reason] ? learningError(item.scenario_result.reason) : item.scenario_result.reason));
   if (valid) article.append(h("div", { class: "review-recommendation" },
     h("strong", {}, tr(rec.action === "mask" ? "Модель предлагает маскировать" : "Модель предлагает не маскировать")),
-    h("p", {}, `${kindLabel(rec.kind)} · ${scopeLabel(rec.scope)} · ${tr("Оценка пересмотра")}: ${reviewPercent(rec.confidence)}`),
+    rec.verdict_only ? h("p", {class:"hint"}, tr("Тип остаётся на ручной проверке")) : h("p", {}, `${kindLabel(rec.kind)} · ${scopeLabel(rec.scope)} · ${tr("Оценка пересмотра")}: ${reviewPercent(rec.confidence)}`),
     h("p", {}, rec.reason === "configured_categorizer" ? tr("Рекомендация настроенного категоризатора") : rec.reason),
     h("small", { class: "hint" }, modelName(rec.model))));
   else if (rec?.state === "needs_review") article.append(h("div", { class: "review-recommendation inconclusive" },
     h("strong", {}, tr("Модели недостаточно данных для решения")),
-    h("p", {}, rec.reason),
+    h("p", {}, learningErrors[rec.reason] ? learningError(rec.reason) : rec.reason),
     h("small", { class: "hint" }, tr("Проверьте контекст и выберите решение вручную или повторите пересмотр.")),
     h("p", { class: "hint" }, modelName(rec.model))));
   else if (rec) article.append(h("p", { class: "err" }, rec.state === "stale" ? reviewError("review_stale") : reviewError(rec.error)));

@@ -27,6 +27,12 @@ const learningStates = {
   conflict: "Есть правило",
 };
 const learningErrors = {
+  model_queue_timeout: "Служба была занята до конца проверки. Повторите после текущего задания.",
+  local_probe_failed: "Служба не подтвердила готовность модели. Проверьте версию воркера и среду запуска.",
+  scenario_requires_llm: "Для сценариев A–D включите локальную или OpenAI-совместимую категоризацию.",
+  target_occurrence_uncertain: "Точное вхождение не удалось выделить однозначно.",
+  scenario_mask: "Модель предлагает скрыть значение",
+  scenario_review: "Требуется ручная проверка значения",
   learning_queue_full: "Очередь заполнена. Повторите после освобождения места.",
   interrupted_application:
     "Применение было прервано. Требуется подтверждение или повтор задания.",
@@ -74,6 +80,7 @@ const bytesMiB = (bytes) =>
 
 // Imported copies of the pinned GGUF get the same preset as the built-in model.
 const studyArtifacts = {
+  "35276d878e0d1205dd622466623651cacd738732f2495a9a38b51b9fd659123f": "kaponir-privacy-v4-epoch-2",
   "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5": "lfm2.5-1.2b-instruct",
   "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed": "lfm2.5-2.6b",
   "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4": "qwen3.5-4b",
@@ -93,13 +100,14 @@ const searchProfiles = {
   "qwen3.5-4b": {repeat_penalty:1, presence_penalty:0, target:2432, prompt_threads:4},
   "gemma4-e4b-it-q4km": {temperature:1, top_k:64, reasoning_budget:2048},
   "lfm2.5-8b-a1b": {temperature:0.2, top_k:80, reasoning_budget:1024, repeat_penalty:1.05},
-  "qwen3.5-2b": baselineSearch, "qwen3.5-0.8b": baselineSearch,
+  "kaponir-privacy-v4-epoch-2": baselineSearch, "qwen3.5-2b": baselineSearch, "qwen3.5-0.8b": baselineSearch,
   "granite42-3b": {...baselineSearch, timeout:1200},
   "spark-x2.6-4b": {...baselineSearch, timeout:1200, prompt_threads:2, generation_threads:2},
   "minicpm5-2b": {...baselineSearch, timeout:600, format:"auto", limitsOnly:true},
   "gemma4-e2b-it-q4km": null,
 };
 const reviewProfiles = {
+  "kaponir-privacy-v4-epoch-2": {timeout:600},
   "gemma4-e4b-qat": {temperature:1, top_k:64},
   "gemma4-e4b-it-q4km": {temperature:1, top_k:64},
   "gemma4-e2b-it-q4km": {temperature:1, top_k:64},
@@ -116,11 +124,14 @@ const inferenceFields = {context_tokens:"context-tokens", max_output_tokens:"out
   reserve_tokens:"reserve-tokens", batch_size:"batch-size", response_format:"response-format"};
 const defaultInference = {context_tokens:4096, max_output_tokens:1600, reserve_tokens:64, batch_size:2, response_format:"auto"};
 
-function chosenLocalPreset(role) {
+function studyModelId(role) {
   const id = modelSelect(role).value;
   const models = WORKER.data?.models || {};
   const sha = models[id]?.sha256;
-  const studyId = studyArtifacts[sha] || Object.keys(searchProfiles).find(key => sha && models[key]?.sha256 === sha) || id;
+  return studyArtifacts[sha] || Object.keys(searchProfiles).find(key => sha && models[key]?.sha256 === sha) || id;
+}
+function chosenLocalPreset(role) {
+  const studyId = studyModelId(role);
   const search = role !== "categorization";
   const row = (search ? searchProfiles : reviewProfiles)[studyId];
   if (!row) return null;
@@ -134,6 +145,7 @@ function chosenLocalPreset(role) {
   };
   return {inference:{context_tokens:context, max_output_tokens:output, reserve_tokens:64,
     batch_size:8, response_format:format, local_generation:generation},
+    scenario:["qwen3.5-2b","minicpm5-2b"].includes(studyId) ? "B" : "D",
     timeout:search ? timeout : timeout * 1000, maxCandidates:24, target, maxFragments};
 
 }
@@ -144,15 +156,27 @@ function writeInference(role, inference) {
 }
 function updateProfileNote(role, g = LearningUI.generation[role]) {
   const note = $(`#${role}-profile-note`);
-  const id = modelSelect(role).value;
+  const id = studyModelId(role);
   const partial = role !== "categorization" && (id === "minicpm5-2b" || id === "gemma4-e2b-it-q4km");
-  note.hidden = !g && !partial;
+  const preset = chosenLocalPreset(role);
+  if (role !== "worker") {
+    $("#" + role + "-preset").hidden = !preset;
+    const source = $("#" + role + "-study");
+    source.hidden = !preset && !partial;
+    source.href = id === "kaponir-privacy-v4-epoch-2"
+      ? "https://github.com/miqonee/Kaponir/tree/main/research/privacy-training#readme"
+      : "https://github.com/miqonee/Kaponir/blob/main/docs/experiments/model-search-final.csv";
+  }
+  note.hidden = !g && !partial && role === "worker";
+  if (!g && !partial) note.textContent = tr("Параметры для этой модели можно задать вручную.");
   if (!g && partial) note.textContent = id === "minicpm5-2b"
     ? tr("В архиве поиска подтверждены только лимиты контекста и ответа.")
     : tr("Параметры исторического поиска не подтверждены. Используются обычные настройки.");
 
   if (g) note.textContent = tr("Параметры исследования · температура {{0}}, top_p {{1}}, top_k {{2}}, min_p {{3}}, seed {{4}}, бюджет рассуждений {{5}}.",
     [g.temperature, g.top_p, g.top_k, g.min_p, g.seed ?? "—", g.reasoning_budget ?? 0]);
+  if (preset && role === "categorization") note.textContent += " " + tr("Рекомендация для этой модели — {{0}}. Этот сценарий набрал больше всего баллов при проверке готовых целей.", [preset.scenario]);
+  if (g && role === "analysis" && preset) note.textContent += " " + tr("Профиль для поиска по документам взят из таблицы исследования.");
   if (g?.thinking_source_cutoff) note.textContent += " " + tr("Рассуждения включаются до {{0}} токенов исходного текста.", [g.thinking_source_cutoff]);
 }
 function applySearchLimits(preset) {
@@ -170,6 +194,8 @@ function applyLocalPreset(role) {
   $(`#${role}-timeout`).value = preset?.timeout ?? (role === "analysis" ? 180 : 30000);
   if (role === "analysis") {
     applySearchLimits(preset);
+  } else {
+    $("#categorization-scenario").value = preset?.scenario || "standard";
   }
   updateProfileNote(role);
 }
@@ -184,6 +210,7 @@ function learningFormVisibility() {
   $("#categorization-none-note").hidden = c !== "none";
   $("#categorization-timeout-field").hidden = c === "none";
   $("#categorization-inference-settings").hidden = c === "none" || (c === "s1" && $("#categorization-protocol").value !== "openai");
+  $("#categorization-scenario-field").hidden = $("#categorization-inference-settings").hidden;
   $("#analysis-timeout").max = a === "local" ? "1800" : "300";
   $("#categorization-timeout").max = c === "local" ? "1800000" : $("#categorization-protocol").value === "openai" ? "300000" : "60000";
   $("#analysis-url").required = a === "api";
@@ -234,6 +261,7 @@ function renderLearningForms() {
     } else {
       $("#categorization-local-model").value = canonicalModel(s.model);
       $("#categorization-protocol").value = s.http.protocol;
+      $("#categorization-scenario").value = s.scenario || "standard";
       $("#categorization-api-model").value = s.http.model || "";
       $("#categorization-url").value = s.http.url;
       $("#categorization-timeout").value = s.http.timeout_ms;
@@ -273,6 +301,7 @@ function readLearningForm(role) {
     settings = {
       ...saved,
       provider: $("#categorization-provider").value,
+      scenario: $("#categorization-scenario-field").hidden ? "standard" : $("#categorization-scenario").value,
       model: $("#categorization-local-model").value,
       http: {
         ...saved.http,
@@ -316,6 +345,7 @@ for (const role of ["analysis", "categorization"]) {
     if (!drafts) return;
     const provider = $(`#${role}-provider`).value;
     const fieldIds = Object.values(inferenceFields).map(field => `${role}-${field}`);
+    if (role === "categorization") fieldIds.push("categorization-scenario");
     fieldIds.push(`${role}-timeout`);
     if (role === "analysis") fieldIds.push("analysis-target-input", "analysis-hint-tokens",
       "analysis-max-candidates", "analysis-max-fragments", "analysis-chunk-strategy");
@@ -327,13 +357,22 @@ for (const role of ["analysis", "categorization"]) {
       for (const [id, value] of Object.entries(previous.values)) $("#" + id).value = value;
       LearningUI.generation[role] = previous.generation;
     } else if (provider === "local") {
+      const select = modelSelect(role);
+      const installed = [...select.options].filter(option => WORKER.data?.models?.[option.value]?.downloaded);
+      const sibling = modelSelect(role === "analysis" ? "categorization" : "analysis").value;
+      if (installed.length) select.value = installed.find(option => option.value === sibling)?.value || installed[0].value;
       applyLocalPreset(role);
     } else {
+      if (role === "categorization") $("#categorization-scenario").value = "standard";
       writeInference(role, defaultInference);
       $(`#${role}-timeout`).value = role === "analysis" ? 180 : 30000;
       if (role === "analysis") applySearchLimits(null);
     }
     updateProfileNote(role);
+  });
+  $("#" + role + "-preset").addEventListener("click", () => {
+    applyLocalPreset(role);
+    $("#" + role + "-form").dispatchEvent(new Event("input"));
   });
   for (const event of ["input", "change"])
     $(`#${role}-form`).addEventListener(event, () => {
@@ -358,10 +397,22 @@ async function saveLearningForm(role, test = false) {
   learningFormVisibility();
   output.classList.remove("err");
   output.textContent = tr(test ? "Проверяем…" : "Применяем…");
+  const local = body.settings.provider === "local";
+  const limitMs = role === "analysis" ? body.settings.timeout_seconds * 1000 : body.settings.http.timeout_ms;
+  const started = Date.now();
+  const progress = () => {
+    output.textContent = tr("Проверяем запуск модели… {{0}} с из {{1}} с", [Math.floor((Date.now() - started) / 1000), Math.ceil(limitMs / 1000)]);
+  };
+  let timer;
+  if (test && local) {
+    progress();
+    timer = setInterval(progress, 1000);
+  }
   let saved = false;
   try {
     const result = await api(`/api/v1/ui/${role}${test ? "/test" : ""}`, {
       method: test ? "POST" : "PUT",
+      timeoutMs: test ? Math.max(45000, limitMs + 15000) : 45000,
       body,
     });
     if (!test) {
@@ -373,14 +424,15 @@ async function saveLearningForm(role, test = false) {
         await workerAction(result.settings.enabled ? "/start" : "/stop", {});
       await loadWorkerSummary();
     }
-    const local = body.settings.provider === "local";
-    output.textContent = test ? tr(local ? "Модель запущена и проверена на синтетическом примере." : "Подключение проверено")
+    clearInterval(timer);
+    output.textContent = test ? tr(local ? "Модель загружена. Токенизатор ответил." : "Подключение проверено")
       : tr("Настройки сохранены."); // Live readiness is shown by the widget and model cards.
     await loadLearningHistory();
   } catch (e) {
-    output.textContent = saved ? tr("Настройки сохранены, но служба не выполнила действие: {{0}}", [learningError(e.message)]) : learningError(e.message);
+    output.textContent = saved ? tr("Настройки сохранены, но служба не выполнила действие: {{0}}", [learningError(e.message)]) : (e.name === "TimeoutError" || e.message === "model_timeout") ? tr("Проверка не уложилась в заданное время. Проверьте очередь и тайм-аут модели.") : learningError(e.message);
     output.classList.add("err");
   } finally {
+    clearInterval(timer);
     LearningUI.busy.delete(role);
     learningFormVisibility();
   }

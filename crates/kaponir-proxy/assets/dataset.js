@@ -135,7 +135,7 @@ function openDatasetExample(item) {
     render();
     try {
       const result = await api('/api/v1/ui/worker/privacy-suggest', {
-        method:'POST', body:{text:excerpt}, timeout:300000,
+        method:'POST', body:{text:excerpt}, timeoutMs:300000,
       });
       if (suggest.onclick !== askModel || text.value !== excerpt || !checked.checked) return;
       const toIndex = byteMap(excerpt);

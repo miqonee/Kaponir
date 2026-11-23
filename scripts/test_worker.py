@@ -226,6 +226,28 @@ class WorkerTests(unittest.TestCase):
             self.assertTrue(request.call_args.args[0].endswith('/api/v1/ui/sessions/export'))
         self.assertEqual(self.worker.get(job['id'])['state'], 'succeeded')
 
+    def test_probe_uses_loaded_tokenizer_and_propagates_failure(self):
+        self.worker.ocr_base = 'http://fixture'
+        body = {'operation':'probe','model':'q4','prompt':'ready','schema':{},'input':{},'timeout_seconds':60}
+        with patch.object(self.worker, 'start_runtime') as runtime, patch('kaponir_worker.http_json') as request:
+            request.return_value = {'tokens':[1,2]}
+            self.assertEqual(self.worker.evaluate(body), {'ready':True})
+            self.assertIn('deadline', runtime.call_args.kwargs)
+            self.assertEqual(request.call_args.args[0], 'http://fixture/tokenize')
+            request.return_value = {'tokens':[]}
+            with self.assertRaisesRegex(ValueError, 'local_probe_failed'):
+                self.worker.evaluate(body)
+            self.assertFalse(self.worker.evaluations)
+
+    def test_configured_job_forwards_only_its_saved_scenario(self):
+        self.worker.cfg['api_url'] = 'http://fixture'
+        job = self.worker.submit('scan', source='@sessions', mode='configured', scenario='C')
+        with patch('kaponir_worker.http_json') as request:
+            self.worker.import_text(job['id'], 'sample.txt', 'Document', False)
+            self.assertEqual(request.call_args.args[1]['scenario'], 'C')
+        with self.assertRaisesRegex(ValueError, 'invalid_analysis_scenario'):
+            self.worker.submit('scan', source='@sessions', mode='local', scenario='D')
+
     def test_parallel_evaluations_are_bounded_and_support_ten_slots(self):
         import time
         active = 0

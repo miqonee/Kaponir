@@ -497,7 +497,7 @@ fn schema(ids: &[String]) -> Value {
         "required":["id","action","kind","scope","confidence","reason"],"additionalProperties":false}}},"required":["decisions"],"additionalProperties":false})
 }
 
-fn validate_decision(decision: &Value, value: &str) -> anyhow::Result<()> {
+fn validate_decision(decision: &Value, value: &str, research: bool) -> anyhow::Result<()> {
     let kind = decision["kind"].as_str().unwrap_or_default();
     anyhow::ensure!(
         kaponir_core::kinds::STANDARD.contains(&kind)
@@ -505,9 +505,10 @@ fn validate_decision(decision: &Value, value: &str) -> anyhow::Result<()> {
                 decision["action"].as_str(),
                 Some("mask" | "keep" | "review")
             )
-            && decision["confidence"]
-                .as_f64()
-                .is_some_and(|p| p.is_finite() && (0.0..=1.0).contains(&p))
+            && ((research && decision["confidence"].is_null())
+                || decision["confidence"]
+                    .as_f64()
+                    .is_some_and(|p| p.is_finite() && (0.0..=1.0).contains(&p)))
             && decision["scope"]
                 .as_str()
                 .is_some_and(|s| s.parse::<Scope>().is_ok())
@@ -620,7 +621,13 @@ async fn run_inner(st: &Shared, job: &mut Value) -> anyhow::Result<()> {
             let id = model_id(target);
             let d = decisions.iter().find(|d| d["id"] == id).unwrap();
             let item = current.iter().find(|i| i["key"] == target.key).unwrap();
-            let mut rec = match validate_decision(d, item["value"].as_str().unwrap_or_default()) {
+            let mut rec = match validate_decision(
+                d,
+                item["value"].as_str().unwrap_or_default(),
+                job["source"]["scenario"]
+                    .as_str()
+                    .is_some_and(|s| s != "standard"),
+            ) {
                 Ok(()) => {
                     let mut rec = d.clone();
                     rec["state"] = json!(if d["action"] == "review" {

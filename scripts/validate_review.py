@@ -16,6 +16,9 @@ def check_local_presets(page, api):
         options = set(model.locator('option').evaluate_all('(options) => options.map(o => o.value)'))
         with (Path(__file__).resolve().parents[1]/'docs/experiments/model-search-final.csv').open() as f:
             rows = list(csv.DictReader(f))
+        page.wait_for_function("() => document.querySelector('#analysis-local-model optgroup')?.label === 'Загружены'")
+        ready = model.locator('optgroup').first.locator('option')
+        assert set(ready.evaluate_all('(options) => options.map(o => o.value)')) == {'qwen3.5-2b','qwen3-0.6b'}
         hidden = {'huihui-qwen3.5-2b-abliterated','tiny-aya-global'}
         assert not options.intersection(hidden)
         for row in rows:
@@ -47,6 +50,13 @@ def check_local_presets(page, api):
         page.locator('#analysis-local-model').select_option('qwen3.5-2b')
         assert page.locator('#analysis-context-tokens').input_value() == '4096'
         page.locator('#analysis-output-tokens').evaluate("e => e.closest('details').open = true")
+        page.locator('#analysis-output-tokens').fill('1300')
+        page.locator('#analysis-preset').click()
+        assert page.locator('#analysis-output-tokens').input_value() == '1600'
+        page.evaluate("window.probeLimits=[]; const nativeTimeout=AbortSignal.timeout.bind(AbortSignal); AbortSignal.timeout=ms=>{ window.probeLimits.push(ms); return nativeTimeout(ms); }")
+        page.locator('#analysis-test').click()
+        page.locator('#analysis-result').filter(has_text='Токенизатор ответил').wait_for()
+        assert 315000 in page.evaluate('window.probeLimits')
         page.locator('#analysis-output-tokens').fill('1400')
         page.locator('#analysis-save').click()
         wait_for(lambda: api('/api/v1/ui/analysis')['settings']['model'] == 'qwen3.5-2b')
@@ -55,6 +65,10 @@ def check_local_presets(page, api):
         assert api('/api/v1/ui/analysis')['settings']['inference']['local_generation']['top_k'] == 40
         page.evaluate("showTab('categorization')")
         page.locator('#categorization-provider').select_option('local')
+        for row in rows:
+            if row['model'] in hidden: continue
+            page.locator('#categorization-local-model').select_option(row['model'])
+            assert page.locator('#categorization-scenario').input_value() == row['best_abcd_variant']
         page.locator('#categorization-local-model').select_option('nanbeige42-3b')
         assert page.locator('#categorization-response-format').input_value() == 'grammar'
         assert page.evaluate("chosenLocalPreset('categorization').inference.local_generation.completion_schema")
@@ -62,6 +76,19 @@ def check_local_presets(page, api):
         page.locator('#categorization-save').click()
         wait_for(lambda: api('/api/v1/ui/categorization')['settings']['model'] == 'gemma4-e4b-qat')
         settings = api('/api/v1/ui/categorization')['settings']
+        assert settings['scenario'] == 'D'
+        page.locator('#categorization-scenario').select_option('C')
+        page.locator('#categorization-save').click()
+        wait_for(lambda:api('/api/v1/ui/categorization')['settings']['scenario'] == 'C')
+        page.reload()
+        page.wait_for_function("() => document.querySelector('#categorization-scenario').value === 'C'")
+        page.locator('#categorization-preset').click()
+        assert page.locator('#categorization-scenario').input_value() == 'D'
+        page.locator('#analysis-open-document').click()
+        assert page.locator('#d-mode').input_value() == 'background'
+        assert page.locator('#d-scenario').is_visible()
+        page.locator('#d-mode').select_option('fast')
+        assert not page.locator('#d-scenario').is_visible()
         assert settings['http']['timeout_ms'] == 1200000
         assert settings['inference']['local_generation']['reasoning_budget'] == 2048
         assert settings['inference']['local_generation']['temperature'] == 1
@@ -83,11 +110,30 @@ def main():
             raw=json.dumps(data).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
         def do_GET(self):
             self.respond({'configured':True,'online':True,'enabled':True,'state':'ready','can_manage':False,
-                'models':{'qwen3-0.6b':{'downloaded':True,'state':'ready'}},'runtime_ready':True} if self.path=='/status' else {'data':[{'id':'fixture-review'}]})
+                'model_verification':True, 'models':{'qwen3-0.6b':{'downloaded':True,'state':'ready'},'qwen3.5-2b':{'downloaded':True,'state':'ready'}},'runtime_ready':True} if self.path=='/status' else {'data':[{'id':'fixture-review'}]})
         def do_POST(self):
             body=json.loads(self.rfile.read(int(self.headers.get('Content-Length',0))) or b'{}')
             if self.path in ['/enable','/disable']:self.respond({'enabled':True});return
             if self.path=='/evaluate':
+                if body.get('operation') == 'probe':
+                    assert body['input'] == {} and body['timeout_seconds'] == 300
+                    self.respond({'ready':True})
+                    return
+                if 'items' in body['input']:
+                    packet = body['input']
+                    policy = 'Trusted anonymization policy' in body['prompt']
+                    marked = 'marked_record' in packet['items'][0]
+                    typed = 'kind' in body['schema']['properties']['decisions']['items']['properties']
+                    scenario = ('C' if typed else 'D') if marked else ('B' if policy else 'A')
+                    assert policy == (scenario != 'A')
+                    decisions = []
+                    for item in packet['items']:
+                        if marked: assert f"[[TARGET:{item['id']}]]{item['value']}[[/TARGET:{item['id']}]]" in item['marked_record']
+                        row = {'id':item['id'],'verdict':'mask','reason':f'Fixture scenario {scenario}'}
+                        if typed: row.update(kind='AMOUNT',scope='team',evidence=item['value'])
+                        decisions.append(row)
+                    self.respond({'decisions':list(reversed(decisions))})
+                    return
                 self.respond({'decisions':[{'kind':'AMOUNT','scope':'personal','confidence':.99} for _ in body['input']['candidates']]});return
             if body.get('response_format') or any(isinstance(m.get('content'),str) and 'JSON Schema:' in m['content'] for m in body.get('messages',[])):
                 seen_formats.append('response_format' in body)
@@ -192,7 +238,8 @@ def main():
                     wait_for(lambda:'Часть ответов модели некорректна' in page.locator('#review-result').inner_text())
                     for item in mixed:
                         mixed_card=page.locator('[data-review-key="'+item['key']+'"]')
-                        assert mixed_card.get_by_role('button',name='Применить рекомендацию',exact=True).count()==(0 if 'invalidanswer' in item['value'] else 1)
+                        expected = 0 if 'invalidanswer' in item['value'] else 1
+                        wait_for(lambda: mixed_card.get_by_role('button',name='Применить рекомендацию',exact=True).count() == expected)
                     assert page.locator('#review-selection').get_by_role('button',name='Применить рекомендации',exact=True).is_disabled()
                     assert json.dumps(api('/api/v1/rules'))==before
                     page.locator('#review-selection').get_by_role('button',name='Снять выбор',exact=True).click()
@@ -238,6 +285,27 @@ def main():
                     assert any(i['confidence'] is not None and i['confidence']>.85 for i in corrected)
                     assert all(i['classification_confidence']>.98 for i in corrected)
                     assert json.dumps(api('/api/v1/rules'))==rules_before
+                    # The document control overrides only this run. Retry deduplicates within the same scenario.
+                    page.evaluate("showTab('analysis')")
+                    page.locator('#analysis-open-document').click()
+                    page.locator('#d-text').fill('Private estimate. Аванс 40%, цена 1 320,00 ₽.\nPublic sample: 40%.')
+                    for variant in 'ABCD':
+                        page.locator('#d-scenario').select_option(variant)
+                        with page.expect_response(lambda r:r.url.endswith('/analysis/documents') and r.request.method == 'POST') as response:
+                            page.locator('#d-analyze').click()
+                        job_id = response.value.json()['ids'][0]
+                        found = wait_for(lambda: (group if len(group := [i for i in rows('all') if i.get('job_id') == job_id]) == 2 else None))
+                        assert all(i.get('confidence') is None and i['state'] == 'pending' for i in found)
+                        for item in found:
+                            ambiguous = variant in 'CD' and item['value'] == '40%'
+                            judgment = item['scenario_result']
+                            assert judgment['verdict'] == ('review' if ambiguous else 'mask')
+                            assert judgment['reason'] == ('target_occurrence_uncertain' if ambiguous else 'Fixture scenario '+variant)
+                            assert (judgment['kind'] is None) == (ambiguous or variant == 'D')
+                    assert api('/api/v1/ui/categorization')['settings']['scenario'] == 'standard'
+                    with page.expect_response(lambda r:r.url.endswith('/analysis/documents') and r.request.method == 'POST') as response:
+                        page.locator('#d-analyze').click()
+                    assert response.value.json()['queued'] == 0
                     assert not errors,errors
                 except Exception:
                     page.screenshot(path=str(args.output/'failure.png'),full_page=True);(args.output/'browser-errors.json').write_text(json.dumps(errors))

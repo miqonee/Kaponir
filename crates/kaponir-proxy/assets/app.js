@@ -170,14 +170,14 @@ $('#access-settings').addEventListener('click', async () => {
   catch (error) { fail(error); }
 });
 
-async function api(path, { method = 'GET', body, timeout = 45000 } = {}) {
+async function api(path, { method = 'GET', body, timeoutMs = 45000 } = {}) {
   const headers = {};
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (token) headers.authorization = 'Bearer ' + token;
-  const r = await fetch(path, { method, headers, signal: AbortSignal.timeout(timeout), body: body === undefined ? undefined : JSON.stringify(body) });
+  const r = await fetch(path, { method, headers, signal: AbortSignal.timeout(timeoutMs), body: body === undefined ? undefined : JSON.stringify(body) });
   if (r.status === 401) {
     await askToken();
-    return api(path, { method, body, timeout });
+    return api(path, { method, body, timeoutMs });
   }
   const data = await r.json().catch(() => null);
   if (!r.ok) {
@@ -802,6 +802,15 @@ function renderDiscover() {
     })))));
 }
 
+function showDocumentScenario() {
+  $('#d-scenario-field').hidden = $('#d-mode').value !== 'background';
+}
+$('#d-mode').addEventListener('change', showDocumentScenario);
+$('#analysis-open-document').addEventListener('click', () => {
+  if (D.view !== 'input') showDiscoverView('input');
+  $('#d-mode').value = 'background';
+  showDocumentScenario();
+});
 $('#d-analyze').addEventListener('click', async () => {
   const button = $('#d-analyze');
   if (D.busy) return;
@@ -815,7 +824,8 @@ $('#d-analyze').addEventListener('click', async () => {
     renderDiscover();
     $('#d-status').textContent = tr($('#d-s1').checked ? 'Анализ и оценка S1…' : 'Локальный анализ…');
     if ($('#d-mode').value === 'background') {
-      const queued=await api('/api/v1/ui/analysis/documents',{method:'POST',body:{documents:D.documents}});
+      const scenario = $('#d-scenario').value;
+      const queued=await api('/api/v1/ui/analysis/documents',{method:'POST',body:{documents:D.documents, ...(scenario ? {scenario} : {})}});
       D.busy=false;renderDiscover();
       $('#d-status').textContent=queued.queued?tr('Поставлено в очередь: {{0}}',[queued.queued]):tr('Документы уже обработаны или находятся в очереди');
       toast(tr('Результаты появятся в разделе «Разбор решений»'));

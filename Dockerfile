@@ -6,6 +6,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
 COPY packs ./packs
 COPY scripts ./scripts
+COPY docs/experiments/privacy-policy-v1.txt ./docs/experiments/privacy-policy-v1.txt
 RUN cargo build --locked --release -j 2 -p kaponir-cli && mkdir /out && cp target/release/kaponir /out/kaponir
 
 # Optional fast local build, only for a Linux binary of the target architecture.
