@@ -11,7 +11,7 @@ function icon(name) {
 const PAGE_META = {
   overview: ["", "Обзор", ""],
   jobs: ["", "Задания", ""],
-  events: ["", "События", "Сессии и запросы к моделям."],
+  events: ["", "Сессии", ""],
   connect: [
     "",
     "Поставщики и API",
@@ -623,6 +623,8 @@ function sessionsTable(events, compact = false) {
           "td",
           {},
           trigger,
+          h("button", {class: "text-button session-open", "data-session-open": key, onclick: () => openSession(latest)},
+            tr("Открыть переписку")),
           inferred
             ? h(
                 "small",
@@ -636,7 +638,7 @@ function sessionsTable(events, compact = false) {
               )
             : null,
         ),
-        h("td", { class: "mono" }, time(latest.time_ms)),
+        h("td", { class: "mono" }, sessionTime(latest.time_ms)),
         h(
           "td",
           { class: "model-name" },
@@ -704,11 +706,12 @@ function sessionsTable(events, compact = false) {
 }
 function renderEventViews() {
   if ($("#inspector-dialog").open) return;
+  if ($("#session-dialog").open) { refreshOpenSession?.(); return; }
   const focused = document.activeElement;
   const origin = focused?.closest("#recent-events,#events-table");
   const attribute = focused?.hasAttribute("data-request-id")
     ? "data-request-id"
-    : "data-session-key";
+    : focused?.hasAttribute("data-session-open") ? "data-session-open" : "data-session-key";
   const value = focused?.getAttribute(attribute);
   $("#recent-events").replaceChildren(
     sessionsTable(filteredEvents(false), true),
@@ -720,7 +723,7 @@ function renderEventViews() {
   );
   if (origin && value) {
     const target = [
-      ...origin.querySelectorAll("[data-request-id],[data-session-key]"),
+      ...origin.querySelectorAll("[data-request-id],[data-session-key],[data-session-open]"),
     ].find((el) => el.getAttribute(attribute) === value);
     (target || $("#events-refresh")).focus({ preventScroll: true });
   }
@@ -1522,6 +1525,7 @@ $("#language-switch").addEventListener("change", async (e) => {
   I18N.setLanguage(e.target.value);
   relocalizeConstants();
   I18N.apply();
+  refreshFilePickers();
   renderAdhoc();
   renderMask();
   renderDiscover();
@@ -1600,6 +1604,7 @@ $("#config-import").addEventListener("click", async () => {
     renderSettings();
     $("#config-json").value = "";
     $("#config-file").value = "";
+    refreshFilePickers();
     $("#config-status").textContent = tr(
       "Настройки применены. Перезапустите сервер для обновления всех параметров, включая адрес и доступ.",
     );

@@ -1,12 +1,5 @@
 "use strict";
 
-const scenarioLabels = {
-  standard: "Стандартная проверка",
-  A: "Определить тип и действие (A)",
-  B: "Учесть политику приватности (B)",
-  C: "Проверить конкретное вхождение (C)",
-  D: "Объяснить решение по вхождению (D)",
-};
 const desk = {
   jobs: [],
   offset: 0,
@@ -836,7 +829,10 @@ async function loadWorkspaceModels() {
   ]
     .filter((v) => v > 0)
     .sort((a, b) => a - b)[0];
-  const catalog = worker.catalog || [];
+  const catalog = worker.catalog || Object.entries(models)
+    .filter(([, files]) => files.downloaded)
+    .map(([id, files]) => builtinModelChoices.find(model => model.id === id) ||
+      {id, label: files.label || id, bytes: files.bytes});
   const fits = (m) => budget && m.bytes > 0 && m.bytes * 1.3 + 512 * 1024 ** 2 < budget * 0.8;
   const candidates = catalog.filter(
     (m) =>
@@ -848,31 +844,47 @@ async function loadWorkspaceModels() {
     (a, b) =>
       Number(!!models[b.id]?.downloaded) - Number(!!models[a.id]?.downloaded) || a.bytes - b.bytes,
   );
-  const current = [...new Set([cfg.analysis?.model, cfg.categorization?.model].filter(Boolean))];
+  const activeName = source => source?.model || source?.connection || tr("Отключено");
   const pick = h(
     "select",
     { "aria-label": tr("Модель поиска и проверки") },
     h("option", { value: "" }, tr("Выберите локальную модель")),
     ...catalog.map((m) => h("option", { value: m.id }, m.label || m.id)),
   );
-  const preferred = desk.modelPick || current[0] || candidates[0]?.id;
+  const preferred = desk.modelPick || [cfg.categorization, cfg.analysis].find(source => source?.provider === "local")?.model || candidates[0]?.id;
   if (catalog.some((m) => m.id === preferred)) pick.value = preferred;
   const save = async (body) => {
     await api("/api/v1/ui/workspace/model", { method: "PUT", body });
     await loadWorkspaceModels();
   };
+  const usingCategorizationModel = () => cfg.categorization?.provider === "local" && cfg.categorization.model === pick.value;
+  const usingPickedModel = () => usingCategorizationModel() && cfg.analysis?.provider === "local" && cfg.analysis.model === pick.value;
+  const activeScenario = () => cfg.categorization?.scenario || "standard";
+  const scenario = h("select", {id: "workspace-scenario"}, scenarioOptions("standard"));
+  const scenarioField = h("label", {class: "field"}, tr("Сценарий проверки"), scenario);
+  const studyBox = h("div", {id: "workspace-scenario-study", class: "scenario-study"});
+  function resetScenario() {
+    scenario.value = desk.scenarioDraft?.model === pick.value ? desk.scenarioDraft.scenario :
+      usingCategorizationModel() ? activeScenario() : chosenLocalPreset("categorization", measuredModelId(pick.value, models))?.scenario || "standard";
+  }
+  resetScenario();
   const modelControls = h(
     "div",
-    { class: "form-actions" },
-    pick,
+    { class: "model-choice-fields" },
+    h("label", {class: "field"}, tr("Локальная модель"), pick), scenarioField,
     workButton(
       "Использовать для поиска и проверки",
       async () => {
+        if (usingCategorizationModel() && scenario.value !== activeScenario()) {
+          await save({scenario: scenario.value});
+          desk.scenarioDraft = null;
+          return;
+        }
         if (!models[pick.value]?.downloaded) {
           await prepareModel(pick.value, "settings");
           return;
         }
-        const study = studyArtifacts[models[pick.value]?.sha256] || pick.value;
+        const study = measuredModelId(pick.value, models);
         const search = chosenLocalPreset("analysis", study),
           review = chosenLocalPreset("categorization", study);
         await save({
@@ -881,7 +893,7 @@ async function loadWorkspaceModels() {
           categorization_inference: review?.inference,
           analysis_timeout: search?.timeout,
           categorization_timeout_ms: review?.timeout,
-          scenario: review?.scenario || "standard",
+          scenario: scenario.value,
           chunking: search
             ? {
                 discovery_mode: "typed",
@@ -893,6 +905,7 @@ async function loadWorkspaceModels() {
               }
             : undefined,
         });
+        desk.scenarioDraft = null;
       },
       "primary",
       !info.editable || !catalog.length,
@@ -921,7 +934,7 @@ async function loadWorkspaceModels() {
   });
   const slots = h(
     "div",
-    { class: "form-actions" },
+    { class: "form-actions worker-slot-controls" },
     h("label", { class: "field" }, tr("Параллельные запросы"), slot),
     workButton("Сохранить", () => save({ slots: Number(slot.value) }), "secondary", !info.editable),
   );
@@ -975,28 +988,34 @@ async function loadWorkspaceModels() {
     const button = modelControls.querySelector("button");
     const installed = !!models[pick.value]?.downloaded;
     button.disabled = !info.editable || !pick.value;
-    button.hidden =
-      installed &&
-      cfg.analysis?.provider === "local" &&
-      cfg.categorization?.provider === "local" &&
-      cfg.analysis.model === pick.value &&
-      cfg.categorization.model === pick.value;
-    button.textContent = tr(
-      !pick.value || installed ? "Использовать для поиска и проверки" : "Подготовить модель",
-    );
+    scenarioField.hidden = !pick.value;
+    scenario.disabled = !info.editable;
+    button.hidden = installed && usingPickedModel() && scenario.value === activeScenario();
+    button.textContent = tr(usingCategorizationModel() && scenario.value !== activeScenario() ? "Сохранить сценарий" :
+      !pick.value || installed ? "Использовать для поиска и проверки" : "Подготовить модель");
+    renderScenarioStudy(studyBox, pick.value ? measuredModelId(pick.value, models) : null,
+      pick.value ? scenario.value : null);
     const measure = calibration.querySelector("button");
     if (measure)
       measure.disabled = !info.editable || !worker.enabled || !installed || cal.state === "running";
   }
   pick.onchange = () => {
     desk.modelPick = pick.value;
+    desk.scenarioDraft = null;
+    resetScenario();
+    updateChoice();
+  };
+  scenario.onchange = () => {
+    desk.scenarioDraft = {model: pick.value, scenario: scenario.value};
     updateChoice();
   };
   updateChoice();
   box.replaceChildren(
-    h("h2", {}, tr("Модель поиска и проверки")),
-    h("p", {}, current.join(" / ") || tr("Модель не выбрана")),
-    modelControls,
+    h("section", {id: "workspace-model-choice", "aria-labelledby": "workspace-model-title"},
+      h("h2", {id: "workspace-model-title"}, tr("Модель поиска и проверки")),
+      h("p", {}, tr("Поиск · {{0}}", [activeName(cfg.analysis)]), "  ·  ",
+        tr("Категоризация · {{0}}", [activeName(cfg.categorization)])),
+      modelControls, studyBox),
     candidates.length
       ? h(
           "p",

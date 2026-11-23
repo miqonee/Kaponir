@@ -1006,15 +1006,15 @@ async fn set_workspace_model(
         if let Some(v) = change.categorization_timeout_ms {
             settings.categorization.http.timeout_ms = v;
         }
-        if let Some(v) = change.scenario {
-            settings.categorization.scenario = v;
-        }
         if let Some(v) = change.analysis_inference {
             settings.analysis.inference = v;
         }
         if let Some(v) = change.categorization_inference {
             settings.categorization.inference = v;
         }
+    }
+    if let Some(scenario) = change.scenario {
+        settings.categorization.scenario = scenario;
     }
     if let Some(slots) = change.slots {
         settings.analysis.parallelism = slots;

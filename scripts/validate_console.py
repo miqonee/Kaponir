@@ -39,6 +39,58 @@ def wait_for(check, timeout=20):
     raise AssertionError(f'condition timed out: {last}')
 
 
+def check_session_conversation(page, api, session_id, output):
+    from playwright.sync_api import expect
+    page.set_viewport_size({'width': 1440, 'height': 960})
+    page.locator('#language-switch label:has(input[value=ru])').click()
+    api('/v1/chat/completions', {'model': 'fixture-model', 'messages': [
+        {'role': 'user', 'content': 'Другая смета: 98 500 ₽.'}]}, {'X-Kaponir-Session': 'unrelated'})
+    page.get_by_role('navigation').get_by_role('button', name='Сессии', exact=True).click()
+    expect(page.locator('#page-title')).to_have_text('Сессии')
+    button = page.locator('#events-table [data-session-open="' + session_id + '"]')
+    button.click()
+    dialog = page.locator('#session-dialog')
+    expect(dialog.locator('select option')).to_have_count(2)
+    expect(dialog.locator('.session-messages')).to_contain_text('125 000 ₽')
+    dialog.get_by_role('button', name='Предыдущий запрос').click()
+    expect(dialog.locator('.session-messages')).to_contain_text('ConsoleFixture_47')
+    expect(dialog.locator('.session-messages')).not_to_contain_text('125 000 ₽')
+    expect(dialog.get_by_role('button', name='Предыдущий запрос')).to_be_disabled()
+    dialog.get_by_role('button', name='Следующий запрос').click()
+    expect(dialog.locator('.session-message').first).to_contain_text('Проверь смету. Бюджет 125 000 ₽.')
+    expect(dialog.locator('.session-message').nth(1)).to_contain_text('Смета принята. Бюджет 125 000 ₽.')
+    history = dialog.locator('.session-history')
+    expect(history.locator('.message-content')).not_to_be_visible()
+    history.locator('summary').click()
+    expect(history.locator('.message-content')).to_contain_text('ConsoleFixture_47')
+    history.locator('summary').click()
+    dialog.screenshot(path=str(output / 'session-conversation.png'))
+    page.set_viewport_size({'width': 390, 'height': 844})
+    assert dialog.evaluate('el => el.scrollWidth <= el.clientWidth + 1')
+    expect(dialog.get_by_role('button', name='Найти значения в этой сессии')).to_be_visible()
+    page.set_viewport_size({'width': 1440, 'height': 960})
+    with page.expect_response(lambda r: r.url.endswith('/discover/sessions') and r.request.method == 'POST') as scanned:
+        dialog.get_by_role('button', name='Найти значения в этой сессии').click()
+    assert scanned.value.request.post_data_json['target'] == {'session': session_id}
+    assert scanned.value.request.post_data_json['use_s1'] is False
+    assert scanned.value.json()['sessions_analyzed'] == 1
+    expect(page.locator('#d-list')).to_contain_text('125 000 ₽')
+    expect(page.locator('#d-list')).not_to_contain_text('98 500 ₽')
+    expect(page.locator('#discover-input-pane')).not_to_be_visible()
+    page.locator('#discover-findings').click()
+    expect(page.locator('#review-list')).to_contain_text('125 000 ₽')
+    expect(page.locator('#review-list')).not_to_contain_text('98 500 ₽')
+    unknown = api('/api/v1/ui/discover/sessions', {'target': {'session': 'unrecorded-session'}, 'remember': False, 'use_s1': False})
+    assert unknown['sessions_analyzed'] == 0 and not unknown['report']['suggestions']
+    page.locator('[data-tab=events]').click()
+    with page.expect_response(lambda r: r.url.endswith('/discover/sessions') and r.request.method == 'POST') as all_sessions:
+        page.locator('#events-scan-all').click()
+    assert all_sessions.value.json()['sessions_analyzed'] == 2
+    expect(page.locator('#d-list')).to_contain_text('98 500 ₽')
+    page.get_by_role('button', name='К списку сессий').click()
+    expect(page.locator('#page-title')).to_have_text('Сессии')
+
+
 def main():
     from playwright.sync_api import sync_playwright
 
@@ -65,6 +117,8 @@ def main():
             payload = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
             seen.append(payload)
             text = payload['messages'][-1]['content']
+            if text.startswith('Проверь смету. '):
+                text = 'Смета принята. ' + text.removeprefix('Проверь смету. ')
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream' if payload.get('stream') else 'application/json')
             self.end_headers()
@@ -137,7 +191,7 @@ def main():
                 page.locator('#events-table .event-status.in_progress').first.wait_for()
                 thread.join(timeout=20)
                 assert not thread.is_alive()
-                second = {'model': 'fixture-model', 'messages': [*first['messages'], {'role': 'assistant', 'content': 'ready'}, {'role': 'user', 'content': 'continue'}]}
+                second = {'model': 'fixture-model', 'messages': [*first['messages'], {'role': 'assistant', 'content': 'Готово 📄'}, {'role': 'user', 'content': 'Проверь смету. Бюджет 125 000 ₽.'}]}
                 api('/v1/chat/completions', second, {'X-Kaponir-Session': 'console-session'})
                 traffic = api('/api/v1/metrics')['traffic']
                 assert traffic['total']['requests'] == 2
@@ -189,6 +243,11 @@ def main():
 
                 page.locator('[data-tab="review"]').click()
                 page.locator('#tab-review [data-go="discover"]').click()
+                picker = page.locator('.file-picker').filter(has=page.locator('#d-files'))
+                assert picker.locator('.file-button').inner_text() == 'Выбрать файлы'
+                page.locator('#d-files').set_input_files({'name': 'смета.txt', 'mimeType': 'text/plain', 'buffer': b'Budget'})
+                assert picker.locator('.file-name').inner_text() == 'смета.txt'
+                page.locator('#d-files').set_input_files([])
                 page.locator('#d-text').fill('Проект: Лунная Слива')
                 page.locator('#discover-input-pane .analysis-options summary').click()
                 page.locator('#d-remember').check()
@@ -228,13 +287,14 @@ def main():
                 page.evaluate("showTab('discover')")
                 page.go_back()
                 page.wait_for_function("() => location.hash==='#analysis' && !document.querySelector('#tab-analysis').hidden")
+                check_session_conversation(page, api, traffic['events'][0]['session_id'], args.output)
                 assert not errors, errors
                 browser.close()
             api('/api/v1/ui/worker/start', {})
             stop()
             start()
             wait_for(lambda: api('/api/v1/ui/worker').get('enabled'))
-            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 2
+            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 3
             assert api('/api/v1/anonymize', {'text':'character','session':'legacy-chat'})['text'] == 'character'
             assert api('/api/v1/deanonymize', {'text':legacy['text'],'session':'legacy-chat'})['text'] == 'character'
             api('/api/v1/ui/worker/stop', {})

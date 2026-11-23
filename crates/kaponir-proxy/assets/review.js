@@ -262,8 +262,12 @@ function renderReviewSelection() {
   if(source)ReviewUI.modelSource=source.role;
   const model=choices.length>1?h("select",{id:"review-model-source","aria-label":tr("Модель пересмотра"),onchange:e=>{ReviewUI.modelSource=e.target.value;ReviewUI.scenario="";renderReviewSelection();}},
     ...choices.map(s=>h("option",{value:s.role,selected:s===source},modelName(s.model)))):source?h("strong",{},modelName(source.model)):null;
-  const mode=source?.supports_scenarios?h("select",{"aria-label":tr("Способ проверки для запуска"),onchange:e=>ReviewUI.scenario=e.target.value},
-    ...Object.entries(scenarioLabels).map(([key,label])=>h("option",{value:key,selected:key===(ReviewUI.scenario||source.scenario)},tr(label)))):null;
+  const study = panel.querySelector(".review-study") || h("div", {class: "scenario-study review-study"});
+  const showStudy = () => renderScenarioStudy(study, source.provider === "local" ? measuredModelId(source.model) : null,
+    ReviewUI.scenario || source.scenario || "standard");
+  const mode = source?.supports_scenarios ? h("select", {"aria-label": tr("Способ проверки для запуска"), onchange: e => {
+    ReviewUI.scenario = e.target.value; showStudy();
+  }}, scenarioOptions(ReviewUI.scenario || source.scenario || "standard")) : null;
   const controls = h("div", {class: "form-actions"});
   const list = [...ReviewUI.selected.values()];
   if (ReviewUI.view !== "history") {
@@ -296,6 +300,7 @@ function renderReviewSelection() {
     h("strong", {}, tr(pickedCount() ? "Выбрано: {{0}}" : "Найдено · {{0}}", [count])), controls));
   if (source) panel.append(h("div", {class: "finding-model"}, model,
     h("small", {class: "hint"}, source.connection || tr(source.provider === "local" ? "Локальная модель" : "Модель по API")), mode));
+  if (mode) { panel.append(study); showStudy(); }
 }
 function pendingFinding(item) {
   return item.state === "open" || item.state === "pending";

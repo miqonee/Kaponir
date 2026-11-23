@@ -1,0 +1,446 @@
+{
+  "gemma4-e2b-it-q4km": {
+    "recommended": "D",
+    "series": "archive",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 43.54162,
+        "private_mask": 1,
+        "public_keep": 13
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 42.25406,
+        "private_mask": 8,
+        "public_keep": 15
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 50.56135,
+        "private_mask": 11,
+        "public_keep": 8
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 44.45845,
+        "private_mask": 11,
+        "public_keep": 15
+      }
+    }
+  },
+  "gemma4-e4b-it-q4km": {
+    "recommended": "D",
+    "series": "native",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 37.63756,
+        "private_mask": 6,
+        "public_keep": 13
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 37.08483,
+        "private_mask": 12,
+        "public_keep": 13
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 44.29802,
+        "private_mask": 11,
+        "public_keep": 11
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 37.98861,
+        "private_mask": 16,
+        "public_keep": 16
+      }
+    }
+  },
+  "gemma4-e4b-qat": {
+    "recommended": "D",
+    "series": "native",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 48.01345,
+        "private_mask": 7,
+        "public_keep": 16
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 48.7969,
+        "private_mask": 11,
+        "public_keep": 13
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 57.15232,
+        "private_mask": 13,
+        "public_keep": 13
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 43.32737,
+        "private_mask": 14,
+        "public_keep": 15
+      }
+    }
+  },
+  "granite42-3b": {
+    "recommended": "D",
+    "series": "tuned",
+    "variants": {
+      "D": {
+        "answers": 32,
+        "minutes": 26.15954,
+        "private_mask": 7,
+        "public_keep": 16
+      }
+    }
+  },
+  "huihui-qwen3.5-2b-abliterated": {
+    "recommended": "D",
+    "series": "archive",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 31.1613,
+        "private_mask": 0,
+        "public_keep": 12
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 34.26176,
+        "private_mask": 3,
+        "public_keep": 4
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 34.51715,
+        "private_mask": 6,
+        "public_keep": 14
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 31.58292,
+        "private_mask": 7,
+        "public_keep": 16
+      }
+    }
+  },
+  "kaponir-privacy-v4-epoch-2": {
+    "recommended": "D",
+    "series": "epoch2",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 21.51569,
+        "private_mask": 10,
+        "public_keep": 8
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 22.9979,
+        "private_mask": 12,
+        "public_keep": 6
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 23.55862,
+        "private_mask": 13,
+        "public_keep": 14
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 20.67762,
+        "private_mask": 14,
+        "public_keep": 12
+      }
+    }
+  },
+  "lfm2.5-1.2b-instruct": {
+    "recommended": "D",
+    "series": "native",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 5.44106,
+        "private_mask": 0,
+        "public_keep": 0
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 5.35912,
+        "private_mask": 0,
+        "public_keep": 0
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 6.21011,
+        "private_mask": 0,
+        "public_keep": 0
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 4.72955,
+        "private_mask": 2,
+        "public_keep": 3
+      }
+    }
+  },
+  "lfm2.5-2.6b": {
+    "recommended": "D",
+    "series": "native",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 20.5594,
+        "private_mask": 2,
+        "public_keep": 8
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 22.45269,
+        "private_mask": 2,
+        "public_keep": 3
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 23.95588,
+        "private_mask": 0,
+        "public_keep": 8
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 20.89899,
+        "private_mask": 10,
+        "public_keep": 10
+      }
+    }
+  },
+  "lfm2.5-8b-a1b": {
+    "recommended": "D",
+    "series": "native",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 13.32228,
+        "private_mask": 0,
+        "public_keep": 4
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 13.36361,
+        "private_mask": 0,
+        "public_keep": 3
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 14.5552,
+        "private_mask": 0,
+        "public_keep": 4
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 12.5834,
+        "private_mask": 7,
+        "public_keep": 13
+      }
+    }
+  },
+  "minicpm5-2b": {
+    "recommended": "B",
+    "series": "archive",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 117.829,
+        "private_mask": 2,
+        "public_keep": 13
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 128.1047,
+        "private_mask": 11,
+        "public_keep": 14
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 131.88561,
+        "private_mask": 8,
+        "public_keep": 6
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 95.50069,
+        "private_mask": 6,
+        "public_keep": 15
+      }
+    }
+  },
+  "nanbeige42-3b": {
+    "recommended": "D",
+    "series": "tuned",
+    "variants": {
+      "D": {
+        "answers": 24,
+        "minutes": 58.25437,
+        "private_mask": 8,
+        "public_keep": 13
+      }
+    }
+  },
+  "qwen3.5-0.8b": {
+    "recommended": "D",
+    "series": "archive",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 17.54374,
+        "private_mask": 0,
+        "public_keep": 3
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 18.81562,
+        "private_mask": 0,
+        "public_keep": 0
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 20.29379,
+        "private_mask": 0,
+        "public_keep": 1
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 16.75331,
+        "private_mask": 0,
+        "public_keep": 6
+      }
+    }
+  },
+  "qwen3.5-2b": {
+    "recommended": "B",
+    "series": "archive",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 33.6084,
+        "private_mask": 0,
+        "public_keep": 7
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 32.57881,
+        "private_mask": 9,
+        "public_keep": 10
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 33.69098,
+        "private_mask": 6,
+        "public_keep": 5
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 31.20242,
+        "private_mask": 5,
+        "public_keep": 16
+      }
+    }
+  },
+  "qwen3.5-4b": {
+    "recommended": "D",
+    "series": "native",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 17.5961,
+        "private_mask": 0,
+        "public_keep": 13
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 18.51077,
+        "private_mask": 3,
+        "public_keep": 8
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 21.29973,
+        "private_mask": 4,
+        "public_keep": 12
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 17.88183,
+        "private_mask": 2,
+        "public_keep": 16
+      }
+    }
+  },
+  "spark-x2.6-4b": {
+    "recommended": "D",
+    "series": "native",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 51.62731,
+        "private_mask": 3,
+        "public_keep": 15
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 56.13213,
+        "private_mask": 5,
+        "public_keep": 10
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 62.40028,
+        "private_mask": 8,
+        "public_keep": 10
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 56.96642,
+        "private_mask": 11,
+        "public_keep": 15
+      }
+    }
+  },
+  "tiny-aya-global": {
+    "recommended": "D",
+    "series": "native",
+    "variants": {
+      "A": {
+        "answers": 32,
+        "minutes": 28.62987,
+        "private_mask": 0,
+        "public_keep": 0
+      },
+      "B": {
+        "answers": 32,
+        "minutes": 30.57223,
+        "private_mask": 0,
+        "public_keep": 0
+      },
+      "C": {
+        "answers": 32,
+        "minutes": 36.07679,
+        "private_mask": 0,
+        "public_keep": 0
+      },
+      "D": {
+        "answers": 32,
+        "minutes": 32.33737,
+        "private_mask": 0,
+        "public_keep": 10
+      }
+    }
+  }
+}

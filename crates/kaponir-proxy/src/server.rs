@@ -344,8 +344,9 @@ async fn proxy(
     result
 }
 
-fn extract_prompt_text(_api: Api, v: &Value) -> String {
+fn extract_prompt_text(v: &Value) -> (String, Option<usize>) {
     let mut parts = Vec::new();
+    let mut last_user_len = None;
     if let Some(sys) = v.get("system") {
         if let Some(s) = sys.as_str() {
             if !s.is_empty() {
@@ -362,6 +363,7 @@ fn extract_prompt_text(_api: Api, v: &Value) -> String {
     if let Some(msgs) = v.get("messages").and_then(Value::as_array) {
         for m in msgs {
             let role = m.get("role").and_then(Value::as_str).unwrap_or("message");
+            let before = parts.len();
             if let Some(c) = m.get("content") {
                 if let Some(s) = c.as_str() {
                     parts.push(format!("[{role}]\n{s}"));
@@ -381,12 +383,19 @@ fn extract_prompt_text(_api: Api, v: &Value) -> String {
                     }
                 }
             }
+            last_user_len = if role == "user" && parts.len() > before {
+                parts.last().map(String::len)
+            } else {
+                None
+            };
         }
     }
     if parts.is_empty() {
-        serde_json::to_string_pretty(v).unwrap_or_default()
+        (serde_json::to_string_pretty(v).unwrap_or_default(), None)
     } else {
-        parts.join("\n\n")
+        let text = parts.join("\n\n");
+        let offset = last_user_len.map(|len| text.len() - len);
+        (text, offset)
     }
 }
 
@@ -419,7 +428,7 @@ async fn proxy_request(
         .and_then(Value::as_str)
         .filter(|s| !s.is_empty())
         .map(str::to_owned);
-    let original_request = extract_prompt_text(api, &json);
+    let (original_request, last_user_offset) = extract_prompt_text(&json);
     if st.learning.enabled()
         && let Some(messages) = json.get("messages")
     {
@@ -487,7 +496,7 @@ async fn proxy_request(
     span.mask_us.fetch_add(mask_us, Relaxed);
     span.classifier_us.fetch_add(classifier_us, Relaxed);
     {
-        let masked_request = extract_prompt_text(api, &json);
+        let (masked_request, _) = extract_prompt_text(&json);
         let masked_payload_json = serde_json::to_string_pretty(&json).unwrap_or_default();
         let mut insp = span
             .inspector
@@ -500,6 +509,7 @@ async fn proxy_request(
             .unwrap_or_default()
             .into();
         entry.original_request = crate::traffic::cap_str(&original_request, 32_768);
+        entry.last_user_offset = last_user_offset.filter(|&i| i < 32_768);
         entry.masked_request = crate::traffic::cap_str(&masked_request, 32_768);
         entry.masked_payload_json = crate::traffic::cap_str(&masked_payload_json, 32_768);
     }
@@ -978,7 +988,27 @@ async fn api_deanonymize_stream(
 
 #[cfg(test)]
 mod tests {
-    use super::loopback_host;
+    use super::{extract_prompt_text, loopback_host};
+
+    #[test]
+    fn transcript_marks_the_actual_final_user_message() {
+        let mut prompt = serde_json::json!({"system": "📄", "messages": [
+            {"role":"assistant", "content":"История"},
+            {"role":"user", "content":[{"text":"Первая строка\n\n[user]\nЭто цитата"}]}
+        ]});
+        let (text, offset) = extract_prompt_text(&prompt);
+        assert_eq!(
+            &text[offset.unwrap()..],
+            "[user]\nПервая строка\n\n[user]\nЭто цитата"
+        );
+        prompt["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(serde_json::json!({
+                "role":"tool", "content":"result"
+            }));
+        assert!(extract_prompt_text(&prompt).1.is_none());
+    }
 
     #[test]
     fn loopback_hosts() {

@@ -1064,3 +1064,46 @@ td small { display: block; }
 #review-result:empty{display:none}
 #rules-list tr:focus{outline:2px solid var(--accent);outline-offset:-2px}
 #tab-worker .return-to-work{margin-bottom:1rem}
+
+.model-choice-fields,.worker-slot-controls,.session-navigation {
+  display:flex; align-items:end; flex-wrap:wrap; gap:10px;
+}
+.model-choice-fields .field,.worker-slot-controls .field,.session-navigation .field {margin:0; min-width:0}
+.model-choice-fields .field {flex:1 1 200px; max-width:340px}
+.model-choice-fields select,.session-navigation select {max-width:100%; width:100%}
+.model-choice-fields button,.worker-slot-controls button {align-self:end}
+#cpu-calibration {margin-top:10px}
+.scenario-study {min-width:0; font-size:13px}
+.scenario-study:not(:empty) {margin:12px 0; padding:10px 14px; background:var(--panel-subtle); border-inline-start:3px solid var(--line-strong); border-radius:6px}
+.scenario-study p {margin:4px 0 8px}
+.benchmark-summary {display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 14px}
+.scenario-study summary {cursor:pointer; color:var(--accent); padding:6px 0}
+.scenario-study table {width:100%; font-variant-numeric:tabular-nums}
+.scenario-study td,.scenario-study th {text-align:start; padding:6px 8px}
+.scenario-study thead th {white-space:normal}
+.scenario-study .selected-scenario {background:var(--soft); font-weight:600}
+#review-selection .review-study {margin:0; max-height:36vh; overflow:auto}
+.file-picker {position:relative; display:inline-flex; align-items:center; gap:9px; min-width:0; max-width:100%; min-height:36px; color:var(--text); cursor:pointer}
+.file-button {display:inline-flex; align-items:center; flex-shrink:0; border:1px solid var(--line-strong); background:var(--panel); border-radius:7px; padding:7px 12px; font-weight:600; font-size:13px}
+.file-picker:hover .file-button,.file-picker:focus-within .file-button {border-color:var(--accent)}
+.file-picker:focus-within {outline:2px solid var(--accent); outline-offset:2px; border-radius:6px}
+.file-picker .file-name {font-size:13px; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.file-picker input[type="file"] {position:absolute; inset:0; width:100%; height:100%; margin:0; padding:0; opacity:0; cursor:pointer}
+.session-intro {display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px}
+.session-intro p {margin:0; max-width:68ch}
+.session-open {display:block; margin:3px 0 0}
+#session-title {font-size:20px; margin:0}
+#session-dialog .inspector-header p {word-break:break-word}
+.session-messages {display:grid; gap:14px}
+.session-message {border-inline-start:3px solid var(--line-strong); background:var(--panel-subtle); padding:10px 14px; border-radius:6px}
+.session-message:nth-child(2) {border-color:var(--accent)}
+.session-history summary {cursor:pointer; color:var(--accent); font-weight:600}
+.session-history .message-content {padding:8px 0; color:var(--dim)}
+.session-message h3 {font-size:13px; margin:0 0 4px; color:var(--dim)}
+.message-content {white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; line-height:1.5}
+@media (max-width:650px) {
+  .session-navigation .field {width:100%}
+  #tab-events .sessions-table>thead th:nth-child(2),#tab-events .sessions-table>tbody>.session-row>td:nth-child(2),
+  #tab-events .sessions-table>thead th:nth-child(5),#tab-events .sessions-table>tbody>.session-row>td:nth-child(5) {display:none}
+  #tab-events .sessions-table>tbody>.session-row>td {white-space:normal; overflow-wrap:anywhere; padding-inline:5px}
+}

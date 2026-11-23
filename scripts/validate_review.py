@@ -7,7 +7,7 @@ from playwright.sync_api import expect, sync_playwright
 from validate_console import free_port,wait_for
 from validate_dataset import check_dataset_ui
 
-def check_local_presets(page, api):
+def check_local_presets(page, api, output):
     analysis = api('/api/v1/ui/analysis')['settings']
     categorization = api('/api/v1/ui/categorization')['settings']
     try:
@@ -71,7 +71,20 @@ def check_local_presets(page, api):
             if row['model'] in hidden: continue
             page.locator('#categorization-local-model').select_option(row['model'])
             assert page.locator('#categorization-scenario').input_value() == row['best_abcd_variant']
+        page.locator('#categorization-local-model').select_option('gemma4-e4b-it-q4km')
+        study = page.locator('#categorization-scenario-study')
+        expect(study.locator('.benchmark-summary')).to_contain_text('32 из 32')
+        study.locator('.model-comparison summary').click()
+        expect(study.locator('.model-comparison tbody tr')).to_have_count(4)
+        page.locator('#categorization-scenario').select_option('B')
+        expect(study.locator('.benchmark-summary')).to_contain_text('25 из 32')
+        expect(study.locator('.selected-scenario th')).to_have_text('B')
+        study.locator('.scenario-comparison summary').click()
+        expect(study.locator('.scenario-comparison')).to_contain_text('160 / 256')
         page.locator('#categorization-local-model').select_option('nanbeige42-3b')
+        expect(study.locator('.benchmark-summary')).to_contain_text('21 из 32')
+        expect(study.locator('.selected-scenario')).to_contain_text('24/32')
+        expect(study.locator('.model-comparison tbody tr').first).to_contain_text('—')
         assert page.locator('#categorization-response-format').input_value() == 'grammar'
         assert page.evaluate("chosenLocalPreset('categorization').inference.local_generation.completion_schema")
         page.locator('#categorization-local-model').select_option('gemma4-e4b-qat')
@@ -89,12 +102,44 @@ def check_local_presets(page, api):
         page.locator('#analysis-open-document').click()
         assert page.locator('#d-mode').input_value() == 'background'
         assert page.locator('#d-scenario').is_visible()
+        expect(page.locator('#d-scenario-study .benchmark-summary')).to_contain_text('C · верно 26 из 32')
         page.locator('#d-mode').select_option('fast')
         assert not page.locator('#d-scenario').is_visible()
         assert settings['http']['timeout_ms'] == 1200000
         assert settings['inference']['local_generation']['reasoning_budget'] == 2048
         assert settings['inference']['local_generation']['temperature'] == 1
         assert settings['inference']['response_format'] == 'grammar'
+        page.locator('[data-tab=settings]').click()
+        top = page.locator('#workspace-models')
+        top.get_by_role('combobox', name='Модель поиска и проверки').select_option('qwen3.5-2b')
+        expect(top.locator('#workspace-scenario')).to_have_value('B')
+        expect(top.locator('.benchmark-summary')).to_contain_text('Рекомендация для модели · B')
+        expect(top.locator('#workspace-scenario-study')).to_contain_text('B скрыл 9 из 16 приватных значений, самый быстрый D — 5 из 16.')
+        top.locator('#workspace-scenario').select_option('A')
+        with page.expect_response(lambda r: r.url.endswith('/workspace/model') and r.request.method == 'PUT') as shared:
+            top.get_by_role('button', name='Использовать для поиска и проверки').click()
+        assert shared.value.ok and api('/api/v1/ui/categorization')['settings']['scenario'] == 'A'
+        page.reload()
+        expect(top.locator('#workspace-scenario')).to_have_value('A')
+        top.locator('#workspace-scenario').select_option('B')
+        top.locator('.model-comparison summary').click()
+        top.locator('.scenario-comparison summary').click()
+        top.locator('#workspace-model-choice').screenshot(path=str(output / 'scenario-comparison.png'))
+        before = api('/api/v1/ui/analysis')['settings']['inference']
+        top.locator('#workspace-scenario').select_option('C')
+        with page.expect_response(lambda r: r.url.endswith('/workspace/model') and r.request.method == 'PUT') as scenario_only:
+            top.get_by_role('button', name='Сохранить сценарий').click()
+        assert scenario_only.value.ok and scenario_only.value.request.post_data_json == {'scenario': 'C'}
+        assert api('/api/v1/ui/analysis')['settings']['inference'] == before
+        separate = api('/api/v1/ui/analysis')['settings']
+        separate['model'] = 'qwen3-0.6b'
+        api('/api/v1/ui/analysis', {'settings': separate}, 'PUT')
+        page.reload()
+        expect(top.locator('#workspace-scenario')).to_have_value('C')
+        top.locator('#workspace-scenario').select_option('B')
+        top.get_by_role('button', name='Сохранить сценарий').click()
+        wait_for(lambda: api('/api/v1/ui/categorization')['settings']['scenario'] == 'B')
+        assert api('/api/v1/ui/analysis')['settings']['model'] == 'qwen3-0.6b'
     finally:
         for role, saved in [('analysis',analysis),('categorization',categorization)]:
             api('/api/v1/ui/'+role,{'settings':saved},'PUT')
@@ -137,7 +182,9 @@ def check_manual_mask(page, base, api):
     confirm.get_by_role('button', name='Отмена').click()
     detail.get_by_role('button', name='Назад к списку').click()
     select_all.click()
-    review.get_by_role('checkbox', name='Выбрать значение: ' + names[2]).uncheck()
+    third = review.get_by_role('checkbox', name='Выбрать значение: ' + names[2])
+    expect(third).to_be_checked()
+    third.uncheck()
     review.get_by_role('button', name='Скрыть без ИИ · 2').click()
     expect(confirm.locator('code')).to_have_count(2)
     assert sorted(confirm.locator('code').all_text_contents()) == names[:2]
@@ -265,7 +312,7 @@ def main():
                     page.locator('[data-tab="settings"]').click()
                     page.locator('#tab-settings [data-go="analysis"]').click();page.locator('#analysis-enabled').wait_for()
                     wait_for(lambda:page.locator('#analysis-enabled').is_enabled())
-                    check_local_presets(page, api)
+                    check_local_presets(page, api, args.output)
                     assert page.locator('#analysis-response-format').input_value()=='prompt'
                     page.locator('#analysis-response-format').evaluate("e=>e.closest('details').open=true")
                     page.locator('#analysis-response-format').select_option('grammar');page.locator('#analysis-save').click()

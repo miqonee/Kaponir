@@ -4,6 +4,7 @@ import tempfile
 import unittest
 
 from apply_scheme_masks import complete_discovery_snapshot
+from build_scenario_benchmarks import OUTPUT as UI_BENCHMARKS, build as build_ui_benchmarks
 from calibrate_native_models import calibration_documents, select_option
 from evaluate_privacy_policy import parse_response
 from native_model_profiles import MODEL_ORDER, catalog_for, check_thinking, load_profile, profiles_for
@@ -14,6 +15,11 @@ from summarize_privacy_policy import digest
 
 
 class NativeRetestTests(unittest.TestCase):
+    def test_panel_measurements_match_the_published_runs(self):
+        models = build_ui_benchmarks()
+        self.assertEqual(json.loads(UI_BENCHMARKS.read_text()), models)
+        self.assertEqual({name for name, study in models.items() if study['series'] == 'native'}, set(MODEL_ORDER))
+
     def test_manufacturer_settings_and_artifact_variants(self):
         self.assertEqual(len(MODEL_ORDER), 8)
         self.assertEqual(MODEL_ORDER[-1], 'lfm2.5-2.6b')

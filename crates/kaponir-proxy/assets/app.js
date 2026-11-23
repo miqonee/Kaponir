@@ -229,14 +229,14 @@ async function loadInfo() {
   if (typeof setConnected === 'function') setConnected(true);
 }
 
-const TABS = { mask: () => {}, restore: () => {}, review: () => Promise.all([loadJournal(), loadInfo()]), rules: () => loadRules(), discover: () => renderDiscover(), metrics: () => loadMetrics() };
+const TABS = { mask: () => {}, restore: () => {}, review: () => Promise.all([loadJournal(), loadInfo()]), rules: () => loadRules(), discover: () => { renderDiscover(); showDocumentScenario(); }, metrics: () => loadMetrics() };
 
 function showTab(name, push = true) {
   const route = name || 'overview';
   if (name.startsWith('jobs/')) name = 'jobs';
   if (name === 's1') name = 'analysis';
   if (!TABS[name]) name = 'overview';
-  const nav = ['mask','restore','events'].includes(name) ? 'overview' : name === 'discover' ? 'review' : ['connect','analysis','worker','categorization','setup','metrics'].includes(name) ? 'settings' : name;
+  const nav = ['mask','restore'].includes(name) ? 'overview' : name === 'discover' ? 'review' : ['connect','analysis','worker','categorization','setup','metrics'].includes(name) ? 'settings' : name;
   for (const b of document.querySelectorAll('.tabs button')) {
     b.setAttribute('aria-selected', String(b.dataset.tab === nav));
     if (b.dataset.tab === nav) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -805,9 +805,11 @@ async function showDiscoverView(view, skipLoad=false) {
   D.view=view;
   const previous=D.views[view];
   D.scope=view==="saved"?tr("Сохранённые находки"):previous?.scope||"";
-  D.report=previous?.report||null;D.selected=previous?.selected||new Set();D.saved=view==='saved';D.documents=previous?.documents||[];
+  D.report=previous?.report||null;D.selected=previous?.selected||new Set();D.saved=view==='saved'||!!previous?.saved;D.documents=previous?.documents||[];
   $('#discover-input-pane').hidden=view!=='input';
   $('#d-input-view').setAttribute('aria-pressed',String(view==='input'));$('#d-saved').setAttribute('aria-pressed',String(view==='saved'));
+  $('#d-sessions').setAttribute('aria-pressed',String(view==='sessions'));
+  if (view === 'input') showDocumentScenario();
   if(view==='saved'&&!skipLoad){D.busy=true;renderDiscover();try{const r=await api('/api/v1/ui/discover/profile');D.report=r.report;D.selected.clear();}catch(e){fail(e);}finally{D.busy=false;}}
   renderDiscover();
 }
@@ -831,11 +833,12 @@ function updateDiscoverStatus() {
   if (!D.report) return;
   const r = D.report;
   const mode = {not_requested:'S1 не запрашивался',off:'S1 выключен: показаны локальные предложения',scored:'Оценки S1 получены',partial:'S1: оценена только часть примеров',unavailable:'S1 недоступен: предложения сохранены без оценок',no_candidates:'Нет кандидатов для S1',stored:'Сохранённая подборка'};
-  $('#d-status').textContent = tr('{{0}} документ(ов) · выбрано {{1}} из {{2}}', [r.documents,D.selected.size,r.suggestions.length]) + ' · ' + tr(mode[r.s1_status] || 'S1 не запрашивался') + (r.truncated ? ' · '+tr('Достигнут лимит: показаны не все предложения') : '');
+  $('#d-status').textContent = (D.view === 'sessions' ? tr('Кандидатов: {{0}} · выбрано {{1}}', [r.suggestions.length, D.selected.size]) : tr('{{0}} документ(ов) · выбрано {{1}} из {{2}}', [r.documents,D.selected.size,r.suggestions.length])) + ' · ' + tr(mode[r.s1_status] || 'S1 не запрашивался') + (r.truncated ? ' · '+tr('Достигнут лимит: показаны не все предложения') : '');
 }
 
 function renderDiscover() {
   const foundKeys=D.report?.finding_keys||[];
+  $('#d-back-sessions').hidden = D.view !== 'sessions';
   $("#discover-findings").hidden=!foundKeys.length;
   $("#discover-collect").hidden=!foundKeys.length;
   $("#discover-collect").textContent=tr("В датасет все {{0}}",[foundKeys.length]);
@@ -881,10 +884,35 @@ function renderDiscover() {
     })))));
 }
 
+let documentStudyRequest = 0;
 function showDocumentScenario() {
-  $('#d-scenario-field').hidden = $('#d-mode').value !== 'background';
+  const background = $('#d-mode').value === 'background';
+  $('#d-scenario-field').hidden = !background;
+  if (background && D.view === 'input' && location.hash === '#discover') updateDocumentStudy();
+}
+async function updateDocumentStudy() {
+  const host = $('#d-scenario-study');
+  const request = ++documentStudyRequest;
+  try {
+    const {settings} = await api('/api/v1/ui/categorization');
+    if (request !== documentStudyRequest || D.view !== 'input' || location.hash !== '#discover' || $('#d-mode').value !== 'background') return;
+    const supported = settings.provider === 'local' || (settings.provider === 's1' && settings.http?.protocol === 'openai');
+    const select = $('#d-scenario');
+    select.disabled = !supported;
+    if (!supported) {
+      select.value = '';
+      delete host.dataset.study;
+      host.textContent = tr('Для сценариев A–D включите локальную или OpenAI-совместимую категоризацию.');
+      return;
+    }
+    renderScenarioStudy(host, settings.provider === 'local' ? measuredModelId(settings.model) : null,
+      select.value || settings.scenario || 'standard');
+  } catch (error) {
+    if (request === documentStudyRequest) { delete host.dataset.study; host.textContent = error.message; }
+  }
 }
 $('#d-mode').addEventListener('change', showDocumentScenario);
+$('#d-scenario').addEventListener('change', updateDocumentStudy);
 $('#analysis-open-document').addEventListener('click', () => {
   if (D.view !== 'input') showDiscoverView('input');
   $('#d-mode').value = 'background';
@@ -932,7 +960,10 @@ async function decideDiscover(action) {
     if (D.view === "saved") D.report = result.report;
     else {
       D.report.suggestions = D.report.suggestions.filter(s => !D.selected.has(s.id));
-      if(D.report.finding_keys?.length) D.report.finding_keys=result.report.finding_keys;
+      if (D.report.finding_keys?.length) {
+        const remaining = new Set(result.report.finding_keys);
+        D.report.finding_keys = D.report.finding_keys.filter(key => remaining.has(key));
+      }
     }
     D.selected.clear();
     toast(tr(action === 'mask' ? 'Сохранено MASK-правил: {{0}}' : 'Сохранено отрицательных меток: {{0}}', [result.applied]));
@@ -953,30 +984,31 @@ $('#d-apply').addEventListener('click', () => {
 $('#d-reject').addEventListener('click', () => decideDiscover('not_sensitive'));
 $('#d-saved').addEventListener('click',()=>showDiscoverView('saved'));
 
-async function analyzeProxySessions() {
-  if (D.busy) return;
+async function analyzeProxySessions(target = null, useS1 = false) {
+  if (D.busy) { toast(tr("Дождитесь окончания текущего поиска.")); return; }
+  const name = target?.session ? tr("Сессия {{0}}", [target.session]) :
+    target?.request ? tr("Запрос {{0}}", [target.request]) : tr("Все сохранённые сессии");
   showTab('discover');
-  await showDiscoverView('input',true);
-  D.busy = true;
+  await showDiscoverView('sessions', true);
+  D.busy = true; D.report = null; D.saved = true; D.selected.clear(); D.scope = name;
   renderDiscover();
-  $('#d-status').textContent = tr("Анализ завершённых сессий прокси из Vault…");
+  $('#d-status').textContent = tr("Ищем значения в сохранённых запросах и ответах…");
   try {
     const res = await api('/api/v1/ui/discover/sessions', {
-      method: 'POST',
-      body: { use_s1: $('#d-s1') ? $('#d-s1').checked : false, remember: true },
+      method: 'POST', body: {target, use_s1: useS1, remember: true},
     });
     D.report = res.report;
-    D.scope=tr("Проверено сессий · {{0}}",[res.sessions_analyzed]);
-    D.saved = true;
-    D.selected.clear();
-    toast(tr("Разобрано сессий прокси: {{0}} · кандидатов: {{1}}", [res.sessions_analyzed || 0, (res.report && res.report.suggestions && res.report.suggestions.length) || 0]));
+    D.scope = name + ' · ' + tr("Проверено сессий · {{0}}", [res.sessions_analyzed]);
+    if (!res.sessions_analyzed) D.scope += ' · ' + tr(res.report.truncated
+      ? "Текст превышает лимит одного поиска." : "Сохранённых текстов для поиска нет.");
     await loadInfo();
-  } catch (e) { fail(e); }
+  } catch (e) { D.scope = name + ' · ' + e.message; fail(e); }
   finally { D.busy = false; renderDiscover(); }
 }
 window.analyzeProxySessions = analyzeProxySessions;
-if ($('#d-sessions')) $('#d-sessions').addEventListener('click', analyzeProxySessions);
-if ($('#settings-scan-sessions')) $('#settings-scan-sessions').addEventListener('click', analyzeProxySessions);
+$('#d-sessions').addEventListener('click', () => analyzeProxySessions(null, D.view === 'input' && $('#d-s1').checked));
+$('#events-scan-all').addEventListener('click', () => analyzeProxySessions());
+if ($('#settings-scan-sessions')) $('#settings-scan-sessions').addEventListener('click', () => analyzeProxySessions());
 for (const id of ['d-files','d-text','d-format']) $('#'+id).addEventListener('change', () => {
   if (!D.saved && !D.busy) { D.report=null; D.selected.clear(); renderDiscover(); }
 });
@@ -1117,7 +1149,25 @@ function renderPacks() {
 
 // ---------- старт ----------
 
+function refreshFilePickers() {
+  for (const input of document.querySelectorAll('input[type="file"]')) {
+    let picker = input.closest('.file-picker');
+    if (!picker) {
+      picker = h('span', {class: 'file-picker'}, h('span', {class: 'file-button', 'aria-hidden': 'true'}),
+        h('span', {class: 'file-name', 'aria-hidden': 'true'}));
+      input.before(picker); picker.append(input);
+      input.addEventListener('change', refreshFilePickers);
+    }
+    picker.querySelector('.file-button').textContent = tr(input.multiple ? 'Выбрать файлы' : 'Выбрать файл');
+    const names = Array.from(input.files, file => file.name);
+    const caption = picker.querySelector('.file-name');
+    caption.textContent = names.length > 1 ? tr('Выбрано файлов: {{0}}', [names.length]) : names[0] || tr(input.multiple ? 'Файлы не выбраны' : 'Файл не выбран');
+    caption.title = names.join(', ');
+  }
+}
+
 async function startApp() {
+  refreshFilePickers();
   try {
     await loadInfo();
   } catch (e) { fail(e); }

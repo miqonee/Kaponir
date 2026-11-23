@@ -125,10 +125,7 @@ const inferenceFields = {context_tokens:"context-tokens", max_output_tokens:"out
 const defaultInference = {context_tokens:4096, max_output_tokens:1600, reserve_tokens:64, batch_size:2, response_format:"auto"};
 
 function studyModelId(role) {
-  const id = modelSelect(role).value;
-  const models = WORKER.data?.models || {};
-  const sha = models[id]?.sha256;
-  return studyArtifacts[sha] || Object.keys(searchProfiles).find(key => sha && models[key]?.sha256 === sha) || id;
+  return measuredModelId(modelSelect(role).value);
 }
 function chosenLocalPreset(role, studyId = studyModelId(role)) {
   const search = role !== "categorization";
@@ -181,7 +178,6 @@ function updateProfileNote(role, g = LearningUI.generation[role]) {
 
   if (g) note.textContent = tr("Параметры исследования · температура {{0}}, top_p {{1}}, top_k {{2}}, min_p {{3}}, seed {{4}}, бюджет рассуждений {{5}}.",
     [g.temperature, g.top_p, g.top_k, g.min_p, g.seed ?? "—", g.reasoning_budget ?? 0]);
-  if (preset && role === "categorization") note.textContent += " " + tr("Рекомендация для этой модели — {{0}}. Этот сценарий набрал больше всего баллов при проверке готовых целей.", [preset.scenario]);
   if (g && role === "analysis" && preset) note.textContent += " " + tr("Профиль для поиска по документам взят из таблицы исследования.");
   if (g?.thinking_source_cutoff) note.textContent += " " + tr("Рассуждения включаются до {{0}} токенов исходного текста.", [g.thinking_source_cutoff]);
 }
@@ -236,6 +232,9 @@ function learningFormVisibility() {
       button = $(`#${role}-test`);
     button.textContent = tr(local ? "Проверить запуск" : "Проверить подключение");
     if (local) button.disabled = busy || !data?.editable || !WORKER.data?.enabled || !!localModelIssue(selectedModel(role));
+  }
+  if (!$("#categorization-scenario-field").hidden) {
+    renderScenarioStudy($("#categorization-scenario-study"), c === "local" ? studyModelId("categorization") : null, $("#categorization-scenario").value);
   }
   $("#analysis-threshold").disabled ||= !$("#analysis-auto").checked;
   if (typeof renderModelCards === "function") renderModelCards();

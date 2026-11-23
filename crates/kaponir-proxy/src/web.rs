@@ -104,6 +104,33 @@ pub(crate) fn routes() -> Router<Shared> {
                 )
             }),
         )
+        .route(
+            "/ui/sessions.js",
+            get(|| async {
+                asset(
+                    include_str!("../assets/sessions.js"),
+                    "text/javascript; charset=utf-8",
+                )
+            }),
+        )
+        .route(
+            "/ui/scenarios.js",
+            get(|| async {
+                asset(
+                    include_str!("../assets/scenarios.js"),
+                    "text/javascript; charset=utf-8",
+                )
+            }),
+        )
+        .route(
+            "/ui/scenario-benchmarks.json",
+            get(|| async {
+                asset(
+                    include_str!("../assets/scenario-benchmarks.json"),
+                    "application/json; charset=utf-8",
+                )
+            }),
+        )
         .route("/api/v1/ui/info", get(info))
         .route(
             "/ui/help.js",
@@ -752,8 +779,25 @@ async fn apply_discover(
     Ok(Json(json!({"applied":applied,"scope":req.scope,"report":result})).into_response())
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum SessionTarget {
+    Session(String),
+    Request(u64),
+}
+
+impl SessionTarget {
+    fn matches(&self, event: &crate::traffic::Event) -> bool {
+        match self {
+            Self::Session(id) => event.session_id.as_ref() == Some(id),
+            Self::Request(id) => event.session_id.is_none() && event.id == *id,
+        }
+    }
+}
+
 #[derive(Deserialize, Default)]
 struct DiscoverSessionsReq {
+    target: Option<SessionTarget>,
     #[serde(default = "default_true")]
     use_s1: bool,
     #[serde(default = "default_true")]
@@ -766,9 +810,15 @@ fn default_true() -> bool {
 
 /// Export each retained session once, omitting histories already present in a
 /// later request. Legacy events without correlation remain separate documents.
-fn session_documents(st: &Shared) -> (Vec<kaponir_core::discover::Document>, bool) {
+fn session_documents(
+    st: &Shared,
+    target: Option<&SessionTarget>,
+) -> (Vec<kaponir_core::discover::Document>, bool) {
     let mut groups = std::collections::BTreeMap::<String, Vec<String>>::new();
     for ev in st.traffic.snapshot().events {
+        if target.is_some_and(|scope| !scope.matches(&ev)) {
+            continue;
+        }
         if let Some(insp) = ev.inspector {
             let key = ev
                 .session_id
@@ -787,6 +837,9 @@ fn session_documents(st: &Shared) -> (Vec<kaponir_core::discover::Document>, boo
     let mut bytes = 0;
     let mut truncated = false;
     for (key, parts) in groups {
+        if parts.is_empty() {
+            continue;
+        }
         let text = parts.join("\n\n");
         if documents.len() >= kaponir_core::discover::MAX_DOCUMENTS
             || bytes + text.len() > kaponir_core::discover::MAX_BYTES
@@ -806,7 +859,7 @@ fn session_documents(st: &Shared) -> (Vec<kaponir_core::discover::Document>, boo
 }
 async fn export_sessions(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     authorized(&st, &headers, true)?;
-    let (documents, truncated) = session_documents(&st);
+    let (documents, truncated) = session_documents(&st, None);
     Ok((
         [(header::CACHE_CONTROL, "no-store")],
         Json(json!({"documents":documents,"truncated":truncated})),
@@ -820,10 +873,13 @@ async fn discover_sessions(
     Json(req): Json<DiscoverSessionsReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
-    let (documents, truncated) = session_documents(&st);
+    let (documents, truncated) = session_documents(&st, req.target.as_ref());
     let docs_count = documents.len();
     if documents.is_empty() {
-        let report = kaponir_core::discover::Report::default();
+        let report = kaponir_core::discover::Report {
+            truncated,
+            ..Default::default()
+        };
         return Ok(
             Json(json!({"documents_analyzed": 0, "sessions_analyzed":0,"report": report}))
                 .into_response(),

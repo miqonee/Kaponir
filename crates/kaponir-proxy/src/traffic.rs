@@ -65,6 +65,9 @@ pub struct StageTimings {
 pub struct EventInspector {
     pub model: String,
     pub original_request: String,
+    /// UTF-8 byte offset of the final user message header in the retained transcript.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_user_offset: Option<usize>,
     pub masked_request: String,
     #[serde(default)]
     pub masked_payload_json: String,
