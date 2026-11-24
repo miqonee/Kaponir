@@ -107,7 +107,7 @@ function jobRoute(job) {
 }
 const stageNames = {
   queued: "В очереди",
-  running: "В работе",
+  running: "В работе", processing: "В работе", scanning: "В работе", downloading: "В работе", interrupted: "Прервано",
   succeeded: "Завершено",
   completed: "Завершено",
   failed: "Ошибка",
@@ -119,56 +119,143 @@ const stageNames = {
 function stage(job) {
   return tr(stageNames[job.state] || learningStates[job.state] || job.state);
 }
-function jobTitle(job) {
-  if (job.family === "file") {
-    if (job.kind === "download") return tr("Установка модели");
-    if (job.name === "@sessions") return tr("Сохранённые сессии");
-  }
-  return job.family === "review"
-    ? tr("Проверка значений · {{0}}", [job.total ?? job.targets?.length ?? 0])
-    : job.name || tr(job.family === "file" ? "Обработка файла" : "Фоновый анализ");
+const workingStates = new Set(["running", "processing", "scanning", "downloading"]);
+function jobGroup(job) {
+  if (workingStates.has(job.state)) return "running";
+  return ["queued", "paused"].includes(job.state) ? job.state : "history";
 }
-function jobRow(job) {
-  const knownTotal = job.total > 0 && job.completed != null;
-  const active = ["running","processing","scanning","downloading","queued"].includes(job.state);
-  const amount = job.kind === "download" ? jobProgress(job) : knownTotal ? job.completed + "/" + job.total : "";
-  const route = jobRoute(job);
-  return h(
-    "article",
-    { class: "job-history-row" },
-    h("a", {class:"job-name", href:"#"+route, onclick:event=>{if (followLocalLink(event)) showTab(route);}}, jobTitle(job)),
-    h("span", {class:"job-state", "data-state":job.state}, stage(job)),
-    h("span", {class:"hint job-model"}, job.source?.model || job.model || ""),
-    amount ? h("span", {class:"job-amount"}, amount) : null,
-    active && knownTotal ? h("progress", {value:job.completed, max:job.total, "aria-label":jobTitle(job)}) : null,
-  );
+function jobTitle(job) {
+  if (job.family === "review") return job.total != null ? tr("Проверка находок · {{0}}", [number(job.total)]) : tr("Проверка находок");
+  if (job.family === "learning" && job.kind === "turn")
+    return job.event_id != null ? tr("Анализ запроса №{{0}}", [job.event_id]) : tr("Анализ запроса");
+  if (job.kind === "download") return tr("Установка модели");
+  if (job.kind === "scan") return tr(job.name === "@sessions" ? "Поиск в сохранённых сессиях" : "Поиск значений в файлах");
+  return job.name || tr(job.family === "learning" ? "Анализ документа" : "Обработка файлов");
+}
+function jobModel(job) {
+  const id = (job.state === "running" && job.progress?.model) || job.source?.model || job.model;
+  return (WORKER.data?.catalog || builtinModelChoices).find(model => model.id === id)?.label || id;
+}
+function jobContext(job) {
+  const parts = [];
+  if (job.session_id && job.session_id !== "request-" + job.event_id)
+    parts.push(tr("Сессия {{0}}", [job.session_id.slice(0, 8)]));
+  if (job.family === "learning" && job.kind === "document") parts.push(tr("Документ"));
+  if (job.kind === "scan" && job.name && job.name !== "@sessions") parts.push(job.name);
+  const model = jobModel(job);
+  if (model) parts.push(model);
+  return parts.join(" · ");
+}
+const queueReasons = {
+  analysis_paused: "Фоновый анализ приостановлен в настройках LLM.",
+  worker_offline: "Ожидает подключения службы обработки.",
+  worker_paused: "Служба обработки приостановлена.",
+  detection_model: "Ожидает готовности модели обнаружения и среды запуска.",
+  categorization_model: "Ожидает готовности модели категоризации и среды запуска.",
+};
+function jobActivity(job) {
+  const group = jobGroup(job), pr = job.progress;
+  const count = (label, unit, done, total) => ({
+    label: tr(label), text: tr(unit, [number(done),number(total)]), done, total,
+  });
+  if (group === "queued") {
+    const wait = job.queue_wait;
+    if (wait?.reason === "capacity") return {label:tr("Ждёт свободного обработчика. Лимит параллельных заданий — {{0}}.", [number(wait.limit)])};
+    return {label:tr(queueReasons[wait?.reason] || "Ожидает запуска")};
+  }
+  if (group === "paused") return {label: tr("Обработка приостановлена")};
+  if (group === "history") {
+    let result;
+    if (job.family === "learning" && job.extracted != null && ["succeeded","failed"].includes(job.state))
+      result = tr("Сохранено находок · {{0}}", [number(job.extracted)]);
+    else if (job.family === "review" && job.total > 0)
+      result = tr("Обработано {{0}} из {{1}}", [number(job.processed ?? job.completed ?? 0), number(job.total)]);
+    else if (job.kind === "download") {
+      if (job.state === "succeeded") result = tr("Файлы подготовлены");
+    } else if (job.family === "file" && job.total > 0)
+      result = tr(job.name === "@sessions" ? "Обработано документов · {{0}} из {{1}}" : "Обработано файлов · {{0}} из {{1}}",
+        [number(job.completed ?? 0), number(job.total)]);
+    const error = job.error_code ? installationErrorMessage({code:job.error_code}) : job.error ? reviewError(job.error) : null;
+    return error ? {label:error, text:result} : {label:result};
+  }
+  if (job.family === "review") {
+    if (job.total > 0) return count("Проверка моделью", "Обработано {{0}} из {{1}}", job.processed ?? job.completed ?? 0, job.total);
+    return {label:tr("Подготовка выборки")};
+  }
+  if (job.family === "learning") {
+    if (pr?.stage === "detecting") return count("Поиск значений", "Фрагменты · {{0}} из {{1}}", pr.completed, pr.total);
+    if (pr?.stage === "categorizing") return count("Категоризация находок", "Значения · {{0}} из {{1}}", pr.completed, pr.total);
+    if (pr?.stage === "saving") return {label:tr("Сохранение результатов"), text:tr("Найдено кандидатов · {{0}}", [number(pr.found)])};
+    return {label:tr(pr?.stage === "preparing" ? "Подготовка текста" : "Идёт фоновый анализ"), indeterminate:true};
+  }
+  if (job.kind === "download") {
+    const label = tr(installationStages[job.stage] || "Установка модели");
+    if (job.total > 0 && ["model_download","runtime_download"].includes(job.stage))
+      return {label, text:formatModelBytes(job.completed ?? 0) + " / " + formatModelBytes(job.total), done:job.completed ?? 0, total:job.total};
+    return {label, indeterminate:true};
+  }
+  if (job.total > 0) {
+    const activity = count("Поиск значений", job.name === "@sessions" ? "Обработано документов · {{0}} из {{1}}" :
+      "Обработано файлов · {{0}} из {{1}}", job.completed ?? 0, job.total);
+    if (job.current_file) activity.label = tr("Поиск в файле «{{0}}»", [job.current_file]);
+    return activity;
+  }
+  return {label:tr("Подготовка источников"), indeterminate:true};
+}
+function activityBlock(job) {
+  const {label, text, done, total, indeterminate} = jobActivity(job);
+  if (!label) return null;
+  return h("div", {class:"job-activity"},
+    h("div", {class:"job-activity-line"}, h("span", {class:"job-phase"}, label), text ? h("span", {class:"job-counter"}, text) : null),
+    total > 0 || indeterminate ? h("progress", {max:total || undefined, value:total > 0 ? done : undefined,
+      "aria-label":jobTitle(job) + " · " + label, "aria-valuetext":text}) : null);
+}
+function jobBadge(job) {
+  return h("span", {class:"job-state", "data-state":job.state}, stage(job));
+}
+function jobRow(job, preview = false, sharedWait = false) {
+  const route = jobRoute(job), group = jobGroup(job), context = jobContext(job);
+  const link = h("a", {class:"job-link " + (preview ? "job-preview-row" : "job-name"), href:"#"+route,
+    "data-job-group":group, onclick:event=>{if (followLocalLink(event)) showTab(route);}},
+    h("div", {class:"job-row-head"}, h("strong", {}, jobTitle(job)), (!preview && !sharedWait) || group === "history" ? jobBadge(job) : null),
+    context ? h("span", {class:"job-meta"}, context) : null,
+    sharedWait ? null : activityBlock(job));
+  return preview ? link : h("article",{class:"job-history-row"},link);
+}
+const jobGroups = [["running","В работе"],["queued","В очереди"],["paused","На паузе"],["history","История"]];
+function groupedJobs(rows, data, preview = false) {
+  return jobGroups.flatMap(([group, title]) => {
+    const part = rows.filter(job => jobGroup(job) === group);
+    const total = group === "queued" ? data.queued : group === "running" ? data.active - data.queued : null;
+    if (!part.length && !(preview && total)) return [];
+    const sharedWait = group === "queued" && part.length > 1 && part.every(j => j.queue_wait?.reason === part[0].queue_wait?.reason);
+    return [h("section", {class:"job-group", "data-group":group},
+      h(preview ? "h3" : "h2", {class:"job-group-title"}, tr(title), total != null ? h("span", {}, number(total)) : null),
+      sharedWait ? h("p", {class:"job-wait"}, jobActivity(part[0]).label) : null,
+      part.map(job => jobRow(job,preview,sharedWait)),
+      preview && total > part.length ? h("p", {class:"job-more"}, tr("Показано {{0}} из {{1}}", [number(part.length),number(total)])) : null)];
+  });
 }
 function renderJobIndicator(data) {
   const trigger = $("#job-indicator"), preview = $("#job-preview-list");
-  const rows = data.preview || data.jobs.slice(0, 4), first = rows[0];
-  const running = data.active - (data.queued || 0);
-  const counts = [];
-  if (running) counts.push(tr("В работе · {{0}}", [running]));
-  if (data.queued) counts.push(tr("В очереди · {{0}}", [data.queued]));
-  const label = [tr("Задания"), ...counts];
-  if (data.active && first) {
-    const model = first.source?.model || first.model;
-    if (model) label.push(model);
-    if (first.total != null) label.push((first.completed || 0) + "/" + first.total);
-  }
-  trigger.title = trigger.querySelector("span").textContent = label.join(" · ");
-  const progress = running === 1 && data.active === 1 && first?.total ? (first.completed || 0) + "/" + first.total : data.active;
-  trigger.dataset.compact = [tr("Задания"), ...(progress ? [progress] : [])].join(" · ");
+  const rows = data.preview || data.jobs.slice(0, 4);
+  const running = data.active - data.queued, counts = [];
+  if (running) counts.push(tr("В работе · {{0}}", [number(running)]));
+  if (data.queued) counts.push(tr("В очереди · {{0}}", [number(data.queued)]));
+  const label = [tr("Задания"), ...counts].join(" · ");
+  trigger.title = trigger.querySelector("span").textContent = label;
+  trigger.dataset.compact = [tr("Задания"), data.active || null].filter(Boolean).join(" · ");
   trigger.classList.toggle("working", !!data.active);
   const signature = JSON.stringify([rows, counts, I18N.language]);
+  const sync = $("#job-preview-sync");
+  sync.hidden = false;
+  sync.textContent = tr("Очередь обновлена в {{0}}", [time(data.updated)]);
   if (desk.previewSignature === signature) return;
   desk.previewSignature = signature;
-  const focused = preview.contains(document.activeElement) ? document.activeElement.getAttribute("href") : null;
-  preview.replaceChildren(h("p", {class:"hint"}, counts.join(" · ") || tr("Активных заданий нет")),
-    ...rows.map(job => h("a", {class:"job-preview-row", href:"#" + jobRoute(job)},
-      h("strong", {}, jobTitle(job)), h("span", {}, [stage(job), job.source?.model || job.model,
-        job.total != null ? (job.completed || 0) + "/" + job.total : ""].filter(Boolean).join(" · ")))));
-  if (focused) [...preview.querySelectorAll("a")].find(a=>a.getAttribute("href")===focused)?.focus({preventScroll:true});
+  const focused = preview.contains(document.activeElement) ? document.activeElement : null;
+  preview.replaceChildren(...(!data.active ? [h("p",{class:"job-idle"},tr("Активных заданий нет"))] : []), ...groupedJobs(rows, data, true));
+  if (focused) ([...preview.querySelectorAll("a")].find(a=>a.getAttribute("href")===focused.getAttribute("href")) ||
+    $("#job-preview .panel-title a")).focus({preventScroll:true});
 }
 async function openJobResults(id, outcome) {
   clearPicking();
@@ -192,40 +279,24 @@ function renderJob(job, family) {
     completed = job.processed ?? job.completed ?? 0,
     active = job.active || 0,
     error = job.error;
-  const nodes = [workButton("Все задания", () => showTab("jobs")), h("h2", {}, jobTitle(job))];
-  const source = job.source?.model
-    ? [
-        job.source.model,
-        job.source.connection,
-        tr(job.source.provider === "local" ? "Локальная модель" : "Модель по API"),
-        tr(scenarioLabels[job.source.scenario] || "Стандартная проверка"),
-      ]
-    : [job.model, job.scenario ? tr(scenarioLabels[job.scenario] || job.scenario) : null];
-  const card = h(
-    "div",
-    { class: "panel job-progress" },
-    h("strong", {}, stage(job)),
-    h("p", { class: "hint" }, source.filter(Boolean).join(" · ")),
-  );
+  const nodes = [workButton("Все задания", () => showTab("jobs"), "text-button job-back")];
+  const context = jobContext(job);
+  const source = family === "review" ? [job.source?.connection, job.source?.provider ? tr(job.source.provider === "local" ? "Локальная модель" : "Модель по API") : null] : [];
+  const scenario = job.source?.scenario || job.scenario;
+  if (scenario) source.push(tr(scenarioLabels[scenario] || scenario));
+  const card = h("article", {class:"panel job-progress job-detail"},
+    h("header", {class:"job-detail-head"}, h("h2", {}, jobTitle(job)), jobBadge(job)),
+    context || source.some(Boolean) ? h("p", {class:"job-meta"}, [context, ...source].filter(Boolean).join(" · ")) : null,
+    activityBlock(job));
   if (family === "review") {
-    card.append(
-      h("h3", {}, tr("Обработано {{0}} из {{1}}", [completed, n])),
-      h("progress", { value: completed, max: n || 1, "aria-label": tr("Обработано") }),
-      h(
-        "p",
-        {},
-        tr("Принято {{0}} · ждут {{1}} · в работе {{2}}", [
-          n,
-          ["running", "queued"].includes(job.state) ? Math.max(0, n - completed - active) : 0,
-          active,
-        ]),
-      ),
-    );
+    if (["running", "queued"].includes(job.state))
+      card.append(h("p", {}, tr("Принято {{0}} · ждут {{1}} · в работе {{2}}", [
+        number(n), number(Math.max(0, n - completed - active)), number(active),
+      ])));
     if (job.skipped)
       card.append(
         h("p", { class: "hint" }, tr("Остались локально или уже разобраны · {{0}}", [job.skipped])),
       );
-    if (job.state === "queued") card.append(h("p", {}, tr("Ожидает свободного слота")));
     if (job.state === "running" && !completed)
       card.append(h("p", {}, tr("Ожидаем первый ответ модели")));
     const actions = h("div", { class: "form-actions" });
@@ -279,20 +350,35 @@ function renderJob(job, family) {
       workButton("Вернуться к выборке", () => returnFindings(job.id)),
     );
   } else {
-    if (job.extracted != null) card.append(h("p", {}, tr("Найдено · {{0}}", [job.extracted])));
     if (family === "learning") {
-      card.append(workButton("Открыть находки этого запуска", () => openLearningResults(job.id)));
+      if (job.state === "running" && job.progress?.stage === "detecting")
+        card.append(h("p", {class:"hint"}, tr("Найдено кандидатов · {{0}}", [number(job.progress.found)])));
+      const actions = h("div", {class:"form-actions"});
+      if (job.event_id != null)
+        actions.append(workButton(tr("Открыть запрос №{{0}}", [job.event_id]), () => openInspector(job.event_id), "secondary"));
+      if (job.extracted > 0 && ["failed","succeeded"].includes(job.state))
+        actions.append(workButton("Открыть находки этого запуска", () => openLearningResults(job.id), "secondary"));
+      if (job.retryable) actions.append(workButton("Повторить", () => learningAction(job.id, "retry")));
+      if (job.state === "queued" && job.queue_wait?.reason)
+        actions.append(job.queue_wait.reason === "capacity"
+          ? workButton("Настройки параллельности", async () => {
+              await showTab("analysis");
+              if (location.hash === "#analysis") $("#analysis-parallelism").focus();
+            })
+          : workButton("Настройки LLM", () => showTab("settings")));
+      if (actions.childElementCount) card.append(actions);
       const trace = inferenceDetails(job);
       if (trace) card.append(trace);
-      if (job.retryable) card.append(workButton("Повторить", () => learningAction(job.id, "retry")));
     } else {
-      card.append(h("p", {}, jobProgress(job)), workButton("Файловая служба", () => showTab("worker")));
+      card.append(workButton("Файловая служба", () => showTab("worker"), "secondary"));
     }
     nodes.push(card);
   }
-  if (error) card.append(h("p", { class: "err" }, reviewError(error)));
-  if (job.updated)
-    card.append(h("small", { class: "hint" }, tr("Обновлено · {{0}}", [time(job.updated)])));
+  if (error && jobGroup(job) !== "history") card.append(h("p", {class:"err"}, reviewError(error)));
+  const stamps = [["Поставлено в очередь",job.created],["Начало работы",job.started],["Последнее изменение",job.updated]]
+    .filter(([,value]) => value > 0);
+  if (stamps.length) card.append(h("dl", {class:"job-times"}, stamps.map(([key,value]) => h("div", {},
+    h("dt", {}, tr(key)), h("dd", {}, h("time", {datetime:new Date(value).toISOString()}, time(value,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})))))));
   return nodes;
 }
 async function openLearningResults(id) {
@@ -342,8 +428,10 @@ async function refreshJobs() {
     renderJobIndicator(data);
     if (section === "review" && location.hash === "#review" && ReviewUI.data && !ReviewUI.busy &&
         $("#review-list").getAttribute("aria-busy") !== "true" && !document.querySelector("#tab-review dialog[open]")) {
-      const signature = JSON.stringify((data.preview || []).filter(job => job.family === "review").map(job => [job.id,job.state,job.completed]));
-      if (desk.reviewProgress !== signature) { desk.reviewProgress = signature; void loadReview(); }
+      const activity = data.review_activity || (data.preview || []).filter(job => job.family === "review").map(job => [job.id,job.state,job.completed]);
+      const signature = JSON.stringify(activity), previous = desk.reviewProgress;
+      desk.reviewProgress = signature;
+      if (previous !== signature && (previous != null || activity.length)) void loadReview({background:true});
     }
     const first = (data.preview || data.jobs)[0];
     const home = $("#home-job");
@@ -359,12 +447,12 @@ async function refreshJobs() {
     if (route !== location.hash.slice(1) || section !== "jobs") return;
     const host = $("#jobs-content");
     host.setAttribute("aria-busy", "false");
-    let nodes;
+    let nodes, selected;
     if (family && id) {
-      let selected = detail || data.jobs.find((j) => j.id === id && j.family === family);
+      selected = detail || data.jobs.find((j) => j.id === id && j.family === family);
       if (!selected && family !== "review") {
         const extra = await api("/api/v1/ui/jobs?" + new URLSearchParams({ family, id }));
-        if (seq !== desk.sequence) return;
+        if (seq !== desk.sequence || route !== location.hash.slice(1)) return;
         selected = extra.jobs[0];
       }
       const unavailable = family === "file" && !data.worker_online;
@@ -383,7 +471,11 @@ async function refreshJobs() {
       if (selected && unavailable)
         nodes.push(h("p", { class: "inline-notice" }, tr("Файловая служба недоступна")));
     } else {
-      nodes = data.jobs.map(jobRow);
+      if (desk.offset && !data.jobs.length) {
+        desk.offset = Math.max(0, Math.floor((data.total - 1) / 100) * 100);
+        return refreshJobs();
+      }
+      nodes = groupedJobs(data.jobs, data);
       if (!nodes.length)
         nodes.push(
           h("div", { class: "empty" }, tr("Очередь пуста. Запустите проверку из находок.")),
@@ -403,6 +495,7 @@ async function refreshJobs() {
               "secondary",
               !desk.offset,
             ),
+            h("span",{class:"hint"},tr("{{0}}–{{1}} из {{2}}",[number(desk.offset + 1),number(desk.offset + data.jobs.length),number(data.total)])),
             workButton(
               "Далее",
               () => {
@@ -415,18 +508,28 @@ async function refreshJobs() {
           ),
         );
     }
-    const signature = JSON.stringify([
-      route,
-      data.jobs,
-      detail,
-      data.total,
-      data.worker_online,
-      data.api_active,
-      desk.workerReadings?.resources,
-      I18N.language,
-    ]);
+    const sync = $("#jobs-sync");
+    sync.hidden = false;
+    sync.textContent = tr("Очередь обновлена в {{0}}", [time(data.updated)]);
+    const state = selected ? [selected.state, selected.state === "running" ? selected.progress?.stage : null] : [data.active - data.queued, data.queued];
+    const stateKey = JSON.stringify(state);
+    if (route === desk.jobRoute && desk.lastJobState !== stateKey) {
+      $("#jobs-announcement").textContent = selected ? [jobTitle(selected),stage(selected),jobActivity(selected).label].filter(Boolean).join(" · ") :
+        tr("В работе {{0}}, в очереди {{1}}", state);
+    } else if (route !== desk.jobRoute) $("#jobs-announcement").textContent = "";
+    desk.lastJobState = stateKey;
+    const signature = JSON.stringify([route, family ? selected : data.jobs, family ? null : [data.total,data.active,data.queued,desk.offset],
+      data.worker_online, family === "review" && selected?.state === "running" ? [data.api_active,desk.workerReadings?.resources] : null, I18N.language]);
     if (desk.jobSignature !== signature || !host.children.length) {
+      const same = route === desk.jobRoute, focus = same && host.contains(document.activeElement) ? document.activeElement : null;
+      const open = same && host.querySelector(".inference-details")?.open;
       host.replaceChildren(...nodes);
+      if (open && host.querySelector(".inference-details")) host.querySelector(".inference-details").open = true;
+      if (focus) {
+        const target = [...host.querySelectorAll("a,button,summary")].find(el => focus.matches("a") ?
+          el.getAttribute("href") === focus.getAttribute("href") : el.tagName === focus.tagName && el.textContent === focus.textContent);
+        (target || $("#page-title")).focus({preventScroll:true});
+      }
       desk.jobSignature = signature;
     }
     desk.jobRoute = route;
@@ -437,25 +540,24 @@ async function refreshJobs() {
     trigger.title = trigger.querySelector("span").textContent = tr("Задания") + " · " + tr("Статус недоступен");
     trigger.dataset.compact = tr("Задания") + " · ?";
     trigger.classList.remove("working");
-    $("#job-preview-list").replaceChildren(h("p", {class:"hint"}, tr("Статус недоступен")), workButton("Повторить", refreshJobs));
+    $("#job-preview-sync").hidden = true;
+    $("#jobs-sync").hidden = true;
+    const preview = $("#job-preview-list");
+    if (!preview.querySelector(".connection-notice")) {
+      const focused = preview.contains(document.activeElement);
+      const retry = workButton("Повторить", refreshJobs);
+      preview.replaceChildren(h("p", {class:"connection-notice hint"}, tr("Статус недоступен")), retry);
+      if (focused) retry.focus({preventScroll:true});
+    }
     desk.previewSignature = null;
     if (section === "jobs" && seq === desk.sequence) {
       const host = $("#jobs-content");
-      if (desk.jobRoute !== route) host.replaceChildren();
-      host.querySelector(".connection-notice")?.remove();
-      host.prepend(
-        h(
-          "div",
-          { class: "connection-notice inline-notice", role: "status" },
-          h(
-            "span",
-            {},
-            tr("Статус недоступен"),
-            desk.lastUpdate ? " · " + tr("Обновлено · {{0}}", [time(desk.lastUpdate)]) : "",
-          ),
-          workButton("Повторить", refreshJobs),
-        ),
-      );
+      host.setAttribute("aria-busy", "false");
+      if (desk.jobRoute !== route) { host.replaceChildren(); desk.jobRoute = route; }
+      if (!host.querySelector(".connection-notice"))
+        host.prepend(h("div", {class:"connection-notice inline-notice", role:"status"},
+          h("span", {}, tr("Статус недоступен"), desk.lastUpdate ? " · " + tr("Обновлено · {{0}}", [time(desk.lastUpdate)]) : ""),
+          workButton("Повторить", refreshJobs)));
     }
     desk.jobSignature = null;
   } finally {
@@ -471,12 +573,6 @@ document.addEventListener("visibilitychange", () => {
 });
 $("#job-indicator").addEventListener("click", () => {
   if (!("showPopover" in HTMLElement.prototype)) showTab("jobs");
-});
-$("#job-preview-list").addEventListener("click", event => {
-  const link = event.target.closest("a");
-  if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-  event.preventDefault();
-  showTab(link.hash.slice(1));
 });
 $("#discover-findings").onclick = async () => {
   const keys = D.report?.finding_keys || [];

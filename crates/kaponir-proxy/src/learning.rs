@@ -306,7 +306,30 @@ fn queue_activity(v: &SqliteVault, now: u64) -> anyhow::Result<QueueActivity> {
 }
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(tag = "stage", rename_all = "snake_case")]
+enum LearningProgress {
+    Preparing,
+    Detecting {
+        completed: usize,
+        total: usize,
+        found: usize,
+    },
+    Categorizing {
+        completed: usize,
+        total: usize,
+        model: String,
+    },
+    Saving {
+        found: usize,
+    },
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 struct Job {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    progress: Option<LearningProgress>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    started: Option<u64>,
     #[serde(default)]
     scenario: Option<Scenario>,
     id: String,
@@ -394,9 +417,21 @@ struct LocalDecision {
     action: Option<RuleAction>,
 }
 
+#[derive(Clone, Copy, Serialize)]
+#[serde(tag = "reason", rename_all = "snake_case")]
+pub(crate) enum QueueWait {
+    AnalysisPaused,
+    WorkerOffline,
+    WorkerPaused,
+    DetectionModel,
+    CategorizationModel,
+    Capacity { limit: usize },
+}
+
 pub struct Learning {
     activity_since_ms: u64,
     pub settings: RwLock<Settings>,
+    queue_wait: RwLock<Option<QueueWait>>,
 }
 fn decode<T: DeserializeOwned>(bytes: &[u8]) -> anyhow::Result<T> {
     Ok(serde_json::from_slice(bytes)?)
@@ -420,13 +455,27 @@ fn list<T: DeserializeOwned>(v: &SqliteVault, kind: &str, limit: usize) -> anyho
         .map(|(_, b)| decode(&b))
         .collect()
 }
+impl Job {
+    fn requeue(&mut self) {
+        self.state = "queued".into();
+        self.started = None;
+        self.progress = None;
+        self.inference.clear();
+        self.updated = now_ms();
+    }
+}
+
 fn store_job(v: &SqliteVault, j: &Job) -> anyhow::Result<()> {
     put(v, &j.id, &format!("learning-job-{}", j.state), j)?;
+    store_job_meta(v, j)
+}
+
+fn store_job_meta(v: &SqliteVault, j: &Job) -> anyhow::Result<()> {
     put(
         v,
         &format!("meta:{}", j.id),
         "learning-job-meta",
-        &json!({"id":j.id,"name":j.name,"model":j.model,"scenario":j.scenario,"kind":j.kind,"state":j.state,"created":j.created,"updated":j.updated,"extracted":j.extracted,"error":j.error,"inference":j.inference,"retryable":!j.source.is_empty()&&j.state=="failed"}),
+        &json!({"id":j.id,"name":j.name,"model":j.model,"scenario":j.scenario,"kind":j.kind,"state":j.state,"created":j.created,"updated":j.updated,"started":j.started,"progress":j.progress,"extracted":j.extracted,"error":j.error,"inference":j.inference,"retryable":!j.source.is_empty()&&j.state=="failed"}),
     )
 }
 const ENTRY_STATES: &[&str] = &[
@@ -548,12 +597,13 @@ impl Learning {
         };
         // A crashed request to a worker can be safely replayed: entries and rule IDs are stable.
         for mut job in list::<Job>(v, "learning-job-running", MAX_JOBS)? {
-            job.state = "queued".into();
+            job.requeue();
             store_job(v, &job)?;
         }
         Ok(Arc::new(Self {
             activity_since_ms,
             settings: RwLock::new(settings),
+            queue_wait: RwLock::new(None),
         }))
     }
     pub fn enabled(&self) -> bool {
@@ -563,6 +613,20 @@ impl Learning {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         s.analysis.enabled && s.analysis.provider != "none" && s.analysis.background
     }
+    pub(crate) fn queue_wait(&self) -> Option<QueueWait> {
+        *self
+            .queue_wait
+            .read()
+            .unwrap_or_else(|error| error.into_inner())
+    }
+
+    fn set_queue_wait(&self, reason: Option<QueueWait>) {
+        *self
+            .queue_wait
+            .write()
+            .unwrap_or_else(|error| error.into_inner()) = reason;
+    }
+
     pub(crate) fn snapshot(&self) -> Settings {
         self.settings
             .read()
@@ -647,7 +711,7 @@ fn enqueue(v: &SqliteVault, mut job: Job) -> anyhow::Result<bool> {
         store_job(v, &old)?;
         counter(v, |c| c.evicted += 1)?;
     }
-    job.state = "queued".into();
+    job.requeue();
     store_job(v, &job)?;
     Ok(true)
 }
@@ -772,6 +836,8 @@ pub(crate) fn enqueue_event(
         return Ok(());
     }
     let job = Job {
+        progress: None,
+        started: None,
         scenario: Some(settings.categorization.scenario),
         id: format!("learning:job:turn:{:020}", event.id),
         name: format!("{} · {}", session, event.id),
@@ -1774,6 +1840,8 @@ async fn documents(
                         )
                     );
                     let job = Job {
+                        progress: None,
+                        started: None,
                         scenario: Some(categorization.scenario),
                         id: id.clone(),
                         name: d.name,
@@ -2472,6 +2540,14 @@ fn scenario_fingerprint(
         .to_string(),
     )
 }
+// Publish only safe metadata while the model works. The encrypted input does not
+// need to be rewritten for each completed fragment or categorization batch.
+fn report_progress(st: &Shared, job: &mut Job, progress: LearningProgress) -> anyhow::Result<()> {
+    job.progress = Some(progress);
+    job.updated = now_ms();
+    st.with_vault(|_, v| store_job_meta(v, job))
+}
+
 async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usize> {
     let mut categorization = s.categorization.clone();
     if let Some(choice) = job.scenario {
@@ -2497,6 +2573,8 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
     let mut errors = Vec::new();
     let mut complete = Vec::new();
     let mut calls = 0;
+    let mut finished = 0;
+    let mut planned = pending.len();
     while let Some(fragment) = pending.pop_front() {
         if calls >= s.analysis.chunking.max_fragments {
             errors.push("document_fragment_limit".to_string());
@@ -2511,8 +2589,18 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
             .is_some())
         })?;
         if known_chunk {
+            finished += 1;
             continue;
         }
+        report_progress(
+            st,
+            job,
+            LearningProgress::Detecting {
+                completed: finished,
+                total: planned,
+                found: entries.len(),
+            },
+        )?;
         calls += 1;
         let result = extract(
             st,
@@ -2596,6 +2684,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         }
         if split {
             if let Some((left, right)) = split_fragment(chunk) {
+                planned += 2;
                 pending.push_front(Fragment {
                     source: right.into(),
                     context: fragment.context.clone(),
@@ -2608,11 +2697,31 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
                 errors.push("model_fragment_cannot_split".into());
             }
         }
-        job.updated = now_ms();
-        st.with_vault(|_, v| store_job(v, job))?;
+        finished += 1;
     }
+    let total = entries.len();
     let batch_size = s.categorization.inference.batch_size;
-    for batch in entries.chunks_mut(batch_size) {
+    for (index, batch) in entries.chunks_mut(batch_size).enumerate() {
+        if categorization.provider != "none" {
+            let model = if categorization.provider == "local" {
+                categorization.model.clone()
+            } else {
+                categorization
+                    .http
+                    .model
+                    .clone()
+                    .unwrap_or_else(|| "s1".into())
+            };
+            report_progress(
+                st,
+                job,
+                LearningProgress::Categorizing {
+                    completed: index * batch_size,
+                    total,
+                    model,
+                },
+            )?;
+        }
         for entry in batch.iter_mut() {
             entry.categorization_state = if s.categorization.provider == "none" {
                 "disabled"
@@ -2741,6 +2850,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         st.learning.snapshot().revision == s.revision,
         "configuration_changed"
     );
+    report_progress(st, job, LearningProgress::Saving { found: total })?;
     for mut e in entries.iter().cloned() {
         let _guard = st.rule_changes.lock().await;
         let existing = st.with_vault(|_, v| record::<Entry>(v, &e.id))?;
@@ -2982,11 +3092,12 @@ pub(crate) fn change_entry(
         if job.state == "running" || job.source.is_empty() {
             return Err(bad(anyhow::anyhow!("job_not_retryable")));
         }
-        job.state = "queued".into();
+        job.requeue();
         job.error.clear();
         job.attempts = 0;
-        job.revision = st.learning.snapshot().revision;
-        job.updated = now_ms();
+        let settings = st.learning.snapshot();
+        job.revision = settings.revision;
+        job.model = settings.analysis.model;
         st.with_vault(|_, v| store_job(v, &job)).map_err(internal)?;
         return Ok(Json(json!({"ok":true})));
     }
@@ -3237,13 +3348,14 @@ pub(crate) fn start(st: &Shared) {
             ticks += 1;
             let settings = st.learning.snapshot();
             if !settings.analysis.enabled || settings.analysis.provider == "none" {
+                st.learning.set_queue_wait(Some(QueueWait::AnalysisPaused));
                 if !tasks.is_empty() {
                     tasks.abort_all();
                     while tasks.join_next().await.is_some() {}
                     let _ = crate::worker::forward(&st, "/disable", Some(json!({}))).await;
                     let _ = st.with_vault(|_, v| {
                         for mut job in list::<Job>(v, "learning-job-running", MAX_JOBS)? {
-                            job.state = "queued".into();
+                            job.requeue();
                             store_job(v, &job)?;
                         }
                         Ok(())
@@ -3252,24 +3364,34 @@ pub(crate) fn start(st: &Shared) {
                 continue;
             }
             if tasks.len() >= settings.analysis.parallelism {
+                st.learning.set_queue_wait(Some(QueueWait::Capacity {
+                    limit: settings.analysis.parallelism,
+                }));
                 continue;
             }
-            let Ok(worker) = crate::worker::forward(&st, "/status", None).await else {
-                continue;
+            let worker = crate::worker::forward(&st, "/status", None).await.ok();
+            let wait = match worker {
+                Some(ref w) if w["online"] == true => {
+                    if w["enabled"] != true {
+                        Some(QueueWait::WorkerPaused)
+                    } else if settings.analysis.provider == "local"
+                        && (w["runtime_ready"] != true
+                            || w["models"][&settings.analysis.model]["downloaded"] != true)
+                    {
+                        Some(QueueWait::DetectionModel)
+                    } else if settings.categorization.provider == "local"
+                        && (w["runtime_ready"] != true
+                            || w["models"][&settings.categorization.model]["downloaded"] != true)
+                    {
+                        Some(QueueWait::CategorizationModel)
+                    } else {
+                        None
+                    }
+                }
+                _ => Some(QueueWait::WorkerOffline),
             };
-            if worker["online"] != true || worker["enabled"] != true {
-                continue;
-            }
-            if settings.analysis.provider == "local"
-                && (worker["models"][&settings.analysis.model]["downloaded"] != true
-                    || worker["runtime_ready"] != true)
-            {
-                continue;
-            }
-            if settings.categorization.provider == "local"
-                && (worker["models"][&settings.categorization.model]["downloaded"] != true
-                    || worker["runtime_ready"] != true)
-            {
+            st.learning.set_queue_wait(wait);
+            if wait.is_some() {
                 continue;
             }
             while tasks.len() < settings.analysis.parallelism {
@@ -3278,6 +3400,8 @@ pub(crate) fn start(st: &Shared) {
                     if let Some(mut j) = job {
                         j.state = "running".into();
                         j.updated = now_ms();
+                        j.started = Some(j.updated);
+                        j.progress = Some(LearningProgress::Preparing);
                         j.attempts += 1;
                         store_job(v, &j)?;
                         Ok(Some(j))
@@ -3485,6 +3609,8 @@ mod tests {
     }
     fn job(id: usize, kind: &str) -> Job {
         Job {
+            progress: None,
+            started: None,
             scenario: None,
             id: format!("test-job-{id}"),
             name: "fixture".into(),

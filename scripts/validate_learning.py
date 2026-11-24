@@ -15,13 +15,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from validate_console import choose_preference, free_port, wait_for
 
 
-def check_browser(base, api, output):
-    from playwright.sync_api import sync_playwright
+def check_browser(base, api, output, partial_job):
+    from playwright.sync_api import sync_playwright, expect
     import shutil
     with sync_playwright() as playwright:
         browser=playwright.chromium.launch(executable_path=shutil.which('chromium') or shutil.which('google-chrome'),headless=True,args=['--no-sandbox'])
         page=browser.new_page(viewport={'width':1440,'height':1000},locale='ru-RU',color_scheme='dark')
         errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+        page.goto(base+'/ui/#jobs/learning/'+partial_job['id'])
+        detail=page.locator('#jobs-content')
+        expect(detail.locator('.job-state')).to_have_text('Ошибка')
+        expect(detail).to_contain_text('Сохранено находок · 1')
+        expect(detail.get_by_role('button',name='Открыть находки этого запуска')).to_be_visible()
         page.goto(base+'/ui/#worker')
         page.locator('#queue-completed').filter(has_text=re.compile(r'^[1-9]')).wait_for()
         assert page.locator('#queue-chart .queue-bar').count()==24
@@ -105,6 +110,7 @@ def main():
     args=parser.parse_args();binary=args.binary.resolve();args.output.mkdir(parents=True,exist_ok=True)
     enabled=True; allow=threading.Event();started=threading.Event();lock=threading.Lock()
     model_calls=[];upstream=[];active=0;peak=0
+    classify_allowed=threading.Event()
     class Fixture(BaseHTTPRequestHandler):
         def log_message(self,*_):pass
         def reply(self,body,status=200):
@@ -142,6 +148,7 @@ def main():
                 with lock:active-=1
                 self.reply({'choices':[{'finish_reason':'stop','message':{'content':json.dumps({'candidates':candidates})}}]});return
             if self.path=='/categorize':
+                classify_allowed.wait(timeout=15)
                 payload=json.loads(body['messages'][1]['content'])
                 decisions=[{'kind':'PROJ','scope':'team','action':'mask','confidence':.85 if 'Cat85' in c.get('value',c.get('surface','')) else .99} for c in payload['candidates']]
                 self.reply({'choices':[{'finish_reason':'stop','message':{'content':json.dumps({'decisions':decisions})}}]});return
@@ -191,7 +198,22 @@ def main():
             # A second client request completes while background inference is blocked.
             second={'model':'fixture-model','messages':first['messages']+[{'role':'assistant','content':'OK'},{'role':'user','content':'continue'}]}
             before=time.monotonic();api('/v1/chat/completions',second);assert time.monotonic()-before<2
-            allow.set();result=wait_for(completed)
+            live = api('/api/v1/ui/jobs')
+            running, queued = live['preview'][:2]
+            assert (live['active'],live['queued']) == (2,1)
+            assert running['kind']=='turn' and running['state']=='running' and running['event_id'] is not None
+            assert queued['state']=='queued' and queued['event_id']!=running['event_id']
+            assert running['progress']=={'stage':'detecting','completed':0,'total':1,'found':0}
+            assert queued['progress'] is None and 'CedarFirst86' not in json.dumps(live)
+            wait_for(lambda:api('/api/v1/ui/jobs?family=learning&id='+queued['id'])['jobs'][0]['queue_wait']=={'reason':'capacity','limit':1})
+            route='/api/v1/ui/jobs?family=learning&id='+running['id']
+            assert api(route)['jobs'][0]['session_id']==running['session_id']
+            allow.set()
+            wait_for(lambda:api(route)['jobs'][0]['progress']['stage']=='categorizing')
+            classification=api(route)['jobs'][0]['progress']
+            assert (classification['completed'],classification['total'],classification['model'])==(0,1,'fixture')
+            classify_allowed.set()
+            result=wait_for(completed)
             first_entry=next(e for e in result['entries'] if e['value']=='CedarFirst86');assert first_entry['state']=='active',first_entry
             assert sum('CedarFirst86' in text for text in model_calls)==1,model_calls
             # Subsequent requests use the newly learned rule; previous token mappings remain reversible.
@@ -234,6 +256,7 @@ def main():
             configure('analysis',enabled=True);enabled=False
             api('/api/v1/ui/analysis/documents',{'documents':[{'name':'restart','text':'CedarRestart86 QueuePrivateFixture_482'}]})
             configure('analysis',enabled=False);assert api('/api/v1/ui/learning')['summary']['queued']==1
+            wait_for(lambda:any(job.get('queue_wait')=={'reason':'analysis_paused'} for job in api('/api/v1/ui/jobs')['preview']))
             for path in home.glob('**/*'):
                 if path.is_file() and ('.sqlite' in path.name or path.suffix=='.db'):
                     assert b'QueuePrivateFixture_482' not in path.read_bytes(),path
@@ -274,7 +297,17 @@ def main():
             assert partial['state']=='pending' and partial['reason']=='analysis_partial',partial
             partial_job=next(j for j in result['jobs'] if j['name']=='partial')
             assert partial_job['state']=='failed' and partial_job['extracted']==1 and partial_job['retryable'],partial_job
-            check_browser(base,api,args.output)
+            check_browser(base,api,args.output,partial_job)
+            enabled=False
+            configure('analysis',model='retry-detector')
+            api('/api/v1/ui/learning/'+partial_job['id']+'/retry',{})
+            retry_route='/api/v1/ui/jobs?family=learning&id='+partial_job['id']
+            wait_for(lambda:api(retry_route)['jobs'][0].get('queue_wait')=={'reason':'worker_paused'})
+            attempt=api(retry_route)['jobs'][0]
+            assert attempt['model']=='retry-detector' and attempt['progress'] is None and attempt['started'] is None
+            assert not attempt['inference']
+            enabled=True
+            wait_for(completed)
             configure('analysis',auto_apply=False)
             api('/api/v1/ui/analysis/documents',{'documents':[{'name':'evening-review','text':'Private label CedarEveningDraft'}]})
             result=wait_for(completed)

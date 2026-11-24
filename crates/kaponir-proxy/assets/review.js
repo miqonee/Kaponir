@@ -592,10 +592,11 @@ function lockReviewResults(locked) {
   for (const id of ["review-pagination", "review-list", "review-selection", "review-quick-actions"]) $("#" + id).inert = locked;
   $("#review-select-page").disabled = locked;
 }
-async function loadReview() {
+async function loadReview(options) {
   clearTimeout(ReviewUI.filterTimer);
   const request=++ReviewUI.request;
-  lockReviewResults(true);
+  const background = options?.background === true;
+  if (!background) lockReviewResults(true);
   $("#review-list").setAttribute("aria-busy", "true");
   try {
     const params=new URLSearchParams({...reviewFilters(),stable:true,offset:ReviewUI.offset,limit:$("#review-size").value});
@@ -613,8 +614,14 @@ async function loadReview() {
     ReviewUI.data=data;ReviewUI.offset=data.offset;ReviewUI.browseSet=data.snapshot;
     for(const item of data.items)if(ReviewUI.selected.has(item.key))ReviewUI.selected.set(item.key,item);
     $("#review-badge").textContent=data.pending||"";$("#review-badge").hidden=!data.pending;
+    const focus = background ? document.activeElement : null;
+    const rowId = focus?.closest("#review-list tr")?.querySelector(".finding-value")?.id;
     renderReview();
     lockReviewResults(false);
+    if (rowId) {
+      const value = document.getElementById(rowId);
+      (focus.matches("input") ? value?.closest("tr")?.querySelector("input") : value)?.focus({preventScroll:true});
+    }
     $("#review-result .review-load-error")?.remove();
     return data;
   }catch(e){

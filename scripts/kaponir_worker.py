@@ -588,7 +588,18 @@ class Worker:
         with self.connection() as db:
             query = "SELECT body FROM jobs WHERE json_extract(body,'$.kind') != 'evaluate' ORDER BY created DESC"
             rows = db.execute(query) if limit is None else db.execute(query + ' LIMIT ?', (limit,))
-            return [{key: job.get(key) for key in columns} for (raw,) in rows for job in [json.loads(raw)]]
+            result = []
+            for (raw,) in rows:
+                job = json.loads(raw)
+                row = {key: job.get(key) for key in columns}
+                if job['kind'] == 'scan' and job.get('state') == 'running' and job.get('source') != '@sessions':
+                    row['current_file'] = job.get('current')
+                if job['kind'] == 'download' and job.get('state') == 'failed' and job.get('errors'):
+                    error = job['errors'][-1]
+                    if isinstance(error, dict):
+                        row['error_code'] = error.get('code')
+                result.append(row)
+            return result
 
     def get(self, ident):
         with self.connection() as db:

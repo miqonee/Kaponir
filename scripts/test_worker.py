@@ -79,6 +79,13 @@ class WorkerTests(unittest.TestCase):
         jobs=self.worker.workspace_jobs()
         self.assertEqual([j['id'] for j in jobs],['0'])
         self.assertNotIn('files',jobs[0])
+        self.worker.update('0',state='running',current='folder/report.pdf #2')
+        self.assertEqual(self.worker.workspace_jobs()[0]['current_file'],'folder/report.pdf #2')
+        self.worker.update('0',kind='download',state='failed',errors=[{'code':'disk_full','message':'private details'}])
+        failed=self.worker.workspace_jobs()[0]
+        self.assertEqual(failed['error_code'],'disk_full')
+        self.assertNotIn('current_file',failed)
+        self.assertNotIn('private',json.dumps(failed))
 
     def test_offline_verification_while_disabled_detects_same_size_corruption_and_restart(self):
         data = b'fixture-model'

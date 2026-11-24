@@ -254,7 +254,7 @@ function showTab(name, push = true) {
     window.scrollTo(0, 0);
     $('#page-title').focus({preventScroll:true});
   }
-  Promise.resolve(TABS[name]()).catch(fail);
+  return Promise.resolve(TABS[name]()).catch(fail);
 }
 
 let tabGroupCount = 0;

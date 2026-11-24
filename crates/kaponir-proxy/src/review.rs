@@ -957,12 +957,35 @@ async fn retry(
     .await
 }
 
+fn learning_job_source(job: &mut Value, queue_wait: Option<crate::learning::QueueWait>) {
+    if job["state"] == "queued" {
+        job["queue_wait"] = json!(queue_wait);
+    }
+    // Retained turn jobs already encode the proxy event ID. Document names can
+    // contain arbitrary numbers or separators and must never be parsed as turns.
+    if job["kind"] == "turn"
+        && let Some(event) = job["id"]
+            .as_str()
+            .and_then(|id| id.strip_prefix("learning:job:turn:"))
+            .and_then(|id| id.parse::<u64>().ok())
+    {
+        let session = job["name"]
+            .as_str()
+            .and_then(|name| name.rsplit_once(" · "))
+            .filter(|(_, id)| id.parse::<u64>().ok() == Some(event))
+            .map(|(session, _)| session.to_owned());
+        job["event_id"] = json!(event);
+        job["session_id"] = json!(session);
+    }
+}
+
 async fn jobs(
     State(st): State<Shared>,
     headers: HeaderMap,
     Query(q): Query<Filters>,
 ) -> ResultJson {
     authorized(&st, &headers, true)?;
+    let queue_wait = st.learning.queue_wait();
     if q.family.as_deref() == Some("learning")
         && let Some(id) = &q.id
     {
@@ -971,19 +994,27 @@ async fn jobs(
             && meta["id"] == *id
         {
             meta["family"] = json!("learning");
+            learning_job_source(&mut meta, queue_wait);
             jobs.push(meta);
         }
         return Ok(Json(json!({"jobs":jobs,"total":jobs.len()})));
     }
-    let mut rows=st.with_vault(|_,v|{
-        let mut rows=Vec::new();
+    let mut rows = st.with_vault(|_, v| {
+        let mut rows = Vec::new();
         for kind in ["review-job-running","review-job-queued","review-job-failed","review-job-succeeded","learning-job-meta"] {
-            for (_,bytes) in v.app_records_recent(kind,i64::MAX as usize)? {
-                let j:Value=serde_json::from_slice(&bytes)?;
-                let family=if kind=="learning-job-meta" {"learning"} else {"review"};
-                rows.push(json!({"family":family,"id":j["id"],"name":j["name"],"state":j["state"],"created":j["created"],
-                    "updated":j["updated"],"source":j["source"],"model":j["model"],"scenario":j["scenario"],"total":j["total"].as_u64().or_else(||j["targets"].as_array().map(|x|x.len() as u64)),
-                    "completed":j.get("processed").unwrap_or(&j["completed"]),"extracted":j["extracted"],"active":j["active"],"failed":j["failed"],"retryable":j["retryable"],"error":j["error"]}));
+            for (_, bytes) in v.app_records_recent(kind, i64::MAX as usize)? {
+                let j: Value = serde_json::from_slice(&bytes)?;
+                let learning = kind == "learning-job-meta";
+                let mut row = json!({
+                    "family": if learning { "learning" } else { "review" }, "id":j["id"],"kind":j["kind"],
+                    "name":j["name"],"state":j["state"],"created":j["created"],"updated":j["updated"],
+                    "started":j["started"],"progress":j["progress"],"source":j["source"],"model":j["model"],"scenario":j["scenario"],
+                    "total":j["total"].as_u64().or_else(||j["targets"].as_array().map(|x|x.len() as u64)),
+                    "completed":j.get("processed").unwrap_or(&j["completed"]),"extracted":j["extracted"],
+                    "active":j["active"],"failed":j["failed"],"manual":j["manual"],"retryable":j["retryable"],"error":j["error"]
+                });
+                if learning { learning_job_source(&mut row, queue_wait); }
+                rows.push(row);
             }
         }
         Ok(rows)
@@ -999,6 +1030,7 @@ async fn jobs(
             rows.push(json!({
                 "family": "file", "kind": j["kind"], "stage": j["stage"], "id": j["id"],
                 "name": j["source"], "state": j["state"], "model": j["model"], "error": j["error"],
+                "current_file":j["current_file"], "error_code":j["error_code"],
                 "updated": (1000.0 * j["updated"].as_f64().unwrap_or_default()) as u64,
                 "created": (1000.0 * j["created"].as_f64().unwrap_or_default()) as u64,
                 "total": if download { &j["progress_total"] } else { &j["total"] },
@@ -1017,15 +1049,43 @@ async fn jobs(
         )
     };
     rows.sort_by_key(|r| {
-        (
-            !running(r),
-            r["state"] == "queued",
-            std::cmp::Reverse(r["created"].as_u64().unwrap_or_default()),
-        )
+        let created = r["created"].as_u64().unwrap_or_default();
+        // Active work first, then queued work oldest first, then recent history.
+        let rank = if r["state"] == "queued" {
+            1
+        } else if running(r) {
+            0
+        } else if r["state"] == "paused" {
+            2
+        } else {
+            3
+        };
+        let order = if rank == 1 {
+            created
+        } else {
+            u64::MAX - r["updated"].as_u64().unwrap_or(created)
+        };
+        (rank, order)
     });
     let active = rows.iter().filter(|r| running(r)).count();
     let queued = rows.iter().filter(|r| r["state"] == "queued").count();
-    let preview: Vec<_> = rows.iter().take(4).cloned().collect();
+    let in_progress = active - queued;
+    let preview: Vec<_> = if active == 0 {
+        rows.iter().take(3).cloned().collect()
+    } else {
+        let visible = in_progress.min(if queued > 0 { 3 } else { 4 });
+        rows.iter()
+            .take(visible)
+            .chain(rows.iter().skip(in_progress).take(queued.min(4 - visible)))
+            .cloned()
+            .collect()
+    };
+    let review_activity: Vec<_> = rows
+        .iter()
+        .take(active)
+        .filter(|j| j["family"] == "review")
+        .map(|j| json!([j["id"], j["state"], j["completed"]]))
+        .collect();
     let total = rows.len();
     let offset = q.offset.unwrap_or_default();
     let rows: Vec<_> = rows
@@ -1034,7 +1094,7 @@ async fn jobs(
         .take(q.limit.unwrap_or(100).clamp(1, 250))
         .collect();
     Ok(Json(
-        json!({"jobs":rows,"total":total,"active":active,"queued":queued,"preview":preview,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
+        json!({"jobs":rows,"total":total,"active":active,"queued":queued,"preview":preview,"review_activity":review_activity,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
     ))
 }
 
@@ -1078,6 +1138,7 @@ async fn run(st: Shared, mut job: Value, targets: Vec<Target>) {
     let id = job["id"].as_str().unwrap().to_owned();
     job["started"] = json!(now_ms());
     job["state"] = json!("running");
+    job["started"] = json!(now_ms());
     let execution = run_packets(&st, &mut job, &targets).await;
     let error = execution.err().map(|e| learning::safe_error(&e));
     if let Some(error) = error {

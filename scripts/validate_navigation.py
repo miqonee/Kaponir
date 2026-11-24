@@ -95,6 +95,10 @@ def check_navigation(page, output):
         expect(page.locator('#job-indicator')).to_contain_text('Статус недоступен')
         page.locator('#job-indicator').click()
         expect(page.locator('#job-preview-list')).to_contain_text('Статус недоступен')
+        retry = page.locator('#job-preview-list').get_by_role('button', name='Повторить')
+        retry.focus()
+        page.evaluate('refreshJobs()')
+        expect(retry).to_be_focused()
     finally:
         page.unroute(jobs_api)
     page.locator('#job-preview-list').get_by_role('button', name='Повторить').click()
