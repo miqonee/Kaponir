@@ -5,24 +5,98 @@ function sessionTime(stamp) {
   return time(stamp, {day: "numeric", month: "short", hour: "2-digit", minute: "2-digit"});
 }
 
-function sessionMessage(label, text) {
-  return h("section", {class: "session-message"}, h("h3", {}, tr(label)),
-    h("div", {class: "message-content"}, text || tr("Текст не сохранён.")));
+function sessionMaskRanges(original, transmitted, items) {
+  const tokens=new Map();
+  for (const item of items || []) {
+    if (!item.original || !item.token || item.original===item.token) continue;
+    const group=tokens.get(item.token[0]) || [];
+    if (!group.some(i=>i.token===item.token && i.original===item.original)) group.push(item);
+    tokens.set(item.token[0],group);
+  }
+  for (const group of tokens.values()) group.sort((a,b)=>b.token.length-a.token.length);
+  const spans=[];
+  let o=0,t=0;
+  while (o<original.length && t<transmitted.length) {
+    const match=tokens.get(transmitted[t])?.find(i=>transmitted.startsWith(i.token,t) && original.startsWith(i.original,o) && !original.startsWith(i.token,o));
+    if (match) {
+      spans.push({start:o,end:o+match.original.length,masked:true}); o+=match.original.length;t+=match.token.length;
+    } else if(original[o]===transmitted[t]) {o++;t++;}
+    else break;
+  }
+  return spans;
 }
-function sessionMessages(saved) {
-  const text = saved.original_request || "";
-  let request = sessionMessage("Исходный запрос клиента", text), history;
-  if (Number.isInteger(saved.last_user_offset)) {
-    const bytes = new TextEncoder().encode(text), decoder = new TextDecoder();
-    const last = decoder.decode(bytes.subarray(saved.last_user_offset));
-    if (last.startsWith("[user]\n")) {
-      request = sessionMessage("Сообщение клиента", last.slice("[user]\n".length));
-      if (saved.last_user_offset > 0) history = h("details", {class: "session-history"},
-        h("summary", {}, tr("Предыдущие сообщения в запросе")),
-        h("div", {class: "message-content"}, decoder.decode(bytes.subarray(0, saved.last_user_offset)).trimEnd()));
+function sessionReviewRanges(text, refs) {
+  const spans = [];
+  // The detector replaces each line break with one space in its saved context window.
+  const flat = text.replace(/[\r\n]/g," ");
+  for (const ref of refs || []) {
+    if (!ref.value) continue;
+    const value = ref.value, context = ref.context || "", range = ref.context_span;
+    let left = "", right = "";
+    if (Array.isArray(range) && range.length === 2) {
+      const map = byteMap(context), start = map(range[0]), end = map(range[1]);
+      if (context.slice(start,end) !== value.replace(/[\r\n]/g," ")) continue;
+      // Neighboring secrets have already been replaced by type labels in the journal.
+      left = context.slice(0,start).split(/\[[A-Z0-9_]+\]/).at(-1);
+      right = context.slice(end).split(/\[[A-Z0-9_]+\]/)[0];
+    }
+    let match, pos = 0;
+    while ((pos = text.indexOf(value,pos)) >= 0) {
+      if (flat.endsWith(left,pos) && flat.startsWith(right,pos+value.length)) {
+        if (match !== undefined) { match = undefined; break; }
+        match = pos;
+      }
+      pos += value.length;
+    }
+    if (match !== undefined) spans.push({start:match,end:match+value.length,review:true});
+  }
+  return spans;
+}
+function markedDialogue(text, ranges, base=0) {
+  const end=base+text.length, inside=ranges.filter(r=>r.start>=base && r.end<=end);
+  const edges=[...new Set([base,end,...inside.flatMap(r=>[r.start,r.end])])].sort((a,b)=>a-b);
+  const result=document.createDocumentFragment();
+  for(let i=1;i<edges.length;i++) {
+    const start=edges[i-1], stop=edges[i], value=text.slice(start-base,stop-base);
+    const covers=inside.filter(r=>r.start<=start && r.end>=stop);
+    if(!covers.length) {result.append(value);continue;}
+    const masked=covers.some(r=>r.masked),review=covers.some(r=>r.review);
+    const label=tr(masked && review ? "Скрыто · спорное решение" : masked ? "Скрыто при передаче" : "Спорное решение");
+    result.append(h("mark",{class:"dialogue-mark"+(masked?" masked":"")+(review?" uncertain":""),title:label,"aria-description":label},value));
+  }
+  return result;
+}
+function sessionMessage(label, text, ranges, base=0, reply=false) {
+  return h("section", {class: reply ? "session-message reply" : "session-message"}, h("h3", {}, tr(label)),
+    h("div", {class: "message-content"}, text ? markedDialogue(text,ranges,base) : tr("Текст не сохранён.")));
+}
+function dialogueLegend(ranges) {
+  if (!ranges.length) return null;
+  return h("div",{class:"dialogue-legend"},
+    ranges.some(r=>r.masked) ? h("span",{class:"dialogue-key masked"},tr("Скрыто при передаче")) : null,
+    ranges.some(r=>r.review) ? h("span",{class:"dialogue-key uncertain"},tr("Спорное решение")) : null);
+}
+function sessionMessages(event) {
+  const saved=event.inspector || {}, usage=event.usage || {};
+  const text=saved.original_request || "",response=saved.restored_response || "";
+  const requestRanges=[...sessionMaskRanges(text,saved.masked_request || "",usage.masked_items),...sessionReviewRanges(text,usage.review_items)];
+  const replyRanges=sessionMaskRanges(response,saved.raw_response || "",usage.masked_items);
+  let request = sessionMessage("Исходный запрос клиента",text,requestRanges), history, visibleRanges=requestRanges;
+  const offset=Number.isInteger(saved.last_user_offset) ? byteMap(text)(saved.last_user_offset) : null;
+  if (offset!=null && text.startsWith("[user]\n",offset)) {
+    const start=offset+"[user]\n".length;
+    request=sessionMessage("Сообщение клиента",text.slice(start),requestRanges,start);
+    visibleRanges=requestRanges.filter(r=>r.start>=start);
+    if(offset>0) {
+      const earlier=requestRanges.filter(r=>r.end<=offset);
+      const count=new Set(earlier.map(r=>r.start+"-"+r.end)).size;
+      history=h("details",{class:"session-history"},
+        h("summary",{},tr("Предыдущие сообщения в запросе"),count ? " · "+tr("Отмечено вхождений · {{0}}",[number(count)]) : ""),
+        dialogueLegend(earlier),h("div",{class:"message-content"},markedDialogue(text.slice(0,offset).trimEnd(),earlier)));
     }
   }
-  return [request, sessionMessage("Ответ, полученный клиентом", saved.restored_response), ...(history ? [history] : [])];
+  const legend=dialogueLegend([...visibleRanges,...replyRanges]);
+  return [legend,request,sessionMessage("Ответ, полученный клиентом",response,replyRanges,0,true),history].filter(Boolean);
 }
 
 function openSession(event) {
@@ -46,6 +120,25 @@ function openSession(event) {
     dialog.close();
     return analyzeProxySessions(target);
   }, "primary");
+
+  let modelConfig;
+  const modelRun=workButton("Анализировать переписку моделью",async()=>{
+    if (!modelConfig?.analysis_enabled) { dialog.close(); showTab("analysis"); return; }
+    const data=await api("/api/v1/ui/analysis/session",{method:"POST",body:{target,revision:modelConfig.analysis.revision}});
+    const job=data.ids[0] || data.existing_ids[0];
+    if (job) {dialog.close();showTab("jobs/learning/"+encodeURIComponent(job));}
+    if(data.partial) toast(tr("Доступна часть переписки. Запросов с сохранённым текстом · {{0}} из {{1}}.",[data.used,data.total]));
+  },"secondary");
+  modelRun.disabled=true;
+  const destination=h("p",{class:"hint"});
+  api("/api/v1/ui/workspace/model").then(cfg=>{
+    if(!dialog.open || !modelRun.isConnected)return;
+    modelConfig=cfg;modelRun.disabled=false;
+    if(cfg.analysis_enabled && cfg.analysis) {
+      const destinations=[cfg.analysis,cfg.categorization].filter(Boolean).map(s=>[modelName(s.model),s.connection].filter(Boolean).join(" · "));
+      destination.textContent=tr("Анализ сохранённой переписки · {{0}}",[[...new Set(destinations)].join(" / ")]);
+    } else modelRun.textContent=tr("Настроить модель для переписки");
+  }).catch(()=>{ modelRun.hidden=true; });
 
   function navigation() {
     previous.disabled = pick.selectedIndex <= 0;
@@ -75,7 +168,7 @@ function openSession(event) {
     try {
       const detail = await api("/api/v1/ui/events/" + row.id);
       if (!dialog.open || version !== generation) return;
-      content.replaceChildren(...sessionMessages(detail.inspector || {}));
+      content.replaceChildren(...sessionMessages(detail));
     } catch (error) {
       if (dialog.open && version === generation)
         content.replaceChildren(h("p", {}, error.message), workButton("Повторить", () => display(row)));
@@ -120,7 +213,7 @@ function openSession(event) {
     h("div", {class: "inspector-header"}, h("div", {}, h("h2", {id: "session-title"}, tr("Переписка")), h("p", {}, title)), close),
     h("div", {class: "conversation-layout"}, requestList, h("div", {class: "inspector-body"}, h("div", {class: "session-navigation"},
       h("label", {class: "field"}, tr("Запрос в переписке"), pick), position, previous, next), status, content,
-      h("div", {class: "form-actions"}, scan, inspect)))));
+      h("div", {class: "form-actions"}, scan, modelRun, inspect),destination))));
   dialog.showModal();
   refreshOpenSession();
 }

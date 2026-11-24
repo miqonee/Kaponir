@@ -48,6 +48,45 @@ fn fingerprint(item: &Value) -> String {
     .to_string()
 }
 
+fn recommendation_revision(rec: &Value) -> Option<u64> {
+    rec["valid_revision"]
+        .as_u64()
+        .or_else(|| rec["revision"].as_u64())
+}
+
+/// Keep saved decisions from a partially completed job actionable across an explicit queue change.
+/// The inference revision, model and immutable packet remain available for the job history.
+pub(crate) fn retain_completed(
+    v: &kaponir_vault::SqliteVault,
+    job: &Value,
+    revision: u64,
+) -> anyhow::Result<()> {
+    if job["processed"].as_u64().unwrap_or(0) == 0 {
+        return Ok(());
+    }
+    let id = job["id"].as_str().unwrap_or_default();
+    for (_, bytes) in v.app_records(&format!("review-results:{id}"), i64::MAX as usize)? {
+        let packet: HashMap<String, Value> = serde_json::from_slice(&bytes)?;
+        for key in packet.keys() {
+            let record_id = format!("review-rec:{key}");
+            if let Some(data) = v.app_record(&record_id)? {
+                let mut record: Value = serde_json::from_slice(&data)?;
+                if record["job_id"] == id
+                    && recommendation_revision(&record) == job["revision"].as_u64()
+                {
+                    record["valid_revision"] = json!(revision);
+                    v.put_app_record(
+                        &record_id,
+                        "review-recommendation",
+                        &serde_json::to_vec(&record)?,
+                    )?;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 // A detected value or a type prediction alone does not imply a masking decision.
 fn model_proposal(item: &Value) -> Option<Value> {
     let rec = &item["recommendation"];
@@ -133,6 +172,7 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
         entry["origin"] = json!("learning");
         let job_id = entry["job_id"].as_str().unwrap_or_default();
         let session = job_id.starts_with("learning:job:turn:")
+            || job_id.starts_with("learning:job:session:")
             || (job_id.starts_with("document/")
                 && entry["source"]
                     .as_str()
@@ -179,7 +219,8 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
     for item in &mut all {
         let key = item["key"].as_str().unwrap().to_owned();
         if let Some(mut rec) = recommendations.remove(&format!("review-rec:{key}")) {
-            if rec["revision"].as_u64() != Some(revision) || rec["fingerprint"] != fingerprint(item)
+            if recommendation_revision(&rec) != Some(revision)
+                || rec["fingerprint"] != fingerprint(item)
             {
                 rec["state"] = json!("stale");
             }
@@ -391,6 +432,7 @@ fn cleanup(st: &Shared) {
         for kind in [
             "review-job-succeeded",
             "review-job-failed",
+            "review-job-cancelled",
             "review-recommendation",
             "review-selection",
             "dataset-collection",
@@ -802,6 +844,7 @@ async fn submit(
     if st.control.is_none() {
         return Err(bad("read_only"));
     }
+    let _settings = st.learning_changes.lock().await;
     let signature = blake3::hash(&serde_json::to_vec(&req).map_err(|e| internal(e.into()))?)
         .to_hex()
         .to_string();
@@ -961,6 +1004,17 @@ fn learning_job_source(job: &mut Value, queue_wait: Option<crate::learning::Queu
     if job["state"] == "queued" {
         job["queue_wait"] = json!(queue_wait);
     }
+    if job["kind"] == "session" {
+        let name = job["name"].as_str().unwrap_or_default().to_owned();
+        if let Some(id) = name.strip_prefix("session-") {
+            job["session_id"] = json!(id);
+        } else if let Some(id) = name
+            .strip_prefix("request-")
+            .and_then(|s| s.parse::<u64>().ok())
+        {
+            job["event_id"] = json!(id);
+        }
+    }
     // Retained turn jobs already encode the proxy event ID. Document names can
     // contain arbitrary numbers or separators and must never be parsed as turns.
     if job["kind"] == "turn"
@@ -1001,14 +1055,14 @@ async fn jobs(
     }
     let mut rows = st.with_vault(|_, v| {
         let mut rows = Vec::new();
-        for kind in ["review-job-running","review-job-queued","review-job-failed","review-job-succeeded","learning-job-meta"] {
+        for kind in ["review-job-running","review-job-queued","review-job-failed","review-job-succeeded","review-job-cancelled","learning-job-meta"] {
             for (_, bytes) in v.app_records_recent(kind, i64::MAX as usize)? {
                 let j: Value = serde_json::from_slice(&bytes)?;
                 let learning = kind == "learning-job-meta";
                 let mut row = json!({
                     "family": if learning { "learning" } else { "review" }, "id":j["id"],"kind":j["kind"],
                     "name":j["name"],"state":j["state"],"created":j["created"],"updated":j["updated"],
-                    "started":j["started"],"progress":j["progress"],"source":j["source"],"model":j["model"],"scenario":j["scenario"],
+                    "started":j["started"],"progress":j["progress"],"last_call":j["last_call"],"source":j["source"],"model":j["model"],"scenario":j["scenario"],
                     "total":j["total"].as_u64().or_else(||j["targets"].as_array().map(|x|x.len() as u64)),
                     "completed":j.get("processed").unwrap_or(&j["completed"]),"extracted":j["extracted"],
                     "active":j["active"],"failed":j["failed"],"manual":j["manual"],"retryable":j["retryable"],"error":j["error"]
@@ -1024,6 +1078,17 @@ async fn jobs(
         Err(err) if err.message() == "worker unavailable" => None,
         _ => crate::worker::forward(&st, "/status", None).await.ok(),
     };
+    let activity = st.learning.activity.snapshot(
+        worker
+            .as_ref()
+            .map(|w| &w["measurements"])
+            .unwrap_or(&Value::Null),
+    );
+    for row in &mut rows {
+        if let Some(live) = row["id"].as_str().and_then(|id| activity.get(id)) {
+            row["inference_activity"] = live.clone();
+        }
+    }
     if let Some(files) = worker.as_ref().and_then(|w| w["jobs"].as_array()) {
         for j in files {
             let download = j["kind"] == "download";
@@ -1094,7 +1159,7 @@ async fn jobs(
         .take(q.limit.unwrap_or(100).clamp(1, 250))
         .collect();
     Ok(Json(
-        json!({"jobs":rows,"total":total,"active":active,"queued":queued,"preview":preview,"review_activity":review_activity,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
+        json!({"jobs":rows,"total":total,"active":active,"queued":queued,"preview":preview,"model_activity":activity,"review_activity":review_activity,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
     ))
 }
 
@@ -1133,38 +1198,88 @@ fn validate_decision(decision: &Value, value: &str, research: bool) -> anyhow::R
     Ok(())
 }
 
-async fn run(st: Shared, mut job: Value, targets: Vec<Target>) {
+async fn run(st: Shared, submitted: Value, targets: Vec<Target>) {
     let _queue = st.review_queue.lock().await;
-    let id = job["id"].as_str().unwrap().to_owned();
-    job["started"] = json!(now_ms());
-    job["state"] = json!("running");
-    job["started"] = json!(now_ms());
-    let execution = run_packets(&st, &mut job, &targets).await;
-    let error = execution.err().map(|e| learning::safe_error(&e));
-    if let Some(error) = error {
-        job["error"] = json!(error);
+    let id = submitted["id"].as_str().unwrap();
+    loop {
+        let mut changed = st.learning.revision_signal.subscribe();
+        let Ok(Some(mut job)) = read(&st, &format!("review-job:{id}")) else {
+            return;
+        };
+        if job["state"] != "queued" {
+            return;
+        }
+        let revision = *changed.borrow_and_update();
+        if job["revision"] != revision {
+            let _guard = st.rule_changes.lock().await;
+            if let Ok(Some(mut current)) = read(&st, &format!("review-job:{id}"))
+                && current["state"] == "queued"
+                && current["revision"] != *st.learning.revision_signal.borrow()
+            {
+                current["state"] = json!("failed");
+                current["active"] = json!(0);
+                current["error"] = json!("configuration_changed");
+                current["updated"] = json!(now_ms());
+                let _ = write(
+                    &st,
+                    &format!("review-job:{id}"),
+                    "review-job-failed",
+                    &current,
+                );
+                return;
+            }
+            continue;
+        }
+        let remaining;
+        let work = if job["processed"].as_u64().unwrap_or(0) > 0 {
+            let Ok(Some(saved)) = full_job(&st, id) else {
+                return;
+            };
+            remaining = targets
+                .iter()
+                .filter(|t| saved["results"][&t.key].is_null())
+                .cloned()
+                .collect::<Vec<_>>();
+            remaining.as_slice()
+        } else {
+            targets.as_slice()
+        };
+        job["started"] = json!(now_ms());
+        job["state"] = json!("running");
+        let execution = tokio::select! {biased; _=changed.changed()=>continue, (result,last)=st.learning.activity.track(id,run_packets(&st,&mut job,work))=>{job["last_call"]=json!(last);result}};
+        let _guard = st.rule_changes.lock().await;
+        if *st.learning.revision_signal.borrow() != revision {
+            continue;
+        }
+        if let Err(e) = execution {
+            job["error"] = json!(learning::safe_error(&e));
+        }
+        if job["error"] == "" && job["failed"].as_u64().unwrap_or(0) > 0 {
+            job["error"] = json!("review_partial_failure");
+        }
+        job["state"] = json!(if job["error"] == "" {
+            "succeeded"
+        } else {
+            "failed"
+        });
+        job["active"] = json!(0);
+        job["updated"] = json!(now_ms());
+        let _ = write(
+            &st,
+            &format!("review-job:{id}"),
+            &format!("review-job-{}", job["state"].as_str().unwrap()),
+            &job,
+        );
+        return;
     }
-    job["state"] = json!(if job["error"] == "" {
-        "succeeded"
-    } else {
-        "failed"
-    });
-    job["active"] = json!(0);
-    job["updated"] = json!(now_ms());
-    let _ = write(
-        &st,
-        &format!("review-job:{id}"),
-        &format!("review-job-{}", job["state"].as_str().unwrap()),
-        &job,
-    );
 }
 
 async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow::Result<()> {
     let settings = st.learning.snapshot();
-    let batch_size = if job["source"]["role"] == "analysis" {
-        settings.analysis.inference.batch_size
+    let inference = if job["source"]["role"] == "analysis" {
+        &settings.analysis.inference
     } else {
-        settings.categorization.inference.batch_size
+        &settings.categorization.inference
     };
     let slots = settings.analysis.parallelism.max(1);
     let map: HashMap<String, Value> = items(st)?
@@ -1173,31 +1288,42 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
         .collect();
     let source = job["source"].clone();
     let id = job["id"].as_str().unwrap().to_owned();
-    let mut packets = stream::iter((0..targets.len()).step_by(batch_size.max(1)).enumerate())
-        .map(|(index, start)| {
-            let batch = &targets[start..targets.len().min(start + batch_size.max(1))];
+    let batches = review_batches(targets, &map, inference, source["provider"] != "local");
+    let mut scheduled = slots.min(batches.len());
+    let mut active: usize = batches[..scheduled].iter().map(|b| b.len()).sum();
+    let mut packets = stream::iter(0..batches.len())
+        .map(|index| {
+            let batch = batches[index];
             let source = &source;
             let map = &map;
             let id = &id;
             async move {
                 let start = std::time::Instant::now();
-                let result = infer_packet(st, source, id, map, batch).await;
+                let result = infer_bounded(st, source, id, map, batch).await;
                 (index, batch, result, start.elapsed().as_secs_f64())
             }
         })
         .buffer_unordered(slots);
-    let save = |job: &Value| write(st, &format!("review-job:{id}"), "review-job-running", job);
+    let save = |job: &Value| {
+        st.with_vault(|_, v| {
+            anyhow::ensure!(
+                job["revision"] == *st.learning.revision_signal.borrow(),
+                "configuration_changed"
+            );
+            Ok(v.put_app_record(
+                &format!("review-job:{id}"),
+                "review-job-running",
+                &serde_json::to_vec(job)?,
+            )?)
+        })
+    };
     job["slots"] = json!(slots);
-    job["active"] = json!(targets.len().min(slots * batch_size));
+    job["active"] = json!(active);
     save(job)?;
     let mut first_error = None;
     while let Some((index, batch, result, seconds)) = packets.next().await {
         job["last_packet_seconds"] = json!(seconds);
-        let identified = result.is_ok();
-        let records=result.unwrap_or_else(|err| {
-            let code=learning::safe_error(&err);
-            batch.iter().map(|t|(t.key.clone(),json!({"state":"failed","error":code,"fingerprint":t.fingerprint,"job_id":id,"revision":source["revision"],"model":source["model"],"created":now_ms()}))).collect()
-        });
+        let (records, identified) = result;
         let mut outcomes = HashMap::new();
         for (key, rec) in &records {
             if rec["state"] == "failed" {
@@ -1212,14 +1338,21 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
         }
         let completed = job["processed"].as_u64().unwrap_or(0) + batch.len() as u64;
         job["processed"] = json!(completed);
-        if identified {
-            job["completed"] = json!(job["completed"].as_u64().unwrap_or(0) + batch.len() as u64);
+        job["completed"] = json!(job["completed"].as_u64().unwrap_or(0) + identified as u64);
+        active -= batch.len();
+        if let Some(next) = batches.get(scheduled) {
+            scheduled += 1;
+            active += next.len();
         }
-        job["active"] = json!((targets.len() - completed as usize).min(slots * batch_size));
+        job["active"] = json!(active);
         job["updated"] = json!(now_ms());
         let _guard = st.rule_changes.lock().await;
         st.with_vault(|_, v| {
             learning::transaction(v, || {
+                anyhow::ensure!(
+                    job["revision"] == *st.learning.revision_signal.borrow(),
+                    "configuration_changed"
+                );
                 for (key, rec) in &records {
                     v.put_app_record(
                         &format!("review-rec:{key}"),
@@ -1228,7 +1361,7 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
                     )?;
                 }
                 v.put_app_record(
-                    &format!("packet:{id}:{index}"),
+                    &format!("packet:{id}:{}:{index}", settings.revision),
                     &format!("review-results:{id}"),
                     &serde_json::to_vec(&outcomes)?,
                 )?;
@@ -1251,6 +1384,73 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
     Ok(())
 }
 
+fn review_batches<'a>(
+    targets: &'a [Target],
+    items: &HashMap<String, Value>,
+    inference: &learning::InferenceSettings,
+    api: bool,
+) -> Vec<&'a [Target]> {
+    let mut batches = Vec::new();
+    let budget = inference
+        .context_tokens
+        .saturating_sub(inference.max_output_tokens + inference.reserve_tokens);
+    let mut start = 0;
+    while start < targets.len() {
+        let mut end = start;
+        // Reserve room for the instructions/schema and conservatively budget UTF-8 input bytes.
+        let mut used = 1024;
+        while end < targets.len() && end - start < inference.batch_size.max(1) {
+            let item = items.get(&targets[end].key);
+            let weight = item.map_or(0, |v| {
+                v["value"].as_str().unwrap_or("").len() + v["context"].as_str().unwrap_or("").len()
+            }) + 160;
+            if api && end > start && used + weight > budget {
+                break;
+            }
+            used += weight;
+            end += 1;
+        }
+        batches.push(&targets[start..end]);
+        start = end;
+    }
+    batches
+}
+async fn infer_bounded(
+    st: &Shared,
+    source: &Value,
+    id: &str,
+    map: &HashMap<String, Value>,
+    batch: &[Target],
+) -> (Vec<(String, Value)>, usize) {
+    let mut pending = vec![batch];
+    let mut records = Vec::new();
+    let mut identified = 0;
+    while let Some(part) = pending.pop() {
+        match infer_packet(st, source, id, map, part).await {
+            Ok(rows) => {
+                identified += rows.len();
+                records.extend(rows);
+            }
+            Err(e) => {
+                let code = learning::safe_error(&e);
+                if source["provider"] != "local"
+                    && part.len() > 1
+                    && matches!(
+                        code.as_str(),
+                        "model_context_budget_exceeded" | "model_response_truncated"
+                    )
+                {
+                    let (left, right) = part.split_at(part.len() / 2);
+                    pending.extend([right, left]);
+                    continue;
+                }
+                records.extend(part.iter().map(|t|(t.key.clone(),json!({"state":"failed","error":code,"fingerprint":t.fingerprint,
+                    "job_id":id,"revision":source["revision"],"model":source["model"],"created":now_ms()}))));
+            }
+        }
+    }
+    (records, identified)
+}
 async fn infer_packet(
     st: &Shared,
     source: &Value,
@@ -1342,7 +1542,7 @@ async fn infer_packet(
     Ok(validated)
 }
 
-fn redacted_context(st: &Shared, context: &str, value: &str) -> String {
+pub(crate) fn redacted_context(st: &Shared, context: &str, value: &str) -> String {
     let mut ranges: Vec<_> = st
         .engine()
         .analyze(&kaponir_core::Input::text(context))
@@ -1419,7 +1619,7 @@ async fn apply(
         }
         if proposal["declined"] == true
             || proposal["source"] == "review"
-                && item["recommendation"]["revision"].as_u64()
+                && recommendation_revision(&item["recommendation"])
                     != Some(st.learning.snapshot().revision)
         {
             return Err(bad("review_stale"));
@@ -1486,7 +1686,8 @@ async fn apply(
         || row.context != item["context"].as_str().unwrap_or_default()
         || row.kind != item["kind"].as_str().unwrap_or_default()
         || req.use_recommendation
-            && item["recommendation"]["revision"].as_u64() != Some(st.learning.snapshot().revision)
+            && recommendation_revision(&item["recommendation"])
+                != Some(st.learning.snapshot().revision)
     {
         return Err(bad("review_stale"));
     }

@@ -500,6 +500,7 @@ class Worker:
         self.runtime_lock = threading.RLock()
         self.evaluation_condition = threading.Condition(self.lock)
         self.evaluations = {}
+        self.evaluation_slots = {}
         self.hardware = hardware_snapshot()
         self.last_cpu_sample = None
         self.last_performance = {}
@@ -581,6 +582,38 @@ class Worker:
         with self.connection() as db:
             rows=[json.loads(r[0]) for r in db.execute('SELECT body FROM jobs ORDER BY created DESC LIMIT 200')]
             return [{k:v for k,v in j.items() if k!='files'} for j in rows]
+
+    def model_measurements(self):
+        with self.lock:
+            active = {m['slot']: m for m in self.evaluation_slots.values() if m['tag']}
+            base = getattr(self, 'ocr_base', None)
+        result = {m['tag']: {'phase':'waiting' if m['sent'] else 'preparing'} for m in active.values()}
+        if not base or not any(m['sent'] for m in active.values()):
+            return result
+        try:
+            slots = http_json(base+'/slots', timeout=.35)
+        except (OSError, ValueError):
+            return result
+        now = time.monotonic()
+        for slot in slots if isinstance(slots, list) else []:
+            m = active.get(slot.get('id'))
+            if not m or not m['sent'] or not slot.get('is_processing'):
+                continue
+            decoded = (slot.get('next_token') or {}).get('n_decoded', slot.get('n_decoded'))
+            if type(decoded) is not int or decoded < 1:
+                continue
+            row = {'phase':'generating','completion_tokens':decoded}
+            with self.lock:
+                if m.get('sample') is None or decoded < m['sample'][0]:
+                    m['sample'] = (decoded,now)
+                previous,started = m['sample']
+                rate = (slot.get('timings') or {}).get('predicted_per_second')
+                if isinstance(rate,(float,int)) and rate > 0:
+                    row['tokens_per_second'] = rate
+                elif now-started >= .3 and decoded >= previous:
+                    row['tokens_per_second'] = round((decoded-previous)/(now-started),2)
+            result[m['tag']] = row
+        return result
 
     def workspace_jobs(self, limit=None):
         # Evaluate calls are already accounted for by the parent proxy job.
@@ -1176,6 +1209,10 @@ class Worker:
         return {'spans': ground_privacy_spans(text, result)}
 
     def complete_local(self, ident, base, payload, settings, input_tokens, deadline):
+        with self.lock:
+            active_slot = self.evaluation_slots.get(ident)
+            if active_slot:
+                payload['id_slot'] = active_slot['slot']
         generation = settings.get('local_generation') or {}
         for key in ('temperature', 'top_p', 'top_k', 'min_p', 'seed', 'presence_penalty', 'repeat_penalty'):
             if generation.get(key) is not None:
@@ -1201,11 +1238,14 @@ class Worker:
             if remaining <= 0:
                 raise TimeoutError('model_timeout')
             payload['max_tokens'] = limit
+            if active_slot:
+                with self.lock:
+                    active_slot.update(sent=True, sample=None)
             if use_completion:
                 raw = http_json(base+'/completion', {**completion,'n_predict':limit}, timeout=remaining)
                 finish = {'eos':'stop','word':'stop','limit':'length'}.get(raw.get('stop_type'),'error')
                 reply = {'choices':[{'finish_reason':finish,'message':{'content':raw['content']}}],
-                         'usage':{'prompt_tokens':raw.get('tokens_evaluated'),'completion_tokens':raw.get('tokens_predicted')}}
+                         'usage':{'prompt_tokens':raw.get('tokens_evaluated'),'completion_tokens':raw.get('tokens_predicted')},'timings':raw.get('timings')}
             else:
                 reply = http_json(base+'/v1/chat/completions', payload, timeout=remaining)
             if reply['choices'][0].get('finish_reason') != 'length':
@@ -1249,6 +1289,10 @@ class Worker:
             if not self.enabled or self.stop.is_set(): raise ValueError('worker is disabled')
             job = self.submit('evaluate', model=model)
             ident = job['id']
+            used = {m['slot'] for m in self.evaluation_slots.values()}
+            tag = body.get('activity_id')
+            self.evaluation_slots[ident] = {'slot':next(i for i in range(slots) if i not in used),
+                'tag':tag if isinstance(tag,str) and re.fullmatch(r'[a-f0-9]{16,64}',tag) else None,'sent':False}
             self.evaluations[ident] = model
             self.evaluation_limit = slots
             self.evaluation_profile = profile
@@ -1311,6 +1355,8 @@ class Worker:
             reply = self.complete_local(ident, base, payload, settings, telemetry['prompt_tokens'], started + timeout)
             telemetry['max_output_tokens'] = payload['max_tokens']
             self.check(ident)
+            rate=(reply.get('timings') or {}).get('predicted_per_second')
+            if isinstance(rate,(int,float)) and rate>0:telemetry['tokens_per_second']=rate
             choice = reply['choices'][0]
             telemetry['finish_reason']=choice.get('finish_reason') if choice.get('finish_reason') in ['stop','length','content_filter','error'] else 'other'
             usage=reply.get('usage',{})
@@ -1347,6 +1393,7 @@ class Worker:
         finally:
             with self.evaluation_condition:
                 self.last_runtime_use = time.monotonic()
+                self.evaluation_slots.pop(ident, None)
                 self.evaluations.pop(ident, None)
                 self.evaluation_condition.notify_all()
 
@@ -1618,7 +1665,7 @@ def handler(worker, token):
                     raise ValueError('cross-origin worker request rejected')
                 path=urllib.parse.urlsplit(self.path).path
                 if self.command=='GET' and path=='/workspace/jobs':
-                    self.respond(200,{'online': True, 'jobs': worker.workspace_jobs()})
+                    self.respond(200,{'online': True, 'jobs': worker.workspace_jobs(), 'measurements': worker.model_measurements()})
                     return
                 if self.command=='GET' and path in ['/status','/health']:
                     self.respond(200,worker.status() if path=='/status' else {'ok':True});return

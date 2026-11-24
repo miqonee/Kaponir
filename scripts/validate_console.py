@@ -69,6 +69,7 @@ def check_session_conversation(page, api, session_id, output):
     page.keyboard.press('ArrowUp')
     expect(requests.first).to_be_checked()
     expect(dialog.locator('.session-messages')).to_contain_text('ConsoleFixture_47')
+    expect(dialog.locator('.session-message').first.locator('mark.masked')).to_contain_text('ConsoleFixture_47')
     page.keyboard.press('ArrowDown')
     expect(requests.last).to_be_checked()
     expect(dialog.locator('.session-messages')).to_contain_text('125 000 ₽')
@@ -85,6 +86,14 @@ def check_session_conversation(page, api, session_id, output):
     expect(history.locator('.message-content')).to_contain_text('ConsoleFixture_47')
     history.locator('summary').click()
     dialog.screenshot(path=str(output / 'session-conversation.png'))
+    # Distinguish two identical literals by their transmitted position and the recorded UTF-8 context.
+    marks = page.evaluate("""() => {
+        const root=document.createElement('div');
+        root.append(...sessionMessages({inspector:{original_request:'[user]\\nёж Atlas и Atlas',masked_request:'[user]\\nёж ANON_1 и Atlas',last_user_offset:0},
+          usage:{masked_items:[{original:'Atlas',token:'ANON_1'}],review_items:[{value:'Atlas',context:'и Atlas',context_span:[3,8]}]}}));
+        return [...root.querySelectorAll('mark')].map(m=>[m.textContent,m.classList.contains('masked'),m.classList.contains('uncertain'),m.getAttribute('aria-description')]);
+    }""")
+    assert marks == [['Atlas',True,False,'Скрыто при передаче'],['Atlas',False,True,'Спорное решение']], marks
     page.set_viewport_size({'width': 390, 'height': 844})
     assert dialog.evaluate('el => el.scrollWidth <= el.clientWidth + 1')
     expect(dialog.get_by_role('button', name='Найти значения в этой сессии')).to_be_visible()

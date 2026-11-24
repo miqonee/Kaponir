@@ -150,6 +150,61 @@ function writeInference(role, inference) {
     $(`#${role}-${field}`).value = inference?.[key] ?? defaultInference[key];
   LearningUI.generation[role] = inference?.local_generation ?? null;
 }
+const apiProfiles = {analysis:{manual:new Set()},categorization:{manual:new Set()}};
+function isChatApi(role) {
+  return role==="analysis" ? $("#analysis-provider").value==="api" :
+    $("#categorization-provider").value==="s1" && $("#categorization-protocol").value==="openai";
+}
+function displayApiLimits(role, source) {
+  const values = ["context-tokens","output-tokens","batch-size"].map(field => number(Number($("#"+role+"-"+field).value)));
+  const summary = tr("Настройки запроса · контекст {{0}}, ответ до {{1}} токенов, пакет до {{2}} значений.", values);
+  const manual = [...apiProfiles[role].manual].map(field => document.getElementById(role+"-"+field)?.labels?.[0]?.querySelector("span")?.textContent).filter(Boolean);
+  const profile=apiProfiles[role].profile;
+  const exceeds = profile && ((profile.reported_context && Number($("#"+role+"-context-tokens").value)>profile.reported_context) ||
+    (profile.reported_output && Number($("#"+role+"-output-tokens").value)>profile.reported_output));
+  $("#"+role+"-api-profile-note").textContent = [source, summary, manual.length ? tr("Задано вручную · {{0}}.",[manual.join(", ")]) : "",
+    exceeds ? tr("Ручное значение превышает опубликованный лимит этой модели.") : ""].filter(Boolean).join(" ");
+}
+function applyApiLimits(role, profile) {
+  const {manual} = apiProfiles[role];
+  function assign(field, recommended) {
+    const input = $("#"+role+"-"+field);
+    if (!manual.has(field)) input.value = recommended;
+    return Number(input.value);
+  }
+  const window = assign("context-tokens",profile.inference.context_tokens);
+  const reserve = assign("reserve-tokens",Math.max(1,Math.min(512,Math.floor(window/32))));
+  const output = assign("output-tokens",Math.max(1,Math.min(profile.inference.max_output_tokens,Math.floor(window/4),window-reserve-1)));
+  assign("batch-size",Math.max(1,Math.min(32,Math.floor(output/200))));
+  assign("response-format",profile.inference.response_format);
+  assign("timeout",profile.timeout_seconds*(role==="analysis"?1:1000));
+  if (role==="analysis") {
+    assign("max-candidates",Math.max(1,Math.min(128,Math.floor(output/64))));
+    assign("target-input",0); assign("hint-tokens",256); assign("chunk-strategy","auto");
+  }
+  LearningUI.generation[role]=null;
+  let source = profile.reported_context ? tr("Контекст по каталогу API · {{0}} токенов.",[number(profile.reported_context)]) :
+    tr("Провайдер не указал размер контекста. Выбран совместимый профиль.");
+  if (profile.reported_output) source+=" "+tr("Лимит ответа API · {{0}} токенов.",[number(profile.reported_output)]);
+  displayApiLimits(role,source);
+}
+function planApiProfile(role, force=false) {
+  const state=apiProfiles[role], url=$("#"+role+"-url").value.trim(), model=$("#"+role+"-api-model").value.trim();
+  const identity=JSON.stringify([url,model]), note=$("#"+role+"-api-profile-note");
+  if (!isChatApi(role) || !url || !model) { state.identity=null; state.profile=null; return; }
+  if (!force && state.identity===identity) return state.promise;
+  state.identity=identity;
+  state.profile=null;
+  const run=++state.sequence;
+  note.textContent=tr("Проверяем лимиты модели…");
+  state.promise=api("/api/v1/ui/model-profile",{method:"POST",body:{url,model,role,key:$("#"+role+"-key").value || null,
+    clear_key:$("#"+role+"-clear-key").checked}}).then(profile=>{
+    if (run!==state.sequence || !isChatApi(role) || identity!==JSON.stringify([$("#"+role+"-url").value.trim(),$("#"+role+"-api-model").value.trim()])) return;
+    state.profile=profile;
+    applyApiLimits(role,profile);
+  }).catch(error=>{if(run===state.sequence){note.textContent=learningError(error.messageKey||error.message);state.identity=null;}});
+  return state.promise;
+}
 function updateProfileNote(role, g = LearningUI.generation[role]) {
   const note = $(`#${role}-profile-note`);
   const id = studyModelId(role);
@@ -223,6 +278,8 @@ function learningFormVisibility() {
     const data = LearningUI[role],
       busy = LearningUI.busy.has(role),
       form = $(`#${role}-form`);
+    const apiNote = form.querySelector(".api-profile");
+    if (apiNote) apiNote.hidden = !isChatApi(role);
     for (const input of form.querySelectorAll("input,select,button"))
       input.disabled = busy || !data?.editable;
     $(`#${role}-clear-key`).disabled =
@@ -235,7 +292,7 @@ function learningFormVisibility() {
   }
   if (!$("#categorization-scenario-field").hidden) {
     const select = $("#categorization-scenario");
-    renderScenarioStudy($("#categorization-scenario-study"), c === "local" ? studyModelId("categorization") : null, select.value, select);
+    renderScenarioStudy($("#categorization-scenario-study"), c === "local" ? studyModelId("categorization") : null, select.value, select, isChatApi("categorization"));
   }
   $("#analysis-threshold").disabled ||= !$("#analysis-auto").checked;
   if (typeof renderModelCards === "function") renderModelCards();
@@ -246,6 +303,10 @@ function renderLearningForms() {
     if (!data || LearningUI.dirty.has(role)) continue;
     const s = data.settings;
     writeInference(role, s.inference);
+    const profile=apiProfiles[role];
+    ++profile.sequence; profile.profile=null; profile.promise=null;
+    profile.manual=new Set(s.api_manual || []);
+    profile.identity=JSON.stringify([role==="analysis" ? s.url : s.http.url,role==="analysis" ? s.model : s.http.model]);
     LearningUI.providerDrafts[role] = {provider:s.provider};
     ensureModelChoice(canonicalModel(s.model), role);
     $(`#${role}-provider`).value = s.provider;
@@ -272,6 +333,7 @@ function renderLearningForms() {
       $("#categorization-url").value = s.http.url;
       $("#categorization-timeout").value = s.http.timeout_ms;
     }
+    if (isChatApi(role)) displayApiLimits(role,tr("Сохранённые параметры API."));
     updateProfileNote(role);
     $(`#${role}-key`).value = "";
     $(`#${role}-clear-key`).checked = false;
@@ -329,6 +391,7 @@ function readLearningForm(role) {
     strategy: $("#analysis-chunk-strategy").value,
     ...Object.fromEntries(Object.entries({target_input_tokens:"target-input", context_hint_tokens:"hint-tokens", max_candidates:"max-candidates", max_fragments:"max-fragments"}).map(([key,field]) => [key,Number($(`#analysis-${field}`).value)])),
   };
+  if (isChatApi(role)) { settings.api_manual=[...apiProfiles[role].manual]; settings.inference.local_generation=null; }
   return {
     settings,
     ...(key ? { key } : {}),
@@ -345,6 +408,25 @@ async function loadLearningSettings() {
   renderLearningForms();
 }
 for (const role of ["analysis", "categorization"]) {
+  const profile=apiProfiles[role];
+  profile.sequence=0;
+  const note=h("p",{id:role+"-api-profile-note",class:"hint"},tr("Лимиты запроса можно пересчитать по каталогу API."));
+  const recalc=h("button",{type:"button",class:"text-button",onclick:()=>{
+    profile.manual.clear();LearningUI.dirty.add(role);void planApiProfile(role,true);
+  }},tr("Пересчитать параметры API"));
+  $("#"+role+"-api-fields").append(h("div",{class:"api-profile"},note,recalc));
+  const requestProfile=debounce(()=>planApiProfile(role),300);
+  const fields=new Set([...Object.values(inferenceFields),"timeout","max-candidates","target-input","hint-tokens","chunk-strategy"]);
+  $("#"+role+"-form").addEventListener("input",event=>{
+    if (!isChatApi(role)) return;
+    const name=event.target.id.slice(role.length+1);
+    if (fields.has(name)) {
+      profile.manual.add(name);
+      if (profile.profile) applyApiLimits(role,profile.profile);
+      else displayApiLimits(role,"");
+    }
+    if (["url","api-model","key","clear-key","protocol"].includes(name)) {++profile.sequence;profile.identity=null;profile.profile=null;requestProfile();}
+  });
   for(const event of ["input","change"]) $("#"+role+"-form").addEventListener(event,()=>{
     if($("#"+role+"-provider").value==="local")updateProfileNote(role);
   });
@@ -378,6 +460,7 @@ for (const role of ["analysis", "categorization"]) {
       if (role === "analysis") applySearchLimits(null);
     }
     updateProfileNote(role);
+    if(isChatApi(role)) {profile.identity=null;requestProfile();}
   });
   $("#" + role + "-preset").addEventListener("click", () => {
     applyLocalPreset(role);
@@ -397,13 +480,45 @@ for (const role of ["analysis", "categorization"]) {
     saveLearningForm(role, true),
   );
 }
+async function saveModelSettings(path, body) {
+  let change;
+  for (;;) {
+    try { return await api(path,{method:"PUT",body:{...body,queue_change:change}}); }
+    catch (error) { if (error.messageKey !== "queue_choice_required") throw error; }
+    const queue = await api("/api/v1/ui/model-queue");
+    if (!queue.learning && !queue.review) { change = undefined; continue; }
+    const dialog = document.createElement("dialog");
+    dialog.className = "queue-change-dialog"; dialog.setAttribute("aria-labelledby","queue-change-title");
+    const model = body.settings?.provider === "local" ? body.settings.model : body.settings?.http?.model || body.settings?.model || body.model ||
+      (body.use_analysis_api ? LearningUI.analysis?.settings.model : "");
+    const url = body.settings?.provider === "api" ? body.settings.url : body.settings?.provider === "s1" ? body.settings.http?.url :
+      body.use_analysis_api ? LearningUI.analysis?.settings.url : null;
+    const destination = [model, url && URL.canParse(url) ? new URL(url).origin : null].filter(Boolean).join(" · ");
+    const actions = h("form",{method:"dialog",class:"dialog-actions"},
+      h("button",{value:"cancel",autofocus:true},tr("Отмена")),
+      h("button",{value:"discard",class:"secondary"},tr("Остановить и очистить очередь")),
+      body.settings?.provider !== "none" ? h("button",{value:"transfer",class:"primary"},tr("Перенести незавершённые")) : null);
+    dialog.append(h("h2",{id:"queue-change-title"},tr("Что сделать с текущей очередью?")),
+      h("p",{},tr("Фоновый анализ · {{0}}. Проверка находок · {{1}}.",[number(queue.learning),number(queue.review)])),
+      h("p",{},tr("При переносе незавершённые запросы будут отправлены с новыми настройками. Уже полученные решения сохранятся.")),
+      destination ? h("p",{class:"hint"},tr("Выбранная модель · {{0}}",[destination])) : document.createTextNode(""), actions);
+    document.body.append(dialog);
+    const choice = await new Promise(resolve=>{
+      dialog.addEventListener("close",()=>resolve(dialog.returnValue),{once:true}); dialog.showModal();
+    });
+    dialog.remove();
+    if (!["transfer","discard"].includes(choice)) return null;
+    change={action:choice,revision:queue.revision};
+  }
+}
 async function saveLearningForm(role, test = false) {
   if (LearningUI.busy.has(role) || !LearningUI[role]) return;
+  LearningUI.busy.add(role);
+  learningFormVisibility();
+  if (isChatApi(role)) await planApiProfile(role);
   const body = readLearningForm(role),
     output = $(`#${role}-result`),
     previous = LearningUI[role].settings;
-  LearningUI.busy.add(role);
-  learningFormVisibility();
   output.classList.remove("err");
   output.textContent = tr(test ? "Проверяем…" : "Применяем…");
   const local = body.settings.provider === "local";
@@ -419,11 +534,10 @@ async function saveLearningForm(role, test = false) {
   }
   let saved = false;
   try {
-    const result = await api(`/api/v1/ui/${role}${test ? "/test" : ""}`, {
-      method: test ? "POST" : "PUT",
-      timeoutMs: test ? Math.max(45000, limitMs + 15000) : 45000,
-      body,
-    });
+    const path = "/api/v1/ui/"+role;
+    const result = test ? await api(path+"/test",{method:"POST",timeoutMs:Math.max(45000,limitMs+15000),body})
+      : await saveModelSettings(path,body);
+    if (!result) { output.textContent=tr("Есть несохранённые изменения"); return; }
     if (!test) {
       LearningUI[role] = result;
       saved = true;

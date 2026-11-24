@@ -128,6 +128,7 @@ function jobTitle(job) {
   if (job.family === "review") return job.total != null ? tr("Проверка находок · {{0}}", [number(job.total)]) : tr("Проверка находок");
   if (job.family === "learning" && job.kind === "turn")
     return job.event_id != null ? tr("Анализ запроса №{{0}}", [job.event_id]) : tr("Анализ запроса");
+  if (job.kind === "session") return tr("Анализ переписки · {{0}}",[job.session_id?.slice(0,8) || job.event_id || job.name]);
   if (job.kind === "download") return tr("Установка модели");
   if (job.kind === "scan") return tr(job.name === "@sessions" ? "Поиск в сохранённых сессиях" : "Поиск значений в файлах");
   return job.name || tr(job.family === "learning" ? "Анализ документа" : "Обработка файлов");
@@ -170,6 +171,8 @@ function jobActivity(job) {
       result = tr("Сохранено находок · {{0}}", [number(job.extracted)]);
     else if (job.family === "review" && job.total > 0)
       result = tr("Обработано {{0}} из {{1}}", [number(job.processed ?? job.completed ?? 0), number(job.total)]);
+    else if (job.kind === "scan" && job.state === "succeeded" && job.total === 0)
+      result = tr("Нет данных для анализа");
     else if (job.kind === "download") {
       if (job.state === "succeeded") result = tr("Файлы подготовлены");
     } else if (job.family === "file" && job.total > 0)
@@ -202,13 +205,33 @@ function jobActivity(job) {
   }
   return {label:tr("Подготовка источников"), indeterminate:true};
 }
+function inferenceLine(job) {
+  const live=job.inference_activity;
+  const calls=live?.calls || [];
+  const last=live?.last || job.last_call;
+  const rows=calls.length ? calls : last ? [last] : [];
+  if (!rows.length) return null;
+  const phases={waiting_slot:"Ожидает слот API",waiting:"Ожидает ответа модели",preparing:"Подготовка входа модели",generating:"Модель генерирует ответ"};
+  return h("div",{class:"job-meter"},rows.map(call=>{
+    const parts=[tr(calls.length ? (phases[call.phase] || "В работе") : "Последний ответ модели")];
+    if (Number.isFinite(call.elapsed_ms)) parts.push(tr("{{0}} с",[number(Math.floor(call.elapsed_ms/1000))]));
+    if (Number.isFinite(call.completion_tokens)) parts.push(tr("Выдано токенов · {{0}}",[number(call.completion_tokens)]));
+    if (Number.isFinite(call.tokens_per_second)) parts.push(tr("{{0}} ток/с",[number(Math.round(call.tokens_per_second*10)/10)]));
+    else if (Number.isFinite(call.average_tokens_per_second)) parts.push(tr("В среднем {{0}} ток/с с отправки",[number(Math.round(call.average_tokens_per_second*10)/10)]));
+    else {
+      if (call.characters>0) parts.push(tr("Получено знаков · {{0}}",[number(call.characters)]));
+      if (call.phase !== "waiting_slot") parts.push(tr(calls.length ? "Скорость пока недоступна" : "Модель не сообщила скорость"));
+    }
+    return h("span",{},parts.join(" · "));
+  }));
+}
 function activityBlock(job) {
   const {label, text, done, total, indeterminate} = jobActivity(job);
   if (!label) return null;
   return h("div", {class:"job-activity"},
     h("div", {class:"job-activity-line"}, h("span", {class:"job-phase"}, label), text ? h("span", {class:"job-counter"}, text) : null),
     total > 0 || indeterminate ? h("progress", {max:total || undefined, value:total > 0 ? done : undefined,
-      "aria-label":jobTitle(job) + " · " + label, "aria-valuetext":text}) : null);
+      "aria-label":jobTitle(job) + " · " + label, "aria-valuetext":text}) : null, inferenceLine(job));
 }
 function jobBadge(job) {
   return h("span", {class:"job-state", "data-state":job.state}, stage(job));
@@ -356,6 +379,8 @@ function renderJob(job, family) {
       const actions = h("div", {class:"form-actions"});
       if (job.event_id != null)
         actions.append(workButton(tr("Открыть запрос №{{0}}", [job.event_id]), () => openInspector(job.event_id), "secondary"));
+      else if (job.kind === "session" && job.session_id)
+        actions.append(workButton("Открыть переписку",async()=>{await loadDashboard();openSession({session_id:job.session_id});},"secondary"));
       if (job.extracted > 0 && ["failed","succeeded"].includes(job.state))
         actions.append(workButton("Открыть находки этого запуска", () => openLearningResults(job.id), "secondary"));
       if (job.retryable) actions.append(workButton("Повторить", () => learningAction(job.id, "retry")));
@@ -455,6 +480,7 @@ async function refreshJobs() {
         if (seq !== desk.sequence || route !== location.hash.slice(1)) return;
         selected = extra.jobs[0];
       }
+      if (selected && data.model_activity?.[id]) selected={...selected,inference_activity:data.model_activity[id]};
       const unavailable = family === "file" && !data.worker_online;
       if (selected && family === "file") desk.lastFileJob = selected;
       if (!selected && unavailable && desk.lastFileJob?.id === id) selected = desk.lastFileJob;
@@ -1062,7 +1088,7 @@ async function loadWorkspaceModels() {
   const preferred = desk.modelPick || [cfg.categorization, cfg.analysis].find(source => source?.provider === "local")?.model || candidates[0]?.id;
   if (catalog.some((m) => m.id === preferred)) pick.value = preferred;
   const save = async (body) => {
-    await api("/api/v1/ui/workspace/model", { method: "PUT", body });
+    if (!await saveModelSettings("/api/v1/ui/workspace/model", body)) return;
     await loadWorkspaceModels();
     const status = $("#workspace-save-state");
     if (location.hash === "#settings" && status) status.textContent = tr("Настройки сохранены");

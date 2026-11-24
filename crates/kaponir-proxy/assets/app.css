@@ -1096,7 +1096,7 @@ td small { display: block; }
 #session-dialog .inspector-header p {word-break:break-word}
 .session-messages {display:grid; gap:14px}
 .session-message {border-inline-start:3px solid var(--line-strong); background:var(--panel-subtle); padding:10px 14px; border-radius:6px}
-.session-message:nth-child(2) {border-color:var(--accent)}
+.session-message.reply {border-color:var(--accent)}
 .session-history summary {cursor:pointer; color:var(--accent); font-weight:600}
 .session-history .message-content {padding:8px 0; color:var(--dim)}
 .session-message h3 {font-size:13px; margin:0 0 4px; color:var(--dim)}
@@ -1485,6 +1485,14 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 :is(.job-link,.job-detail) .job-state:is([data-state=failed],[data-state=interrupted]) { background: var(--danger-bg); color: var(--danger); }
 .job-back { margin-bottom: 10px; }
 .job-detail { max-width: 820px; }
+.queue-change-dialog { width: min(660px,calc(100vw - 32px)); padding: 22px; }
+.queue-change-dialog h2 { margin-top: 0; }
+.queue-change-dialog .dialog-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.queue-change-dialog button[value=cancel] { margin-inline-end:auto; }
+@media (max-width:650px) {
+  .queue-change-dialog .dialog-actions { display:grid; grid-template-columns:minmax(0,1fr); }
+  .queue-change-dialog .dialog-actions button { width:100%; }
+}
 .job-detail-head h2 { margin: 0; overflow-wrap: anywhere; }
 .job-detail .job-activity { padding: 16px 0 6px; border-top: 1px solid var(--line); }
 .job-detail .job-phase { font-size: 16px; font-weight: 650; }
@@ -1497,3 +1505,13 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
   .job-preview { width: min(440px,calc(100vw - 16px)); }
   .job-detail-head { flex-wrap: wrap; }
 }
+
+.job-meter { display: grid; gap: 3px; margin-top: 3px; color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+.api-profile { padding: 8px 0; }
+.api-profile p { margin: 0 0 4px; }
+
+.dialogue-legend { display:flex; flex-wrap:wrap; gap:8px 14px; margin-bottom:8px; }
+.dialogue-key { font-size:12px; padding:2px 7px; border-radius:4px; }
+.dialogue-mark { padding:0; border-radius:2px; color:var(--text); }
+:is(.dialogue-key,.dialogue-mark).masked { background:var(--success-bg); border-bottom:2px solid var(--success); }
+:is(.dialogue-key,.dialogue-mark).uncertain { background:var(--warning-bg); text-decoration:underline dotted var(--warning) 2px; text-underline-offset:2px; }

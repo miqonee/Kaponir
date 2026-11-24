@@ -1,5 +1,7 @@
 //! Durable, bounded background learning. No inference runs on the proxy request path.
+mod api_profile;
 mod scenario;
+mod telemetry;
 use crate::{
     Shared, State,
     server::{ApiError, authorized, error, internal},
@@ -170,6 +172,8 @@ impl Default for ChunkSettings {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AnalysisSettings {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub api_manual: Vec<String>,
     pub enabled: bool,
     pub parallelism: usize,
     pub provider: String,
@@ -185,6 +189,7 @@ pub struct AnalysisSettings {
 impl Default for AnalysisSettings {
     fn default() -> Self {
         Self {
+            api_manual: Vec::new(),
             enabled: false,
             parallelism: 1,
             provider: "none".into(),
@@ -202,6 +207,8 @@ impl Default for AnalysisSettings {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub struct CategorizationSettings {
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub api_manual: Vec<String>,
     pub scenario: Scenario,
     pub provider: String,
     pub model: String,
@@ -211,6 +218,7 @@ pub struct CategorizationSettings {
 impl Default for CategorizationSettings {
     fn default() -> Self {
         Self {
+            api_manual: Vec::new(),
             scenario: Scenario::Standard,
             provider: "local".into(),
             model: "qwen3-0.6b".into(),
@@ -326,6 +334,11 @@ enum LearningProgress {
 
 #[derive(Clone, Serialize, Deserialize)]
 struct Job {
+    /// Active document fingerprint when a queue transfer kept a previous job URL.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    request_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    last_call: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     progress: Option<LearningProgress>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -431,7 +444,9 @@ pub(crate) enum QueueWait {
 pub struct Learning {
     activity_since_ms: u64,
     pub settings: RwLock<Settings>,
+    pub(crate) activity: telemetry::Activity,
     queue_wait: RwLock<Option<QueueWait>>,
+    pub(crate) revision_signal: tokio::sync::watch::Sender<u64>,
 }
 fn decode<T: DeserializeOwned>(bytes: &[u8]) -> anyhow::Result<T> {
     Ok(serde_json::from_slice(bytes)?)
@@ -460,6 +475,7 @@ impl Job {
         self.state = "queued".into();
         self.started = None;
         self.progress = None;
+        self.last_call = None;
         self.inference.clear();
         self.updated = now_ms();
     }
@@ -475,8 +491,30 @@ fn store_job_meta(v: &SqliteVault, j: &Job) -> anyhow::Result<()> {
         v,
         &format!("meta:{}", j.id),
         "learning-job-meta",
-        &json!({"id":j.id,"name":j.name,"model":j.model,"scenario":j.scenario,"kind":j.kind,"state":j.state,"created":j.created,"updated":j.updated,"started":j.started,"progress":j.progress,"extracted":j.extracted,"error":j.error,"inference":j.inference,"retryable":!j.source.is_empty()&&j.state=="failed"}),
+        &json!({"id":j.id,"request_key":j.request_key,"name":j.name,"model":j.model,"scenario":j.scenario,"kind":j.kind,"state":j.state,"created":j.created,"updated":j.updated,"started":j.started,"progress":j.progress,"last_call":j.last_call,"extracted":j.extracted,"error":j.error,"inference":j.inference,"retryable":!j.source.is_empty()&&j.state=="failed"}),
     )
+}
+fn forget_alias(v: &SqliteVault, id: &str, key: Option<&str>) -> anyhow::Result<()> {
+    if let Some(key) = key {
+        let alias = format!("alias:{key}");
+        if record::<String>(v, &alias)?.as_deref() == Some(id) {
+            v.delete_app_record(&alias)?;
+        }
+    }
+    Ok(())
+}
+fn bind_document(v: &SqliteVault, job: &mut Job, key: String) -> anyhow::Result<()> {
+    forget_alias(v, &job.id, job.request_key.as_deref())?;
+    job.request_key = (key != job.id).then_some(key);
+    if let Some(key) = &job.request_key {
+        put(
+            v,
+            &format!("alias:{key}"),
+            "learning-document-alias",
+            &job.id,
+        )?;
+    }
+    Ok(())
 }
 const ENTRY_STATES: &[&str] = &[
     "pending",
@@ -581,7 +619,7 @@ fn confidence(a: Option<f64>, b: Option<f64>) -> Option<f64> {
 
 impl Learning {
     pub fn load(v: &SqliteVault) -> anyhow::Result<Arc<Self>> {
-        let settings = private(v, SETTINGS)?;
+        let settings: Settings = private(v, SETTINGS)?;
         let activity_since_ms = match record::<u64>(v, "learning:activity:since")? {
             Some(since) => since,
             None => {
@@ -602,7 +640,9 @@ impl Learning {
         }
         Ok(Arc::new(Self {
             activity_since_ms,
+            revision_signal: tokio::sync::watch::channel(settings.revision).0,
             settings: RwLock::new(settings),
+            activity: Default::default(),
             queue_wait: RwLock::new(None),
         }))
     }
@@ -666,14 +706,17 @@ fn queue_bytes(v: &SqliteVault) -> anyhow::Result<usize> {
         + v.app_record_bytes("learning-job-failed")?)
 }
 fn can_resubmit(job: &Job) -> bool {
-    job.kind == "document" && matches!(job.state.as_str(), "failed" | "expired" | "evicted")
+    matches!(job.kind.as_str(), "document" | "session")
+        && matches!(
+            job.state.as_str(),
+            "failed" | "expired" | "evicted" | "cancelled"
+        )
 }
 fn enqueue(v: &SqliteVault, mut job: Job) -> anyhow::Result<bool> {
     let existing = record::<Job>(v, &job.id)?;
-    if existing
-        .as_ref()
-        .is_some_and(|old| !can_resubmit(old) || job.kind != "document")
-    {
+    if existing.as_ref().is_some_and(|old| {
+        !can_resubmit(old) || !matches!(job.kind.as_str(), "document" | "session")
+    }) {
         return Ok(false);
     }
     let replaced_bytes = existing
@@ -836,6 +879,8 @@ pub(crate) fn enqueue_event(
         return Ok(());
     }
     let job = Job {
+        request_key: None,
+        last_call: None,
         progress: None,
         started: None,
         scenario: Some(settings.categorization.scenario),
@@ -869,6 +914,8 @@ pub(crate) fn routes() -> Router<Shared> {
             "/api/v1/ui/workspace/model",
             get(workspace_model).put(set_workspace_model),
         )
+        .route("/api/v1/ui/model-profile", post(api_profile::profile))
+        .route("/api/v1/ui/model-queue", get(model_queue))
         .route("/api/v1/ui/analysis/test", post(test_analysis))
         .route(
             "/api/v1/ui/categorization",
@@ -886,6 +933,7 @@ pub(crate) fn key(v: &SqliteVault, role: &str) -> anyhow::Result<Option<String>>
 }
 #[derive(Deserialize)]
 struct Update<T> {
+    queue_change: Option<QueueChange>,
     settings: T,
     key: Option<String>,
     #[serde(default)]
@@ -988,7 +1036,9 @@ fn validate_categorization(s: &CategorizationSettings) -> anyhow::Result<()> {
 fn bad(e: anyhow::Error) -> ApiError {
     let code = safe_error(&e);
     error(
-        if code == "learning_queue_full" {
+        if code == "queue_choice_required" {
+            StatusCode::CONFLICT
+        } else if code == "learning_queue_full" {
             StatusCode::TOO_MANY_REQUESTS
         } else {
             StatusCode::BAD_REQUEST
@@ -998,6 +1048,7 @@ fn bad(e: anyhow::Error) -> ApiError {
 }
 #[derive(Deserialize)]
 struct WorkspaceModel {
+    queue_change: Option<QueueChange>,
     #[serde(default)]
     use_analysis_api: bool,
     analysis_timeout: Option<u64>,
@@ -1023,7 +1074,7 @@ async fn workspace_model(
         .map_err(internal)?;
     Ok(Json(
         json!({"analysis":review_source(&st,"analysis").ok(),"categorization":review_source(&st,"categorization").ok(),
-        "slots":settings.analysis.parallelism,"previous_slots":previous}),
+        "slots":settings.analysis.parallelism,"analysis_enabled":settings.analysis.enabled,"previous_slots":previous}),
     ))
 }
 async fn set_workspace_model(
@@ -1033,6 +1084,7 @@ async fn set_workspace_model(
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &headers, true)?;
     let _guard = st.learning_changes.lock().await;
+    let _rules = st.rule_changes.lock().await;
     let mut settings = st.learning.snapshot();
     let shared_api = change.use_analysis_api;
     if shared_api {
@@ -1040,6 +1092,16 @@ async fn set_workspace_model(
             return Err(bad(anyhow::anyhow!("invalid_review_source")));
         }
         let source = &settings.analysis;
+        if settings.categorization.provider != "s1"
+            || settings.categorization.http.url != source.url
+            || settings.categorization.http.model.as_ref() != Some(&source.model)
+        {
+            settings.categorization.scenario = Scenario::Standard;
+        }
+        settings
+            .categorization
+            .api_manual
+            .clone_from(&source.api_manual);
         settings.categorization.provider = "s1".into();
         settings.categorization.http = kaponir_s1::http::HttpSettings {
             model: Some(source.model.clone()),
@@ -1095,6 +1157,7 @@ async fn set_workspace_model(
         settings,
         None,
         false,
+        change.queue_change.as_ref(),
     )
     .map_err(bad)?;
     workspace_model(AxumState(st.clone()), headers).await
@@ -1124,17 +1187,146 @@ async fn get_categorization(
         json!({"settings":st.learning.snapshot().categorization,"key_saved":saved,"editable":st.control.is_some()}),
     ))
 }
+#[derive(Clone, Copy, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+enum QueueAction {
+    Transfer,
+    Discard,
+}
+#[derive(Deserialize)]
+struct QueueChange {
+    action: QueueAction,
+    revision: u64,
+}
+
+fn queue_counts(v: &SqliteVault) -> anyhow::Result<(usize, usize)> {
+    Ok((
+        v.app_record_count("learning-job-queued")? + v.app_record_count("learning-job-running")?,
+        v.app_record_count("review-job-queued")? + v.app_record_count("review-job-running")?,
+    ))
+}
+async fn model_queue(
+    AxumState(st): AxumState<Shared>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, ApiError> {
+    authorized(&st, &headers, true)?;
+    let (learning, review, revision) = st
+        .with_vault(|_, v| {
+            let (learning, review) = queue_counts(v)?;
+            Ok((learning, review, st.learning.snapshot().revision))
+        })
+        .map_err(internal)?;
+    Ok(Json(
+        json!({"learning":learning,"review":review,"revision":revision}),
+    ))
+}
+fn switch_queue(
+    v: &SqliteVault,
+    settings: &Settings,
+    action: QueueAction,
+    review_role: Option<&str>,
+) -> anyhow::Result<()> {
+    for state in ["queued", "running"] {
+        for mut job in list::<Job>(v, &format!("learning-job-{state}"), MAX_JOBS)? {
+            if job.revision == settings.revision {
+                continue;
+            }
+            if action == QueueAction::Transfer {
+                anyhow::ensure!(
+                    settings.analysis.provider != "none",
+                    "transfer_model_required"
+                );
+                job.requeue();
+                if matches!(job.kind.as_str(), "session" | "document") {
+                    let key = document_key(
+                        &job.kind,
+                        &job.name,
+                        &job.source,
+                        &settings.analysis,
+                        &settings.categorization,
+                    );
+                    bind_document(v, &mut job, key)?;
+                }
+                job.model.clone_from(&settings.analysis.model);
+                job.scenario = Some(settings.categorization.scenario);
+                job.revision = settings.revision;
+                job.error.clear();
+            } else {
+                job.state = "cancelled".into();
+                job.updated = now_ms();
+                job.source.clear();
+                job.context.clear();
+                job.progress = None;
+                job.extracted = job_entry_count(v, &job.id)?;
+            }
+            store_job(v, &job)?;
+        }
+        for (id, bytes) in v.app_records(&format!("review-job-{state}"), i64::MAX as usize)? {
+            let mut j: Value = serde_json::from_slice(&bytes)?;
+            if j["revision"] == settings.revision {
+                continue;
+            }
+            crate::review::retain_completed(v, &j, settings.revision)?;
+            let next = if action == QueueAction::Transfer {
+                let role = review_role
+                    .or_else(|| j["source"]["role"].as_str())
+                    .unwrap_or("auto");
+                let source = source_for(settings, role)
+                    .or_else(|_| source_for(settings, "auto"))
+                    .map_err(|_| anyhow::anyhow!("transfer_model_required"))?;
+                j["source"] = source;
+                j["revision"] = json!(settings.revision);
+                j["started"] = Value::Null;
+                j["last_packet_seconds"] = Value::Null;
+                "queued"
+            } else {
+                "cancelled"
+            };
+            j["state"] = json!(next);
+            j["active"] = json!(0);
+            j["updated"] = json!(now_ms());
+            put(v, &id, &format!("review-job-{next}"), &j)?;
+        }
+    }
+    Ok(())
+}
+
 fn save_settings(
     st: &State,
     role: &str,
     settings: Settings,
     new_key: Option<&str>,
     clear: bool,
+    queue: Option<&QueueChange>,
 ) -> anyhow::Result<()> {
     anyhow::ensure!(st.control.is_some(), "read_only");
     anyhow::ensure!(!(clear && new_key.is_some()), "key_and_clear_conflict");
     let mut settings = settings;
     let previous = st.learning.snapshot();
+    let review_role = match role {
+        "analysis"
+            if (
+                previous.analysis.provider.as_str(),
+                &previous.analysis.model,
+                &previous.analysis.url,
+            ) != (
+                settings.analysis.provider.as_str(),
+                &settings.analysis.model,
+                &settings.analysis.url,
+            ) =>
+        {
+            Some("analysis")
+        }
+        "categorization"
+            if previous.categorization.provider != settings.categorization.provider
+                || previous.categorization.model != settings.categorization.model
+                || previous.categorization.http.url != settings.categorization.http.url
+                || previous.categorization.http.model != settings.categorization.http.model =>
+        {
+            Some("categorization")
+        }
+        _ => None,
+    };
     let changed_url = if role == "analysis" {
         previous.analysis.url != settings.analysis.url
     } else {
@@ -1163,6 +1355,16 @@ fn save_settings(
     st.with_vault(|_, v| {
         v.begin()?;
         let result = (|| {
+            if let Some(choice) = queue {
+                anyhow::ensure!(
+                    choice.revision == previous.revision,
+                    "queue_choice_required"
+                );
+            }
+            if settings.revision != previous.revision && queue_counts(v)? != (0, 0) {
+                let choice = queue.ok_or_else(|| anyhow::anyhow!("queue_choice_required"))?;
+                switch_queue(v, &settings, choice.action, review_role)?;
+            }
             if clear || changed_url && new_key.is_none() {
                 v.delete_private_setting(&format!("learning:{role}:key"))?;
             } else if let Some(k) = new_key {
@@ -1186,6 +1388,14 @@ fn save_settings(
             }
             v.set_private_setting(SETTINGS, &serde_json::to_vec(&settings)?)?;
             v.commit()?;
+            let revision = settings.revision;
+            *st.learning
+                .settings
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = settings;
+            if previous.revision != revision {
+                st.learning.revision_signal.send_replace(revision);
+            }
             Ok(())
         })();
         if result.is_err() {
@@ -1193,10 +1403,6 @@ fn save_settings(
         }
         result
     })?;
-    *st.learning
-        .settings
-        .write()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) = settings;
     Ok(())
 }
 async fn put_analysis(
@@ -1206,6 +1412,7 @@ async fn put_analysis(
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
     let _guard = st.learning_changes.lock().await;
+    let _rules = st.rule_changes.lock().await;
     validate_analysis(&req.settings).map_err(bad)?;
     let mut s = st.learning.snapshot();
     let was_enabled = s.analysis.enabled;
@@ -1216,6 +1423,7 @@ async fn put_analysis(
         s,
         req.key.as_deref().map(str::trim).filter(|s| !s.is_empty()),
         req.clear_key,
+        req.queue_change.as_ref(),
     )
     .map_err(bad)?;
     if was_enabled && !st.learning.snapshot().analysis.enabled {
@@ -1230,6 +1438,7 @@ async fn put_categorization(
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
     let _guard = st.learning_changes.lock().await;
+    let _rules = st.rule_changes.lock().await;
     validate_categorization(&req.settings).map_err(bad)?;
     let mut s = st.learning.snapshot();
     s.categorization = req.settings;
@@ -1239,6 +1448,7 @@ async fn put_categorization(
         s,
         req.key.as_deref().map(str::trim).filter(|s| !s.is_empty()),
         req.clear_key,
+        req.queue_change.as_ref(),
     )
     .map_err(bad)?;
     get_categorization(AxumState(st.clone()), h).await
@@ -1299,6 +1509,7 @@ fn safe_inference_trace(value: &Value) -> Value {
         "reserve_tokens",
         "http_status",
         "runtime_exit_code",
+        "tokens_per_second",
         "seconds",
         "reasoning_tokens",
     ] {
@@ -1328,12 +1539,19 @@ async fn local_request(
     mut body: Value,
     timeout_seconds: u64,
 ) -> anyhow::Result<Value> {
+    let meter = telemetry::Call::start("waiting");
+    if let Some(call) = &meter {
+        body["activity_id"] = json!(call.tag);
+    }
     body["timeout_seconds"] = json!(timeout_seconds);
     let call = crate::worker::forward(st, "/evaluate", Some(body));
     let value = tokio::time::timeout(Duration::from_secs(timeout_seconds), call)
         .await
         .map_err(|_| anyhow::anyhow!("model_timeout"))?
         .map_err(|e| anyhow::anyhow!(safe_error(&anyhow::anyhow!(e.message().to_string()))))?;
+    if let Some(call) = meter {
+        call.finish(&value.0["telemetry"]);
+    }
     Ok(value.0)
 }
 async fn local_model(
@@ -1363,6 +1581,55 @@ async fn local_model(
     }
     serde_json::from_value(reply).map_err(|_| anyhow::anyhow!("invalid_model_response"))
 }
+// Only negotiate parameters after an explicit validation rejection. Each retry removes
+// one option, so transport failures and successful billable requests are never replayed here.
+fn adapt_api_request(body: &mut Value, reply: &Value, format: &str) -> bool {
+    let error = &reply["error"];
+    let message = error["message"]
+        .as_str()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    let parameter = error["param"].as_str().unwrap_or_default();
+    let unsupported = error["code"]
+        .as_str()
+        .is_some_and(|c| c.starts_with("unsupported_"))
+        || [
+            "unsupported",
+            "not supported",
+            "not support",
+            "unknown",
+            "unrecognized",
+            "not allowed",
+            "only the default",
+        ]
+        .iter()
+        .any(|term| message.contains(term));
+    let rejected = |name: &str| parameter == name || (unsupported && message.contains(name));
+    let fields = body.as_object_mut().unwrap();
+    if rejected("stream_options") && fields.remove("stream_options").is_some() {
+        return true;
+    }
+    if rejected("stream") && fields.get("stream") == Some(&Value::Bool(true)) {
+        fields.remove("stream_options");
+        fields.insert("stream".into(), json!(false));
+        return true;
+    }
+    if rejected("max_tokens")
+        && message.contains("max_completion_tokens")
+        && let Some(limit) = fields.remove("max_tokens")
+    {
+        fields.insert("max_completion_tokens".into(), limit);
+        return true;
+    }
+    if unsupported && rejected("temperature") && fields.remove("temperature").is_some() {
+        return true;
+    }
+    format == "auto"
+        && unsupported
+        && (rejected("response_format") || message.contains("json_schema"))
+        && fields.remove("response_format").is_some()
+}
+
 async fn api_model(
     st: &Shared,
     s: &AnalysisSettings,
@@ -1377,6 +1644,7 @@ async fn api_model(
     } else {
         s.url.clone()
     };
+    let meter = telemetry::Call::start("waiting_slot");
     let _slot = st
         .api_slots
         .acquire(st.learning.snapshot().analysis.parallelism)
@@ -1390,27 +1658,33 @@ async fn api_model(
     if s.inference.response_format == "prompt" {
         body.as_object_mut().unwrap().remove("response_format");
     }
-    let mut request = st
-        .http
-        .post(url)
-        .timeout(Duration::from_secs(s.timeout_seconds))
-        .json(&body);
-    if let Some(token) = token {
-        request = request.bearer_auth(token);
+    if let Some(call) = &meter {
+        call.set(json!({"phase":"waiting","started":now_ms()}));
+        body["stream"] = json!(true);
+        body["stream_options"] = json!({"include_usage":true});
     }
-    let response = request.send().await?;
-    let status = response.status();
-    use futures_util::StreamExt;
-    let mut stream = response.bytes_stream();
-    let mut bytes = Vec::new();
-    while let Some(chunk) = stream.next().await {
-        bytes.extend_from_slice(&chunk?);
-        anyhow::ensure!(bytes.len() <= 2 * 1024 * 1024, "model_response_too_large");
-    }
-    let reply: Value = serde_json::from_slice(&bytes).unwrap_or(Value::Null);
+    let (status, reply) = loop {
+        let mut request = st
+            .http
+            .post(&url)
+            .timeout(Duration::from_secs(s.timeout_seconds))
+            .json(&body);
+        if let Some(token) = &token {
+            request = request.bearer_auth(token);
+        }
+        let response = request.send().await?;
+        let status = response.status();
+        let reply = telemetry::read_reply(response, meter.as_ref()).await?;
+        if matches!(status.as_u16(), 400 | 422)
+            && adapt_api_request(&mut body, &reply, &s.inference.response_format)
+        {
+            continue;
+        }
+        break (status, reply);
+    };
     let mut telemetry = json!({"max_output_tokens":s.inference.max_output_tokens,"context_tokens":s.inference.context_tokens,
         "seconds":started.elapsed().as_secs_f64(),"token_count_method":"provider_usage","http_status":status.as_u16(),
-        "structured_output":if s.inference.response_format == "prompt" {"json_prompt"} else {"json_schema"}});
+        "structured_output":if body["response_format"].is_null() {"json_prompt"} else {"json_schema"}});
     for name in ["prompt_tokens", "completion_tokens", "total_tokens"] {
         if let Some(n) = reply["usage"][name].as_u64() {
             telemetry[name] = json!(n);
@@ -1444,6 +1718,15 @@ async fn api_model(
     } else {
         None
     };
+    if let Some(rate) = reply
+        .pointer("/timings/predicted_per_second")
+        .and_then(Value::as_f64)
+    {
+        telemetry["tokens_per_second"] = json!(rate);
+    }
+    if let Some(call) = meter {
+        call.finish(&telemetry);
+    }
     let value = reply
         .pointer("/choices/0/message/content")
         .and_then(Value::as_str)
@@ -1813,40 +2096,65 @@ async fn documents(
     Json(req): Json<Documents>,
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
-    kaponir_core::discover::validate_documents(&req.documents)
+    queue_documents(&st, req.documents, req.scenario, "document", None).await
+}
+pub(crate) async fn queue_session(
+    st: &Shared,
+    doc: kaponir_core::discover::Document,
+    revision: u64,
+) -> Result<Json<Value>, ApiError> {
+    queue_documents(st, vec![doc], None, "session", Some(revision)).await
+}
+async fn queue_documents(
+    st: &Shared,
+    documents: Vec<kaponir_core::discover::Document>,
+    scenario: Option<Scenario>,
+    kind: &str,
+    expected_revision: Option<u64>,
+) -> Result<Json<Value>, ApiError> {
+    let _guard = st.learning_changes.lock().await;
+    kaponir_core::discover::validate_documents(&documents)
         .map_err(|_| bad(anyhow::anyhow!("invalid_documents")))?;
     let s = st.learning.snapshot();
+    if expected_revision.is_some_and(|r| r != s.revision) {
+        return Err(bad(anyhow::anyhow!("configuration_changed")));
+    }
     if !s.analysis.enabled || s.analysis.provider == "none" {
         return Err(bad(anyhow::anyhow!("analysis_disabled")));
     }
     let mut categorization = s.categorization.clone();
-    if let Some(scenario) = req.scenario {
+    if let Some(scenario) = scenario {
         categorization.scenario = scenario;
     }
     validate_categorization(&categorization).map_err(bad)?;
-    let ids = st
+    let (ids, existing) = st
         .with_vault(|_, v| {
             let mut ids = Vec::new();
+            let mut existing = Vec::new();
             v.begin()?;
             let result = (|| {
-                for d in req.documents {
-                    let id = format!(
-                        "learning:job:document:{}",
-                        scenario_fingerprint(
-                            &document_settings(&s.analysis, &d.name),
-                            &categorization,
-                            &d.text,
-                            ""
-                        )
-                    );
-                    let job = Job {
+                for d in documents {
+                    let key = document_key(kind, &d.name, &d.text, &s.analysis, &categorization);
+                    let alias = record::<String>(v, &format!("alias:{key}"))?;
+                    let mut id = alias.unwrap_or_else(|| key.clone());
+                    if let Some(old) = record::<Job>(v, &id)? {
+                        if old.request_key.as_ref().unwrap_or(&old.id) != &key {
+                            id = format!("{key}:{}", crate::review::random_id()?);
+                        } else if !can_resubmit(&old) {
+                            existing.push(id);
+                            continue;
+                        }
+                    }
+                    let mut job = Job {
+                        request_key: None,
+                        last_call: None,
                         progress: None,
                         started: None,
                         scenario: Some(categorization.scenario),
                         id: id.clone(),
                         name: d.name,
                         model: s.analysis.model.clone(),
-                        kind: "document".into(),
+                        kind: kind.into(),
                         state: "queued".into(),
                         created: now_ms(),
                         updated: now_ms(),
@@ -1858,15 +2166,15 @@ async fn documents(
                         error: String::new(),
                         inference: Vec::new(),
                     };
-                    let duplicate = record::<Job>(v, &id)?.is_some_and(|old| !can_resubmit(&old));
+                    bind_document(v, &mut job, key)?;
                     if enqueue(v, job)? {
                         ids.push(id);
-                    } else if !duplicate {
+                    } else {
                         anyhow::bail!("learning_queue_full");
                     }
                 }
                 v.commit()?;
-                Ok(ids)
+                Ok((ids, existing))
             })();
             if result.is_err() {
                 let _ = v.rollback();
@@ -1880,7 +2188,9 @@ async fn documents(
             result
         })
         .map_err(bad)?;
-    Ok(Json(json!({"queued":ids.len(),"ids":ids})))
+    Ok(Json(
+        json!({"queued":ids.len(),"ids":ids,"existing_ids":existing}),
+    ))
 }
 fn new_entry(
     job_id: &str,
@@ -2182,6 +2492,21 @@ fn document_settings(settings: &AnalysisSettings, name: &str) -> AnalysisSetting
     }
     result
 }
+fn document_key(
+    kind: &str,
+    name: &str,
+    text: &str,
+    analysis: &AnalysisSettings,
+    categorization: &CategorizationSettings,
+) -> String {
+    let fingerprint =
+        scenario_fingerprint(&document_settings(analysis, name), categorization, text, "");
+    if kind == "session" {
+        format!("learning:job:session:{}:{fingerprint}", digest(name))
+    } else {
+        format!("learning:job:{kind}:{fingerprint}")
+    }
+}
 
 async fn plan_chunks(
     st: &Shared,
@@ -2316,7 +2641,9 @@ pub(crate) fn review_entries(st: &State) -> anyhow::Result<Vec<Value>> {
 }
 
 pub(crate) fn review_source(st: &State, source: &str) -> anyhow::Result<Value> {
-    let settings = st.learning.snapshot();
+    source_for(&st.learning.snapshot(), source)
+}
+fn source_for(settings: &Settings, source: &str) -> anyhow::Result<Value> {
     let role = match source {
         "auto" if settings.categorization.provider != "none" => "categorization",
         "auto" => "analysis",
@@ -2545,7 +2872,13 @@ fn scenario_fingerprint(
 fn report_progress(st: &Shared, job: &mut Job, progress: LearningProgress) -> anyhow::Result<()> {
     job.progress = Some(progress);
     job.updated = now_ms();
-    st.with_vault(|_, v| store_job_meta(v, job))
+    st.with_vault(|_, v| {
+        anyhow::ensure!(
+            *st.learning.revision_signal.borrow() == job.revision,
+            "configuration_changed"
+        );
+        store_job_meta(v, job)
+    })
 }
 
 async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usize> {
@@ -2700,8 +3033,23 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         finished += 1;
     }
     let total = entries.len();
-    let batch_size = s.categorization.inference.batch_size;
-    for (index, batch) in entries.chunks_mut(batch_size).enumerate() {
+    let inference = &s.categorization.inference;
+    let mut position = 0;
+    while position < total {
+        let start = position;
+        let budget = inference
+            .context_tokens
+            .saturating_sub(inference.reserve_tokens + inference.max_output_tokens);
+        let mut used = 1024;
+        while position < total && position - start < inference.batch_size {
+            let cost = entries[position].quote.len() + entries[position].value.len() + 160;
+            if categorization.provider == "s1" && position > start && used + cost > budget {
+                break;
+            }
+            used += cost;
+            position += 1;
+        }
+        let batch = &mut entries[start..position];
         if categorization.provider != "none" {
             let model = if categorization.provider == "local" {
                 categorization.model.clone()
@@ -2716,7 +3064,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
                 st,
                 job,
                 LearningProgress::Categorizing {
-                    completed: index * batch_size,
+                    completed: start,
                     total,
                     model,
                 },
@@ -2853,6 +3201,10 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
     report_progress(st, job, LearningProgress::Saving { found: total })?;
     for mut e in entries.iter().cloned() {
         let _guard = st.rule_changes.lock().await;
+        anyhow::ensure!(
+            *st.learning.revision_signal.borrow() == s.revision,
+            "configuration_changed"
+        );
         let existing = st.with_vault(|_, v| record::<Entry>(v, &e.id))?;
         if let Some(mut existing) = existing {
             if existing.state == "applying" {
@@ -3231,6 +3583,7 @@ fn cleanup(v: &SqliteVault) -> anyhow::Result<()> {
         let id = meta["id"].as_str().unwrap_or_default();
         let age = now.saturating_sub(meta["created"].as_u64().unwrap_or(0));
         if age > MONTH {
+            forget_alias(v, id, meta["request_key"].as_str())?;
             v.delete_app_record(id)?;
             v.delete_app_record(&format!("meta:{id}"))?;
             v.delete_app_record(&format!("learning:index:{id}"))?;
@@ -3388,6 +3741,11 @@ pub(crate) fn start(st: &Shared) {
                         None
                     }
                 }
+                _ if settings.analysis.provider == "api"
+                    && settings.categorization.provider != "local" =>
+                {
+                    None
+                }
                 _ => Some(QueueWait::WorkerOffline),
             };
             st.learning.set_queue_wait(wait);
@@ -3398,6 +3756,9 @@ pub(crate) fn start(st: &Shared) {
                 let next = st.with_vault(|_, v| {
                     let job = list::<Job>(v, "learning-job-queued", 1)?.into_iter().next();
                     if let Some(mut j) = job {
+                        if st.learning.snapshot().revision != settings.revision {
+                            return Ok(None);
+                        }
                         j.state = "running".into();
                         j.updated = now_ms();
                         j.started = Some(j.updated);
@@ -3424,10 +3785,15 @@ pub(crate) fn start(st: &Shared) {
 async fn run_job(st: Shared, mut job: Job, settings: Settings) {
     let started = std::time::Instant::now();
     job.inference.clear();
+    let mut revision = st.learning.revision_signal.subscribe();
+    if *revision.borrow_and_update() != settings.revision {
+        return;
+    }
+    let job_id = job.id.clone();
     let result = if job.revision != settings.revision {
         Err(anyhow::anyhow!("configuration_changed"))
     } else {
-        process(&st, &mut job, &settings).await
+        tokio::select! { biased; _ = revision.changed()=> return, (outcome,last) = st.learning.activity.track(&job_id, process(&st, &mut job, &settings))=>{job.last_call=last;outcome} }
     };
     let succeeded = result.is_ok();
     match result {
@@ -3452,7 +3818,9 @@ async fn run_job(st: Shared, mut job: Job, settings: Settings) {
         .with_vault(|_, v| {
             transaction(v, || {
                 let previous = record::<Job>(v, &job.id)?;
-                if previous.as_ref().is_some_and(|j| j.state == "succeeded") {
+                if !previous.as_ref().is_some_and(|j| {
+                    j.state == "running" && j.revision == job.revision && j.attempts == job.attempts
+                }) {
                     return Ok(());
                 }
                 store_job(v, &job)?;
@@ -3609,6 +3977,8 @@ mod tests {
     }
     fn job(id: usize, kind: &str) -> Job {
         Job {
+            request_key: None,
+            last_call: None,
             progress: None,
             started: None,
             scenario: None,
@@ -3757,7 +4127,15 @@ mod tests {
         let mut settings = st.learning.snapshot();
         settings.analysis.provider = "api".into();
         settings.analysis.url = "https://old.example/v1".into();
-        save_settings(&st, "analysis", settings, Some("private-model-key"), false).unwrap();
+        save_settings(
+            &st,
+            "analysis",
+            settings,
+            Some("private-model-key"),
+            false,
+            None,
+        )
+        .unwrap();
         assert_eq!(
             test_key(&st, "analysis", None, false, "https://old.example/v1")
                 .unwrap()
@@ -3770,7 +4148,7 @@ mod tests {
         );
         let mut settings = st.learning.snapshot();
         settings.analysis.url = "https://new.example/v1".into();
-        save_settings(&st, "analysis", settings, None, false).unwrap();
+        save_settings(&st, "analysis", settings, None, false, None).unwrap();
         assert!(st.with_vault(|_, v| key(v, "analysis")).unwrap().is_none());
     }
     #[test]

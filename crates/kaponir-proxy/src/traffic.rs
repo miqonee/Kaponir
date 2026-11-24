@@ -69,6 +69,8 @@ pub struct EventInspector {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_user_offset: Option<usize>,
     pub masked_request: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub masked_last_user_offset: Option<usize>,
     #[serde(default)]
     pub masked_payload_json: String,
     pub raw_response: String,

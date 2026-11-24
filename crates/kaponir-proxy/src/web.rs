@@ -183,6 +183,7 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/restore", post(restore))
         .route("/api/v1/ui/discover", post(discover))
         .route("/api/v1/ui/discover/sessions", post(discover_sessions))
+        .route("/api/v1/ui/analysis/session", post(analyze_session))
         .route("/api/v1/ui/sessions/export", get(export_sessions))
         .route("/api/v1/ui/discover/profile", get(discovery_profile))
         .route("/api/v1/ui/discover/apply", post(apply_discover))
@@ -856,6 +857,93 @@ fn session_documents(
         });
     }
     (documents, truncated)
+}
+#[derive(Deserialize)]
+struct AnalyzeSession {
+    target: SessionTarget,
+    revision: u64,
+}
+async fn analyze_session(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<AnalyzeSession>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let mut events = st.traffic.snapshot().events;
+    events.retain(|e| req.target.matches(e));
+    events.sort_by_key(|e| e.id);
+    let total = events.len();
+    let mut used = 0;
+    let mut partial = false;
+    let mut history = Vec::<String>::new();
+    for ev in events {
+        let Some(insp) = ev.inspector else {
+            partial = true;
+            continue;
+        };
+        let mut turn = Vec::new();
+        let payload: Value = serde_json::from_str(&insp.masked_payload_json).unwrap_or(Value::Null);
+        let messages = crate::learning::capture_messages(&payload["messages"]);
+        if let Some(saved) = messages
+            .as_array()
+            .filter(|_| payload["messages"].is_array())
+        {
+            for msg in saved {
+                if let (Some(role @ ("user" | "tool" | "assistant")), Some(text)) =
+                    (msg["role"].as_str(), msg["content"].as_str())
+                {
+                    turn.push(format!("[{role}]\n{text}"));
+                }
+            }
+        } else {
+            partial = true;
+            if let Some(last) = insp
+                .masked_last_user_offset
+                .and_then(|at| insp.masked_request.get(at..))
+                .and_then(|s| s.strip_prefix("[user]\n"))
+            {
+                turn.push(format!("[user]\n{last}"));
+            }
+        }
+        if !insp.raw_response.trim().is_empty() {
+            partial |= insp.raw_response.contains("… [truncated]");
+            turn.push(format!("[assistant]\n{}", insp.raw_response));
+        } else {
+            partial = true;
+        }
+        if turn.is_empty() {
+            partial = true;
+            continue;
+        }
+        let overlap = (0..=history.len().min(turn.len()))
+            .rev()
+            .find(|&n| history[history.len() - n..] == turn[..n])
+            .unwrap_or(0);
+        history.extend(turn.into_iter().skip(overlap));
+        used += 1;
+    }
+    if history.is_empty() {
+        return Err(error(StatusCode::BAD_REQUEST, "session_text_unavailable"));
+    }
+    let name = match req.target {
+        SessionTarget::Session(id) => format!("session-{id}"),
+        SessionTarget::Request(id) => format!("request-{id}"),
+    };
+    let text = history.join("\n\n");
+    if text.len() > kaponir_core::discover::MAX_BYTES {
+        return Err(error(StatusCode::BAD_REQUEST, "session_input_too_large"));
+    }
+    let doc = kaponir_core::discover::Document {
+        name,
+        text: crate::review::redacted_context(&st, &text, ""),
+        format: Format::Auto,
+        model_candidates: Vec::new(),
+    };
+    let Json(mut result) = crate::learning::queue_session(&st, doc, req.revision).await?;
+    result["used"] = json!(used);
+    result["total"] = json!(total);
+    result["partial"] = json!(partial || used < total);
+    Ok(Json(result).into_response())
 }
 async fn export_sessions(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     authorized(&st, &headers, true)?;

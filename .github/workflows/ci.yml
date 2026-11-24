@@ -35,6 +35,7 @@ jobs:
           .venv-browser/bin/python -m playwright install --with-deps chromium
           .venv-browser/bin/python scripts/validate_console.py target/release/kaponir --output artifacts/console
           .venv-browser/bin/python scripts/validate_learning.py target/release/kaponir --output artifacts/learning
+          .venv-browser/bin/python scripts/validate_model_transition.py target/release/kaponir --output artifacts/model-transition
           .venv-browser/bin/python scripts/validate_models.py target/release/kaponir --output artifacts/models
           .venv-browser/bin/python scripts/validate_review.py target/release/kaponir --output artifacts/review
       - uses: actions/upload-artifact@v4
@@ -44,6 +45,7 @@ jobs:
           path: |
             artifacts/console
             artifacts/learning
+            artifacts/model-transition
             artifacts/models
             artifacts/review
           if-no-files-found: ignore

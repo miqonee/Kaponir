@@ -189,7 +189,7 @@ def main():
                 page.locator('#worker-scan-sessions').click()
                 page.wait_for_url('**/#jobs/file/*')
                 job = page.locator('#jobs-content')
-                job.get_by_role('heading', name='Сохранённые сессии').wait_for()
+                job.get_by_role('heading', name='Поиск в сохранённых сессиях').wait_for()
                 job.get_by_text('Нет данных для анализа', exact=True).wait_for()
                 job.get_by_role('button', name='Файловая служба').click()
                 page.locator('#worker-jobs').filter(has_text='Нет данных для анализа').wait_for()

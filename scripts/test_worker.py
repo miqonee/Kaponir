@@ -71,6 +71,24 @@ class WorkerTests(unittest.TestCase):
             worker.start_calibration({'model':'q4'})
             self.assertEqual(wait_for_result()['recommended_slots'], 1)
 
+    def test_measurements_belong_to_the_call_occupying_the_slot(self):
+        worker = self.worker
+        worker.ocr_base = 'http://localhost'
+        worker.evaluation_slots = {'a': {'slot': 1, 'tag': 'first', 'sent': True},
+                                   'b': {'slot': 0, 'tag': 'second', 'sent': True},
+                                   'c': {'slot': 2, 'tag': 'third', 'sent': False}}
+        samples = [{'id': 0, 'is_processing': True, 'next_token': {'n_decoded': 19}, 'timings': {'predicted_per_second': 8.5}},
+                   {'id': 1, 'is_processing': True, 'next_token': {'n_decoded': 3}, 'prompt': 'private text'}]
+        with patch('kaponir_worker.http_json', return_value=samples), patch('kaponir_worker.time.monotonic', side_effect=[100.,102.]):
+            initial = worker.model_measurements()
+            self.assertEqual(initial['first'], {'phase':'generating', 'completion_tokens':3})
+            self.assertEqual(initial['second']['tokens_per_second'], 8.5)
+            self.assertEqual(initial['third'], {'phase':'preparing'})
+            samples[1]['next_token']['n_decoded'] = 13
+            self.assertEqual(worker.model_measurements()['first']['tokens_per_second'], 5)
+        with patch('kaponir_worker.http_json', side_effect=OSError):
+            self.assertEqual(worker.model_measurements()['first'], {'phase':'waiting'})
+
     def test_workspace_history_ignores_inference_jobs_before_paginating(self):
         with self.worker.connection() as db:
             for i in range(205):

@@ -496,7 +496,7 @@ async fn proxy_request(
     span.mask_us.fetch_add(mask_us, Relaxed);
     span.classifier_us.fetch_add(classifier_us, Relaxed);
     {
-        let (masked_request, _) = extract_prompt_text(&json);
+        let (masked_request, masked_last_user_offset) = extract_prompt_text(&json);
         let masked_payload_json = serde_json::to_string_pretty(&json).unwrap_or_default();
         let mut insp = span
             .inspector
@@ -511,6 +511,7 @@ async fn proxy_request(
         entry.original_request = crate::traffic::cap_str(&original_request, 32_768);
         entry.last_user_offset = last_user_offset.filter(|&i| i < 32_768);
         entry.masked_request = crate::traffic::cap_str(&masked_request, 32_768);
+        entry.masked_last_user_offset = masked_last_user_offset.filter(|&i| i < 32_768);
         entry.masked_payload_json = crate::traffic::cap_str(&masked_payload_json, 32_768);
     }
     span.add(&usage);

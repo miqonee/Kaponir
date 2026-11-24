@@ -272,15 +272,17 @@ async function openFindingRule(item) {
   const row=document.getElementById("rule-"+scope+"-"+id);
   if(row){row.focus();row.scrollIntoView({block:"center"});}
 }
+let findingNavigation = 0;
 async function adjacentFinding(key, step) {
   let data = ReviewUI.data;
   const index = data.items.findIndex(item => item.key === key);
   const target = data.offset + index + step;
   if (index < 0 || target < 0 || target >= data.total) return;
+  const navigation = ++findingNavigation;
   if (target < data.offset || target >= data.offset + data.items.length) {
     ReviewUI.offset = Math.floor(target / data.limit) * data.limit;
     data = await loadReview();
-    if (!data || location.hash !== "#review") return;
+    if (!data || location.hash !== "#review" || navigation !== findingNavigation) return;
   }
   const item = data.items[target - data.offset];
   if (!item) return;
@@ -291,6 +293,7 @@ async function adjacentFinding(key, step) {
     document.getElementById("finding-"+item.key)?.scrollIntoView({block:"nearest"});
 }
 function showFinding(item, moveFocus = true) {
+  if (moveFocus) ++findingNavigation;
   const detail=$("#finding-detail");
   ReviewUI.detailKey=item?.key;
   detail.hidden=!item;
@@ -323,6 +326,9 @@ function showFinding(item, moveFocus = true) {
   }
 }
 function findingRow(item) {
+  const rule = item.decision?.rule_id ? item.decision : item.document_rule ||
+    (pendingFinding(item) && !item.proposal?.declined ? item.proposal : null);
+  const scope = rule?.scope || item.scope;
   const checkbox=h("input",{type:"checkbox",checked:picked(item),"aria-label":tr("Выбрать значение: {{0}}",[item.value]),
     onchange:event=>{selectReviewItem(item,event.target.checked);row.classList.toggle("picked",picked(item));syncPageCheck();}});
   const record=h("button",{class:"finding-value",id:"finding-"+item.key,"aria-controls":"finding-detail",
@@ -331,7 +337,8 @@ function findingRow(item) {
     if (!e.target.closest("button,input,label,a,select") && !e.target.closest("td:first-child") && window.getSelection()?.isCollapsed) showFinding(item);
   }},h("td",{},h("label",{class:"row-check"},checkbox)),
     h("td",{},record,h("small",{class:"mobile-source"},findingSource(item))),
-    h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(item.kind)),
+    h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(rule?.kind || item.kind), " / ",
+      h("span",{class:"hint"},scope ? scopeLabel(scope) : tr("Область не задана"))),
     h("td",{},h("span",{class:"table-verdict", "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),item.in_dataset?h("small",{class:"hint"},tr("В датасете")):null));
   return row;
 }
@@ -352,7 +359,7 @@ function renderReview() {
   if (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob) nodes.push(h("div",{class:"inline-notice"},tr("Результаты выбранного запуска"),
     workButton("Все находки",()=>showReview())));
   function table(items) {
-    return h("table",{class:"findings-table"},h("thead",{},h("tr",{},...["","Значение","Источник","Тип","Состояние"].map((title,i)=>h("th",{class:i===2?"source-cell":""},tr(title))))),h("tbody",{},items.map(findingRow)));
+    return h("table",{class:"findings-table"},h("thead",{},h("tr",{},...["","Значение","Источник","Тип / область правила","Состояние"].map((title,i)=>h("th",{class:i===2?"source-cell":""},tr(title))))),h("tbody",{},items.map(findingRow)));
   }
   if(!data.items.length) {
     const scoped=!!(ReviewUI.jobId || ReviewUI.learningJob || ReviewUI.keys || ReviewUI.filterSet);
@@ -377,7 +384,7 @@ function renderReview() {
       showFinding(item, false);
       if (focused) $("#finding-detail h2").focus({preventScroll:true});
     }
-    else if(!item)showFinding(null);
+    else if(!item)showFinding(null,false);
   }
   syncPageCheck();renderReviewSelection();
 }
@@ -397,7 +404,7 @@ function renderReviewSelection() {
   const dialog = $("#review-options");
   const study = dialog.querySelector(".review-study") || h("div", {class: "scenario-study review-study"});
   const showStudy = () => renderScenarioStudy(study, source.provider === "local" ? measuredModelId(source.model) : null,
-    ReviewUI.scenario || source.scenario || "standard", mode);
+    ReviewUI.scenario || source.scenario || "standard", mode, source.provider !== "local");
   const mode = source?.supports_scenarios ? h("select", {"aria-label": tr("Способ проверки для запуска"), onchange: e => {
     ReviewUI.scenario = e.target.value; showStudy();
   }}, scenarioOptions(ReviewUI.scenario || source.scenario || "standard")) : null;
@@ -553,6 +560,12 @@ function setReviewBusy(busy) {
 }
 async function applyReview(entries) {
   if (ReviewUI.busy) return;
+  const page = ReviewUI.data, first = entries[0];
+  const navigation = findingNavigation;
+  const advance = entries.length === 1 && ReviewUI.detailKey === first.item.key &&
+    ["accept-proposal","decline-proposal"].includes(first.action);
+  const index = advance ? page.items.findIndex(i=>i.key===first.item.key) : -1;
+  const following = index >= 0 ? page.items.slice(index+1).map(i=>i.key) : [];
   setReviewBusy(true);
   const failures = [], snapshot = ReviewUI.snapshot;
   let applied = 0; renderReview(true);
@@ -574,7 +587,30 @@ async function applyReview(entries) {
     single?.action === "accept-proposal" ? tr("Предложение принято.") : tr("Применено: {{0}}", [applied]);
   $("#review-result").textContent = message + (failures.length ? " · " + failures.join("; ") : "");
   $("#review-result").classList.toggle("err", !!failures.length);
-  await Promise.all([loadReview(true), loadInfo()]);
+  const sameCard = advance && !failures.length && ReviewUI.detailKey === first.item.key;
+  let [updated] = await Promise.all([loadReview(true), loadInfo()]);
+  if (!sameCard || !updated || navigation !== findingNavigation || location.hash !== "#review" || (ReviewUI.detailKey && ReviewUI.detailKey !== first.item.key)) return;
+  const key = first.item.key;
+  let next = following.map(id=>updated.items.find(i=>i.key===id)).find(Boolean);
+  if (!next && updated.total) {
+    const retained = updated.items.findIndex(i=>i.key===key);
+    let target = Math.min(page.offset + index, updated.total - 1);
+    if (retained >= 0) target = (updated.offset + retained + 1) % updated.total;
+    if (target < updated.offset || target >= updated.offset + updated.items.length) {
+      ReviewUI.offset = Math.floor(target / updated.limit) * updated.limit;
+      updated = await loadReview();
+    }
+    if (!updated || navigation !== findingNavigation || location.hash !== "#review") return;
+    next = updated.items[target - updated.offset];
+  }
+  if (next && next.key !== key && location.hash === "#review") {
+    showFinding(next,false);
+    $("#finding-detail h2").focus({preventScroll:true});
+    document.getElementById("finding-"+next.key)?.scrollIntoView({block:"nearest"});
+  } else if (!updated?.total) {
+    $("#review-result").tabIndex = -1;
+    $("#review-result").focus({preventScroll:true});
+  }
 }
 async function requestReview(items) {
   if(ReviewUI.busy)return;
