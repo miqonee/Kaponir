@@ -63,13 +63,37 @@ function benchmarkTable(headers, rows, selected) {
     h("tbody", {}, rows.map(([variant, ...cells]) => h("tr", {class: variant === selected ? "selected-scenario" : ""},
       h("th", {scope: "row"}, variant), cells.map(cell => h("td", {}, cell)))))));
 }
-async function renderScenarioStudy(host, id, selected) {
-  const key = JSON.stringify([id || "", selected || "", I18N.language]);
+function scenarioPriorities(rows, control, host) {
+  if (rows.length !== 4 || !control) return null;
+  const study = host.dataset.study;
+  const priorities = [
+    ["speed", "Быстрее закончить", (a,b) => a.minutes-b.minutes || b.correct-a.correct],
+    ["privacy", "Скрыть больше приватного", (a,b) => b.private_mask-a.private_mask || b.public_keep-a.public_keep || a.minutes-b.minutes],
+    ["public", "Меньше лишних скрытий", (a,b) => b.public_keep-a.public_keep || b.private_mask-a.private_mask || a.minutes-b.minutes],
+  ];
+  return h("fieldset", {class:"scenario-goals"}, h("legend", {}, tr("Что важнее при проверке?")),
+    h("div", {class:"goal-grid"}, priorities.map(([goal, label, compare]) => {
+      const best = [...rows].sort(compare)[0];
+      const evidence = goal === "speed" ? tr("{{0}} за 32 значения", [benchMinutes(best.minutes)])
+        : goal === "privacy" ? tr("Скрыто приватных · {{0}}/16", [best.private_mask])
+          : tr("Сохранено публичных · {{0}}/16", [best.public_keep]);
+      return h("button", {type:"button", class:"scenario-goal", "data-goal":goal, disabled:control.disabled,
+        onclick:() => {
+          const select = host.scenarioControl;
+          if (host.dataset.study !== study || !select || select.disabled || select.value === best.variant) return;
+          select.value = best.variant;
+          select.dispatchEvent(new Event("change", {bubbles:true}));
+        }}, h("strong", {}, tr(label)), h("span", {}, best.variant + " · " + evidence));
+    })), h("p", {class:"hint"}, tr("Выбор подставит сценарий по замерам этой модели на стенде.")));
+}
+async function renderScenarioStudy(host, id, selected, control) {
+  host.scenarioControl = control;
+  const key = JSON.stringify([id || "", selected || "", !!control, !!control?.disabled, I18N.language]);
   if (host.dataset.study === key) return;
   host.dataset.study = key;
   const expanded = !!host.querySelector(".model-comparison[open]");
   const globalOpen = !!host.querySelector(".scenario-comparison[open]");
-  host.replaceChildren();
+  const focusedGoal = host.contains(document.activeElement) ? document.activeElement.dataset.goal : null;
   let data;
   try { data = await loadScenarioBenchmarks(); }
   catch {
@@ -80,6 +104,8 @@ async function renderScenarioStudy(host, id, selected) {
     return;
   }
   if (host.dataset.study !== key) return;
+  const restoreGoal = focusedGoal && host.contains(document.activeElement);
+  host.replaceChildren();
   const model = Object.hasOwn(data, id) ? data[id] : null;
   if (selected && scenarioDescriptions[selected]) host.append(h("p", {}, tr(scenarioDescriptions[selected])));
   if (model) {
@@ -90,9 +116,12 @@ async function renderScenarioStudy(host, id, selected) {
       [variant, row.private_mask + row.public_keep, benchMinutes(row.minutes)])));
     else summary.append(h("span", {}, tr("Для выбранного режима замера на этом профиле нет.")));
     const complete = Object.entries(model.variants).filter(([, m]) => m.minutes != null && m.answers === 32)
-      .map(([v, m]) => ({variant: v, minutes: m.minutes, correct: m.private_mask + m.public_keep}));
+      .map(([v, m]) => ({...m, variant: v, correct: m.private_mask + m.public_keep}));
     const fastest = complete.length === 4 ? rankedScenarios(complete, "minutes", Math.min) : "";
     if (fastest) summary.append(h("span", {}, tr("Быстрее всего · {{0}}", [fastest])));
+    const goals = scenarioPriorities(complete, control, host);
+    if (goals) host.prepend(goals);
+    else if (control) host.append(h("p", {class:"hint"}, tr("Сопоставимые замеры есть только для части сценариев. Выберите сценарий вручную.")));
     host.append(summary);
     const quick = model.variants[fastest], recommended = model.variants[model.recommended];
     if (quick && recommended && fastest !== model.recommended) {
@@ -119,4 +148,5 @@ async function renderScenarioStudy(host, id, selected) {
   }
   const reference = referenceScenarioTable(data);
   if (reference) { reference.open = globalOpen; host.append(reference); }
+  if (restoreGoal) host.querySelector('[data-goal="'+focusedGoal+'"]')?.focus({preventScroll:true});
 }

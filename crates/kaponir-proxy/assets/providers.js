@@ -20,7 +20,7 @@ function renderProviderConnection(){
   const P=PROVIDERS,kind=P.kind,k=providerKey(),d=providerDraft(),profile=providerProfile(),busy=P.busy;
   const protocol=h('div',{class:'seg provider-protocol','aria-label':tr('Формат API')},...['openai','anthropic'].map(kind=>h('button',{type:'button',disabled:busy,'aria-pressed':String(P.kind===kind),onclick:()=>{P.kind=kind;P.result=null;P.removing=false;renderProviderConnection();}},kind==='openai'?'OpenAI-compatible':'Anthropic')));
   const connections=P.connections.filter(p=>p.kind===kind);
-  const manager=h('article',{class:'panel connection-manager'},h('div',{class:'connections-heading'},h('div',{},h('h2',{},tr('Ваши подключения')),h('p',{class:'hint'},tr('Несколько ключей: общий адрес или отдельное подключение.'))),h('button',{class:'secondary',disabled:busy,onclick:()=>chooseProvider(null)},h('span',{'aria-hidden':'true'},'+'),tr('Добавить ключ'))),protocol,
+  const manager=h('article',{class:'panel connection-manager'},h('div',{class:'connections-heading'},h('div',{},h('h2',{},tr('Ваши подключения')),h('p',{class:'hint'},tr('Несколько ключей: общий адрес или отдельное подключение.'))),h('button',{class:'secondary',hidden:!profile,disabled:busy,onclick:()=>chooseProvider(null)},h('span',{'aria-hidden':'true'},'+'),tr('Добавить ключ'))),protocol,
     h('div',{class:'connection-list'},...connections.map(p=>h('button',{class:'connection-tile',disabled:busy,'aria-pressed':String(profile?.id===p.id),onclick:()=>chooseProvider(p.id)},h('strong',{},p.name),h('span',{class:'connection-host'},new URL(p.base_url).host),h('span',{class:'connection-mode'},tr(!p.enabled?'Отключено':p.pool?'В общем адресе':'Отдельный адрес')))),...(!connections.length?[h('p',{class:'hint'},tr('Добавьте первый ключ. Каждый ключ хранится отдельно и получает свой адрес.'))]:[])));
   const clearResult=()=>{P.result=null;$('#provider-result').replaceChildren();updateProviderDraftNote();};
   const resetModels=()=>{d.model_text='';d.all_models=false;P.models[k]=[];const all=$('#provider-all-models');if(all)all.checked=false;};
@@ -51,9 +51,9 @@ function renderProviderConnection(){
         ...(profile?.all_models&&!d.auto_models?[h('label',{class:'provider-check'},h('input',{id:'provider-all-models',type:'checkbox',checked:d.all_models,onchange:e=>{d.all_models=e.target.checked;clearResult();}}),tr('Все модели — совместимость с прежней настройкой'))]:[]),
         h('label',{class:'provider-check'},enabled,tr('Подключение включено'))),
       h('div',{class:'provider-actions'},h('button',{type:'button',onclick:()=>{if(form.reportValidity())providerAction('test');}},tr(busy?'Подождите…':'Проверить и получить модели')),h('button',{type:'submit',class:'primary'},tr(busy?'Подождите…':'Сохранить подключение')))),result);
-  const left=h('article',{class:'panel provider-card'},h('div',{class:'provider-heading'},h('span',{class:'step-number'},'1'),h('div',{},h('h2',{},tr(profile?'Настройки подключения':'Новое подключение')),h('p',{},tr('Ключ и модели от сервиса, которым вы пользуетесь.')))),form,h('p',{class:'hint'},tr('Проверка запрашивает только список моделей. Сообщения и документы не отправляются.')));
+  const left=h('article',{class:'panel provider-card'},h('div',{class:'provider-heading'},h('div',{},h('h2',{},tr(profile?'Настройки подключения':'Новое подключение')),h('p',{},tr('Ключ и модели от сервиса, которым вы пользуетесь.')))),form,h('p',{class:'hint'},tr('Проверка запрашивает только список моделей. Сообщения и документы не отправляются.')));
   if(profile)left.append(P.removing?h('div',{class:'remove-connection'},h('p',{},tr('Удалить подключение «{{0}}»? Его адрес перестанет принимать новые запросы.',[profile.name])),h('button',{disabled:busy,onclick:()=>providerAction('delete')},tr('Удалить подключение')),h('button',{disabled:busy,onclick:()=>{P.removing=false;renderProviderConnection();}},tr('Отмена'))):h('button',{class:'text-button',disabled:busy,onclick:()=>{P.removing=true;renderProviderConnection();}},tr('Удалить подключение')));
-  const right=h('article',{class:'panel provider-card client-card'},h('div',{class:'provider-heading'},h('span',{class:'step-number'},'2'),h('div',{},h('h2',{},tr('Подключите приложение')),h('p',{},tr('Скопируйте параметры Kaponir в свой клиент.')))));
+  const right=h('article',{class:'panel provider-card client-card'},h('div',{class:'provider-heading'},h('div',{},h('h2',{},tr('Подключите приложение')),h('p',{},tr('Скопируйте параметры Kaponir в свой клиент.')))));
   if(profile){
     right.append(h('div',{class:'provider-saved '+(profile.enabled?'ready':'')},icon('shield'),tr(profile.enabled?'Поставщик сохранён':'Подключение отключено')),h('h3',{},tr('Отдельный адрес')),copyCode(location.origin+profile.endpoint+(kind==='openai'?'/v1':'')),h('p',{class:'hint'},tr('Этот адрес всегда использует только выбранное подключение.')));
     if(profile.pool)right.append(h('h3',{},tr('Общий адрес')),copyCode(location.origin+(kind==='openai'?'/v1':'')),h('p',{class:'hint'},tr('Объединённый список моделей доступен через GET /v1/models.')));
@@ -65,8 +65,14 @@ function renderProviderConnection(){
     }
     const available=P.models[k]||profile.models;
     if(available.length)right.append(h('h3',{},tr('Доступные модели: {{0}}',[available.length])),h('div',{class:'model-list'},...available.map(id=>h('button',{type:'button',title:id,'aria-pressed':String(P.selected[k]===id),onclick:()=>{P.selected[k]=id;renderProviderConnection();}},id))));
-  }else right.append(h('div',{class:'provider-empty'},icon('plug'),h('h3',{},tr('Новый ключ — свой адрес')),h('p',{},tr('После сохранения появится отдельный endpoint. При включении общего режима ключ также войдёт в пул моделей.'))));
-  $('#connection-cards').replaceChildren(manager,left,right);renderProviderExample();
+    right.append(h('a',{href:'#events',class:'provider-events',onclick:event=>{
+      if (!followLocalLink(event)) return;
+      $('#events-search').value=profile.id;
+      $('#events-filter [data-filter=all]').click();
+      showTab('events');
+    }},tr('Посмотреть запросы подключения')));
+  }else left.append(h('p',{class:'hint'},tr('После сохранения здесь появятся адрес и параметры для вашего приложения.')));
+  $('#connection-cards').replaceChildren(manager,left,...(profile?[right]:[]));renderProviderExample();
 }
 function renderProviderExample(){
   const target=$('#provider-example'),p=providerProfile();if(!target||!p)return;

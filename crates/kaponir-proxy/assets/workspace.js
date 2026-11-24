@@ -129,21 +129,18 @@ function jobTitle(job) {
     : job.name || tr(job.family === "file" ? "Обработка файла" : "Фоновый анализ");
 }
 function jobRow(job) {
+  const knownTotal = job.total > 0 && job.completed != null;
+  const active = ["running","processing","scanning","downloading","queued"].includes(job.state);
+  const amount = job.kind === "download" ? jobProgress(job) : knownTotal ? job.completed + "/" + job.total : "";
+  const route = jobRoute(job);
   return h(
     "article",
-    { class: "work-row" },
-    workButton(jobTitle(job), () => showTab(jobRoute(job)), "finding-value"),
-    h(
-      "span",
-      { class: "hint" },
-      [
-        job.source?.model || job.model,
-        stage(job),
-        job.completed != null && job.total != null ? job.completed + "/" + job.total : "",
-      ]
-        .filter(Boolean)
-        .join(" · "),
-    ),
+    { class: "job-history-row" },
+    h("a", {class:"job-name", href:"#"+route, onclick:event=>{if (followLocalLink(event)) showTab(route);}}, jobTitle(job)),
+    h("span", {class:"job-state", "data-state":job.state}, stage(job)),
+    h("span", {class:"hint job-model"}, job.source?.model || job.model || ""),
+    amount ? h("span", {class:"job-amount"}, amount) : null,
+    active && knownTotal ? h("progress", {value:job.completed, max:job.total, "aria-label":jobTitle(job)}) : null,
   );
 }
 function renderJobIndicator(data) {
@@ -339,16 +336,21 @@ async function refreshJobs() {
     desk.lastUpdate = data.updated;
     desk.apiActive = data.api_active;
     if (detail?.source?.provider === "local" && detail.state === "running") {
-      desk.workerReadings = await api("/api/v1/ui/worker");
+      desk.workerReadings = await api("/api/v1/ui/worker").catch(() => null);
       if (seq !== desk.sequence) return;
     }
     renderJobIndicator(data);
     const first = (data.preview || data.jobs)[0];
     const home = $("#home-job");
     home.hidden = !first;
-    if (first)
-      home.replaceChildren(h("small", { class: "hint" }, tr("Последнее задание")), jobRow(first));
-    if (route === location.hash.slice(1) && section === "settings") await refreshWorkerReadings();
+    const homeSignature = JSON.stringify([first, I18N.language]);
+    if (first && desk.homeSignature !== homeSignature) {
+      const focused = home.contains(document.activeElement);
+      home.replaceChildren(h("h2", {}, tr(data.active ? "Текущее задание" : "Последнее задание")), jobRow(first));
+      if (focused) home.querySelector("a")?.focus({preventScroll:true});
+    }
+    desk.homeSignature = homeSignature;
+    if (route === location.hash.slice(1) && section === "settings") void refreshWorkerReadings();
     if (route !== location.hash.slice(1) || section !== "jobs") return;
     const host = $("#jobs-content");
     host.setAttribute("aria-busy", "false");
@@ -560,7 +562,15 @@ async function exportRows(status) {
       : data.items;
   downloadRows(rows, status === "checked" ? "kaponir-training.jsonl" : "kaponir-drafts.jsonl");
 }
-function editExample(row) {
+function datasetSource(row) {
+  switch (row.source) {
+    case "detector": return tr("Быстрый детектор");
+    case "learning": return tr("Фоновый анализ");
+    case "synthetic-curated": return tr("Примеры из этого браузера");
+    default: return row.source;
+  }
+}
+function editExample(row, index = 0, drafts = 0) {
   desk.edit = row.id;
   const spans = row.spans.map((s) => ({ ...s }));
   const excerpt = h("textarea", { readonly: true, rows: 5, "aria-label": tr("Исходный фрагмент") });
@@ -580,10 +590,18 @@ function editExample(row) {
     ),
   );
   const marks = h("div", { class: "dataset-marks" }),
-    note = h("p", { role: "status", class: "hint" }),
     encoder = new TextEncoder();
-  let selected = null,
-    modified = false;
+  const preview = h("div", {class:"marked-source"});
+  const sourceInput = h("label", {class:"field", hidden:true}, tr("Исходный фрагмент"), excerpt);
+  const fields = h("div", {hidden:true}, h("div", {class:"form-actions"},
+    h("label", {class:"field"}, tr("Тип значения"), kind), h("label", {class:"field"}, tr("Действие"), action)),
+    h("p", {class:"hint"}, tr("Выделите точное значение в тексте и запишите отметку.")),
+    workButton("Записать выделение", mark), workButton("Отмена", () => { selected=null; modified=false; showMarks(); editRange(false); }));
+  let selected = null, modified = false, saving = false;
+  function editRange(open) {
+    sourceInput.hidden = fields.hidden = !open;
+    preview.hidden = open;
+  }
   for (const control of [kind, action])
     control.onchange = () => {
       modified = true;
@@ -591,30 +609,37 @@ function editExample(row) {
   excerpt.onselect = () => {
     if (selected !== null) modified = true;
   };
+  function selectSpan(i) {
+    const span = spans[i], pos = byteMap(row.text);
+    selected = i;
+    kind.value = span.kind;
+    action.value = span.action;
+    editRange(true);
+    excerpt.focus();
+    excerpt.setSelectionRange(pos(span.start_byte), pos(span.end_byte));
+    modified = false;
+    for (const button of marks.querySelectorAll(".mark-choice")) button.setAttribute("aria-pressed", String(Number(button.dataset.index) === i));
+  }
   function showMarks() {
+    const offset = byteMap(row.text), text = [];
+    let cursor = 0;
+    for (const {span,i} of spans.map((span,i)=>({span,i})).sort((a,b)=>a.span.start_byte-b.span.start_byte)) {
+      const start=offset(span.start_byte), end=offset(span.end_byte);
+      text.push(row.text.slice(cursor,start), h("mark", {class:"candidate-match"},
+        h("button", {type:"button", onclick:()=>selectSpan(i)}, row.text.slice(start,end))));
+      cursor=end;
+    }
+    preview.replaceChildren(...text,row.text.slice(cursor));
     marks.replaceChildren(
       ...spans.map((s, i) =>
         h(
           "div",
           { class: "work-row" },
-          workButton(
-            s.value +
-              " · " +
-              kindLabel(s.kind) +
-              " · " +
-              tr({ mask: "Скрыть", keep: "Оставить открытым", review: "Требует проверки" }[s.action]),
-            () => {
-              selected = i;
-              kind.value = s.kind;
-              action.value = s.action;
-              const pos = byteMap(row.text);
-              excerpt.focus();
-              excerpt.setSelectionRange(pos(s.start_byte), pos(s.end_byte));
-            },
-          ),
+          h("button", {class:"mark-choice", type:"button", "data-index":i, "aria-pressed":String(selected===i), onclick:()=>selectSpan(i)},
+            h("strong", {}, s.value), h("small", {}, kindLabel(s.kind) + " · " + tr({mask:"Скрыть",keep:"Оставить открытым",review:"Требует проверки"}[s.action]))),
           workButton("Убрать отметку", () => {
             spans.splice(i, 1);
-            selected = null;
+            selected = null; modified = false; editRange(false);
             showMarks();
           }),
         ),
@@ -636,52 +661,87 @@ function editExample(row) {
     selected = null;
     modified = false;
     showMarks();
+    editRange(false);
   }
-  async function save(status) {
-    if (selected !== null && modified) mark();
-    await api("/api/v1/ui/dataset/import", {
-      method: "POST",
-      body: { items: [{ ...row, spans, status }] },
-    });
-    desk.edit = null;
-    await loadVaultDataset();
+  async function save(status, advance = false) {
+    if (saving) return;
+    if (!fields.hidden && (modified || (selected === null && excerpt.selectionEnd > excerpt.selectionStart))) mark();
+    saving = true;
+    editor.disabled = true;
+    try {
+      await api("/api/v1/ui/dataset/import", {method:"POST", body:{items:[{...row, spans, status}]}});
+      if (!editor.isConnected || location.hash !== "#dataset") return;
+      desk.edit = null;
+      if (advance && desk.datasetStatus !== "draft") {
+        desk.datasetStatus = "draft";
+        desk.datasetOffset = 0;
+        index = 0;
+      }
+      $("#dataset-feedback").textContent = tr(status === "checked" ? "Пример сохранён как проверенный." : "Черновик сохранён.");
+      await loadVaultDataset(advance ? index : null);
+    } finally {
+      saving = false;
+      editor.disabled = false;
+    }
   }
   showMarks();
   const host = $("#vault-dataset");
-  host.replaceChildren(
-    workButton("К примерам", () => {
+  const editor = h("fieldset", {class:"dataset-editor"}, h("legend", {class:"sr-only"}, tr("Разметка примера")),
+    h("div", {class:"dataset-editor-nav"}, workButton("К примерам", () => {
       desk.edit = null;
       return loadVaultDataset();
-    }),
-    h("h2", {}, row.value || tr("Пример для датасета")),
-    h("p", { class: "hint" }, row.source),
-    row.finding ? workButton("Открыть исходную находку", () => showReview([row.finding], "all")) : "",
-    excerpt,
-    marks,
-    h(
-      "div",
-      { class: "form-actions" },
-      kind,
-      action,
-      workButton("Записать выделение", mark),
+    }), h("span", {class:"hint"}, tr("Осталось черновиков · {{0}}", [number(drafts)]))),
+    h("div", {class:"dataset-editor-grid"},
+      h("section", {class:"panel dataset-source"}, h("h2", {tabindex:-1}, row.value || tr("Пример для датасета")),
+        h("p", {class:"hint"}, datasetSource(row)), preview, sourceInput,
+        row.finding ? workButton("Открыть исходную находку", () => showReview([row.finding], "all")) : null),
+      h("section", {class:"panel dataset-annotations"}, h("h2", {}, tr("Разметка примера")), marks, fields,
       workButton("Новая отметка", () => {
         selected = null;
+        modified = false;
+        showMarks();
+        editRange(true);
         excerpt.focus();
-      }),
-    ),
-    note,
+        excerpt.setSelectionRange(0,0);
+      }))),
     h(
       "div",
       { class: "form-actions" },
       workButton("Сохранить черновик", () => save("draft"), "secondary", !info.editable),
-      workButton("Сохранить проверенным", () => save("checked"), "primary", !info.editable),
+      workButton("Сохранить проверенным", () => save("checked"), row.status === "checked" ? "primary" : "secondary", !info.editable),
+      row.status !== "checked" ? workButton("Сохранить и продолжить проверку", () => save("checked",true), "primary", !info.editable) : null,
     ),
   );
+  host.replaceChildren(editor);
+  editor.querySelector("h2").focus();
 }
-async function loadVaultDataset() {
+async function loadVaultDataset(continueAt = null) {
   const seq = (desk.datasetRequest = (desk.datasetRequest || 0) + 1);
-  const data = await api("/api/v1/ui/dataset?" + datasetQuery());
-  if (seq !== desk.datasetRequest || desk.edit) return;
+  let data;
+  try {
+    data = await api("/api/v1/ui/dataset?" + datasetQuery());
+  } catch (error) {
+    if (seq === desk.datasetRequest && !desk.edit && location.hash === "#dataset")
+      $("#vault-dataset").replaceChildren(h("div", {class:"empty-state"}, h("p", {role:"alert"}, error.message),
+        workButton("Повторить", () => loadVaultDataset(continueAt))));
+    return;
+  }
+  if (seq !== desk.datasetRequest || desk.edit || location.hash !== "#dataset") return;
+  if (desk.datasetOffset && !data.items.length) {
+    desk.datasetOffset = Math.max(0, Math.floor((data.total-1)/100)*100);
+    return loadVaultDataset(continueAt === null ? null : 0);
+  }
+  if (continueAt !== null && data.items.length) {
+    const i = continueAt < data.items.length ? continueAt : 0;
+    editExample(data.items[i], i, data.drafts);
+    return;
+  }
+  if (continueAt !== null && !data.drafts) {
+    $("#dataset-feedback").textContent = tr("Все черновики этой выборки проверены. Можно выгрузить примеры для обучения.");
+    desk.datasetStatus = "checked";
+    desk.datasetOffset = 0;
+    return loadVaultDataset();
+  }
   const host = $("#vault-dataset");
   const filter = h(
     "div", {class:"seg dataset-filter", role:"group", "aria-label":tr("Состояние примеров")},
@@ -720,6 +780,10 @@ async function loadVaultDataset() {
     "div",
     { class: "form-actions" },
     filter,
+    data.drafts ? workButton(tr("Начать проверку · {{0}}", [number(data.drafts)]), () => {
+      desk.datasetStatus = "draft"; desk.datasetOffset = 0;
+      return loadVaultDataset(0);
+    }, "primary") : null,
     workButton("Выгрузить черновики", () => exportRows("draft"), "secondary", !data.drafts),
     workButton("Выгрузить для обучения", () => exportRows("checked"), "secondary", !data.checked),
   );
@@ -748,17 +812,12 @@ async function loadVaultDataset() {
           desk.datasetStatus="draft"; desk.datasetOffset=0; return loadVaultDataset();
         }) : workButton("Открыть находки", () => showReview())),
     );
-  else
-    content.push(
-      ...data.items.map((row) =>
-        h(
-          "div",
-          { class: "work-row" },
-          workButton(row.value || row.text.slice(0, 70), () => editExample(row), "finding-value"),
-          h("small", { class: "hint" }, row.source),
-        ),
-      ),
-    );
+  else content.push(h("table", {class:"dataset-table"},
+    h("thead", {}, h("tr", {}, ["Значение","Состояние","Источник"].map(label => h("th", {scope:"col"}, tr(label))))),
+    h("tbody", {}, data.items.map((row, index) => h("tr", {},
+      h("td", {}, workButton(row.value || row.text.slice(0, 70), () => editExample(row, index, data.drafts), "finding-value")),
+      h("td", {}, h("span", {class:"dataset-state", "data-state":row.status}, tr(row.status==="checked" ? "Проверено" : "Черновик"))),
+      h("td", {}, datasetSource(row)))))));
   if (desk.datasetOffset || desk.datasetOffset + 100 < data.total)
     content.push(
       h(
@@ -810,51 +869,49 @@ $("#dataset-migrate").onclick = async () => {
 };
 TABS.dataset = async () => {
   desk.edit = null;
+  $("#dataset-feedback").textContent = "";
   await loadVaultDataset();
 };
 refreshJobs();
 
 function viewHardware(worker) {
-  const hw = worker.hardware || {},
-    res = worker.resources || {},
-    absent = tr("Нет данных");
-  const field = (label, value) => h("div", {}, h("dt", {}, tr(label)), h("dd", {}, value ?? absent));
-  const mib = (v) => (v == null ? absent : bytesMiB(v));
-  return h(
-    "dl",
-    { class: "worker-readings" },
-    field("Процессоры воркера", hw.host_logical_cpus),
-    field(
-      "Лимит CPU",
-      hw.effective_cgroup_cpu_quota_cores ??
-        (hw.cgroup_cpu_limit_status === "unlimited" ? tr("Без ограничения") : absent),
-    ),
-    field("Память машины", mib(hw.host_ram_bytes)),
-    field(
-      "Лимит памяти",
-      hw.cgroup_memory_limit_status === "unlimited"
-        ? tr("Без ограничения")
-        : mib(hw.effective_cgroup_memory_limit_bytes),
-    ),
-    field("Доступная память", mib(res.available_bytes)),
-    field("CPU процесса модели", res.model_cpu_cores == null ? absent : res.model_cpu_cores + " CPU"),
-    field("Память модели", mib(res.model_rss_bytes)),
+  const hw = worker.hardware || {}, res = worker.resources || {};
+  const field = (label, value) => value == null || value === "" ? null : h("div", {}, h("dt", {}, tr(label)), h("dd", {}, value));
+  const mib = value => value == null ? null : bytesMiB(value);
+  const main = h("dl", {class:"worker-readings"},
+    field("Доступная память", mib(res.available_bytes)), field("Процессоры воркера", hw.host_logical_cpus),
+    field("CPU процесса модели", res.model_cpu_cores == null ? null : res.model_cpu_cores + " CPU"),
+    field("Токенов в секунду", res.tokens_per_second));
+  const rest = h("dl", {class:"worker-readings"},
+    field("Память машины", mib(hw.host_ram_bytes)), field("Память модели", mib(res.model_rss_bytes)),
     field("Пиковая память модели", mib(res.model_peak_rss_bytes)),
-    field(
-      "Потоки модели",
-      Array.isArray(res.active_threads) ? res.active_threads.join(" / ") : worker.threads,
-    ),
-    field("Активные запросы", worker.evaluations),
-    field("Токенов в секунду", res.tokens_per_second),
-    field("Ожидание запроса, с", res.wait_seconds),
-  );
+    field("Лимит памяти", hw.cgroup_memory_limit_status === "unlimited" ? tr("Без ограничения") : mib(hw.effective_cgroup_memory_limit_bytes)),
+    field("Лимит CPU", hw.effective_cgroup_cpu_quota_cores ?? (hw.cgroup_cpu_limit_status === "unlimited" ? tr("Без ограничения") : null)),
+    field("Потоки модели", res.active_threads?.join(" / ") || worker.threads),
+    field("Активные запросы", worker.evaluations), field("Ожидание запроса, с", res.wait_seconds));
+  return h("div", {class:"hardware-readout"}, main.childElementCount ? main :
+    h("p", {class:"hint"}, tr(worker.online ? "Служба пока не передала показатели нагрузки." : "Показатели появятся после подключения службы анализа.")),
+    rest.childElementCount ? h("details", {}, h("summary", {}, tr("Все показатели и лимиты")), rest) : null);
+}
+function workerModelState(worker) {
+  return JSON.stringify([!!worker.enabled, !!worker.online, worker.calibration?.state, worker.calibration?.model,
+    worker.catalog?.map(model => model.id), Object.entries(worker.models || {}).map(([id, files]) => [id, !!files.downloaded, files.sha256])]);
 }
 async function loadWorkspaceModels() {
-  const [cfg, worker] = await Promise.all([api("/api/v1/ui/workspace/model"), api("/api/v1/ui/worker")]);
-  if (location.hash !== "#settings") return;
-  desk.calibrationState = worker.calibration?.state;
-  const box = $("#workspace-models"),
-    models = worker.models || {},
+  const request = desk.modelRequest = (desk.modelRequest || 0) + 1;
+  const box = $("#workspace-models");
+  let cfg, worker;
+  try {
+    [cfg, worker] = await Promise.all([api("/api/v1/ui/workspace/model"), api("/api/v1/ui/worker").catch(() => ({online:false}))]);
+  } catch (error) {
+    if (location.hash === "#settings" && request === desk.modelRequest)
+      box.replaceChildren(h("section", {class:"panel model-setup"}, h("p", {role:"alert"}, error.message),
+        workButton("Повторить", loadWorkspaceModels)));
+    return;
+  }
+  if (location.hash !== "#settings" || request !== desk.modelRequest) return;
+  desk.workerModelState = workerModelState(worker);
+  const models = worker.models || {},
     hw = worker.hardware || {};
   const budget = [
     hw.host_ram_bytes,
@@ -880,7 +937,7 @@ async function loadWorkspaceModels() {
     (a, b) =>
       Number(!!models[b.id]?.downloaded) - Number(!!models[a.id]?.downloaded) || a.bytes - b.bytes,
   );
-  const activeName = source => source?.model || source?.connection || tr("Отключено");
+  const activeName = source => source && source.provider !== "none" ? modelName(source.model) || source.connection : tr("Отключено");
   const pick = h(
     "select",
     { "aria-label": tr("Модель поиска и проверки") },
@@ -892,6 +949,8 @@ async function loadWorkspaceModels() {
   const save = async (body) => {
     await api("/api/v1/ui/workspace/model", { method: "PUT", body });
     await loadWorkspaceModels();
+    const status = $("#workspace-save-state");
+    if (location.hash === "#settings" && status) status.textContent = tr("Настройки сохранены");
   };
   const usingCategorizationModel = () => cfg.categorization?.provider === "local" && cfg.categorization.model === pick.value;
   const usingPickedModel = () => usingCategorizationModel() && cfg.analysis?.provider === "local" && cfg.analysis.model === pick.value;
@@ -965,14 +1024,28 @@ async function loadWorkspaceModels() {
     type: "number",
     min: 1,
     max: 10,
-    value: cfg.slots,
+    required:true, value: desk.slotDraft ?? cfg.slots,
     "aria-label": tr("Параллельные запросы"),
   });
+  const saveSlots = h("button", {type:"button", class:"secondary"}, tr("Сохранить"));
+  const syncSlots = () => { saveSlots.disabled = !info.editable || !slot.validity.valid || Number(slot.value) === cfg.slots; };
+  slot.oninput = () => { desk.slotDraft = slot.value; syncSlots(); };
+  saveSlots.onclick = async () => {
+    if (!slot.reportValidity()) return;
+    saveSlots.disabled = true;
+    const value = Number(slot.value);
+    try {
+      await save({slots:value});
+      if (Number(desk.slotDraft) === value) desk.slotDraft = null;
+    } catch (error) { fail(error); }
+    finally { syncSlots(); }
+  };
+  syncSlots();
   const slots = h(
     "div",
     { class: "form-actions worker-slot-controls" },
     h("label", { class: "field" }, tr("Параллельные запросы"), slot),
-    workButton("Сохранить", () => save({ slots: Number(slot.value) }), "secondary", !info.editable),
+    saveSlots,
   );
   if (cfg.previous_slots != null && cfg.previous_slots !== cfg.slots)
     slots.append(
@@ -982,6 +1055,7 @@ async function loadWorkspaceModels() {
     );
   const cal = worker.calibration,
     calibration = h("div", { id: "cpu-calibration", class: "form-actions" });
+  let applySlots;
   if (cal) {
     calibration.append(
       workButton(
@@ -1013,12 +1087,10 @@ async function loadWorkspaceModels() {
       calibration.append(
         h("small", {}, tr("Слоты {{0}} · {{1}} запросов/с", [trial.slots, trial.requests_per_second])),
       );
-    if (cal.state === "succeeded" && cal.recommended_slots && cal.recommended_slots !== cfg.slots)
-      calibration.append(
-        workButton(tr("Применить {{0}} слотов", [cal.recommended_slots]), () =>
-          save({ slots: cal.recommended_slots }),
-        ),
-      );
+    if (cal.state === "succeeded" && cal.recommended_slots && cal.recommended_slots !== cfg.slots) {
+      applySlots = workButton(tr("Применить {{0}} слотов", [cal.recommended_slots]), () => save({slots:cal.recommended_slots}), "secondary", !info.editable);
+      calibration.append(applySlots);
+    }
   }
   function updateChoice() {
     const button = modelControls.querySelector("button");
@@ -1026,11 +1098,12 @@ async function loadWorkspaceModels() {
     button.disabled = !info.editable || !pick.value;
     scenarioField.hidden = !pick.value;
     scenario.disabled = !info.editable;
-    button.hidden = installed && usingPickedModel() && scenario.value === activeScenario();
+    button.hidden = !pick.value || (installed && usingPickedModel() && scenario.value === activeScenario());
     button.textContent = tr(usingCategorizationModel() && scenario.value !== activeScenario() ? "Сохранить сценарий" :
       !pick.value || installed ? "Использовать для поиска и проверки" : "Подготовить модель");
-    renderScenarioStudy(studyBox, pick.value ? measuredModelId(pick.value, models) : null,
-      pick.value ? scenario.value : null);
+    studyBox.hidden = !pick.value;
+    if (pick.value) renderScenarioStudy(studyBox, measuredModelId(pick.value, models), scenario.value, scenario);
+    if (applySlots) applySlots.hidden = cal.model !== pick.value || !installed;
     const measure = calibration.querySelector("button");
     if (measure)
       measure.disabled = !info.editable || !worker.enabled || !installed || cal.state === "running";
@@ -1046,25 +1119,21 @@ async function loadWorkspaceModels() {
     updateChoice();
   };
   updateChoice();
+  const shared = cfg.analysis?.model && cfg.analysis.model === cfg.categorization?.model &&
+    cfg.analysis.provider === cfg.categorization.provider && cfg.analysis.connection_id === cfg.categorization.connection_id;
   box.replaceChildren(
-    h("section", {id: "workspace-model-choice", "aria-labelledby": "workspace-model-title"},
+    h("section", {id: "workspace-model-choice", class:"panel model-setup", "aria-labelledby": "workspace-model-title"},
       h("h2", {id: "workspace-model-title"}, tr("Модель поиска и проверки")),
-      h("p", {}, tr("Поиск · {{0}}", [activeName(cfg.analysis)]), "  ·  ",
-        tr("Категоризация · {{0}}", [activeName(cfg.categorization)])),
-      modelControls, studyBox),
-    candidates.length
-      ? h(
-          "p",
-          { class: "hint" },
-          tr("Подходит по памяти и проверен на задачах поиска и категоризации · {{0}}", [
-            candidates[0].label || candidates[0].id,
-          ]),
-        )
-      : h("p", { class: "hint" }, tr("Для подбора модели нужны данные воркера и совместимый профиль.")),
-    h("h3", {}, tr("Производительность воркера")),
-    viewHardware(worker),
-    slots,
-    calibration,
+      h("p", {class:"model-assignment"}, shared ? tr("Для поиска и проверки используется {{0}}.", [activeName(cfg.analysis)]) :
+        tr("Поиск · {{0}}", [activeName(cfg.analysis)]) + "  ·  " + tr("Категоризация · {{0}}", [activeName(cfg.categorization)])),
+      modelControls, candidates.length ? h("p", {class:"hint"}, tr("Подходит по памяти и проверен на задачах поиска и категоризации · {{0}}", [candidates[0].label || candidates[0].id])) : null,
+      !catalog.length ? h("p", {class:"hint"}, tr("Чтобы выбрать локальную модель, откройте службу моделей. Для внешней модели укажите API в настройках обнаружения.")) : null,
+      studyBox, h("div", {class:"model-paths"},
+        h("a", {href:"#analysis"}, tr("Источник модели и API")), h("a", {href:"#worker"}, tr("Открыть службу моделей"))),
+      h("p", {id:"workspace-save-state", role:"status", class:"form-status"})),
+    h("section", {class:"panel hardware-panel"}, h("h2", {}, tr("Производительность воркера")),
+      viewHardware(worker), h("p", {id:"resource-error", role:"status", class:"form-status"}),
+      h("h3", {}, tr("Параллельная обработка")), slots, calibration),
   );
 }
 const basicSettings = TABS.settings;
@@ -1074,15 +1143,27 @@ TABS.settings = async () => {
 };
 
 async function refreshWorkerReadings() {
-  const readings = $("#workspace-models .worker-readings");
-  if (!readings) return;
-  const worker = await api("/api/v1/ui/worker");
-  if (location.hash !== "#settings") return;
-  if (desk.calibrationState !== worker.calibration?.state) {
-    await loadWorkspaceModels();
-    return;
-  }
-  readings.replaceWith(viewHardware(worker));
+  const readings = $("#workspace-models .hardware-readout");
+  if (!readings || desk.readingsPending) return;
+  desk.readingsPending = true;
+  try {
+    const worker = await api("/api/v1/ui/worker");
+    if (location.hash !== "#settings" || !readings.isConnected) return;
+    if (desk.workerModelState !== workerModelState(worker)) {
+      await loadWorkspaceModels();
+      return;
+    }
+    $("#resource-error").textContent = "";
+    const updated = viewHardware(worker);
+    const details = updated.querySelector("details");
+    if (details) details.open = !!readings.querySelector("details[open]");
+    const focus = readings.contains(document.activeElement);
+    readings.replaceWith(updated);
+    if (focus) updated.querySelector("summary")?.focus({preventScroll:true});
+  } catch {
+    if (location.hash === "#settings" && readings.isConnected)
+      $("#resource-error").textContent = tr("Не удалось обновить показатели воркера. Повторяем подключение.");
+  } finally { desk.readingsPending = false; }
 }
 
 $("#discover-collect").onclick = async () => {

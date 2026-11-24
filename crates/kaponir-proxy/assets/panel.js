@@ -251,7 +251,16 @@ function renderCards(buckets) {
   );
   $("#summary-cards").setAttribute("aria-busy", "false");
   $("#welcome-banner").hidden = info.provider_configured === true;
+  const pending = info.review_pending ?? info.stats?.journal_open ?? 0;
+  const next = $("#home-open-pending");
+  next.hidden = !pending;
+  next.textContent = tr("Открыть на проверку · {{0}}", [number(pending)]);
+  $("#home-open-document").classList.toggle("primary", !pending);
+  $("#home-intake-note").textContent = tr(pending
+    ? "Откройте исходный фрагмент и решите, какие значения нужно скрывать."
+    : "Вставьте текст или откройте документ, чтобы увидеть первые значения для проверки.");
 }
+$("#home-open-pending").addEventListener("click", () => showReview());
 function renderLatency() {
   const hours = Number($("#period").value),
     cutoff = (Math.floor(Date.now() / 3600000) - hours + 1) * 3600000;
@@ -534,8 +543,13 @@ function sessionsTable(events, compact = false) {
     return {key, rows, issues:rows.filter(hasIssue)};
   }).filter(group => !onlyIssues || group.issues.length).sort((a,b) => b.rows[0].time_ms - a.rows[0].time_ms);
   if (compact) entries = entries.slice(0,5);
-  if (!entries.length) return h("div", {class:"empty-state"}, icon("chat"),
-    h("strong", {}, tr(onlyIssues ? "Запросов, требующих внимания, нет" : "Сессий за период нет")));
+  if (!entries.length) {
+    const searching = !compact && $("#events-search").value.trim();
+    return h("div", {class:"empty-state"}, icon("chat"),
+      h("strong", {}, tr(onlyIssues ? "Запросов, требующих внимания, нет" : searching ? "Совпадений в сессиях нет" : "Сессий за период нет")),
+      searching ? workButton("Очистить поиск", () => { $("#events-search").value=""; renderEventViews(); $("#events-search").focus(); }) :
+        onlyIssues ? workButton("Все запросы", () => $("#events-filter [data-filter=all]").click()) : null);
+  }
   const prefix = compact ? "recent" : "traffic";
   return h("table", {class:"sessions-table"}, h("thead", {}, h("tr", {},
     ["Сессия / запрос","Последняя активность","Модель","Запросы","Замены","Состояние","Действия"].map(title => h("th", {scope:"col"}, tr(title))))),
@@ -969,6 +983,7 @@ function renderSettings() {
 async function loadAnalysis() {
   await Promise.all([loadLearningSettings(), loadWorkerSummary(), loadLearningHistory()]);
   renderLearningWidget();
+  if (location.hash === "#worker" && WORKER.data) renderWorker();
 }
 let rulesView = "list";
 function showRulesView(view) {
@@ -980,7 +995,7 @@ function showRulesView(view) {
       el.hidden =
         el.id === "rules-audit"
           ? view !== "audit"
-          : view === "audit" || (["rule-editor","rule-filters"].includes(el.id) && !info.editable);
+          : view === "audit" || (el.id === "rule-editor" && !info.editable);
   if (view === "audit") loadAudit().catch(fail);
 }
 const auditSelection = new Map();

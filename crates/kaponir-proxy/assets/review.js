@@ -197,6 +197,24 @@ async function openFindingRule(item) {
   const row=document.getElementById("rule-"+scope+"-"+id);
   if(row){row.focus();row.scrollIntoView({block:"center"});}
 }
+async function adjacentFinding(key, step) {
+  let data = ReviewUI.data;
+  const index = data.items.findIndex(item => item.key === key);
+  const target = data.offset + index + step;
+  if (index < 0 || target < 0 || target >= data.total) return;
+  if (target < data.offset || target >= data.offset + data.items.length) {
+    ReviewUI.offset = Math.floor(target / data.limit) * data.limit;
+    data = await loadReview();
+    if (!data || location.hash !== "#review") return;
+  }
+  const item = data.items[target - data.offset];
+  if (!item) return;
+  showFinding(item, false);
+  const button = $("#finding-detail").querySelector(step > 0 ? ".next-finding" : ".previous-finding");
+  (button.disabled ? $("#finding-detail .back-to-findings") : button).focus({preventScroll:true});
+  if (matchMedia("(min-width: 801px)").matches)
+    document.getElementById("finding-"+item.key)?.scrollIntoView({block:"nearest"});
+}
 function showFinding(item, moveFocus = true) {
   const detail=$("#finding-detail");
   ReviewUI.detailKey=item?.key;
@@ -212,8 +230,17 @@ function showFinding(item, moveFocus = true) {
   if(item.job_recommendation && item.job_recommendation.job_id!==item.recommendation?.job_id){
     card.prepend(h("p",{class:"inline-notice"},tr("Решение в этом задании")," · ",item.job_recommendation.reason||reviewError(item.job_recommendation.error)));
   }
-  const close=workButton("Назад к списку",()=>{showFinding(null);document.getElementById("finding-"+item.key)?.focus();});
-  detail.replaceChildren(close,card);
+  const close=workButton("Назад к списку",()=>{showFinding(null);document.getElementById("finding-"+item.key)?.focus();}, "text-button back-to-findings");
+  const data=ReviewUI.data, position=data.offset+data.items.findIndex(row=>row.key===item.key)+1;
+  const nav=h("nav", {class:"finding-pager","aria-label":tr("Просмотр находок")}, close,
+    h("span", {class:"hint"}, tr("{{0}} из {{1}}", [position, data.total])),
+    workButton("Предыдущая находка",()=>adjacentFinding(item.key,-1),"secondary previous-finding",position<=1),
+    workButton("Следующая находка",()=>adjacentFinding(item.key,1),"secondary next-finding",position>=data.total));
+  for (const [button, name] of [[nav.querySelector(".previous-finding"),"previous"],[nav.querySelector(".next-finding"),"next"]]) {
+    button.title=button.textContent; button.setAttribute("aria-label",button.title); button.replaceChildren(icon("arrow"));
+    button.classList.add("pager-"+name);
+  }
+  detail.replaceChildren(nav,card);
   if (moveFocus) {
     close.focus({preventScroll:true});
     if(matchMedia("(max-width: 800px)").matches)detail.scrollIntoView({block:"start"});
@@ -242,12 +269,22 @@ function renderReview() {
   if (!data) return;
   for(const button of document.querySelectorAll("[data-review-view]"))button.setAttribute("aria-pressed",String(button.dataset.reviewView===ReviewUI.view));
   const nodes=[];
+  const filters=reviewFilters();
+  const filtered=!!(filters.q || filters.kind || filters.action || filters.source!=="all" || filters.sort!=="recent");
+  $("#review-clear-filters").hidden=!filtered;
+  $("#review-match-count").textContent=tr("Находок в выборке · {{0}}", [number(data.total)]);
   if (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob) nodes.push(h("div",{class:"inline-notice"},tr("Результаты выбранного запуска"),
     workButton("Все находки",()=>showReview())));
   function table(items) {
     return h("table",{class:"findings-table"},h("thead",{},h("tr",{},...["","Значение","Источник","Тип","Состояние"].map((title,i)=>h("th",{class:i===2?"source-cell":""},tr(title))))),h("tbody",{},items.map(findingRow)));
   }
-  if(!data.items.length)nodes.push(h("div",{class:"empty"},tr("Находок по этим условиям нет")));
+  if(!data.items.length) {
+    const scoped=!!(ReviewUI.jobId || ReviewUI.learningJob || ReviewUI.keys || ReviewUI.filterSet);
+    nodes.push(h("div",{class:"empty-state"}, icon("search"), h("strong",{},tr("Находок по этим условиям нет")),
+      filtered ? workButton("Сбросить фильтры", resetReviewFilters) :
+        scoped || ReviewUI.view==="history" ? workButton("Открыть находки",()=>showReview()) :
+          workButton("Найти значения в документе",()=>{showTab("discover");showDiscoverView("input");})));
+  }
   else if(ReviewUI.groups) {
     for(const kind of new Set(data.items.map(i=>i.kind)))nodes.push(h("details",{open:true,class:"review-group"},h("summary",{},kindLabel(kind)),table(data.items.filter(i=>i.kind===kind))));
   } else nodes.push(table(data.items));
@@ -277,7 +314,7 @@ function renderReviewSelection() {
   const dialog = $("#review-options");
   const study = dialog.querySelector(".review-study") || h("div", {class: "scenario-study review-study"});
   const showStudy = () => renderScenarioStudy(study, source.provider === "local" ? measuredModelId(source.model) : null,
-    ReviewUI.scenario || source.scenario || "standard");
+    ReviewUI.scenario || source.scenario || "standard", mode);
   const mode = source?.supports_scenarios ? h("select", {"aria-label": tr("Способ проверки для запуска"), onchange: e => {
     ReviewUI.scenario = e.target.value; showStudy();
   }}, scenarioOptions(ReviewUI.scenario || source.scenario || "standard")) : null;
@@ -456,6 +493,7 @@ async function loadReview() {
     renderReview();
     lockReviewResults(false);
     $("#review-result .review-load-error")?.remove();
+    return data;
   }catch(e){
     if(request===ReviewUI.request)$("#review-result").replaceChildren(h("span",{class:"review-load-error"},
       reviewError(e.messageKey||e.message), workButton("Повторить",loadReview)));
@@ -472,6 +510,13 @@ function changedFilter(event) {
   $("#review-list").setAttribute("aria-busy", "true");
   ReviewUI.filterTimer = setTimeout(loadReview, 250);
 }
+function resetReviewFilters() {
+  for(const [key, value] of [["source","all"],["sort","recent"],["query",""],["kind",""],["action",""]])
+    $("#review-"+key).value=value;
+  changedFilter();
+  $("#review-query").focus();
+}
+$("#review-clear-filters").onclick=resetReviewFilters;
 for(const b of document.querySelectorAll("[data-review-view]")) b.onclick=()=>{ReviewUI.view=b.dataset.reviewView;changedFilter();};
 for(const id of ["review-source","review-sort","review-kind","review-action"])$("#"+id).onchange=changedFilter;
 $("#review-query").oninput=changedFilter;

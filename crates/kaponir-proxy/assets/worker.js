@@ -292,6 +292,21 @@ function renderWorker() {
   const mode = $("#worker-mode").value;
   updateProfileNote("worker", mode === "qwen" ? chosenLocalPreset("worker")?.inference.local_generation : null);
   $("#worker-scenario-field").hidden = mode !== "configured";
+  const cat = LearningUI.categorization?.settings;
+  if (mode === "configured" && cat) {
+    const select = $("#worker-scenario");
+    const supported = cat.provider === "local" || (cat.provider === "s1" && cat.http?.protocol === "openai");
+    select.disabled = !supported;
+    const study = $("#worker-scenario-study");
+    if (supported) {
+      renderScenarioStudy(study, cat.provider === "local" ? measuredModelId(cat.model, data.models) : null,
+        select.value || cat.scenario || "standard", select);
+    } else {
+      select.value = "";
+      delete study.dataset.study;
+      study.textContent = tr("Для сценариев A–D включите локальную или OpenAI-совместимую категоризацию.");
+    }
+  }
   $("#worker-s1-field").hidden = mode === "configured";
   $("#worker-s1-help").hidden = mode === "configured";
   $("#worker-mode-help").textContent = tr(mode === "configured"
@@ -379,6 +394,7 @@ for (const role of ["analysis", "categorization", "worker"])
     loadWorkerSummary();
   });
 $("#worker-mode").addEventListener("change", renderWorker);
+$("#worker-scenario").addEventListener("change", renderWorker);
 function submitWorkerSource(source) {
   const mode = $("#worker-mode").value;
   const preset = mode === "qwen" ? chosenLocalPreset("worker") : null;

@@ -234,7 +234,8 @@ function learningFormVisibility() {
     if (local) button.disabled = busy || !data?.editable || !WORKER.data?.enabled || !!localModelIssue(selectedModel(role));
   }
   if (!$("#categorization-scenario-field").hidden) {
-    renderScenarioStudy($("#categorization-scenario-study"), c === "local" ? studyModelId("categorization") : null, $("#categorization-scenario").value);
+    const select = $("#categorization-scenario");
+    renderScenarioStudy($("#categorization-scenario-study"), c === "local" ? studyModelId("categorization") : null, select.value, select);
   }
   $("#analysis-threshold").disabled ||= !$("#analysis-auto").checked;
   if (typeof renderModelCards === "function") renderModelCards();

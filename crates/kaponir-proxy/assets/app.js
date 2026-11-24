@@ -445,7 +445,8 @@ async function runMask() {
   }
 }
 
-const runMaskSoon = debounce(runMask, 280);
+let maskTimer;
+const runMaskSoon = () => { clearTimeout(maskTimer); maskTimer = setTimeout(runMask, 280); };
 
 const repClass = (r) => (r.recognizer === 'session' ? 's-adhoc' : 's-' + r.scope);
 
@@ -479,6 +480,9 @@ function renderMask() {
   const text = input.value;
   const sp = spans();
   const res = M.result && M.text === text ? M.result : null;
+  $('#m-commit').disabled = !text.trim() || !!M.committing;
+  $('#m-clear').disabled = !text;
+  $('#tab-mask .explain').hidden = !res?.explain?.length;
 
   // Подложка редактора: тот же текст, подсвеченные диапазоны.
   const bd = [];
@@ -522,7 +526,9 @@ function renderMask() {
     st.push(h('span', {}, tr("Замаскировано: "), h('b', { text: res.replacements.length })));
     if (res.uncertain) st.push(h('span', { class: 'warn' }, tr("спорных: {{0}}", [res.uncertain]) + (keptUnc ? tr(" (оставлено {{0}})", [keptUnc]) : '')));
     if (res.literals) st.push(h('span', { text: tr("строк вида токена во входе: {{0}} — не будут восстановлены", [res.literals]) }));
-    st.push(h('span', { text: tr("предпросмотр — в vault сохраняется по кнопке «Сохранить и копировать» (Ctrl+Enter)") }));
+    st.push(h('span', { text: tr(M.persisted ?
+      (res.replacements.length ? "Токены сохранены. Можно восстановить исходный текст." : "Проверка сохранена.") :
+      "Предпросмотр. Чтобы сохранить токены и скопировать текст, нажмите Ctrl+Enter.") }));
   }
   $('#m-status').replaceChildren(...st);
   renderExplain(res);
@@ -686,20 +692,26 @@ function uncertainMenu(x, cx, cy) {
 }
 
 async function commitMask() {
-  if (!input.value.trim()) return;
+  if (!input.value.trim() || M.committing) return;
+  clearTimeout(maskTimer);
   const body = maskBody(true);
+  const signature = JSON.stringify(body);
+  M.committing = true;
+  $('#m-commit').disabled = true;
   try {
     const res = await api('/api/v1/ui/mask', { method: 'POST', body });
-    if (body.text === input.value) {
+    if (signature === JSON.stringify(maskBody(true))) {
+      ++M.seq;
       M.persisted=true;
       M.result = res;
       M.text = body.text;
       renderMask();
     }
     await copy(res.text);
-    toast(tr("Скопировано. В vault: {{0}} знач.", [res.replacements.length]) + (res.uncertain ? tr(", спорных {{0}} — см. «Разбор»", [res.uncertain]) : ''));
+    toast(tr("Скопировано. В vault: {{0}} знач.", [res.replacements.length]) + (res.uncertain ? " · " + tr("На проверку в находках · {{0}}", [res.uncertain]) : ''));
     await loadInfo();
   } catch (e) { fail(e); }
+  finally { M.committing=false; $('#m-commit').disabled=!input.value.trim(); }
 }
 
 $('#m-commit').addEventListener('click', commitMask);
@@ -858,6 +870,11 @@ function renderDiscover() {
   $("#discover-collect").hidden=!foundKeys.length;
   $("#discover-collect").textContent=tr("В датасет все {{0}}",[foundKeys.length]);
   $("#d-source-summary").textContent=D.scope||"";
+  const destination = $("#discover-destination");
+  destination.hidden = !D.report || !D.report.suggestions.length;
+  if (!destination.hidden) destination.textContent = tr(foundKeys.length ?
+    "Значения сохранены в находках. Откройте их для проверки или добавьте в датасет." :
+    "Предпросмотр документа. Для создания правила выберите значение и область действия.");
   syncDiscoveryActions();
   const list = $('#d-list');
   const report = D.report;
@@ -922,7 +939,7 @@ async function updateDocumentStudy() {
       return;
     }
     renderScenarioStudy(host, settings.provider === 'local' ? measuredModelId(settings.model) : null,
-      select.value || settings.scenario || 'standard');
+      select.value || settings.scenario || 'standard', select);
   } catch (error) {
     if (request === documentStudyRequest) { delete host.dataset.study; host.textContent = error.message; }
   }
@@ -1094,7 +1111,9 @@ function filterRules() {
     if (!card.hidden) count += matches;
   }
   $('#rules-match-count').textContent = tr("Правил в выборке · {{0}}", [count]);
+  $('#rules-clear').hidden = !query && !scope;
 }
+$('#rules-clear').onclick = () => { $('#rules-query').value=''; $('#rules-scope').value=''; filterRules(); $('#rules-query').focus(); };
 $('#rules-query').addEventListener('input', filterRules);
 $('#rules-scope').addEventListener('change', filterRules);
 async function loadRules() {

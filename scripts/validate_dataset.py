@@ -40,7 +40,17 @@ def check_dataset_ui(page):
     checked = page.locator('#vault-dataset').get_by_role('button', name=text, exact=True)
     checked.wait_for()
     checked.click()
-    assert page.get_by_role('textbox', name='Исходный фрагмент').input_value() == text
+    preview = page.locator('#vault-dataset .marked-source')
+    assert preview.text_content() == text
+    marks = preview.get_by_role('button', name=value, exact=True)
+    assert marks.count() == 2
+    for index, action in enumerate(('keep', 'mask')):
+        marks.nth(index).click()
+        excerpt = page.get_by_role('textbox', name='Исходный фрагмент')
+        assert excerpt.input_value() == text
+        assert excerpt.evaluate("(el, i) => el.selectionStart === (i ? el.value.lastIndexOf('517 USD') : el.value.indexOf('517 USD')) && el.value.slice(el.selectionStart,el.selectionEnd) === '517 USD'", index)
+        assert page.locator('#vault-dataset').get_by_role('combobox', name='Действие').input_value() == action
+        page.locator('#vault-dataset').get_by_role('button', name='Отмена', exact=True).click()
     toggle.uncheck()
     assert not page.locator('#dataset-create').is_visible()
     assert page.evaluate('''async () => {

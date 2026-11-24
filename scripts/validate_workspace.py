@@ -125,11 +125,12 @@ def main():
                     page.goto(base+'/ui/#review')
                     section=page.locator('#tab-review')
                     expect(section.locator('#review-model-source')).to_have_count(0)
-                    section.locator('.finding-filters summary').click()
+                    expect(section.locator('.finding-filters')).not_to_have_attribute('open', '')
+                    expect(section.locator('#review-query')).to_be_visible()
                     section.locator('#review-query').fill('zorgworkspace')
                     expect(section.locator('#review-list')).to_have_attribute('aria-busy','false')
                     expect(section.get_by_role('button',name='В датасет все 137',exact=True)).to_be_visible()
-                    section.locator('.finding-filters summary').click()
+                    expect(section.locator('#review-match-count')).to_contain_text('137')
                     first_check=section.locator('.findings-table input[type=checkbox]').first
                     expect(section.locator('#review-selection')).not_to_be_visible()
                     first_check.focus()
@@ -138,13 +139,17 @@ def main():
                     expect(section.get_by_role('button', name='В датасет · 1',exact=True)).to_be_visible()
                     page.keyboard.press('Space')
                     section.get_by_role('button',name='В датасет все 137',exact=True).click()
-                    expect(section.get_by_role('status')).to_contain_text('Добавлено 137')
+                    expect(section.locator('#review-result')).to_contain_text('Добавлено 137')
                     section.get_by_role('button',name='Открыть добавленные примеры').click()
                     page.locator('#vault-dataset .finding-value').first.click()
+                    previous_value = page.locator('.dataset-source h2').inner_text()
                     page.locator('.dataset-marks .work-row button').first.click()
                     page.locator('#vault-dataset').get_by_role('combobox',name='Действие',exact=True).select_option('mask')
-                    page.get_by_role('button',name='Сохранить проверенным').click()
+                    page.get_by_role('button',name='Сохранить и продолжить проверку').click()
                     wait_for(lambda:api('/api/v1/ui/dataset?status=checked')['total']==1)
+                    expect(page.locator('.dataset-source h2')).not_to_have_text(previous_value)
+                    expect(page.locator('.dataset-editor-nav')).to_contain_text('136')
+                    page.get_by_role('button',name='К примерам',exact=True).click()
                     with page.expect_download() as training_event:
                         page.get_by_role('button', name='Выгрузить для обучения').click()
                     training=json.loads(Path(training_event.value.path()).read_text())
@@ -164,9 +169,19 @@ def main():
 
                     page.locator('[data-tab=review]').click()
                     section.get_by_role('button',name='В датасет все 137',exact=True).click()
-                    expect(section.get_by_role('status')).to_contain_text('уже были 137')
+                    expect(section.locator('#review-result')).to_contain_text('уже были 137')
                     section.locator('#review-size').select_option('50')
-                    section.get_by_role('button',name='Далее',exact=True).click()
+                    expect(section.locator('.finding-value')).to_have_count(50)
+                    section.locator('.finding-value').last.click()
+                    inspector = section.locator('#finding-detail')
+                    expect(inspector.locator('.finding-pager')).to_contain_text('50 из 137')
+                    inspector.get_by_role('button',name='Следующая находка').click()
+                    expect(inspector.locator('.finding-pager')).to_contain_text('51 из 137')
+                    inspector.get_by_role('button',name='Предыдущая находка').click()
+                    expect(inspector.locator('.finding-pager')).to_contain_text('50 из 137')
+                    inspector.get_by_role('button',name='Следующая находка').click()
+                    expect(inspector.locator('.finding-pager')).to_contain_text('51 из 137')
+                    inspector.get_by_role('button',name='Назад к списку').click()
                     expect(section.locator('#review-pagination')).to_contain_text('51–100')
                     section.get_by_role('button',name='Выбрать все 137 по фильтру').click()
                     expect(section.locator('#review-selection')).to_contain_text('Выбрано: 137')
@@ -217,11 +232,29 @@ def main():
                                 page.set_viewport_size({'width':width,'height':940})
                                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'),(width,lang,theme)
                     page.screenshot(path=str(output/'workspace-findings.png'))
+                    choose_preference(page, 'language', 'ru')
+                    api('/api/v1/ui/mask', {'text':'Путь /srv/zorgfinaldraft/config.toml', 'commit':True})
+                    page.goto(base+'/ui/#review')
+                    section.locator('#review-query').fill('zorgfinaldraft')
+                    section.get_by_role('button',name='В датасет все 1',exact=True).click()
+                    section.get_by_role('button',name='Открыть добавленные примеры').click()
+                    page.get_by_role('button',name='Начать проверку · 1',exact=True).click()
+                    expect(page.locator('.dataset-source h2')).to_have_text('zorgfinaldraft')
+                    dataset_api = '**/api/v1/ui/dataset?*'
+                    page.route(dataset_api, lambda route: route.fulfill(status=503, json={}))
+                    try:
+                        page.get_by_role('button',name='Сохранить и продолжить проверку').click()
+                        expect(page.locator('#vault-dataset').get_by_role('button',name='Повторить')).to_be_visible()
+                    finally:
+                        page.unroute(dataset_api)
+                    page.locator('#vault-dataset').get_by_role('button',name='Повторить').click()
+                    expect(page.locator('#dataset-feedback')).to_contain_text('Все черновики этой выборки проверены')
+                    expect(page.get_by_role('button',name='Выгрузить для обучения')).to_be_enabled()
                     assert not errors,errors
                     browser.close()
                 proc.terminate();proc.wait();proc=start()
                 assert api('/api/v1/ui/review/jobs/'+jid)['completed']==137
-                assert api('/api/v1/ui/dataset?status=checked')['total']==1
+                assert api('/api/v1/ui/dataset?status=checked')['total']==2
                 doc=api('/api/v1/ui/discover',{'remember':True,'documents':[{'name':'contract.md','text':'Цена: 250 USD'}]})
                 assert doc['finding_keys']
                 empty=api('/api/v1/ui/discover/sessions',{'remember':True})
@@ -269,7 +302,7 @@ def main():
                     with ThreadPoolExecutor(max_workers=2) as pool:
                         receipts=list(pool.map(lambda _:api('/api/v1/ui/dataset/collect',payload),range(2)))
                     assert receipts[0]==receipts[1]
-                    assert api('/api/v1/ui/dataset')['total']==10000
+                    assert api('/api/v1/ui/dataset?collection='+receipts[0]['id'])['total']==10000
                     assert api('/api/v1/ui/dataset/collections/'+receipts[0]['id']+'/undo',{})['removed']==9863
                 print(f'Workspace flows passed. 137 model results, peak concurrency {peak}, persistent history and labels.'+
                       (' Verified a stable selection and idempotent collection of 10,000 findings.' if args.large else ''))

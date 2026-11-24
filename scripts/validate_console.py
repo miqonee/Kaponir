@@ -40,12 +40,11 @@ def wait_for(check, timeout=20):
 
 
 def choose_preference(page, preference, value):
-    sidebar = page.locator('#sidebar')
-    if sidebar.evaluate('el => el.inert'):
-        page.locator('#menu-toggle').click()
-    page.locator(f'#{preference}-switch label:has(input[value="{value}"])').click()
     menu = page.locator('#menu-toggle')
-    if menu.get_attribute('aria-expanded') == 'true':
+    if menu.is_visible() and menu.get_attribute('aria-expanded') != 'true':
+        menu.click()
+    page.locator(f'#{preference}-switch label:has(input[value="{value}"])').click()
+    if menu.is_visible() and menu.get_attribute('aria-expanded') == 'true':
         menu.click()
 
 
@@ -61,6 +60,17 @@ def check_session_conversation(page, api, session_id, output):
     button.click()
     dialog = page.locator('#session-dialog')
     expect(dialog.locator('select option')).to_have_count(2)
+    requests = dialog.get_by_role('radio')
+    expect(requests).to_have_count(2)
+    assert dialog.locator('.conversation-requests').evaluate('el => el.scrollWidth <= el.clientWidth + 1')
+    assert dialog.locator('.conversation-requests label span').first.bounding_box()['width'] > 100
+    expect(requests.last).to_be_checked()
+    requests.last.focus()
+    page.keyboard.press('ArrowUp')
+    expect(requests.first).to_be_checked()
+    expect(dialog.locator('.session-messages')).to_contain_text('ConsoleFixture_47')
+    page.keyboard.press('ArrowDown')
+    expect(requests.last).to_be_checked()
     expect(dialog.locator('.session-messages')).to_contain_text('125 000 ₽')
     dialog.get_by_role('button', name='Предыдущий запрос').click()
     expect(dialog.locator('.session-messages')).to_contain_text('ConsoleFixture_47')

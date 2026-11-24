@@ -74,6 +74,14 @@ def check_local_presets(page, api, output):
         page.locator('#categorization-local-model').select_option('gemma4-e4b-it-q4km')
         study = page.locator('#categorization-scenario-study')
         expect(study.locator('.benchmark-summary')).to_contain_text('32 из 32')
+        expect(study.locator('.scenario-goal')).to_have_count(3)
+        for goal, variant in [('speed','B'), ('privacy','D'), ('public','D')]:
+            button = study.locator('[data-goal='+goal+']')
+            button.focus()
+            button.press('Enter')
+            expect(page.locator('#categorization-scenario')).to_have_value(variant)
+            expect(button).to_be_focused()
+        assert api('/api/v1/ui/categorization')['settings']['scenario'] == categorization['scenario']
         study.locator('.model-comparison summary').click()
         expect(study.locator('.model-comparison tbody tr')).to_have_count(4)
         page.locator('#categorization-scenario').select_option('B')
@@ -84,6 +92,7 @@ def check_local_presets(page, api, output):
         page.locator('#categorization-local-model').select_option('nanbeige42-3b')
         expect(study.locator('.benchmark-summary')).to_contain_text('21 из 32')
         expect(study.locator('.selected-scenario')).to_contain_text('24/32')
+        expect(study.locator('.scenario-goal')).to_have_count(0)
         expect(study.locator('.model-comparison tbody tr').first).to_contain_text('—')
         assert page.locator('#categorization-response-format').input_value() == 'grammar'
         assert page.evaluate("chosenLocalPreset('categorization').inference.local_generation.completion_schema")
@@ -141,6 +150,33 @@ def check_local_presets(page, api, output):
         top.get_by_role('button', name='Сохранить сценарий').click()
         wait_for(lambda: api('/api/v1/ui/categorization')['settings']['scenario'] == 'B')
         assert api('/api/v1/ui/analysis')['settings']['model'] == 'qwen3-0.6b'
+        slots = api('/api/v1/ui/workspace/model')['slots']
+        suggested = 1 if slots > 1 else 2
+        check_url = '**/api/v1/ui/worker'
+        def with_measurement(route):
+            response = route.fetch()
+            data = response.json()
+            data['calibration'] = {'state':'succeeded', 'model':'qwen3.5-2b', 'recommended_slots':suggested}
+            route.fulfill(response=response, json=data)
+        page.route(check_url, with_measurement)
+        try:
+            page.reload()
+            model_pick = top.get_by_role('combobox',name='Модель поиска и проверки')
+            model_pick.select_option('qwen3.5-2b')
+            apply = top.get_by_role('button',name=f'Применить {suggested} слотов')
+            expect(apply).to_be_visible()
+            model_pick.select_option('qwen3-0.6b')
+            expect(apply).to_be_hidden()
+            parallel = top.get_by_role('spinbutton',name='Параллельные запросы')
+            save = top.get_by_role('button',name='Сохранить',exact=True)
+            expect(save).to_be_disabled()
+            parallel.fill('11')
+            expect(save).to_be_disabled()
+            parallel.fill(str(suggested))
+            expect(save).to_be_enabled()
+            assert api('/api/v1/ui/workspace/model')['slots'] == slots
+        finally:
+            page.unroute(check_url)
     finally:
         for role, saved in [('analysis',analysis),('categorization',categorization)]:
             api('/api/v1/ui/'+role,{'settings':saved},'PUT')
@@ -233,6 +269,12 @@ def check_manual_mask(page, base, api):
     assert {r['original'] for r in preview.value.json()['replacements']} == {'openai'}
     expect(page.locator('#m-output')).not_to_contain_text('openai')
     assert api('/api/v1/ui/mask', {'text': public_url})['text'] == public_url
+    page.locator('#m-input').press('Control+Enter')
+    expect(page.locator('#m-status')).to_contain_text('Токены сохранены')
+    expect(page.locator('#lab-navigation [data-go=restore]')).to_be_visible()
+    page.locator('#m-clear').click()
+    expect(page.locator('#m-commit')).to_be_disabled()
+    expect(page.locator('#lab-navigation [data-go=restore]')).to_be_hidden()
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('binary',type=Path);parser.add_argument('--output',type=Path,default=Path('artifacts/review'));args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
