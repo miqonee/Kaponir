@@ -5,7 +5,7 @@ from pathlib import Path
 
 
 def check_dataset_ui(page):
-    dataset_nav = page.get_by_role('navigation').get_by_role('button', name='Датасет', exact=True)
+    dataset_nav = page.locator('#sidebar').get_by_role('link', name='Датасет', exact=True)
     dataset_nav.click()
     toggle = page.get_by_role('checkbox', name='Собирать примеры', exact=True)
     assert page.url.endswith('#dataset')

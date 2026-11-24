@@ -146,6 +146,33 @@ function jobRow(job) {
     ),
   );
 }
+function renderJobIndicator(data) {
+  const trigger = $("#job-indicator"), preview = $("#job-preview-list");
+  const rows = data.preview || data.jobs.slice(0, 4), first = rows[0];
+  const running = data.active - (data.queued || 0);
+  const counts = [];
+  if (running) counts.push(tr("В работе · {{0}}", [running]));
+  if (data.queued) counts.push(tr("В очереди · {{0}}", [data.queued]));
+  const label = [tr("Задания"), ...counts];
+  if (data.active && first) {
+    const model = first.source?.model || first.model;
+    if (model) label.push(model);
+    if (first.total != null) label.push((first.completed || 0) + "/" + first.total);
+  }
+  trigger.title = trigger.querySelector("span").textContent = label.join(" · ");
+  const progress = running === 1 && data.active === 1 && first?.total ? (first.completed || 0) + "/" + first.total : data.active;
+  trigger.dataset.compact = [tr("Задания"), ...(progress ? [progress] : [])].join(" · ");
+  trigger.classList.toggle("working", !!data.active);
+  const signature = JSON.stringify([rows, counts, I18N.language]);
+  if (desk.previewSignature === signature) return;
+  desk.previewSignature = signature;
+  const focused = preview.contains(document.activeElement) ? document.activeElement.getAttribute("href") : null;
+  preview.replaceChildren(h("p", {class:"hint"}, counts.join(" · ") || tr("Активных заданий нет")),
+    ...rows.map(job => h("a", {class:"job-preview-row", href:"#" + jobRoute(job)},
+      h("strong", {}, jobTitle(job)), h("span", {}, [stage(job), job.source?.model || job.model,
+        job.total != null ? (job.completed || 0) + "/" + job.total : ""].filter(Boolean).join(" · ")))));
+  if (focused) [...preview.querySelectorAll("a")].find(a=>a.getAttribute("href")===focused)?.focus({preventScroll:true});
+}
 async function openJobResults(id, outcome) {
   clearPicking();
   ReviewUI.browseSet = null;
@@ -315,13 +342,8 @@ async function refreshJobs() {
       desk.workerReadings = await api("/api/v1/ui/worker");
       if (seq !== desk.sequence) return;
     }
-    const first = data.jobs[0],
-      label = $("#job-indicator span");
-    label.textContent = data.active
-      ? tr("В работе · {{0}}", [first?.source?.model || first?.model || data.active]) +
-        (first?.total ? " · " + (first.completed || 0) + "/" + first.total : "")
-      : tr("Задания");
-    $("#job-indicator").classList.toggle("working", !!data.active);
+    renderJobIndicator(data);
+    const first = (data.preview || data.jobs)[0];
     const home = $("#home-job");
     home.hidden = !first;
     if (first)
@@ -403,7 +425,13 @@ async function refreshJobs() {
     desk.jobRoute = route;
     host.querySelector(".connection-notice")?.remove();
   } catch (e) {
-    $("#job-indicator span").textContent = tr("Статус недоступен");
+    if (seq !== desk.sequence) return;
+    const trigger = $("#job-indicator");
+    trigger.title = trigger.querySelector("span").textContent = tr("Задания") + " · " + tr("Статус недоступен");
+    trigger.dataset.compact = tr("Задания") + " · ?";
+    trigger.classList.remove("working");
+    $("#job-preview-list").replaceChildren(h("p", {class:"hint"}, tr("Статус недоступен")), workButton("Повторить", refreshJobs));
+    desk.previewSignature = null;
     if (section === "jobs" && seq === desk.sequence) {
       const host = $("#jobs-content");
       if (desk.jobRoute !== route) host.replaceChildren();
@@ -435,8 +463,13 @@ document.addEventListener("visibilitychange", () => {
   if (!document.hidden) refreshJobs();
 });
 $("#job-indicator").addEventListener("click", () => {
-  const job = desk.jobs[0];
-  if (job && ["running", "queued"].includes(job.state)) showTab(jobRoute(job));
+  if (!("showPopover" in HTMLElement.prototype)) showTab("jobs");
+});
+$("#job-preview-list").addEventListener("click", event => {
+  const link = event.target.closest("a");
+  if (!link || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  showTab(link.hash.slice(1));
 });
 $("#discover-findings").onclick = async () => {
   const keys = D.report?.finding_keys || [];
@@ -651,21 +684,17 @@ async function loadVaultDataset() {
   if (seq !== desk.datasetRequest || desk.edit) return;
   const host = $("#vault-dataset");
   const filter = h(
-    "select",
-    {
-      "aria-label": tr("Состояние примеров"),
-      onchange: (e) => {
-        desk.datasetStatus = e.target.value;
-        desk.datasetOffset = 0;
-        loadVaultDataset().catch(fail);
-      },
-    },
+    "div", {class:"seg dataset-filter", role:"group", "aria-label":tr("Состояние примеров")},
     ...[
       ["draft", "Черновики", data.drafts],
       ["checked", "Проверенные", data.checked],
       ["all", "Все примеры", data.checked + data.drafts],
     ].map(([value, label, n]) =>
-      h("option", { value, selected: desk.datasetStatus === value }, tr(label) + " · " + n),
+      h("button", {type:"button","aria-pressed":String(desk.datasetStatus === value), onclick:() => {
+        if (desk.datasetStatus === value) return;
+        desk.datasetStatus = value; desk.datasetOffset = 0;
+        loadVaultDataset().catch(fail);
+      }}, tr(label) + " · " + n),
     ),
   );
   const file = h("input", {
@@ -675,6 +704,7 @@ async function loadVaultDataset() {
   });
   file.onchange = async () => {
     try {
+      if (!file.files.length) return;
       const rows = (await file.files[0].text())
         .split(/\r?\n/)
         .filter((s) => s.trim())
@@ -712,8 +742,11 @@ async function loadVaultDataset() {
     );
   if (!data.items.length)
     content.push(
-      h("div", { class: "empty" }, tr("В этой выборке пока нет примеров")),
-      workButton("Открыть находки", () => showReview()),
+      h("div", { class: "empty-state" }, h("strong", {}, tr("В этой выборке пока нет примеров")),
+        h("p", {}, tr(desk.datasetStatus === "checked" && data.drafts ? "Откройте черновик и проверьте его разметку." : "В находках можно добавить в датасет отдельные значения или сразу всю выборку.")),
+        desk.datasetStatus === "checked" && data.drafts ? workButton("Открыть черновики", () => {
+          desk.datasetStatus="draft"; desk.datasetOffset=0; return loadVaultDataset();
+        }) : workButton("Открыть находки", () => showReview())),
     );
   else
     content.push(
@@ -751,7 +784,10 @@ async function loadVaultDataset() {
         ),
       ),
     );
+  const focusedFilter = host.querySelector(".dataset-filter")?.contains(document.activeElement);
   host.replaceChildren(...content);
+  if (focusedFilter) filter.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
+  refreshFilePickers();
 }
 $("#dataset-migrate").onclick = async () => {
   try {

@@ -108,8 +108,10 @@ verified the address, route, and rules with synthetic data.
 
 ## Web UI
 
-The dashboard shows proxy statistics and grouped sessions. **LLM & analysis** contains background
-discovery, separate categorization, and **Models and queue**. Each local model card shows file integrity
+The dashboard shows proxy statistics and grouped sessions. **LLM settings** contains the model,
+resource measurements, discovery, categorization, and **Service and queue**. Open **Proxy settings**
+for provider connections and API access. The **Jobs** button in the header shows live progress.
+Each local model card shows file integrity
 and runtime readiness, with download and offline installation instructions. Settings can wait for
 missing files without downloading automatically. Completed turns are analyzed in the background;
 verified scores above 85% can create reversible rules. See [background learning](docs/LEARNING.md).

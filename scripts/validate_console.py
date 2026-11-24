@@ -39,13 +39,23 @@ def wait_for(check, timeout=20):
     raise AssertionError(f'condition timed out: {last}')
 
 
+def choose_preference(page, preference, value):
+    sidebar = page.locator('#sidebar')
+    if sidebar.evaluate('el => el.inert'):
+        page.locator('#menu-toggle').click()
+    page.locator(f'#{preference}-switch label:has(input[value="{value}"])').click()
+    menu = page.locator('#menu-toggle')
+    if menu.get_attribute('aria-expanded') == 'true':
+        menu.click()
+
+
 def check_session_conversation(page, api, session_id, output):
     from playwright.sync_api import expect
     page.set_viewport_size({'width': 1440, 'height': 960})
-    page.locator('#language-switch label:has(input[value=ru])').click()
+    choose_preference(page, 'language', 'ru')
     api('/v1/chat/completions', {'model': 'fixture-model', 'messages': [
         {'role': 'user', 'content': 'Другая смета: 98 500 ₽.'}]}, {'X-Kaponir-Session': 'unrelated'})
-    page.get_by_role('navigation').get_by_role('button', name='Сессии', exact=True).click()
+    page.locator('#sidebar').get_by_role('link', name='Сессии', exact=True).click()
     expect(page.locator('#page-title')).to_have_text('Сессии')
     button = page.locator('#events-table [data-session-open="' + session_id + '"]')
     button.click()
@@ -229,7 +239,7 @@ def main():
 
 
                 page.locator('[data-tab="settings"]').click()
-                page.locator('#tab-settings [data-go="analysis"]').click()
+                page.locator('#analysis-navigation [data-go="analysis"]').click()
                 page.locator('#analysis-provider').select_option('api')
                 page.locator('#analysis-url').fill('http://127.0.0.1:9999/v1/chat/completions')
                 page.locator('#analysis-worker-toggle').click()
@@ -260,23 +270,23 @@ def main():
                 page.wait_for_function("() => document.querySelector('#discover-input-pane').hidden")
                 page.locator('#d-input-view').click()
                 assert page.locator('#d-text').input_value() == 'Проект: Лунная Слива'
-                page.locator('#language-switch label:has(input[value=en])').click()
+                choose_preference(page, 'language', 'en')
                 page.wait_for_function("() => document.documentElement.lang==='en'")
                 assert page.locator('#d-text').input_value() == 'Проект: Лунная Слива'
                 assert page.locator('#page-title').inner_text() == 'Find values'
                 assert page.locator('#analysis-url').input_value() == 'http://127.0.0.1:9999/v1/chat/completions'
                 page.evaluate("showTab('overview')")
                 for theme in ['dark', 'light']:
-                    page.locator(f'#theme-switch label:has(input[value={theme}])').click()
+                    choose_preference(page, 'theme', theme)
                     page.screenshot(path=str(args.output / f'overview-{theme}-en-1440.png'), full_page=True)
                 page.evaluate("showTab('discover')")
 
-                page.locator('#language-switch label:has(input[value=ru])').click()
+                choose_preference(page, 'language', 'ru')
 
                 for width in [390, 768, 1440]:
                     page.set_viewport_size({'width': width, 'height': 1000})
                     for theme in ['dark', 'light']:
-                        page.locator(f'#theme-switch label:has(input[value={theme}])').click()
+                        choose_preference(page, 'theme', theme)
                         for tab in ['overview', 'events', 'analysis', 'categorization', 'worker', 'discover', 'mask', 'rules', 'settings']:
                             page.evaluate('(tab)=>showTab(tab)', tab)
                             page.wait_for_timeout(120)
@@ -288,6 +298,8 @@ def main():
                 page.go_back()
                 page.wait_for_function("() => location.hash==='#analysis' && !document.querySelector('#tab-analysis').hidden")
                 check_session_conversation(page, api, traffic['events'][0]['session_id'], args.output)
+                from validate_navigation import check_navigation
+                check_navigation(page, args.output)
                 assert not errors, errors
                 browser.close()
             api('/api/v1/ui/worker/start', {})

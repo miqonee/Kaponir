@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 from playwright.sync_api import sync_playwright
 from kaponir_worker import FILES, Worker, configuration, handler
-from validate_console import free_port, wait_for
+from validate_console import choose_preference, free_port, wait_for
 
 
 def main():
@@ -119,7 +119,7 @@ def main():
                     print(json.dumps({'errors': errors, 'result': page.locator('#analysis-result').inner_text(),
                         'invalid': page.locator('#analysis-form').evaluate("form=>[...form.elements].filter(x=>!x.checkValidity()).map(x=>({id:x.id,value:x.value,message:x.validationMessage}))")}, ensure_ascii=False))
                     raise
-                page.locator('#learning-state').filter(has_text='ожидает подготовки модели обнаружения').wait_for()
+                page.locator('#llm-stage-note').filter(has_text='ожидает подготовки модели обнаружения').wait_for()
                 assert api('/api/v1/ui/analysis')['settings']['enabled']
                 assert not downloads
 
@@ -149,7 +149,7 @@ def main():
                 # A different selected model has its own presence/integrity state.
                 page.locator('#analysis-local-model').select_option('qwen3.5-0.8b')
                 page.locator('#analysis-save').click()
-                page.locator('#learning-state').filter(has_text='ожидает подготовки модели обнаружения').wait_for()
+                page.locator('#llm-stage-note').filter(has_text='ожидает подготовки модели обнаружения').wait_for()
                 assert api('/api/v1/ui/worker')['models']['qwen3-0.6b']['downloaded']
                 path = worker.models / FILES['qwen3.5-0.8b'][0]
                 path.write_bytes(b'x' * len(fixture_data['qwen3.5-0.8b']))
@@ -160,16 +160,16 @@ def main():
                 page.locator('#analysis-verify').click()
                 wait_for(lambda: model_ready('qwen3.5-0.8b'))
                 page.locator('#analysis-model-install .model-state').filter(has_text='проверены и готовы').wait_for()
-                wait_for(lambda: 'ожидает подготовки' not in page.locator('#learning-state').inner_text())
+                wait_for(lambda: 'ожидает подготовки' not in page.locator('#llm-stage-note').inner_text())
 
                 page.locator('#analysis-navigation [data-go=categorization]').click()
                 page.locator('#categorization-local-model').select_option('qwen3-0.6b-q8')
                 page.locator('#categorization-save').click()
-                page.locator('#learning-state').filter(has_text='ожидает подготовки модели категоризации').wait_for()
+                page.locator('#llm-stage-note').filter(has_text='ожидает подготовки модели категоризации').wait_for()
                 (worker.models / FILES['q5'][0]).write_bytes(fixture_data['q5'])
                 page.locator('#categorization-verify').click()
                 wait_for(lambda: model_ready('qwen3-0.6b-q8'))
-                wait_for(lambda: 'ожидает подготовки' not in page.locator('#learning-state').inner_text())
+                wait_for(lambda: 'ожидает подготовки' not in page.locator('#llm-stage-note').inner_text())
                 assert len(downloads) == 2
 
                 # Status polling and language changes preserve unsaved form values and keyboard focus.
@@ -243,13 +243,13 @@ def main():
                 # Choosing another model above applied its preset. Edit this model before switching languages.
                 page.locator('#analysis-timeout').fill('79')
                 for language in ['en', 'ru']:
-                    page.locator(f'#language-switch label:has(input[value={language}])').click()
+                    choose_preference(page, 'language', language)
                     wait_for(lambda: page.locator('html').get_attribute('lang') == language)
                     assert page.locator('#analysis-timeout').input_value() == '79'
                     if language == 'en':
                         assert not re.search('[А-Яа-яЁё]', page.locator('#analysis-model-install').inner_text())
                     for theme in ['light', 'dark']:
-                        page.locator(f'#theme-switch label:has(input[value={theme}])').click()
+                        choose_preference(page, 'theme', theme)
                         for width in [390, 1440]:
                             page.set_viewport_size({'width': width, 'height': 1000})
                             for tab in ['analysis', 'categorization', 'worker']:

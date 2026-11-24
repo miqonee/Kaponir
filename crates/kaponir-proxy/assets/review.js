@@ -72,7 +72,7 @@ function selectReviewItem(item, checked) {
 }
 function reviewCard(item) {
   const pending = pendingFinding(item), rec = item.recommendation,
-    valid = rec?.state === "succeeded", draft = reviewDraft(item), ro = !ReviewUI.data.editable || ReviewUI.busy;
+    valid = rec?.state === "succeeded", draft = reviewDraft(item), ro = !ReviewUI.data.editable;
   const article = h("article", { class: "panel review-card", "data-review-key": item.key, "data-learning-id": item.origin === "learning" ? item.id : null });
   const heading = h("div", { class: "review-card-heading" },
     h("code", { class: "review-value" }, item.value), h("span", { class: "tag" }, tr(item.origin === "detector" ? "Быстрый детектор" : "LLM-находка")),
@@ -190,17 +190,23 @@ async function openFindingRule(item) {
   const rule=item.document_rule;
   const id=rule ? (rule.id || "index-"+rule.index) : item.decision?.rule_id || item.rule_id;
   const scope=rule?.scope || item.decision?.scope || item.scope;
+  $("#rules-query").value = ""; $("#rules-scope").value = scope || "";
   showTab("rules");
   showRulesView("list");
   await loadRules();
   const row=document.getElementById("rule-"+scope+"-"+id);
   if(row){row.focus();row.scrollIntoView({block:"center"});}
 }
-function showFinding(item) {
+function showFinding(item, moveFocus = true) {
   const detail=$("#finding-detail");
   ReviewUI.detailKey=item?.key;
   detail.hidden=!item;
   detail.parentElement.classList.toggle("with-detail",!!item);
+  for (const button of $("#review-list").querySelectorAll(".finding-value")) {
+    const current = button.id === "finding-" + item?.key;
+    button.setAttribute("aria-expanded", String(current));
+    button.closest("tr")?.classList.toggle("previewing", current);
+  }
   if (!item) { detail.replaceChildren(); return; }
   const card=reviewCard(item);
   if(item.job_recommendation && item.job_recommendation.job_id!==item.recommendation?.job_id){
@@ -208,14 +214,19 @@ function showFinding(item) {
   }
   const close=workButton("Назад к списку",()=>{showFinding(null);document.getElementById("finding-"+item.key)?.focus();});
   detail.replaceChildren(close,card);
-  close.focus({preventScroll:true});
-  if(matchMedia("(max-width: 800px)").matches)detail.scrollIntoView({block:"start"});
+  if (moveFocus) {
+    close.focus({preventScroll:true});
+    if(matchMedia("(max-width: 800px)").matches)detail.scrollIntoView({block:"start"});
+  }
 }
 function findingRow(item) {
   const checkbox=h("input",{type:"checkbox",checked:picked(item),"aria-label":tr("Выбрать значение: {{0}}",[item.value]),
     onchange:event=>{selectReviewItem(item,event.target.checked);row.classList.toggle("picked",picked(item));syncPageCheck();}});
-  const record=h("button",{class:"finding-value",id:"finding-"+item.key,onclick:()=>showFinding(item)},item.value);
-  const row=h("tr",{class:picked(item)?"picked":""},h("td",{},h("label",{class:"row-check"},checkbox)),
+  const record=h("button",{class:"finding-value",id:"finding-"+item.key,"aria-controls":"finding-detail",
+    "aria-expanded":String(item.key===ReviewUI.detailKey),onclick:()=>showFinding(item)},item.value);
+  const row=h("tr",{class:picked(item)?"picked":"",onclick:e=>{
+    if (!e.target.closest("button,input,label,a,select") && !e.target.closest("td:first-child") && window.getSelection()?.isCollapsed) showFinding(item);
+  }},h("td",{},h("label",{class:"row-check"},checkbox)),
     h("td",{},record,h("small",{class:"mobile-source"},findingSource(item))),
     h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(item.kind)),
     h("td",{},findingStatus(item),item.in_dataset?h("small",{class:"hint"},tr("В датасете")):null));
@@ -246,46 +257,58 @@ function renderReview() {
     workButton("Далее",()=>{ReviewUI.offset+=data.limit;loadReview(true);},"secondary",data.offset+data.limit>=data.total));
   if(ReviewUI.detailKey) {
     const item=data.items.find(i=>i.key===ReviewUI.detailKey);
-    if(item && !$("#finding-detail").contains(document.activeElement))showFinding(item);
+    if(item && !$("#finding-detail").contains(document.activeElement))showFinding(item, false);
     else if(!item)showFinding(null);
   }
   syncPageCheck();renderReviewSelection();
 }
 function renderReviewSelection() {
-  const data=ReviewUI.data, panel=$("#review-selection");
+  const data=ReviewUI.data, panel=$("#review-selection"), quick=$("#review-quick-actions");
   if(!data)return;
-  panel.hidden=!data.total;
-  const count=pickedCount() || data.total, busy=ReviewUI.busy || !info.editable;
+  const selected=pickedCount(), count=selected || data.total, busy=ReviewUI.busy || !info.editable;
+  panel.hidden=!selected || !data.total;
+  quick.hidden=!data.total;
   const sources=(data.sources||[]).filter(s=>s.provider!=="none");
   const choices=sources.filter((s,index)=>sources.findIndex(other=>other.model===s.model && other.connection_id===s.connection_id)===index);
   const source=choices.find(s=>s.role===ReviewUI.modelSource)||choices[0];
   if(source)ReviewUI.modelSource=source.role;
   const model=choices.length>1?h("select",{id:"review-model-source","aria-label":tr("Модель пересмотра"),onchange:e=>{ReviewUI.modelSource=e.target.value;ReviewUI.scenario="";renderReviewSelection();}},
     ...choices.map(s=>h("option",{value:s.role,selected:s===source},modelName(s.model)))):source?h("strong",{},modelName(source.model)):null;
-  const study = panel.querySelector(".review-study") || h("div", {class: "scenario-study review-study"});
+  const dialog = $("#review-options");
+  const study = dialog.querySelector(".review-study") || h("div", {class: "scenario-study review-study"});
   const showStudy = () => renderScenarioStudy(study, source.provider === "local" ? measuredModelId(source.model) : null,
     ReviewUI.scenario || source.scenario || "standard");
   const mode = source?.supports_scenarios ? h("select", {"aria-label": tr("Способ проверки для запуска"), onchange: e => {
     ReviewUI.scenario = e.target.value; showStudy();
   }}, scenarioOptions(ReviewUI.scenario || source.scenario || "standard")) : null;
   const controls = h("div", {class: "form-actions"});
+  const selectionHead = h("div", {class:"selection-head"}, h("strong", {}, tr("Выбрано: {{0}}",[selected])));
+  const batchButton = (full, compact, action, cls, disabled) => {
+    const button = workButton(full, action, cls, disabled);
+    if (selected && full !== compact) {
+      button.setAttribute("aria-label", full);
+      button.replaceChildren(h("span", {class:"batch-full"}, full), h("span", {class:"batch-short"}, compact));
+    }
+    return button;
+  };
   const list = [...ReviewUI.selected.values()];
   if (ReviewUI.view !== "history") {
     const manualCount = ReviewUI.snapshot ? pickedCount() : list.filter(pendingFinding).length;
     const label = manualCount && (!ReviewUI.snapshot || ReviewUI.view === "pending")
       ? tr("Скрыть без ИИ · {{0}}", [manualCount]) : tr("Скрыть без ИИ");
-    controls.append(workButton(label, maskSelectedFindings, manualCount || !source ? "primary" : "secondary", busy || !manualCount));
-    if (source) controls.append(workButton(tr(pickedCount() ? "Проверить моделью · {{0}}" : "Проверить моделью все {{0}}", [count]),
-      () => requestReview(), manualCount ? "secondary" : "primary", busy));
+    if (selected) controls.append(batchButton(label, manualCount === selected ? tr("Скрыть без ИИ") : label, maskSelectedFindings, "primary", busy || !manualCount));
+    if (source) controls.append(batchButton(tr(selected ? "Проверить моделью · {{0}}" : "Проверить моделью все {{0}}", [count]),
+      tr("Проверить моделью"), () => requestReview(), manualCount ? "secondary" : "primary", busy));
   }
-  controls.append(workButton(tr(pickedCount()?"В датасет · {{0}}":"В датасет все {{0}}",[count]),async()=>collectFindings(await selectedPayload()),"secondary",busy));
-  if(!ReviewUI.snapshot && data.total>pickedCount())controls.append(workButton(tr("Выбрать все {{0}} по фильтру",[data.total]),async()=>{
+  controls.append(batchButton(tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload()),"secondary",busy));
+  quick.replaceChildren();
+  if(!ReviewUI.snapshot && data.total>selected)quick.append(workButton(tr("Выбрать все {{0}} по фильтру",[data.total]),async()=>{
     const request = ReviewUI.request;
     const snap = await api("/api/v1/ui/review/selection", {method:"POST", body:reviewFilters()});
     if (request !== ReviewUI.request) return;
     clearPicking();ReviewUI.snapshot=snap;renderReview();
   }));
-  if(pickedCount())controls.append(workButton("Снять выбор",()=>{clearPicking();renderReview();}));
+  if(selected)selectionHead.append(workButton("Снять выбор",()=>{clearPicking();renderReview(); $("#review-select-page").focus({preventScroll:true});}));
   if(list.length && list.every(i=>i.recommendation?.state==="succeeded"))controls.append(workButton("Применить рекомендации",()=>confirmReview(list,"recommendation"),"secondary",busy));
   if(ReviewUI.jobId && ReviewUI.outcome==="succeeded" && (!list.length || ReviewUI.snapshot))controls.append(workButton("Применить рекомендации",async()=>{
     const filtered=[];const scope=await selectedPayload();
@@ -295,12 +318,44 @@ function renderReviewSelection() {
     }
     if(filtered.length)confirmReview(filtered,"recommendation");
   },"secondary",busy));
-  if (!source) controls.append(workButton("Выбрать модель", () => showTab("settings")));
-  panel.replaceChildren(h("div", {class: "bulk-actions"},
-    h("strong", {}, tr(pickedCount() ? "Выбрано: {{0}}" : "Найдено · {{0}}", [count])), controls));
-  if (source) panel.append(h("div", {class: "finding-model"}, model,
-    h("small", {class: "hint"}, source.connection || tr(source.provider === "local" ? "Локальная модель" : "Модель по API")), mode));
-  if (mode) { panel.append(study); showStudy(); }
+  if (ReviewUI.view !== "history") {
+    if (source) {
+      const optionsTitle = tr("Параметры проверки");
+      const open = h("button", {class:"text-button review-settings", type:"button", "aria-haspopup":"dialog", "aria-label":optionsTitle, title:optionsTitle, onclick:()=>dialog.showModal()},
+        icon("settings"), h("span", {}, optionsTitle));
+      (selected ? selectionHead : quick).append(open);
+      dialog.onclose = () => { if (open.isConnected && location.hash === "#review") open.focus({preventScroll:true}); };
+      const close = h("button", {class:"secondary", type:"button", onclick:()=>dialog.close()}, tr("Готово"));
+      const focusedModel = dialog.open && document.activeElement?.id === "review-model-source";
+      dialog.replaceChildren(h("h2", {id:"review-options-title"}, tr("Параметры проверки")),
+        h("div", {class:"finding-model"}, model, h("small",{class:"hint"},source.connection), mode), ...(mode ? [study] : []), close);
+      if (focusedModel) model?.focus();
+      if (mode) showStudy();
+    } else quick.append(workButton("Выбрать модель", () => showTab("settings")));
+  }
+  panel.replaceChildren();
+  if (selected) {
+    controls.setAttribute("role","toolbar");
+    controls.setAttribute("aria-label",tr("Действия с выбранными находками"));
+    controls.setAttribute("aria-controls","review-list");
+    controls.setAttribute("focusgroup","toolbar wrap");
+    if (!("focusGroup" in HTMLElement.prototype)) {
+      const buttons=[...controls.querySelectorAll("button:enabled")];
+      const rove = active => buttons.forEach(b=>{b.tabIndex = b === active ? 0 : -1;});
+      rove(buttons[0]);
+      controls.addEventListener("focusin", e => { if (buttons.includes(e.target)) rove(e.target); });
+      controls.addEventListener("keydown", e => {
+        const i=buttons.indexOf(e.target), n=buttons.length;
+        if (i<0 || !["ArrowLeft","ArrowRight","Home","End"].includes(e.key)) return;
+        const step = getComputedStyle(controls).direction === "rtl" ? -1 : 1;
+        const next = {Home:0, End:n-1, ArrowRight:(i+step+n)%n, ArrowLeft:(i-step+n)%n};
+        e.preventDefault(); buttons[next[e.key]].focus();
+      });
+    }
+    panel.append(selectionHead, controls);
+  }
+  else quick.prepend(controls);
+  quick.hidden = !data.total || !quick.childElementCount;
 }
 function pendingFinding(item) {
   return item.state === "open" || item.state === "pending";
@@ -344,8 +399,14 @@ function confirmReview(items, operation) {
       h("button", { class: "secondary", onclick: () => { dialog.close(); origin?.focus(); } }, tr("Отмена")))));
   dialog.showModal();
 }
+function setReviewBusy(busy) {
+  ReviewUI.busy = busy;
+  $("#finding-detail").inert = busy;
+  $("#finding-detail").setAttribute("aria-busy", String(busy));
+}
 async function applyReview(entries) {
-  if (ReviewUI.busy) return; ReviewUI.busy = true;
+  if (ReviewUI.busy) return;
+  setReviewBusy(true);
   const failures = [], snapshot = ReviewUI.snapshot;
   let applied = 0; renderReview(true);
   for (const entry of entries) {
@@ -359,7 +420,7 @@ async function applyReview(entries) {
     if (entries.length > 1) $("#review-result").textContent = tr("Обработано {{0}} из {{1}}", [applied + failures.length, entries.length]);
   }
   if (snapshot && snapshot === ReviewUI.snapshot && pickedCount() === 0) clearPicking();
-  ReviewUI.busy = false;
+  setReviewBusy(false);
   $("#review-result").textContent = tr("Применено: {{0}}", [applied]) + (failures.length ? " · " + failures.join("; ") : "");
   $("#review-result").classList.toggle("err", !!failures.length);
   await Promise.all([loadReview(true), loadInfo()]);
@@ -367,17 +428,17 @@ async function applyReview(entries) {
 async function requestReview(items) {
   if(ReviewUI.busy)return;
   if(!ReviewUI.data?.sources.some(s=>s.provider!=="none")){showTab("settings");return;}
-  ReviewUI.busy=true;renderReviewSelection();
+  setReviewBusy(true);renderReviewSelection();
   try {
     const selection=await selectedPayload(items);
     const body={...selection,model_source:ReviewUI.modelSource||"auto",scenario:ReviewUI.scenario||undefined};
     const job=await postOnce("/api/v1/ui/review/jobs",body);
     rememberFindings(job.id);showTab("jobs/review/"+job.id);
   } catch(e){$("#review-result").textContent=reviewError(e.messageKey||e.message);}
-  finally{ReviewUI.busy=false;renderReviewSelection();}
+  finally{setReviewBusy(false);renderReviewSelection();}
 }
 function lockReviewResults(locked) {
-  for (const id of ["review-pagination", "review-list", "review-selection"]) $("#" + id).inert = locked;
+  for (const id of ["review-pagination", "review-list", "review-selection", "review-quick-actions"]) $("#" + id).inert = locked;
   $("#review-select-page").disabled = locked;
 }
 async function loadReview() {
@@ -394,7 +455,11 @@ async function loadReview() {
     $("#review-badge").textContent=data.pending||"";$("#review-badge").hidden=!data.pending;
     renderReview();
     lockReviewResults(false);
-  }catch(e){if(request===ReviewUI.request)$("#review-result").textContent=reviewError(e.messageKey||e.message);}
+    $("#review-result .review-load-error")?.remove();
+  }catch(e){
+    if(request===ReviewUI.request)$("#review-result").replaceChildren(h("span",{class:"review-load-error"},
+      reviewError(e.messageKey||e.message), workButton("Повторить",loadReview)));
+  }
   finally{if(request===ReviewUI.request)$("#review-list").setAttribute("aria-busy", "false");}
 }
 $("#review-kind").replaceChildren(h("option",{value:""},tr("Все типы")),...STANDARD_KINDS.map(k=>h("option",{value:k},kindLabel(k))));

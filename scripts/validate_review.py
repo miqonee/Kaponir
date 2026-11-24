@@ -4,7 +4,7 @@ import argparse,csv,json,os,re,shutil,subprocess,tempfile,threading,time,urllib.
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from playwright.sync_api import expect, sync_playwright
-from validate_console import free_port,wait_for
+from validate_console import choose_preference, free_port, wait_for
 from validate_dataset import check_dataset_ui
 
 def check_local_presets(page, api, output):
@@ -99,6 +99,7 @@ def check_local_presets(page, api, output):
         page.wait_for_function("() => document.querySelector('#categorization-scenario').value === 'C'")
         page.locator('#categorization-preset').click()
         assert page.locator('#categorization-scenario').input_value() == 'D'
+        page.locator('#analysis-navigation [data-go=analysis]').click()
         page.locator('#analysis-open-document').click()
         assert page.locator('#d-mode').input_value() == 'background'
         assert page.locator('#d-scenario').is_visible()
@@ -164,7 +165,7 @@ def check_manual_mask(page, base, api):
     page.on('request', lambda r: jobs.append(r.url) if r.method == 'POST' and r.url.endswith('/review/jobs') else None)
     page.goto('about:blank')
     page.goto(base + '/ui/#review')
-    page.locator('#language-switch label:has(input[value=ru])').click()
+    choose_preference(page, 'language', 'ru')
     review = page.locator('#tab-review')
     filters = review.locator('.finding-filters')
     if not filters.evaluate('el => el.open'):
@@ -300,7 +301,7 @@ def main():
                 page=browser.new_page(viewport={'width':1440,'height':1000},locale='ru-RU',color_scheme='dark');errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
                 try:
                     page.goto(base+'/ui/#settings')
-                    expect(page.locator('#page-title')).to_have_text('Настройки')
+                    expect(page.locator('#page-title')).to_have_text('Настройки LLM')
                     check_dataset_ui(page)
                     def card_for(item):
                         page.locator('#review-list').get_by_role('button',name=item['value'],exact=True).click()
@@ -310,7 +311,7 @@ def main():
                         page.locator('#review-list .finding-value').first.wait_for()
 
                     page.locator('[data-tab="settings"]').click()
-                    page.locator('#tab-settings [data-go="analysis"]').click();page.locator('#analysis-enabled').wait_for()
+                    page.locator('#analysis-navigation [data-go="analysis"]').click();page.locator('#analysis-enabled').wait_for()
                     wait_for(lambda:page.locator('#analysis-enabled').is_enabled())
                     check_local_presets(page, api, args.output)
                     assert page.locator('#analysis-response-format').input_value()=='prompt'
@@ -337,11 +338,22 @@ def main():
                     card.get_by_role('button',name='Применить рекомендацию',exact=True).click()
                     assert 'Команда' in page.locator('#review-confirm').inner_text()
                     page.locator('#review-confirm-apply').click();page.wait_for_function('() => !ReviewUI.busy');wait_for(lambda:not any(i['key']==target['key'] for i in rows()))
+                    # Hold the response after persistence to open another card while the UI is still saving.
+                    rollback = []
+                    rollback_url = '**/ui/review/*/*/rollback'
+                    def hold_rollback(route):
+                        rollback.append((route, route.fetch()))
+                    page.route(rollback_url, hold_rollback)
                     page.locator('[data-review-view=history]').click();card=card_for(target);card.get_by_role('button',name='Отменить правило',exact=True).click();page.locator('#review-confirm-apply').click()
+                    expect(page.locator('#finding-detail')).to_have_js_property('inert', True)
                     wait_for(lambda:any(i['key']==target['key'] for i in rows()))
                     restored=api('/api/v1/ui/restore',{'text':original['text']});assert 'zorgreviewalpha' in restored['text']
                     page.locator('[data-review-view=pending]').click()
                     hidden=next(i for i in rows() if i['value']=='zorgreviewhidden');hidden_card=card_for(hidden)
+                    route, response = rollback.pop()
+                    route.fulfill(response=response)
+                    page.unroute(rollback_url, hold_rollback)
+                    expect(page.locator('#finding-detail')).to_have_js_property('inert', False)
                     before=json.dumps(api('/api/v1/rules'));hidden_card.get_by_role('button',name='Закрыть без правила',exact=True).click()
                     assert 'не создаёт правила' in page.locator('#review-confirm').inner_text();page.locator('#review-confirm-apply').click()
                     wait_for(lambda:not any(i['key']==hidden['key'] for i in rows()));assert json.dumps(api('/api/v1/rules'))==before
@@ -411,9 +423,9 @@ def main():
                     page.locator('#review-groups').click();page.locator('#review-select-page').check();assert page.locator('#review-selection').is_visible()
                     page.locator('#review-selection').get_by_role('button',name='Снять выбор',exact=True).click()
                     for language in ['ru','en']:
-                        page.locator(f'#language-switch label:has(input[value={language}])').click();wait_for(lambda:page.locator('html').get_attribute('lang')==language)
+                        choose_preference(page, 'language', language);wait_for(lambda:page.locator('html').get_attribute('lang')==language)
                         for theme in ['dark','light']:
-                            page.locator(f'#theme-switch label:has(input[value={theme}])').click()
+                            choose_preference(page, 'theme', theme)
                             for width in [390,768,1440]:
                                 page.set_viewport_size({'width':width,'height':1000});page.evaluate("showTab('review')");page.wait_for_timeout(150)
                                 assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(language,theme,width)

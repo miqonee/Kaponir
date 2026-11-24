@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
 
 from playwright.sync_api import expect, sync_playwright
-from validate_console import free_port, wait_for
+from validate_console import choose_preference, free_port, wait_for
 
 
 def word(number):
@@ -131,6 +131,7 @@ def main():
                     expect(section.get_by_role('button',name='В датасет все 137',exact=True)).to_be_visible()
                     section.locator('.finding-filters summary').click()
                     first_check=section.locator('.findings-table input[type=checkbox]').first
+                    expect(section.locator('#review-selection')).not_to_be_visible()
                     first_check.focus()
                     page.keyboard.press('Space')
                     expect(section.locator('#review-select-page')).to_have_js_property('indeterminate',True)
@@ -169,9 +170,20 @@ def main():
                     expect(section.locator('#review-pagination')).to_contain_text('51–100')
                     section.get_by_role('button',name='Выбрать все 137 по фильтру').click()
                     expect(section.locator('#review-selection')).to_contain_text('Выбрано: 137')
-                    section.locator('.finding-value').first.click()
+                    dock=section.locator('#review-selection')
+                    page.evaluate('window.scrollBy(0, 1000)')
+                    assert dock.evaluate('el => { const r=el.getBoundingClientRect(); return r.bottom <= innerHeight && r.top > innerHeight / 2 }')
+                    dock.screenshot(path=str(output/'findings-selection.png'))
+                    page.set_viewport_size({'width':390,'height':844})
+                    assert dock.bounding_box()['height'] < 112
+                    page.set_viewport_size({'width':1440,'height':940})
+                    section.locator('.findings-table tbody tr').first.locator('td').nth(3).click()
                     expect(section.locator('.finding-detail')).to_be_visible()
+                    expect(section.locator('.finding-detail mark').first).to_be_visible()
+                    page.screenshot(path=str(output/'finding-context.png'))
                     section.get_by_role('button',name='Назад к списку').click()
+                    with lock:
+                        allowed_packets = 2
                     release.clear()
                     section.get_by_role('button',name='Проверить моделью · 137').click()
                     page.wait_for_url(re.compile(r'.*#jobs/review/[a-f0-9]{64}'))
@@ -181,9 +193,16 @@ def main():
                     page.locator('[data-tab=overview]').click()
                     expect(page.locator('#job-indicator')).to_contain_text('workspace-fixture')
                     page.locator('#job-indicator').click()
+                    preview=page.locator('#job-preview')
+                    expect(preview).to_be_visible()
+                    expect(preview).to_contain_text('В работе')
+                    expect(preview.locator('.job-preview-row').first).to_contain_text(re.compile(r'[1-9]\d*/137'))
+                    page.screenshot(path=str(output/'jobs-running.png'))
+                    preview.locator('.job-preview-row').first.click()
                     page.wait_for_url(url)
                     release.set()
                     expect(page.locator('#jobs-content')).to_contain_text('Обработано 137 из 137',timeout=40000)
+                    page.screenshot(path=str(output/'jobs-completed.png'))
                     assert len(set(seen))==137 and 1 < peak <= 4,(len(seen),peak)
                     page.reload()
                     expect(page.locator('#jobs-content')).to_contain_text('Обработано 137 из 137')
@@ -191,9 +210,9 @@ def main():
                     expect(section.locator('#review-pagination')).to_contain_text('51–100')
                     expect(section.locator('#review-selection')).to_contain_text('Выбрано: 137')
                     for lang in ('ru','en'):
-                        page.locator(f'#language-switch label:has(input[value={lang}])').click()
+                        choose_preference(page, 'language', lang)
                         for theme in ('dark','light'):
-                            page.locator(f'#theme-switch label:has(input[value={theme}])').click()
+                            choose_preference(page, 'theme', theme)
                             for width in (390,768,1440):
                                 page.set_viewport_size({'width':width,'height':940})
                                 assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'),(width,lang,theme)

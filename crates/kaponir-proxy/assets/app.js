@@ -164,7 +164,7 @@ $('#auth').addEventListener('cancel', () => {
   const waiters = authWaiters || []; authWaiters = null;
   waiters.forEach(w => w.reject(new Error(tr('Токен доступа не введён'))));
 });
-$('#access-settings').addEventListener('click', async () => {
+for (const button of [$('#access-settings'), $('#proxy-access')]) button.addEventListener('click', async () => {
   authCancelled = false;
   try { await askToken(); await loadInfo(); showTab(location.hash.slice(1) || 'overview'); }
   catch (error) { fail(error); }
@@ -224,7 +224,7 @@ async function loadInfo() {
   badge.textContent = pending || '';
   badge.hidden = !pending;
   document.body.classList.toggle('readonly', !info.editable);
-  $('#rf').hidden = !info.editable || (typeof rulesView !== 'undefined' && rulesView === 'audit');
+  $('#rule-editor').hidden = !info.editable || (typeof rulesView !== 'undefined' && rulesView === 'audit');
   renderPacks();
   if (typeof setConnected === 'function') setConnected(true);
 }
@@ -233,23 +233,37 @@ const TABS = { mask: () => {}, restore: () => {}, review: () => Promise.all([loa
 
 function showTab(name, push = true) {
   const route = name || 'overview';
-  if (name.startsWith('jobs/')) name = 'jobs';
+  if (route.startsWith('jobs/')) name = 'jobs';
   if (name === 's1') name = 'analysis';
   if (!TABS[name]) name = 'overview';
-  const nav = ['mask','restore'].includes(name) ? 'overview' : name === 'discover' ? 'review' : ['connect','analysis','worker','categorization','setup','metrics'].includes(name) ? 'settings' : name;
-  for (const b of document.querySelectorAll('.tabs button')) {
-    b.setAttribute('aria-selected', String(b.dataset.tab === nav));
+  const nav = {restore:'mask',discover:'review',analysis:'settings',worker:'settings',categorization:'settings',proxy:'connect',metrics:'connect',setup:'rules'}[name] || name;
+  const changed = $('#tab-' + name).hidden;
+  for (const b of document.querySelectorAll('.tabs [data-tab]')) {
     if (b.dataset.tab === nav) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
   for (const s of document.querySelectorAll('.tab')) s.hidden = s.id !== 'tab-' + name;
   hidePop();
   const hash = '#' + (name === 'jobs' ? route : name);
   if (location.hash !== hash) history[push ? 'pushState' : 'replaceState'](null, '', hash);
-  if (typeof panelHeading === 'function') panelHeading(name);
+  if (typeof panelHeading === 'function') panelHeading(name, nav);
+  if (typeof setSidebar === 'function' && (changed || push || !document.activeElement.closest('.sidebar-preferences'))) setSidebar(false);
+  const preview = $('#job-preview');
+  if (preview?.matches('[popover]') && preview.hidePopover) preview.hidePopover();
+  if (changed && push) {
+    window.scrollTo(0, 0);
+    $('#page-title').focus({preventScroll:true});
+  }
   Promise.resolve(TABS[name]()).catch(fail);
 }
 
-for (const b of document.querySelectorAll('.tabs button')) b.addEventListener('click', () => {
+function followLocalLink(event) {
+  if (!event.currentTarget.matches('a')) return true;
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button > 0) return false;
+  event.preventDefault();
+  return true;
+}
+for (const b of document.querySelectorAll('.tabs [data-tab]')) b.addEventListener('click', (event) => {
+  if (!followLocalLink(event)) return;
   if (b.dataset.tab === 'review' && (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob)) showReview();
   else showTab(b.dataset.tab);
 });
@@ -838,6 +852,7 @@ function updateDiscoverStatus() {
 
 function renderDiscover() {
   const foundKeys=D.report?.finding_keys||[];
+  $('#discover-result-pane').hidden = D.view === 'input' && !D.report && !D.busy;
   $('#d-back-sessions').hidden = D.view !== 'sessions';
   $("#discover-findings").hidden=!foundKeys.length;
   $("#discover-collect").hidden=!foundKeys.length;
@@ -887,6 +902,7 @@ function renderDiscover() {
 let documentStudyRequest = 0;
 function showDocumentScenario() {
   const background = $('#d-mode').value === 'background';
+  $('#d-analyze').textContent = tr(background ? 'Отправить в очередь' : 'Найти значения');
   $('#d-scenario-field').hidden = !background;
   if (background && D.view === 'input' && location.hash === '#discover') updateDocumentStudy();
 }
@@ -914,6 +930,7 @@ async function updateDocumentStudy() {
 $('#d-mode').addEventListener('change', showDocumentScenario);
 $('#d-scenario').addEventListener('change', updateDocumentStudy);
 $('#analysis-open-document').addEventListener('click', () => {
+  showTab('discover');
   if (D.view !== 'input') showDiscoverView('input');
   $('#d-mode').value = 'background';
   showDocumentScenario();
@@ -1064,6 +1081,22 @@ function rulePattern(r) {
   return ['regex', r.regex];
 }
 
+function filterRules() {
+  const query = $('#rules-query').value.trim().toLocaleLowerCase(), scope = $('#rules-scope').value;
+  let count = 0;
+  for (const card of $('#rules-list').querySelectorAll('.scope-card')) {
+    let matches = 0;
+    for (const row of card.querySelectorAll('[data-rule-search]')) {
+      row.hidden = !row.dataset.ruleSearch.includes(query);
+      if (!row.hidden) matches++;
+    }
+    card.hidden = (scope && scope !== card.dataset.scope) || (query && !matches);
+    if (!card.hidden) count += matches;
+  }
+  $('#rules-match-count').textContent = tr("Правил в выборке · {{0}}", [count]);
+}
+$('#rules-query').addEventListener('input', filterRules);
+$('#rules-scope').addEventListener('change', filterRules);
 async function loadRules() {
   if (!info.editable) {
     $('#rules-list').replaceChildren(h('div', { class: 'card empty', text: tr("Этот сервер не управляет правилами (запущен без каталога правил).") }));
@@ -1094,22 +1127,22 @@ async function loadRules() {
     dInput.addEventListener('input', updateDomainPreview);
     updateDomainPreview();
     const rules = set.file.rule || [];
-    return h('div', { class: `card scope-card ${set.scope}` },
-      h('h3', {}, SCOPE_TITLES[set.scope], h('span', { class: 'path', text: set.location })),
-      h('div', { class: 'domains' },
-        h('span', { class: 'hint', text: tr("Корпоративные домены:") }),
+    return h('div', { class: `card scope-card ${set.scope}`, 'data-scope':set.scope },
+      h('h3', {title:set.location}, SCOPE_TITLES[set.scope], h('span', {class:'badge'}, rules.length)),
+      h('details', {class:'rule-domains'}, h('summary', {}, tr("Корпоративные домены · {{0}}", [domains.length])),
+        h('div', { class: 'domains' },
         domains.length ? domains.map((d) => h('span', { class: 'chip' }, h('span', {}, d),
           h('button', { title: tr("Удалить"), 'aria-label': tr("Удалить ") + d, onclick: () => putDomains(domains.filter((x) => x !== d)) }, '×'))) : h('span', { class: 'hint', text: tr("нет") }),
         h('form', { onsubmit: (e) => { e.preventDefault(); if (dInput.value.trim()) putDomains([...domains, dInput.value.trim()]); } },
           dInput, h('button', { class: 'small', type: 'submit' }, tr("Добавить"))),
-        previewBox,
-      ),
+        previewBox)),
       rules.length
         ? h('div', { class: 'table-wrap' }, h('table', {},
           h('thead', {}, h('tr', {}, ...['№', tr("Действие"), tr("Тип"), tr("Что ищем"), '', tr("Заметка"), ''].map((c) => h('th', { text: c })))),
           h('tbody', {}, rules.map((r, i) => {
             const [pt, pv] = rulePattern(r);
-            return h('tr', {id:'rule-'+set.scope+'-'+(r.id || 'index-'+i),tabindex:-1,class:r.disabled?'disabled-rule':''},
+            return h('tr', {id:'rule-'+set.scope+'-'+(r.id || 'index-'+i),tabindex:-1,class:r.disabled?'disabled-rule':'',
+              'data-rule-search':[r.id,pv,r.kind,r.kind&&kindLabel(r.kind),r.note].filter(Boolean).join(' ').toLocaleLowerCase()},
               h('td', { class: 'num', text: r.id || i + 1 }),
               h('td', {}, h('span', { class: 'tag ' + (r.action || 'mask'), text: r.disabled ? tr('Отключено') : r.action === 'keep' ? tr("не маскировать") : tr("маскировать") })),
               h('td', {}, r.action === 'keep' ? '' : kindBadge(r.kind)),
@@ -1137,6 +1170,7 @@ async function loadRules() {
         : h('div', { class: 'empty', text: tr("Правил нет") }),
     );
   }));
+  filterRules();
 }
 
 function renderPacks() {

@@ -945,10 +945,13 @@ async fn jobs(
     rows.sort_by_key(|r| {
         (
             !running(r),
+            r["state"] == "queued",
             std::cmp::Reverse(r["created"].as_u64().unwrap_or_default()),
         )
     });
     let active = rows.iter().filter(|r| running(r)).count();
+    let queued = rows.iter().filter(|r| r["state"] == "queued").count();
+    let preview: Vec<_> = rows.iter().take(4).cloned().collect();
     let total = rows.len();
     let offset = q.offset.unwrap_or_default();
     let rows: Vec<_> = rows
@@ -957,7 +960,7 @@ async fn jobs(
         .take(q.limit.unwrap_or(100).clamp(1, 250))
         .collect();
     Ok(Json(
-        json!({"jobs":rows,"total":total,"active":active,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
+        json!({"jobs":rows,"total":total,"active":active,"queued":queued,"preview":preview,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
     ))
 }
 

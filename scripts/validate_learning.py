@@ -12,7 +12,7 @@ import time
 import urllib.request
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from validate_console import free_port, wait_for
+from validate_console import choose_preference, free_port, wait_for
 
 
 def check_browser(base, api, output):
@@ -51,6 +51,7 @@ def check_browser(base, api, output):
         page.locator('#analysis-navigation [data-go=categorization]').click()
         page.locator('#categorization-test').click()
         page.wait_for_function("() => document.querySelector('#categorization-result').textContent==='Подключение проверено'")
+        page.locator('#analysis-navigation [data-go=worker]').click()
         page.locator('#learning-open-history').click()
         page.wait_for_function("() => location.hash==='#review' && document.querySelector('[data-review-view=history]').getAttribute('aria-pressed')==='true'")
         page.locator('[data-review-view=pending]').click()
@@ -71,7 +72,7 @@ def check_browser(base, api, output):
         page.locator('#d-analyze').click()
         wait_for(lambda:any(e['value']=='CedarBrowser86' and e['state']=='active' for e in api('/api/v1/ui/learning')['entries']))
         page.locator('[data-tab=settings]').click()
-        page.locator('#tab-settings [data-go=analysis]').click()
+        page.locator('#analysis-navigation [data-go=worker]').click()
         page.locator('#learning-toggle').click()
         wait_for(lambda:not api('/api/v1/ui/analysis')['settings']['enabled'])
         page.wait_for_function("() => document.querySelector('#learning-state').textContent==='Анализ приостановлен'")
@@ -80,7 +81,7 @@ def check_browser(base, api, output):
         for width in [390,1440]:
             page.set_viewport_size({'width':width,'height':1000})
             for theme in ['dark','light']:
-                page.locator('#theme-switch label:has(input[value='+theme+'])').click()
+                choose_preference(page, 'theme', theme)
                 for tab in ['analysis','categorization','jobs/learning/'+pending['job_id']]:
                     page.evaluate('(tab)=>showTab(tab)',tab);page.wait_for_timeout(200)
                     if tab.startswith('jobs/'):
@@ -88,7 +89,7 @@ def check_browser(base, api, output):
                     assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),(width,theme,tab)
                     page.screenshot(path=str(output/f'learning-{tab.split(chr(47))[0]}-{theme}-{width}.png'),full_page=True)
         page.set_viewport_size({'width':1440,'height':1000})
-        page.locator('#language-switch label:has(input[value=en])').click()
+        choose_preference(page, 'language', 'en')
         page.evaluate("showTab('analysis')")
         page.wait_for_function("() => document.documentElement.lang==='en'")
         page.screenshot(path=str(output/'learning-analysis-en-1440.png'),full_page=True)

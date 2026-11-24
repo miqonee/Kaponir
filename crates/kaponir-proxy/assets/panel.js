@@ -17,16 +17,17 @@ const PAGE_META = {
     "Поставщики и API",
     "Подключения и адреса API для ваших приложений.",
   ],
-  analysis: ["", "Настройки поиска", "Анализ запросов, модели и распределение правил."],
-  worker: ["", "Файловая служба", "Фоновый воркер и очередь."],
-  categorization: ["", "Настройки категоризации", "Категоризация найденных данных."],
+  analysis: ["", "Обнаружение", ""],
+  worker: ["", "Служба и очередь", "Установка моделей, обработка файлов и состояние локальной службы."],
+  categorization: ["", "Категоризация находок", ""],
   rules: ["", "Правила", ""],
   review: ["", "Находки", ""],
   discover: ["", "Найти значения", "Выберите текст, файл или сохранённые запросы и ответы прокси."],
-  mask: ["", "Лаборатория", ""],
-  restore: ["", "Лаборатория", ""],
-  dataset: ["", "Датасет", ""],
-  settings: ["", "Настройки", ""],
+  mask: ["", "Проверка текста", ""],
+  restore: ["", "Восстановление", ""],
+  dataset: ["", "Датасет", "Проверьте разметку черновиков и выгрузите проверенные примеры для обучения."],
+  settings: ["", "Настройки LLM", ""],
+  proxy: ["", "Доступ и конфигурация", ""],
   setup: ["", "Настройка правил", ""],
   metrics: [
     "",
@@ -34,52 +35,74 @@ const PAGE_META = {
     "Технические операции движка, включая лабораторию.",
   ],
 };
-function panelHeading(name) {
+function panelHeading(name, parent) {
   const [, title, description] = PAGE_META[name];
   $("#page-title").textContent = tr(title);
   $("#breadcrumb").textContent = tr(title);
+  const parentLink = $("#breadcrumb-parent");
+  const nested = name !== parent || name === "connect";
+  parentLink.hidden = $("#breadcrumb-separator").hidden = !nested;
+  if (nested) {
+    parentLink.href = "#" + parent;
+    parentLink.textContent = tr(parent === "connect" ? "Настройки прокси" : PAGE_META[parent][1]);
+  }
   $("#page-description").textContent = tr(description);
   $("#page-description").hidden = !description;
   $("#page-actions").hidden = !["overview", "events"].includes(name);
   $("#lab-navigation").hidden = !["mask", "restore"].includes(name);
   if(name==="mask" || name==="restore")syncRestoreAction();
-  $("#learning-widget").hidden = !["analysis", "categorization", "worker"].includes(name);
-  $("#analysis-navigation").hidden = !["analysis", "categorization", "worker"].includes(name);
-  for (const b of document.querySelectorAll(
-    "#lab-navigation [data-go],#analysis-navigation [data-go]",
-  ))
+  $("#learning-widget").hidden = name !== "worker";
+  $("#llm-stage-note").hidden = !["analysis","categorization"].includes(name);
+  $("#analysis-navigation").hidden = parent !== "settings";
+  $("#proxy-navigation").hidden = parent !== "connect";
+  $("#overview-refresh").hidden = name === "events";
+  for (const b of document.querySelectorAll("#analysis-navigation a,#proxy-navigation a")) {
+    if (b.dataset.go === name) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  }
+  for (const b of document.querySelectorAll("#lab-navigation [data-go]"))
     b.setAttribute("aria-pressed", String(b.dataset.go === name));
-  $("#sidebar").classList.remove("open");
-  $("#menu-toggle").setAttribute("aria-expanded", "false");
   document.title = tr(title) + " · Kaponir";
 }
 for (const b of document.querySelectorAll("[data-go]"))
-  b.addEventListener("click", () => {
+  b.addEventListener("click", (event) => {
+    if (!followLocalLink(event)) return;
     if(b.dataset.go==="restore" && location.hash==="#mask") {
       rInput.value=restoreCandidate();
       runRestore();
     }
+    if (b.dataset.go === "discover" && !D.busy)
+      showDiscoverView(b.closest("#tab-worker") ? "saved" : "input");
     showTab(b.dataset.go);
   });
-$("#menu-toggle").addEventListener("click", () => {
-  const open = $("#sidebar").classList.toggle("open");
+const narrowNav = matchMedia("(max-width:900px)");
+function setSidebar(open) {
+  $("#sidebar").classList.toggle("open", open);
+  $("#sidebar").inert = narrowNav.matches && !open;
   $("#menu-toggle").setAttribute("aria-expanded", String(open));
+}
+narrowNav.addEventListener("change", () => setSidebar(false));
+document.addEventListener("focusin", e => {
+  if ($("#sidebar").classList.contains("open") && !e.target.closest("#sidebar,#menu-toggle")) setSidebar(false);
+});
+$("#menu-toggle").addEventListener("click", () => {
+  const open = !$("#sidebar").classList.contains("open");
+  setSidebar(open);
+  if (open) ($("#sidebar [aria-current]") || $("#sidebar a")).focus();
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") {
-    $("#sidebar").classList.remove("open");
-    $("#menu-toggle").setAttribute("aria-expanded", "false");
+  if (e.key === "Escape" && $("#sidebar").classList.contains("open")) {
+    setSidebar(false); $("#menu-toggle").focus();
   }
 });
 document.addEventListener("click", (e) => {
   if (!e.target.closest("#sidebar,#menu-toggle")) {
-    $("#sidebar").classList.remove("open");
-    $("#menu-toggle").setAttribute("aria-expanded", "false");
+    setSidebar(false);
   }
 });
-window.addEventListener("hashchange", () =>
-  showTab(location.hash.slice(1) || "overview", false),
-);
+window.addEventListener("hashchange", () => {
+  if (location.hash !== "#content") showTab(location.hash.slice(1) || "overview", false);
+});
 
 let dashboard = null,
   dashboardPending = false,
@@ -148,15 +171,24 @@ function filteredEvents(applyFilter = true) {
           .includes(query)),
   );
 }
-function hasIssue(e) {
-  if (e.review_reasons) return ["error", "restore_error", "cancelled"].includes(e.outcome) || e.review_reasons.some((reason) => reason.state !== "resolved");
-  return (
-    ["error", "restore_error", "cancelled"].includes(e.outcome) ||
-    e.usage?.unknown ||
-    e.usage?.denied ||
-    e.usage?.uncertain
-  );
+const reviewReasonLabels = {
+  detector_uncertain: "Спорное решение детектора", legacy_uncertain: "Спорные решения без сохранённой связи",
+  unknown_restore_token: "Неизвестный токен восстановления", restore_access_denied: "Нет доступа к восстановлению",
+};
+function requestNotes(event) {
+  const notes = new Set();
+  if (["error", "restore_error", "cancelled"].includes(event.outcome)) notes.add(outcomeLabel(event));
+  if (Array.isArray(event.review_reasons)) {
+    for (const reason of event.review_reasons) {
+      if (reason.state !== "resolved") notes.add(tr(reviewReasonLabels[reason.code] || "Требует проверки"));
+    }
+  } else {
+    for (const [key, label] of [["unknown", "Неизвестный токен восстановления"], ["denied", "Нет доступа к восстановлению"], ["uncertain", "Спорное решение детектора"]])
+      if (event.usage?.[key]) notes.add(tr(label));
+  }
+  return [...notes];
 }
+function hasIssue(event) { return requestNotes(event).length > 0; }
 function proxyUs(e) {
   return (
     (e.timings?.mask_us || 0) +
@@ -457,114 +489,36 @@ window.addEventListener("kaponir-themechange", () => {
   if (dashboard) renderCategories(periodBuckets());
 });
 
-function eventOutcome(e) {
-  return e.outcome;
-}
 function outcomeLabel(e) {
-  return tr(
-    {
-      ok: "Обработан",
-      error: "Ошибка",
-      restore_error: "Ошибка восстановления",
-      cancelled: "Прерван",
-      in_progress: "Выполняется",
-      needs_review: "Требует проверки",
-    }[eventOutcome(e)] || "Ошибка",
-  );
+  const label = {ok:"Ответ получен", error:"Ошибка запроса", restore_error:"Сбой восстановления ответа",
+    cancelled:"Прерван до завершения", in_progress:"Выполняется", needs_review:"Требует проверки"};
+  return tr(label[e.outcome] || "Состояние неизвестно") + (e.status >= 400 ? " · HTTP " + e.status : "");
 }
-function eventsTable(events, compact = false) {
-  if (!events.length)
-    return h(
-      "div",
-      { class: "empty-state" },
-      icon("list"),
-      h("strong", {}, tr("Запросов за период нет")),
-    );
-  const titles = compact
-    ? ["Время", "Модель", "Замены", "Результат", ""]
-    : ["Время", "Модель", "Замены", "Kaponir / Поставщик", "Результат", ""];
-  return h(
-    "table",
-    {},
-    h("thead", {}, h("tr", {}, ...titles.map((t) => h("th", {}, tr(t))))),
-    h(
-      "tbody",
-      {},
-      ...events.map((e) =>
-        h(
-          "tr",
-          {},
-          h(
-            "td",
-            { class: "mono" },
-            time(e.started_at_ms || e.time_ms),
-            e.streaming ? h("small", { class: "hint" }, " · SSE") : null,
-            e.request_kind === "count_tokens"
-              ? h("small", { class: "hint" }, tr("Подсчёт токенов"))
-              : null,
-          ),
-          h(
-            "td",
-            {},
-            h("div", { class: "model-name" }, e.model || e.provider),
-            h("small", { class: "hint" }, e.connection_id || e.provider),
-          ),
-          h(
-            "td",
-            { class: "num" },
-            number(e.usage?.replacements),
-            e.usage?.cached_replacements
-              ? h(
-                  "small",
-                  { class: "hint" },
-                  " +" +
-                    number(e.usage.cached_replacements) +
-                    " " +
-                    tr("из истории"),
-                )
-              : null,
-          ),
-          ...(compact
-            ? []
-            : [
-                h(
-                  "td",
-                  { class: "mono" },
-                  `${(proxyUs(e) / 1000).toFixed(2)} / ${((e.timings?.upstream_us || 0) / 1000).toFixed(0)} ${tr("мс")}`,
-                ),
-              ]),
-          h(
-            "td",
-            {},
-            h(
-              "span",
-              { class: "event-status " + eventOutcome(e) },
-              outcomeLabel(e),
-            ),
-            (e.review_reasons || []).length ? h("button", { class: "text-button event-review-link", onclick: () => openInspector(e.id, "review") },
-              tr(e.review_reasons.some((reason) => reason.state !== "resolved") ? "Проверка: {{0}} причин" : "Проверка закрыта: {{0}}", [e.review_reasons.length])) : null,
-            e.status >= 400
-              ? h("small", { class: "hint" }, " HTTP " + e.status)
-              : null,
-          ),
-          h(
-            "td",
-            {},
-            h(
-              "button",
-              {
-                class: "small ghost",
-                onclick: () => openInspector(e.id),
-                "aria-label": tr("Открыть запрос {{0}}", [e.id]),
-                "data-request-id": e.id,
-              },
-              icon("arrow"),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
+const collapsedRequestGroups = new Set(), issueGroups = new Set();
+function toggleGroup(key, expanded, requests) {
+  if (requests) {
+    if (expanded) collapsedRequestGroups.delete(key); else collapsedRequestGroups.add(key);
+  } else if (expanded) expandedSessions.add(key); else expandedSessions.delete(key);
+  if (!expanded) issueGroups.delete(key);
+  renderEventViews();
+}
+function requestRow(event, prefix) {
+  const notes = requestNotes(event), outcome = outcomeLabel(event);
+  const format = event.request_kind === "count_tokens" ? tr("Подсчёт токенов") : event.streaming ? "SSE" : "";
+  const open = () => openInspector(event.id, ["error","restore_error","cancelled"].includes(event.outcome) ? "diagnostics" :
+    notes.length ? "review" : "request");
+  const state = h("td", {class:"traffic-status"}, h("span", {class:"event-status " + event.outcome}, outcome));
+  const reasons = notes.filter(note => note !== outcome);
+  if (reasons.length) state.append(h("small", {class:"request-reasons"}, reasons.join(" · ")));
+  const action = h("button", {class:"text-button", "data-request-detail":event.id, onclick:open}, tr("Подробности"));
+  return h("tr", {class:"session-children", id:prefix + "-request-" + event.id},
+    h("th", {scope:"row"}, h("button", {class:"request-leaf", "data-request-id":event.id, onclick:open},
+      tr("Запрос {{0}}", [event.id]))),
+    h("td", {class:"traffic-time"}, time(event.started_at_ms || event.time_ms)),
+    h("td", {class:"traffic-model"}, event.model || event.provider, format ? h("small", {class:"request-format"}, format) : null),
+    h("td", {class:"num traffic-count"}, "—"),
+    h("td", {class:"num traffic-masks"}, number(event.usage?.replacements)),
+    state, h("td", {class:"traffic-action"}, action));
 }
 function sessionsTable(events, compact = false) {
   const groups = new Map();
@@ -573,157 +527,68 @@ function sessionsTable(events, compact = false) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(e);
   }
-  let entries = [...groups.entries()].sort(
-    (a, b) =>
-      Math.max(...b[1].map((e) => e.time_ms)) -
-      Math.max(...a[1].map((e) => e.time_ms)),
-  );
-  if (!compact && eventFilter === "issues")
-    entries = entries.filter(([, es]) => es.some(hasIssue));
-  if (compact) entries = entries.slice(0, 5);
-  if (!entries.length)
-    return h(
-      "div",
-      { class: "empty-state" },
-      icon("list"),
-      h("strong", {}, tr("Сессий за период нет")),
-    );
-  const rows = [];
-  for (const [key, es] of entries) {
-    es.sort((a, b) => b.time_ms - a.time_ms || b.id - a.id);
-    const latest = es[0],
-      inferred = latest.session_source === "inferred",
-      isSession = !!latest.session_id;
-    const expanded = expandedSessions.has(key),
-      errors = es.filter(hasIssue).length;
-    const name = isSession
-      ? tr("Сессия {{0}}", [key.slice(0, 8)])
-      : tr("Запрос {{0}}", [latest.id]);
-    const trigger = h(
-      "button",
-      {
-        class: "session-toggle",
-        "data-session-key": key,
-        "aria-expanded": String(expanded),
-        onclick: () => {
-          expandedSessions.has(key)
-            ? expandedSessions.delete(key)
-            : expandedSessions.add(key);
-          renderEventViews();
-        },
-      },
-      icon(expanded ? "chevron" : "arrow"),
-      h("span", {}, name),
-    );
-    rows.push(
-      h(
-        "tr",
-        { class: "session-row" },
-        h(
-          "td",
-          {},
-          trigger,
-          h("button", {class: "text-button session-open", "data-session-open": key, onclick: () => openSession(latest)},
-            tr("Открыть переписку")),
-          inferred
-            ? h(
-                "small",
-                {
-                  class: "hint session-method",
-                  title: tr(
-                    "По началу диалога; одинаковые начала могут совпадать",
-                  ),
-                },
-                tr("Автоматически"),
-              )
-            : null,
-        ),
-        h("td", { class: "mono" }, sessionTime(latest.time_ms)),
-        h(
-          "td",
-          { class: "model-name" },
-          [...new Set(es.map((e) => e.model || e.provider))].join(", "),
-        ),
-        h("td", { class: "num" }, number(es.length)),
-        h(
-          "td",
-          { class: "num" },
-          number(es.reduce((n, e) => n + (e.usage?.replacements || 0), 0)),
-        ),
-        h(
-          "td",
-          {},
-          h(
-            "span",
-            {
-              class:
-                "event-status " +
-                (errors
-                  ? "error"
-                  : es.some((e) => e.outcome === "in_progress")
-                    ? "in_progress"
-                    : "ok"),
-            },
-            errors
-              ? tr("Проблем: {{0}}", [errors])
-              : es.some((e) => e.outcome === "in_progress")
-                ? tr("Выполняется")
-                : tr("Обработан"),
-          ),
-        ),
-      ),
-    );
-    if (expanded)
-      rows.push(
-        h(
-          "tr",
-          { class: "session-children" },
-          h("td", { colspan: 6 }, eventsTable(es, false)),
-        ),
-      );
-  }
-  return h(
-    "table",
-    { class: "sessions-table" },
-    h(
-      "thead",
-      {},
-      h(
-        "tr",
-        {},
-        ...[
-          "Сессия / запрос",
-          "Последняя активность",
-          "Модель",
-          "Запросы",
-          "Замены",
-          "Состояние",
-        ].map((t) => h("th", {}, tr(t))),
-      ),
-    ),
-    h("tbody", {}, ...rows),
-  );
+  const requests = !compact && eventsView === "requests";
+  const onlyIssues = !compact && eventFilter === "issues";
+  let entries = [...groups].map(([key, rows]) => {
+    rows.sort((a,b) => b.time_ms - a.time_ms || b.id - a.id);
+    return {key, rows, issues:rows.filter(hasIssue)};
+  }).filter(group => !onlyIssues || group.issues.length).sort((a,b) => b.rows[0].time_ms - a.rows[0].time_ms);
+  if (compact) entries = entries.slice(0,5);
+  if (!entries.length) return h("div", {class:"empty-state"}, icon("chat"),
+    h("strong", {}, tr(onlyIssues ? "Запросов, требующих внимания, нет" : "Сессий за период нет")));
+  const prefix = compact ? "recent" : "traffic";
+  return h("table", {class:"sessions-table"}, h("thead", {}, h("tr", {},
+    ["Сессия / запрос","Последняя активность","Модель","Запросы","Замены","Состояние","Действия"].map(title => h("th", {scope:"col"}, tr(title))))),
+    entries.map(({key,rows,issues}) => {
+      const latest = rows[0], active = rows.filter(e=>e.outcome === "in_progress").length;
+      const expanded = requests ? !collapsedRequestGroups.has(key) : expandedSessions.has(key);
+      const issueOnly = onlyIssues || issueGroups.has(key);
+      const name = latest.session_id ? tr("Сессия {{0}}", [key.slice(0,8)]) : tr("Запрос {{0}}", [latest.id]);
+      const trigger = h("button", {class:"session-toggle", "data-session-key":key, "aria-expanded":String(expanded),
+        onclick:()=>toggleGroup(key,!expanded,requests), onkeydown:e=>{
+          if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); toggleGroup(key,e.key === "ArrowRight",requests); }
+        }}, icon("chevron"), name);
+      const summary = h("td", {class:"traffic-status"});
+      if (active) summary.append(h("span", {class:"event-status in_progress"}, tr("Выполняется · {{0}}", [active])));
+      if (issues.length) {
+        const counts = new Map();
+        for (const e of issues) for (const note of requestNotes(e)) counts.set(note,(counts.get(note)||0)+1);
+        const label = tr("Требуют внимания · {{0}} из {{1}}", [issues.length,rows.length]);
+        summary.append(h("button", {class:"issue-button", "data-session-issues":key, "aria-expanded":String(expanded && issueOnly),
+          title:[...counts].map(([note,n])=>note+" · "+n).join("\n"), onclick:()=>{
+            if (expanded && issueOnly) { toggleGroup(key,false,requests); return; }
+            issueGroups.add(key); toggleGroup(key,true,requests);
+          }}, label, icon("chevron")));
+      } else if (!active) summary.append(h("span", {class:"event-status ok"}, tr("Без замечаний")));
+      const open = h("button", {class:"session-open", "data-session-open":key, title:tr("Открыть переписку"),
+        "aria-label":tr("Открыть переписку") + " · " + name, onclick:()=>openSession(latest)}, icon("chat"), h("span", {},tr("Переписка")));
+      return h("tbody", {}, h("tr", {class:"session-row"},
+        h("th", {scope:"row", title:latest.session_source==="inferred" ? tr("Сгруппировано автоматически по началу переписки") : name},trigger),
+        h("td", {class:"traffic-time"}, sessionTime(latest.time_ms)),
+        h("td", {class:"traffic-model"}, [...new Set(rows.map(e=>e.model||e.provider))].join(", ")),
+        h("td", {class:"num traffic-count"}, number(rows.length)), h("td", {class:"num traffic-masks"},
+          number(rows.reduce((n,e)=>n+(e.usage?.replacements||0),0))), summary, h("td", {class:"traffic-action"}, open)),
+        expanded ? (issueOnly ? issues : rows).map(e=>requestRow(e,prefix)) : []);
+    }));
 }
 function renderEventViews() {
   if ($("#inspector-dialog").open) return;
   if ($("#session-dialog").open) { refreshOpenSession?.(); return; }
   const focused = document.activeElement;
   const origin = focused?.closest("#recent-events,#events-table");
-  const attribute = focused?.hasAttribute("data-request-id")
-    ? "data-request-id"
-    : focused?.hasAttribute("data-session-open") ? "data-session-open" : "data-session-key";
-  const value = focused?.getAttribute(attribute);
+  const attribute = ["data-request-id", "data-request-detail", "data-session-open", "data-session-issues", "data-session-key"]
+    .find(attr => focused?.hasAttribute(attr));
+  const value = attribute && focused.getAttribute(attribute);
+  $("#events-filter-note").hidden = eventFilter !== "issues";
   $("#recent-events").replaceChildren(
     sessionsTable(filteredEvents(false), true),
   );
   $("#events-table").replaceChildren(
-    eventsView === "sessions"
-      ? sessionsTable(filteredEvents(false))
-      : eventsTable(filteredEvents()),
+    sessionsTable(filteredEvents(false)),
   );
   if (origin && value) {
     const target = [
-      ...origin.querySelectorAll("[data-request-id],[data-session-key],[data-session-open]"),
+      ...origin.querySelectorAll("[" + attribute + "]"),
     ].find((el) => el.getAttribute(attribute) === value);
     (target || $("#events-refresh")).focus({ preventScroll: true });
   }
@@ -758,7 +623,7 @@ async function openInspector(id, initialTab = null) {
     const tabs = {
       review: () => {
         const reasons = ev.review_reasons || [], nodes = [];
-        const titles = { detector_uncertain: "Спорное решение детектора", legacy_uncertain: "Спорные решения без сохранённой связи", unknown_restore_token: "Неизвестный токен восстановления", restore_access_denied: "Нет доступа к восстановлению" };
+        const titles = reviewReasonLabels;
         for (const reason of reasons) {
           const tokens = reason.code === "unknown_restore_token" ? ev.usage?.unknown_tokens : reason.code === "restore_access_denied" ? ev.usage?.denied_tokens : null;
           nodes.push(h("article", { class: "panel review-card" }, h("strong", {}, tr(titles[reason.code] || reason.code)),
@@ -1012,10 +877,9 @@ function renderDashboard() {
   $("#updated-at").textContent = tr("Обновлено {{0}}", [time(Date.now())]);
 }
 function setConnected(online) {
-  $("#connection-state").classList.toggle("offline", !online);
-  $("#connection-state span").textContent = tr(
-    online ? "Прокси доступен" : "Нет соединения",
-  );
+  const state = $("#connection-state");
+  state.classList.toggle("offline", !online);
+  state.title = state.querySelector("span").textContent = tr(online ? "Прокси доступен" : "Нет соединения");
 }
 async function loadDashboard() {
   if (dashboardPending) return;
@@ -1044,6 +908,7 @@ $("#events-search").addEventListener("input", renderEventViews);
 for (const b of $("#events-filter").querySelectorAll("button"))
   b.addEventListener("click", () => {
     eventFilter = b.dataset.filter;
+    issueGroups.clear();
     for (const x of b.parentElement.children)
       x.setAttribute("aria-pressed", String(x === b));
     renderEventViews();
@@ -1051,6 +916,7 @@ for (const b of $("#events-filter").querySelectorAll("button"))
 for (const b of $("#events-view").children)
   b.addEventListener("click", () => {
     eventsView = b.dataset.view;
+    issueGroups.clear();
     for (const x of b.parentElement.children)
       x.setAttribute("aria-pressed", String(x === b));
     renderEventViews();
@@ -1107,14 +973,14 @@ async function loadAnalysis() {
 let rulesView = "list";
 function showRulesView(view) {
   rulesView = view;
-  for (const b of $("#rules-view").children)
+  for (const b of $("#rules-view").querySelectorAll("[data-rules-view]"))
     b.setAttribute("aria-pressed", String(b.dataset.rulesView === view));
   for (const el of $("#tab-rules").children)
     if (el.id !== "rules-view")
       el.hidden =
         el.id === "rules-audit"
           ? view !== "audit"
-          : view === "audit" || (el.id === "rf" && !info.editable);
+          : view === "audit" || (["rule-editor","rule-filters"].includes(el.id) && !info.editable);
   if (view === "audit") loadAudit().catch(fail);
 }
 const auditSelection = new Map();
@@ -1286,7 +1152,7 @@ $("#audit-disable").addEventListener("click", () =>
 $("#audit-enable").addEventListener("click", () =>
   changeAudit([...auditSelection.values()], false),
 );
-for (const b of $("#rules-view").children)
+for (const b of $("#rules-view").querySelectorAll("[data-rules-view]"))
   b.addEventListener("click", () => showRulesView(b.dataset.rulesView));
 $("#audit-refresh").addEventListener("click", () => loadAudit().catch(fail));
 const W = {
@@ -1510,7 +1376,8 @@ Object.assign(TABS, {
   overview: loadDashboard,
   events: loadDashboard,
   connect: renderConnection,
-  settings: renderSettings,
+  settings: () => {},
+  proxy: renderSettings,
   setup: renderWizard,
   analysis: loadAnalysis,
   rules: async () => {

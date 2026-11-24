@@ -503,7 +503,8 @@ function renderLearningWidget() {
       : learningWaitingReason() || (
         summary.running ? tr("Идёт анализ") : summary.queued ? tr("Ожидает обработки")
           : tr(settings.background ? "Ожидает новых данных" : "Автоматический сбор сообщений выключен. Можно отправлять документы вручную."));
-  $("#learning-state").textContent = state;
+  for (const el of [$("#learning-state"), $("#llm-stage-note")])
+    if (el.textContent !== state) el.textContent = state;
   const toggle = $("#learning-toggle");
   toggle.textContent = tr(
     settings.enabled ? "Приостановить анализ" : "Возобновить анализ",

@@ -50,6 +50,7 @@ def main():
                     page.goto(base+'/ui/#analysis')
                     page.wait_for_function("() => document.querySelector('#learning-metrics')?.textContent.includes('2')")
                     page.screenshot(path=str(args.output/'local-analysis-dark.png'),full_page=True)
+                    page.locator('#analysis-navigation [data-go=worker]').click()
                     page.locator('#learning-open-history').click()
                     page.locator('#learning-history .learning-entry').first.wait_for()
                     page.screenshot(path=str(args.output/'local-history-dark.png'),full_page=True)
