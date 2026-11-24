@@ -148,6 +148,7 @@ async fn undo(State(st): State<Shared>, headers: HeaderMap, Path(id): Path<Strin
 struct List {
     status: Option<String>,
     collection: Option<String>,
+    example: Option<String>,
     offset: Option<usize>,
     limit: Option<usize>,
     export: Option<bool>,
@@ -178,6 +179,9 @@ async fn list(State(st): State<Shared>, headers: HeaderMap, Query(q): Query<List
                     checked += 1;
                 } else {
                     drafts += 1;
+                }
+                if q.example.as_ref().is_some_and(|example| example != &id) {
+                    continue;
                 }
                 if q.status
                     .as_ref()

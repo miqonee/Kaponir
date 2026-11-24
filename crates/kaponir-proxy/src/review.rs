@@ -47,6 +47,43 @@ fn fingerprint(item: &Value) -> String {
     .to_hex()
     .to_string()
 }
+
+// A detected value or a type prediction alone does not imply a masking decision.
+fn model_proposal(item: &Value) -> Option<Value> {
+    let rec = &item["recommendation"];
+    let mut proposal = if !rec.is_null() {
+        if rec["state"] != "succeeded" {
+            return None;
+        }
+        json!({"source":"review","job":rec["job_id"],"action":rec["action"],"kind":rec["kind"],"scope":rec["scope"],
+               "model":rec["model"],"reason":rec["reason"],"confidence":rec["confidence"],"verdict_only":rec["verdict_only"]})
+    } else {
+        let scenario = &item["scenario_result"];
+        if item["origin"] != "learning" || item["categorization_state"] == "failed" {
+            return None;
+        }
+        let action = if !scenario.is_null() {
+            scenario["verdict"].as_str()?
+        } else if item["categorization_state"] == "succeeded" {
+            item["classification_action"].as_str()?
+        } else {
+            return None;
+        };
+        json!({"source":"categorization","job":item["job_id"],"action":action,"kind":item["kind"],"scope":item["scope"],
+               "model":item["classifier"],"reason":scenario["reason"],"confidence":item["classification_confidence"],
+               "verdict_only":!scenario.is_null() && scenario["kind"].is_null()})
+    };
+    if !matches!(proposal["action"].as_str(), Some("mask" | "keep")) {
+        return None;
+    }
+    let signature = json!([item["key"], fingerprint(item), proposal]);
+    proposal["id"] = json!(
+        blake3::hash(signature.to_string().as_bytes())
+            .to_hex()
+            .to_string()
+    );
+    Some(proposal)
+}
 pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
     let rows = st.with_vault(|_, v| Ok(v.journal(None, i64::MAX as usize)?))?;
     let mut events = HashMap::new();
@@ -123,7 +160,7 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
         all.push(entry);
     }
     let revision = st.learning.snapshot().revision;
-    let (mut recommendations, mut decisions, dataset) = st.with_vault(|_, v| {
+    let (mut recommendations, mut decisions, mut declined, dataset) = st.with_vault(|_, v| {
         let records = |kind: &str| -> anyhow::Result<HashMap<String, Value>> {
             v.app_records(kind, i64::MAX as usize)?
                 .into_iter()
@@ -133,6 +170,7 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
         Ok((
             records("review-recommendation")?,
             records("review-decision")?,
+            records("review-declined")?,
             v.app_record_ids("dataset-example")?
                 .into_iter()
                 .collect::<HashSet<_>>(),
@@ -147,10 +185,22 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
             }
             item["recommendation"] = rec;
         }
+        if let Some(mut proposal) = model_proposal(item) {
+            proposal["declined"] = json!(
+                declined.remove(&format!("review-declined:{key}")).as_ref()
+                    == Some(&proposal["id"])
+            );
+            item["proposal"] = proposal;
+        }
         if let Some(decision) = decisions.remove(&format!("review-decision:{key}")) {
             item["decision"] = decision;
         }
-        item["in_dataset"] = json!(dataset.contains(&crate::dataset::finding_id(item)));
+        let dataset_id = crate::dataset::finding_id(item);
+        let in_dataset = dataset.contains(&dataset_id);
+        item["in_dataset"] = json!(in_dataset);
+        if in_dataset {
+            item["dataset_id"] = json!(dataset_id);
+        }
     }
     Ok(all)
 }
@@ -481,12 +531,12 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
                     .as_ref()
                     .is_none_or(|id| item["job_id"] == *id)
                 && job_keys.as_ref().is_none_or(|set| set.contains(key))
-                && (q.status.as_deref() == Some("all")
-                    || if q.status.as_deref() == Some("history") {
-                        !is_pending
-                    } else {
-                        is_pending
-                    })
+                && match q.status.as_deref() {
+                    Some("all") => true,
+                    Some("history") => !is_pending,
+                    Some("proposals") => is_pending && item["proposal"]["declined"] == false,
+                    _ => is_pending,
+                }
                 && q.source
                     .as_deref()
                     .is_none_or(|s| s == "all" || item["origin"] == s || item["source_type"] == s)
@@ -585,12 +635,36 @@ async fn list(
         learning::review_configuration(&st, role, None)
             .unwrap_or(json!({"role":role,"provider":"none","model":""}))
     });
+    let page_keys: HashSet<_> = page
+        .iter()
+        .filter_map(|item| item["key"].as_str())
+        .collect();
     let jobs = st
         .with_vault(|_, v| {
-            v.app_records_recent("review-job-running", 2)?
+            v.app_records_recent("review-job-running", i64::MAX as usize)?
                 .into_iter()
-                .chain(v.app_records_recent("review-job-queued", 2)?)
-                .map(|(_, bytes)| Ok(serde_json::from_slice::<Value>(&bytes)?))
+                .chain(v.app_records_recent("review-job-queued", i64::MAX as usize)?)
+                .map(|(_, bytes)| {
+                    let mut job: Value = serde_json::from_slice(&bytes)?;
+                    let id = job["id"].as_str().unwrap_or_default();
+                    let targets = if job["targets"].is_array() {
+                        job["targets"].take()
+                    } else if let Some(bytes) = v.app_record(&format!("review-targets:{id}"))? {
+                        serde_json::from_slice(&bytes)?
+                    } else {
+                        Value::Null
+                    };
+                    job["page_keys"] = json!(
+                        targets
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .filter_map(|target| target["key"].as_str())
+                            .filter(|key| page_keys.contains(key))
+                            .collect::<Vec<_>>()
+                    );
+                    Ok(job)
+                })
                 .collect::<anyhow::Result<Vec<_>>>()
         })
         .map_err(internal)?;
@@ -1082,6 +1156,7 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
         }
         job["active"] = json!((targets.len() - completed as usize).min(slots * batch_size));
         job["updated"] = json!(now_ms());
+        let _guard = st.rule_changes.lock().await;
         st.with_vault(|_, v| {
             learning::transaction(v, || {
                 for (key, rec) in &records {
@@ -1238,6 +1313,7 @@ struct Apply {
     #[serde(default)]
     use_recommendation: bool,
     expected_job: Option<String>,
+    proposal_id: Option<String>,
 }
 async fn apply(
     State(st): State<Shared>,
@@ -1246,6 +1322,10 @@ async fn apply(
     Json(req): Json<Apply>,
 ) -> ResultJson {
     authorized(&st, &headers, true)?;
+    if st.control.is_none() {
+        return Err(bad("read_only"));
+    }
+    let _guard = st.rule_changes.lock().await;
     let key = format!("{origin}:{id}");
     let all = items(&st).map_err(internal)?;
     let item = all
@@ -1258,12 +1338,48 @@ async fn apply(
     let mut scope = req
         .scope
         .unwrap_or_else(|| kaponir_core::s1::default_scope_for_kind(&kind));
-    if req.use_recommendation {
+    if matches!(action.as_str(), "accept-proposal" | "decline-proposal") {
+        let proposal = &item["proposal"];
+        if req.proposal_id.is_none() || proposal["id"].as_str() != req.proposal_id.as_deref() {
+            return Err(bad("review_stale"));
+        }
+        if !matches!(item["state"].as_str(), Some("open" | "pending")) {
+            return Err(bad("entry_not_pending"));
+        }
+        if action == "decline-proposal" {
+            write(
+                &st,
+                &format!("review-declined:{key}"),
+                "review-declined",
+                &proposal["id"],
+            )
+            .map_err(internal)?;
+            return Ok(Json(json!({"ok":true,"state":"proposal_declined"})));
+        }
+        if proposal["declined"] == true
+            || proposal["source"] == "review"
+                && item["recommendation"]["revision"].as_u64()
+                    != Some(st.learning.snapshot().revision)
+        {
+            return Err(bad("review_stale"));
+        }
+        kind = proposal["kind"]
+            .as_str()
+            .ok_or_else(|| bad("invalid_kind"))?
+            .to_owned();
+        scope =
+            serde_json::from_value(proposal["scope"].clone()).map_err(|_| bad("invalid_scope"))?;
+        action = proposal["action"]
+            .as_str()
+            .ok_or_else(|| bad("invalid_action"))?
+            .to_owned();
+    } else if req.use_recommendation {
         let rec = &item["recommendation"];
         if rec["state"] == "needs_review" {
             return Err(bad("review_inconclusive"));
         }
         if rec["state"] != "succeeded"
+            || item["proposal"]["declined"] == true
             || req
                 .expected_job
                 .as_ref()
@@ -1282,18 +1398,19 @@ async fn apply(
             "rollback" => "rollback",
             _ => return Err(bad("invalid_action")),
         };
-        return learning::action(
-            State(st),
-            headers,
-            Path((id, mapped.into())),
-            Json(learning::Action {
+        if mapped == "reject" && item["state"] != "pending" {
+            return Err(bad("entry_not_pending"));
+        }
+        return learning::change_entry(
+            &st,
+            &id,
+            mapped,
+            learning::Action {
                 kind: Some(kind),
                 scope: Some(scope),
-            }),
-        )
-        .await;
+            },
+        );
     }
-    let _guard = st.rule_changes.lock().await;
     let ctl = st.control.as_ref().ok_or_else(|| bad("read_only"))?;
     let row_id = id.parse::<i64>().map_err(|_| bad("entry_not_found"))?;
     let row = st
@@ -1407,4 +1524,33 @@ async fn apply(
         st.replace_engine(ctl.build_engine().map_err(internal)?);
     }
     Ok(Json(json!({"ok":true,"state":status})))
+}
+
+#[cfg(test)]
+mod proposal_tests {
+    use super::*;
+
+    #[test]
+    fn only_explicit_current_verdicts_become_proposals() {
+        let mut item = json!({"key":"learning:example", "origin":"learning", "value":"atlas",
+            "kind":"PATH", "scope":"team", "job_id":"first", "classifier":"fixture",
+            "categorization_state":"succeeded", "classification_confidence":0.95});
+        assert!(model_proposal(&item).is_none());
+        item["classification_action"] = json!("mask");
+        let first = model_proposal(&item).unwrap();
+        assert_eq!(first["action"], "mask");
+        assert_eq!(first["source"], "categorization");
+        item["scenario_result"] = json!({"verdict":"keep","reason":"public"});
+        assert_eq!(model_proposal(&item).unwrap()["action"], "keep");
+        item["scenario_result"]["verdict"] = json!("review");
+        assert!(model_proposal(&item).is_none());
+        item["recommendation"] = json!({"state":"succeeded","action":"mask","job_id":"second","kind":"PATH","scope":"team"});
+        let second = model_proposal(&item).unwrap();
+        assert_ne!(first["id"], second["id"]);
+        assert_eq!(second["id"], model_proposal(&item).unwrap()["id"]);
+        for state in ["stale", "needs_review", "failed"] {
+            item["recommendation"]["state"] = json!(state);
+            assert!(model_proposal(&item).is_none());
+        }
+    }
 }

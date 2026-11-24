@@ -472,6 +472,9 @@ fn parse_choice_label(
             parts[2].to_ascii_uppercase()
         };
         return RuleClassification {
+            explicit_action: ["mask", "keep"]
+                .iter()
+                .any(|a| parts[0].eq_ignore_ascii_case(a)),
             action,
             scope,
             kind,
@@ -480,6 +483,7 @@ fn parse_choice_label(
         };
     }
     RuleClassification {
+        explicit_action: false,
         action: RuleAction::Mask,
         scope: default_scope_for_kind(fallback_kind),
         kind: fallback_kind.to_string(),
@@ -698,6 +702,9 @@ fn openai_classifications(
                 .map(|p| (p as f32).clamp(0.0, 1.0))
                 .unwrap_or(0.85);
             Ok(RuleClassification {
+                explicit_action: item["action"].as_str().is_some_and(|s| {
+                    s.eq_ignore_ascii_case("mask") || s.eq_ignore_ascii_case("keep")
+                }),
                 action,
                 scope,
                 kind,

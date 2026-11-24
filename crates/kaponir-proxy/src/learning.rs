@@ -343,6 +343,8 @@ pub(crate) struct Entry {
     scope: Scope,
     extraction_confidence: Option<f64>,
     classification_confidence: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    classification_action: Option<RuleAction>,
     confidence: Option<f64>,
     model: String,
     classifier: String,
@@ -389,11 +391,7 @@ struct LocalDecision {
     kind: String,
     scope: Scope,
     confidence: f32,
-    #[serde(default = "mask_action")]
-    action: RuleAction,
-}
-fn mask_action() -> RuleAction {
-    RuleAction::Mask
+    action: Option<RuleAction>,
 }
 
 pub struct Learning {
@@ -1557,7 +1555,8 @@ async fn classify(
                 kind: c.kind,
                 scope: c.scope,
                 confidence: c.confidence,
-                action: c.action,
+                explicit_action: c.action.is_some(),
+                action: c.action.unwrap_or_default(),
                 source: "local-categorization".into(),
             })
             .collect::<Vec<_>>()
@@ -1854,6 +1853,7 @@ fn new_entry(
         scope: kaponir_core::s1::default_scope_for_kind(kind),
         extraction_confidence: valid_confidence(p),
         classification_confidence: None,
+        classification_action: None,
         confidence: None,
         model: model.into(),
         classifier: String::new(),
@@ -2397,7 +2397,7 @@ pub(crate) async fn review_infer(
         let decisions = classify(st, &settings.categorization, token, &entries).await?;
         return Ok(
             json!({"decisions":decisions.into_iter().zip(items.as_array().unwrap()).map(|(decision,item)|json!({
-            "id":item["id"],"action":if decision.action == RuleAction::Keep {"keep"} else {"mask"},
+            "id":item["id"],"action":if !decision.explicit_action {"review"} else if decision.action == RuleAction::Keep {"keep"} else {"mask"},
             "kind":decision.kind,"scope":decision.scope,"confidence":decision.confidence,"reason":"configured_categorizer"
         })).collect::<Vec<_>>()}),
         );
@@ -2690,6 +2690,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
                 for (e, c) in batch.iter_mut().zip(decisions) {
                     e.categorization_state = "succeeded".into();
                     e.classification_confidence = Some(f64::from(c.confidence));
+                    e.classification_action = c.explicit_action.then_some(c.action);
                     e.confidence = confidence(e.extraction_confidence, e.classification_confidence);
                     e.classifier = if s.categorization.provider == "local" {
                         s.categorization.model.clone()
@@ -2963,9 +2964,19 @@ pub(crate) async fn action(
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
     let _guard = st.rule_changes.lock().await;
+    change_entry(&st, &id, &action, req)
+}
+
+// Rule and entry mutations share the caller's rule_changes guard.
+pub(crate) fn change_entry(
+    st: &State,
+    id: &str,
+    action: &str,
+    req: Action,
+) -> Result<Json<Value>, ApiError> {
     if action == "retry" {
         let mut job = st
-            .with_vault(|_, v| record::<Job>(v, &id))
+            .with_vault(|_, v| record::<Job>(v, id))
             .map_err(internal)?
             .ok_or_else(|| bad(anyhow::anyhow!("job_not_found")))?;
         if job.state == "running" || job.source.is_empty() {
@@ -2994,14 +3005,15 @@ pub(crate) async fn action(
         .map_err(internal)?
     } else {
         vec![
-            st.with_vault(|_, v| record::<Entry>(v, &id))
+            st.with_vault(|_, v| record::<Entry>(v, id))
                 .map_err(internal)?
                 .ok_or_else(|| bad(anyhow::anyhow!("entry_not_found")))?,
         ]
     };
     let count = entries.len();
+    let mut state = None;
     for mut entry in entries {
-        match action.as_str() {
+        match action {
             "approve" => {
                 if entry.state != "pending" {
                     return Err(bad(anyhow::anyhow!("entry_not_pending")));
@@ -3015,7 +3027,7 @@ pub(crate) async fn action(
                 if let Some(scope) = req.scope {
                     entry.scope = scope;
                 }
-                apply_entry(&st, &mut entry, false).map_err(bad)?;
+                apply_entry(st, &mut entry, false).map_err(bad)?;
             }
             "reject" | "rollback" | "rollback-job" => {
                 let active = matches!(entry.state.as_str(), "active" | "applying" | "rolling_back");
@@ -3037,7 +3049,7 @@ pub(crate) async fn action(
                 })
                 .map_err(internal)?;
                 if active {
-                    if let Err(error) = disable_owned(&st, &entry) {
+                    if let Err(error) = disable_owned(st, &entry) {
                         entry.state = "conflict".into();
                         entry.reason = safe_error(&error);
                         st.with_vault(|_, v| store_entry(v, &entry))
@@ -3051,8 +3063,11 @@ pub(crate) async fn action(
             }
             _ => return Err(bad(anyhow::anyhow!("invalid_action"))),
         }
+        if count == 1 {
+            state = Some(entry.state);
+        }
     }
-    Ok(Json(json!({"ok":true,"updated":count})))
+    Ok(Json(json!({"ok":true,"updated":count,"state":state})))
 }
 async fn history(AxumState(st): AxumState<Shared>, h: HeaderMap) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;

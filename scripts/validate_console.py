@@ -112,7 +112,7 @@ def check_session_conversation(page, api, session_id, output):
 
 
 def main():
-    from playwright.sync_api import sync_playwright
+    from playwright.sync_api import expect, sync_playwright
 
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary', type=Path)
@@ -283,7 +283,8 @@ def main():
                 choose_preference(page, 'language', 'en')
                 page.wait_for_function("() => document.documentElement.lang==='en'")
                 assert page.locator('#d-text').input_value() == 'Проект: Лунная Слива'
-                assert page.locator('#page-title').inner_text() == 'Find values'
+                expect(page.locator('#page-title')).to_have_text('Lab')
+                expect(page.locator('#lab-navigation [aria-current=page]')).to_have_text('Find values')
                 assert page.locator('#analysis-url').input_value() == 'http://127.0.0.1:9999/v1/chat/completions'
                 page.evaluate("showTab('overview')")
                 for theme in ['dark', 'light']:

@@ -118,7 +118,8 @@ def main():
                 assert shared['analysis']['connection_id']==shared['categorization']['connection_id']
                 with sync_playwright() as pw:
                     browser=pw.chromium.launch(executable_path=shutil.which('chromium'),args=['--disable-background-networking'])
-                    page=browser.new_page(locale='ru-RU',viewport={'width':1440,'height':940})
+                    context=browser.new_context(locale='ru-RU',viewport={'width':1440,'height':940})
+                    page=context.new_page()
                     errors=[]
                     page.on('pageerror',lambda e:errors.append(str(e)))
                     page.set_default_timeout(6500)
@@ -170,6 +171,18 @@ def main():
                     page.locator('[data-tab=review]').click()
                     section.get_by_role('button',name='В датасет все 137',exact=True).click()
                     expect(section.locator('#review-result')).to_contain_text('уже были 137')
+                    example_page = context.new_page()
+                    writes = []
+                    example_page.on('request',lambda request: writes.append(request.url) if request.method == 'POST' and request.url.endswith('/collect') else None)
+                    example_page.goto(base + '/ui/#review')
+                    first_value = example_page.locator('#review-list .finding-value').first
+                    first_value.wait_for()
+                    value = first_value.inner_text()
+                    first_value.click()
+                    example_page.get_by_role('button',name='Открыть в датасете').click()
+                    expect(example_page.locator('.dataset-source h2')).to_have_text(value)
+                    assert not writes
+                    example_page.close()
                     section.locator('#review-size').select_option('50')
                     expect(section.locator('.finding-value')).to_have_count(50)
                     section.locator('.finding-value').last.click()
@@ -215,6 +228,10 @@ def main():
                     page.screenshot(path=str(output/'jobs-running.png'))
                     preview.locator('.job-preview-row').first.click()
                     page.wait_for_url(url)
+                    observer = page.context.new_page()
+                    observer.goto(base + '/ui/#review')
+                    expect(observer.locator('#review-list').get_by_text('Идёт проверка ИИ', exact=True).first).to_be_visible()
+                    observer.close()
                     release.set()
                     expect(page.locator('#jobs-content')).to_contain_text('Обработано 137 из 137',timeout=40000)
                     page.screenshot(path=str(output/'jobs-completed.png'))

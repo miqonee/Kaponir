@@ -131,6 +131,9 @@ pub enum S1Error {
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RuleClassification {
+    /// Whether the provider returned a masking action along with the type.
+    #[serde(skip)]
+    pub explicit_action: bool,
     pub action: crate::rules::RuleAction,
     pub scope: crate::types::Scope,
     pub kind: String,
@@ -187,6 +190,7 @@ pub fn classify_from_score(
         }
     }
     RuleClassification {
+        explicit_action: false,
         action,
         scope,
         kind,

@@ -340,6 +340,11 @@ async function refreshJobs() {
       if (seq !== desk.sequence) return;
     }
     renderJobIndicator(data);
+    if (section === "review" && location.hash === "#review" && ReviewUI.data && !ReviewUI.busy &&
+        $("#review-list").getAttribute("aria-busy") !== "true" && !document.querySelector("#tab-review dialog[open]")) {
+      const signature = JSON.stringify((data.preview || []).filter(job => job.family === "review").map(job => [job.id,job.state,job.completed]));
+      if (desk.reviewProgress !== signature) { desk.reviewProgress = signature; void loadReview(); }
+    }
     const first = (data.preview || data.jobs)[0];
     const home = $("#home-job");
     home.hidden = !first;
@@ -715,18 +720,30 @@ function editExample(row, index = 0, drafts = 0) {
   host.replaceChildren(editor);
   editor.querySelector("h2").focus();
 }
-async function loadVaultDataset(continueAt = null) {
+function openFindingExample(id) {
+  desk.openExample = id;
+  desk.datasetStatus = "all";
+  desk.collection = null;
+  desk.datasetOffset = 0;
+  showTab("dataset");
+}
+async function loadVaultDataset(continueAt = null, example = null) {
   const seq = (desk.datasetRequest = (desk.datasetRequest || 0) + 1);
   let data;
   try {
-    data = await api("/api/v1/ui/dataset?" + datasetQuery());
+    data = await api("/api/v1/ui/dataset?" + datasetQuery(example ? {example} : {}));
   } catch (error) {
     if (seq === desk.datasetRequest && !desk.edit && location.hash === "#dataset")
       $("#vault-dataset").replaceChildren(h("div", {class:"empty-state"}, h("p", {role:"alert"}, error.message),
-        workButton("Повторить", () => loadVaultDataset(continueAt))));
+        workButton("Повторить", () => loadVaultDataset(continueAt, example))));
     return;
   }
   if (seq !== desk.datasetRequest || desk.edit || location.hash !== "#dataset") return;
+  if (example) {
+    if (data.items.length) return editExample(data.items[0], 0, data.drafts);
+    $("#dataset-feedback").textContent = tr("Этого примера больше нет в датасете.");
+    return loadVaultDataset();
+  }
   if (desk.datasetOffset && !data.items.length) {
     desk.datasetOffset = Math.max(0, Math.floor((data.total-1)/100)*100);
     return loadVaultDataset(continueAt === null ? null : 0);
@@ -868,9 +885,11 @@ $("#dataset-migrate").onclick = async () => {
   }
 };
 TABS.dataset = async () => {
+  const example = desk.openExample;
+  desk.openExample = null;
   desk.edit = null;
   $("#dataset-feedback").textContent = "";
-  await loadVaultDataset();
+  await loadVaultDataset(null, example);
 };
 refreshJobs();
 

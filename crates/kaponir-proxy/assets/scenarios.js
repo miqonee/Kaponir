@@ -50,7 +50,7 @@ function referenceScenarioTable(data) {
     const total = runs.reduce((n, r) => n + r.private_mask + r.public_keep, 0);
     return {variant: v, minutes: mean, correct: total};
   });
-  return h("details", {class: "scenario-comparison"}, h("summary", {}, tr("Среднее по стенду · {{0}} моделей", [cohort.length])),
+  return h("div", {class: "scenario-comparison"}, h("h3", {}, tr("Среднее по стенду · {{0}} моделей", [cohort.length])),
     h("p", {}, tr("Быстрее всего · {{0}}. Меньше всего верных решений · {{1}}.", [
       rankedScenarios(rows, "minutes", Math.min), rankedScenarios(rows, "correct", Math.min)])),
     h("p", {class: "hint"}, tr("Каждая модель получила одинаковые 16 приватных и 16 публичных значений во всех четырёх сценариях. Время включает повторы запросов.")),
@@ -91,8 +91,7 @@ async function renderScenarioStudy(host, id, selected, control) {
   const key = JSON.stringify([id || "", selected || "", !!control, !!control?.disabled, I18N.language]);
   if (host.dataset.study === key) return;
   host.dataset.study = key;
-  const expanded = !!host.querySelector(".model-comparison[open]");
-  const globalOpen = !!host.querySelector(".scenario-comparison[open]");
+  const chosenPane = host.querySelector('[role="tab"][aria-selected="true"]')?.dataset.pane || "choice";
   const focusedGoal = host.contains(document.activeElement) ? document.activeElement.dataset.goal : null;
   let data;
   try { data = await loadScenarioBenchmarks(); }
@@ -107,29 +106,31 @@ async function renderScenarioStudy(host, id, selected, control) {
   const restoreGoal = focusedGoal && host.contains(document.activeElement);
   host.replaceChildren();
   const model = Object.hasOwn(data, id) ? data[id] : null;
-  if (selected && scenarioDescriptions[selected]) host.append(h("p", {}, tr(scenarioDescriptions[selected])));
+  const choice = h("div", {class:"scenario-choice"});
+  const pages = [{key:"choice", title:"Выбор сценария", content:choice}];
+  if (selected && scenarioDescriptions[selected]) choice.append(h("p", {}, tr(scenarioDescriptions[selected])));
   if (model) {
     const variant = selected || model.recommended, row = model.variants[variant];
     const summary = h("div", {class: "benchmark-summary"},
       h("strong", {}, tr("Рекомендация для модели · {{0}}", [model.recommended])));
     if (row) summary.append(h("span", {}, tr("{{0}} · верно {{1}} из 32 · {{2}} на стенде",
       [variant, row.private_mask + row.public_keep, benchMinutes(row.minutes)])));
-    else summary.append(h("span", {}, tr("Для выбранного режима замера на этом профиле нет.")));
+    else summary.append(h("span", {}, tr(selected === "standard" ? "Стандартная проверка не входила в замер A–D." : "Для выбранного режима замера на этом профиле нет.")));
     const complete = Object.entries(model.variants).filter(([, m]) => m.minutes != null && m.answers === 32)
       .map(([v, m]) => ({...m, variant: v, correct: m.private_mask + m.public_keep}));
     const fastest = complete.length === 4 ? rankedScenarios(complete, "minutes", Math.min) : "";
     if (fastest) summary.append(h("span", {}, tr("Быстрее всего · {{0}}", [fastest])));
     const goals = scenarioPriorities(complete, control, host);
-    if (goals) host.prepend(goals);
-    else if (control) host.append(h("p", {class:"hint"}, tr("Сопоставимые замеры есть только для части сценариев. Выберите сценарий вручную.")));
-    host.append(summary);
+    if (goals) choice.append(goals);
+    else if (control) choice.append(h("p", {class:"hint"}, tr("Сопоставимые замеры есть только для части сценариев. Выберите сценарий вручную.")));
+    choice.prepend(summary);
     const quick = model.variants[fastest], recommended = model.variants[model.recommended];
     if (quick && recommended && fastest !== model.recommended) {
       const comparison = (label, metric) => h("p", {class: "hint"}, tr(label,
         [model.recommended, recommended[metric], fastest, quick[metric]]));
-      if (recommended.private_mask > quick.private_mask) host.append(comparison(
+      if (recommended.private_mask > quick.private_mask) choice.append(comparison(
         "{{0}} скрыл {{1}} из 16 приватных значений, самый быстрый {{2}} — {{3}} из 16.", "private_mask"));
-      else if (recommended.public_keep > quick.public_keep) host.append(comparison(
+      else if (recommended.public_keep > quick.public_keep) choice.append(comparison(
         "{{0}} сохранил {{1}} из 16 публичных значений, самый быстрый {{2}} — {{3}} из 16.", "public_keep"));
     }
     const rows = Object.keys(scenarioDescriptions).map(v => {
@@ -138,15 +139,15 @@ async function renderScenarioStudy(host, id, selected, control) {
         : [v, "—", "—", "—", "—"];
     });
     const series = {archive: "Архивный профиль модели", native: "Испытание нативного профиля", tuned: "Замер настроенного профиля", epoch2: "Испытание Kaponir Privacy epoch-2"};
-    host.append(h("details", {class: "model-comparison", open: expanded},
-      h("summary", {}, tr("Сравнить A–D для модели")),
-      complete.length === 4 ? h("p", {class: "hint"}, tr("Меньше всего верных решений · {{0}}", [rankedScenarios(complete, "correct", Math.min)])) : null,
+    pages.push({key:"model", title:"Замеры модели", content:h("div", {class:"model-comparison"},
+      complete.length === 4 ? h("p", {class: "hint"}, tr("Быстрее всего · {{0}}. Меньше всего верных решений · {{1}}.", [fastest, rankedScenarios(complete, "correct", Math.min)])) : null,
       benchmarkTable(["Сценарий", "Скрыто приватных", "Сохранено публичных", "Получено ответов", "Время за 32"], rows, selected),
-      h("p", {class: "hint"}, tr(series[model.series]) + ". " + tr("Время зависит от оборудования. Прочерк означает отсутствие замера."))));
+      h("p", {class: "hint"}, tr(series[model.series]) + ". " + tr("Время зависит от оборудования. Прочерк означает отсутствие замера.")))});
   } else {
-    host.append(h("p", {class: "hint"}, tr("Для этого подключения нет подтверждённых замеров модели.")));
+    choice.append(h("p", {class: "hint"}, tr("Для этого подключения нет подтверждённых замеров модели.")));
   }
   const reference = referenceScenarioTable(data);
-  if (reference) { reference.open = globalOpen; host.append(reference); }
+  if (reference) pages.push({key:"cohort", title:"Среднее по стенду", content:reference});
+  host.append(contentTabs("Замеры сценариев", pages, chosenPane));
   if (restoreGoal) host.querySelector('[data-goal="'+focusedGoal+'"]')?.focus({preventScroll:true});
 }

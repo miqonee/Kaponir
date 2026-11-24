@@ -23,6 +23,7 @@ const PAGE_META = {
   rules: ["", "Правила", ""],
   review: ["", "Находки", ""],
   discover: ["", "Найти значения", "Выберите текст, файл или сохранённые запросы и ответы прокси."],
+  lab: ["", "Лаборатория", ""],
   mask: ["", "Проверка текста", ""],
   restore: ["", "Восстановление", ""],
   dataset: ["", "Датасет", "Проверьте разметку черновиков и выгрузите проверенные примеры для обучения."],
@@ -37,7 +38,7 @@ const PAGE_META = {
 };
 function panelHeading(name, parent) {
   const [, title, description] = PAGE_META[name];
-  $("#page-title").textContent = tr(title);
+  $("#page-title").textContent = tr(parent === "lab" ? "Лаборатория" : title);
   $("#breadcrumb").textContent = tr(title);
   const parentLink = $("#breadcrumb-parent");
   const nested = name !== parent || name === "connect";
@@ -49,25 +50,23 @@ function panelHeading(name, parent) {
   $("#page-description").textContent = tr(description);
   $("#page-description").hidden = !description;
   $("#page-actions").hidden = !["overview", "events"].includes(name);
-  $("#lab-navigation").hidden = !["mask", "restore"].includes(name);
-  if(name==="mask" || name==="restore")syncRestoreAction();
+  $("#lab-navigation").hidden = parent !== "lab";
+  if (parent === "lab") syncRestoreAction();
   $("#learning-widget").hidden = name !== "worker";
   $("#llm-stage-note").hidden = !["analysis","categorization"].includes(name);
   $("#analysis-navigation").hidden = parent !== "settings";
   $("#proxy-navigation").hidden = parent !== "connect";
   $("#overview-refresh").hidden = name === "events";
-  for (const b of document.querySelectorAll("#analysis-navigation a,#proxy-navigation a")) {
+  for (const b of document.querySelectorAll("#analysis-navigation a,#proxy-navigation a,#lab-navigation a")) {
     if (b.dataset.go === name) b.setAttribute("aria-current", "page");
     else b.removeAttribute("aria-current");
   }
-  for (const b of document.querySelectorAll("#lab-navigation [data-go]"))
-    b.setAttribute("aria-pressed", String(b.dataset.go === name));
   document.title = tr(title) + " · Kaponir";
 }
 for (const b of document.querySelectorAll("[data-go]"))
   b.addEventListener("click", (event) => {
     if (!followLocalLink(event)) return;
-    if(b.dataset.go==="restore" && location.hash==="#mask") {
+    if(b.dataset.go==="restore" && ["#mask","#lab","#discover"].includes(location.hash)) {
       rInput.value=restoreCandidate();
       runRestore();
     }
@@ -1406,6 +1405,7 @@ $("#language-switch").addEventListener("change", async (e) => {
   captureWizard();
   I18N.setLanguage(e.target.value);
   relocalizeConstants();
+  localizeReviewKinds();
   I18N.apply();
   refreshFilePickers();
   renderAdhoc();

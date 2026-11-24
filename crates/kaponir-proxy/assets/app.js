@@ -235,8 +235,9 @@ function showTab(name, push = true) {
   const route = name || 'overview';
   if (route.startsWith('jobs/')) name = 'jobs';
   if (name === 's1') name = 'analysis';
+  if (name === 'lab') name = 'mask';
   if (!TABS[name]) name = 'overview';
-  const nav = {restore:'mask',discover:'review',analysis:'settings',worker:'settings',categorization:'settings',proxy:'connect',metrics:'connect',setup:'rules'}[name] || name;
+  const nav = {mask:'lab',restore:'lab',discover:'lab',analysis:'settings',worker:'settings',categorization:'settings',proxy:'connect',metrics:'connect',setup:'rules'}[name] || name;
   const changed = $('#tab-' + name).hidden;
   for (const b of document.querySelectorAll('.tabs [data-tab]')) {
     if (b.dataset.tab === nav) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
@@ -254,6 +255,37 @@ function showTab(name, push = true) {
     $('#page-title').focus({preventScroll:true});
   }
   Promise.resolve(TABS[name]()).catch(fail);
+}
+
+let tabGroupCount = 0;
+function contentTabs(label, pages, selected = pages[0].key) {
+  const prefix = "content-tabs-" + (++tabGroupCount);
+  const tabs = h("div", {class:"content-tab-list", role:"tablist", "aria-label":tr(label)});
+  const panels = h("div", {class:"content-tab-panels"});
+  function activate(index, focus = false) {
+    Array.from(tabs.children).forEach((tab, i) => {
+      tab.setAttribute("aria-selected", String(i === index));
+      tab.tabIndex = i === index ? 0 : -1;
+      panels.children[i].hidden = i !== index;
+    });
+    if (focus) tabs.children[index].focus({preventScroll:true});
+  }
+  pages.forEach(({key, title, content}, index) => {
+    const id = prefix + "-" + key;
+    tabs.append(h("button", {type:"button", id, role:"tab", "data-pane":key, "aria-controls":id+"-panel",
+      onclick:()=>activate(index)}, tr(title)));
+    panels.append(h("section", {id:id+"-panel", role:"tabpanel", tabindex:0, "aria-labelledby":id}, content));
+  });
+  tabs.addEventListener("keydown", event => {
+    const index = Array.from(tabs.children).indexOf(event.target);
+    const count = pages.length;
+    const next = {ArrowLeft:(index+count-1)%count, ArrowRight:(index+1)%count, Home:0, End:count-1}[event.key];
+    if (index < 0 || next === undefined) return;
+    event.preventDefault();
+    activate(next, true);
+  });
+  activate(Math.max(0, pages.findIndex(page => page.key === selected)));
+  return h("div", {class:"content-tabs"}, tabs, panels);
 }
 
 function followLocalLink(event) {
@@ -858,8 +890,8 @@ function updateDiscoverStatus() {
   syncDiscoveryActions();
   if (!D.report) return;
   const r = D.report;
-  const mode = {not_requested:'S1 не запрашивался',off:'S1 выключен: показаны локальные предложения',scored:'Оценки S1 получены',partial:'S1: оценена только часть примеров',unavailable:'S1 недоступен: предложения сохранены без оценок',no_candidates:'Нет кандидатов для S1',stored:'Сохранённая подборка'};
-  $('#d-status').textContent = (D.view === 'sessions' ? tr('Кандидатов: {{0}} · выбрано {{1}}', [r.suggestions.length, D.selected.size]) : tr('{{0}} документ(ов) · выбрано {{1}} из {{2}}', [r.documents,D.selected.size,r.suggestions.length])) + ' · ' + tr(mode[r.s1_status] || 'S1 не запрашивался') + (r.truncated ? ' · '+tr('Достигнут лимит: показаны не все предложения') : '');
+  const mode = {not_requested:'S1 не запрашивался',off:'Значения найдены локальными детекторами',scored:'Оценки S1 получены',partial:'S1: оценена только часть примеров',unavailable:'Значения сохранены. Оценка S1 недоступна.',no_candidates:'Нет кандидатов для S1',stored:'Сохранённая подборка'};
+  $('#d-status').textContent = (D.view === 'sessions' ? tr('Кандидатов: {{0}} · выбрано {{1}}', [r.suggestions.length, D.selected.size]) : tr('{{0}} документ(ов) · выбрано {{1}} из {{2}}', [r.documents,D.selected.size,r.suggestions.length])) + ' · ' + tr(mode[r.s1_status] || 'S1 не запрашивался') + (r.truncated ? ' · '+tr('Показана часть найденных значений') : '');
 }
 
 function renderDiscover() {
@@ -886,12 +918,12 @@ function renderDiscover() {
   $('#d-none').disabled = !D.selected.size;
   if (!report) {
     $('#d-status').textContent = '';
-    list.replaceChildren(h('div', { class: 'empty', text: tr("Здесь появятся предложения после локального анализа.") }));
+    list.replaceChildren(h('div', { class: 'empty', text: tr("Здесь появятся найденные значения.") }));
     return;
   }
   updateDiscoverStatus();
   if (!report.suggestions.length) {
-    list.replaceChildren(h('div', { class: 'empty', text: tr("Новых предложений нет. Уже замаскированные значения не предлагаются повторно.") }));
+    list.replaceChildren(h('div', { class: 'empty', text: tr("Новых значений для проверки нет.") }));
     return;
   }
   list.replaceChildren(h('div', { class: 'table-wrap discover-table' }, h('table', {},
@@ -911,7 +943,7 @@ function renderDiscover() {
       return h('tr', {},
         h('td', {}, checkbox), h('td', {}, kindBadge(s.kind)), h('td', { class: 'mono', text: s.value }),
         h('td', { class: 'num', text: s.count }), h('td', { class: 'num', text: s.documents }),
-        h('td', { text: s.reason.split('; ').map(reason => reason.startsWith('кандидат детектора ') ? tr('Кандидат детектора {{0}}', [reason.slice('кандидат детектора '.length)]) : tr(reason)).join('; ') }), h('td', {}, h('details', {}, h('summary', {}, tr('Примеры: {{0}}', [(s.examples||[]).length])+scoreLabel),
+        h('td', { text: s.reason.split('; ').map(reason => reason.startsWith('кандидат детектора ') ? tr('Кандидат детектора {{0}}', [reason.slice('кандидат детектора '.length)]) : tr(reason)).join('; ') }), h('td', {}, h('details', {class:'document-examples'}, h('summary', {}, tr('Фрагменты · {{0}}', [(s.examples||[]).length])+scoreLabel),
           ...(s.examples||[]).map(e => h('div', {}, h('p', {class:'hint'}, e.document + ' · ' + e.start + '–' + e.end + ' · S1: ' + (e.s1_score == null ? '—' : e.s1_score.toFixed(2))), h('pre', {class:'mono candidate-fragment'}, candidateExcerpt(e.context, s.value, e.context_span)))))));
     })))));
 }
