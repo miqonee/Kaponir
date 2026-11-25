@@ -16,6 +16,94 @@ from playwright.sync_api import expect, sync_playwright
 from validate_console import free_port, wait_for
 
 
+def check_model_selection(page, base, upstream, api, catalog_reads, slow_started, release_slow):
+    private = upstream + '/private/v1'
+    catalog = lambda **fields: api('/api/v1/ui/model-catalog', {'role':'categorization', 'url':private, **fields})
+    settings = api('/api/v1/ui/categorization')['settings']
+    settings['provider'] = 's1'  # Previously saved chat configuration.
+    settings['http'].update(url=private, protocol='openai', model='old')
+    saved = api('/api/v1/ui/categorization', {'settings':settings, 'key':'fixture-key'}, 'PUT')['settings']
+    assert saved['provider'] == 'api' and saved['http']['protocol'] == 'openai'
+    assert catalog()['status'] == 'available'
+    assert catalog(clear_key=True)['status'] == 'unauthorized'
+    assert catalog(url=upstream+'/other/v1')['status'] == 'unauthorized'
+    assert catalog_reads[-1] == ('/other/v1/models', None)
+    assert catalog(url=private+'/models?revision=2', key='fixture-key')['status'] == 'available'
+    assert catalog_reads[-1] == ('/private/v1/models?revision=2', 'Bearer fixture-key')
+
+    page.goto(base+'/ui/#categorization')
+    expect(page.locator('#session-dialog')).to_be_hidden()
+    method = page.locator('#categorization-provider')
+    expect(method).to_have_value('api')
+    assert method.locator('option').all_text_contents() == ['Выключено','Локальная модель','Модель по API','S1 Choice']
+    picker = page.locator('#categorization-api-catalog')
+    manual = page.locator('#categorization-api-model')
+    url = page.locator('#categorization-url')
+    status = page.locator('#categorization-catalog-status')
+    expect(picker).to_be_visible()
+    assert picker.locator('option').all_text_contents() == ['Выберите модель','new','old']
+    with page.expect_response(lambda r:r.url.endswith('/model-catalog')):
+        page.locator('#categorization-catalog-refresh').click()
+    picker.select_option('new')
+    expect(page.locator('#categorization-api-profile-note')).to_contain_text('32 768')
+    page.get_by_role('button',name='Ввести ID вручную').click()
+    manual.fill('qwen3-0.6b')  # Also a local catalog ID, but this assignment is remote.
+    url.fill(upstream+'/slow/v1')
+    assert slow_started.wait(4)
+    url.fill(upstream+'/manual/v1')
+    expect(status).to_contain_text('не предоставляет каталог')
+    release_slow.set()
+    with page.expect_response(lambda r:r.url.endswith('/model-catalog')):
+        page.locator('#categorization-catalog-refresh').click()
+    expect(manual).to_be_visible()
+    expect(manual).to_have_value('qwen3-0.6b')
+    assert catalog_reads[-1] == ('/manual/v1/models', None)
+    # Separate, unsaved drafts for the Choice protocol and chat API.
+    method.select_option('s1')
+    expect(url).to_have_value('')
+    expect(page.locator('#categorization-catalog-actions')).to_be_hidden()
+    expect(page.locator('#categorization-scenario-field')).to_be_hidden()
+    url.fill(upstream+'/choice')
+    manual.fill('choice-fixture')
+    method.select_option('api')
+    expect(url).to_have_value(upstream+'/manual/v1')
+    expect(manual).to_have_value('qwen3-0.6b')
+    with page.expect_response(lambda r:r.url.endswith('/ui/categorization') and r.request.method=='PUT') as response:
+        page.locator('#categorization-save').click()
+    assert response.value.ok
+    page.goto(base+'/ui/#settings')
+    section = page.locator('#workspace-model-choice')
+    expect(section.locator('dd strong').last).to_have_text('qwen3-0.6b')
+    expect(section.locator('dd small').last).to_contain_text('Модель по API')
+    expect(section.locator('#workspace-local-setup')).to_be_hidden()
+    section.get_by_role('button',name='Выбрать локальную модель').click()
+    expect(section.locator('#workspace-local-setup')).to_be_visible()
+
+    page.goto(base+'/ui/#categorization')
+    method.select_option('s1')
+    url.fill(upstream+'/choice')
+    manual.fill('choice-fixture')
+    with page.expect_response(lambda r:r.url.endswith('/categorization/test')) as probe:
+        page.locator('#categorization-test').click()
+    assert probe.value.json()['decisions'][0]['scope'] == 'team'
+    with page.expect_response(lambda r:r.url.endswith('/ui/categorization') and r.request.method=='PUT') as response:
+        page.locator('#categorization-save').click()
+    choice = response.value.json()['settings']
+    assert choice['provider']=='s1' and choice['http']['protocol']=='systemone'
+    page.goto(base+'/ui/#worker')
+    mode = page.locator('#worker-mode')
+    expect(page.locator('#worker-assignment')).to_contain_text('S1 Choice · choice-fixture')
+    expect(page.locator('#worker-scenario-field')).to_be_hidden()
+    expect(page.locator('#worker-job-form .setting-help-button:visible')).to_have_count(0)
+    mode.select_option('qwen')
+    expect(page.locator('#worker-job-model')).to_be_visible()
+    page.locator('#worker-job-model').select_option('qwen3-0.6b-q8')
+    expect(page.locator('#worker-model')).to_have_value('qwen3-0.6b-q8')
+    mode.select_option('local')
+    expect(page.locator('#worker-job-model')).to_have_count(0)
+    expect(page.locator('#worker-mode-help')).to_contain_text('без языковой модели')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary', type=Path)
@@ -28,6 +116,8 @@ def main():
     lock = threading.Lock()
     seen = []
     old_review_calls = 0
+    catalog_reads = []
+    slow_started, release_slow = threading.Event(), threading.Event()
 
     class Provider(BaseHTTPRequestHandler):
         def log_message(self, *_):
@@ -42,17 +132,31 @@ def main():
             self.wfile.write(data)
 
         def do_GET(self):
+            if '/models' in self.path:
+                token = self.headers.get('Authorization')
+                catalog_reads.append((self.path, token))
+                if self.path.startswith(('/private/','/other/')) and token != 'Bearer fixture-key':
+                    return self.reply({}, 401)
+                if self.path.startswith('/manual/'):
+                    return self.reply({}, 404)
+                if self.path.startswith('/slow/'):
+                    slow_started.set()
+                    release_slow.wait(4)
+                    return self.reply({'data':[{'id':'stale-model'}]})
             if self.path == '/status':
                 self.reply({'enabled':True,'online':True,'runtime_ready':True,'configured':True,'can_manage':True,'models':{}})
             elif self.path == '/workspace/jobs':
                 self.reply({'online':True,'jobs':[]})
             else:
-                self.reply({'data':[{'id':'old'}, {'id':'new','context_length':65536,
+                self.reply({'data':[{'id':'old'}, {'id':'old'}, {'id':'new','context_length':65536,
                                       'top_provider':{'context_length':32768,'max_completion_tokens':4096}}]})
 
         def do_POST(self):
             nonlocal old_review_calls
             data = json.loads(self.rfile.read(int(self.headers.get('Content-Length', 0))) or b'{}')
+            if self.path == '/choice':
+                assert data['model'] == 'choice-fixture' and 'messages' not in data
+                return self.reply({'answers':{k:{'type':'choice','choice':'mask:team:PROJ'} for k in data['questions']}})
             model = data.get('model')
             if model not in gates:
                 self.reply({'choices':[{'index':0,'message':{'role':'assistant','content':'Принято'},'finish_reason':'stop'}]})
@@ -180,9 +284,10 @@ def main():
                     expect(page.locator('#jobs-content .job-meter')).to_contain_text('ток/с')
                     page.locator('#jobs-content').screenshot(path=str(args.output/'generation.png'))
                     page.goto(base+'/ui/#analysis')
-                    field=page.locator('#analysis-api-model')
+                    field=page.locator('#analysis-api-catalog')
+                    expect(field).to_be_visible()
                     expect(field).to_have_value('old')
-                    field.fill('new')
+                    field.select_option('new')
                     note=page.locator('#analysis-api-profile-note')
                     expect(note).to_contain_text('Контекст по каталогу API')
                     assert page.locator('#analysis-output-tokens').input_value()=='4096'
@@ -293,10 +398,11 @@ def main():
                     expect(dialog.locator('mark.masked').first).to_be_visible()
                     expect(dialog.locator('mark.uncertain').first).to_be_visible()
                     dialog.screenshot(path=str(args.output/'conversation-marks.png'))
+                    check_model_selection(page, base, upstream, api, catalog_reads, slow_started, release_slow)
                     browser.close()
                 time.sleep(.1)
                 assert all(learning()[i]['state']=='cancelled' for i in abandoned)
-                print('Verified streaming telemetry, profiles, active queue transfer/discard, partial review, decision navigation and masked session deduplication.')
+                print('Verified API catalog selection, manual IDs, credential isolation, S1 Choice, worker modes, streaming, queue transfer/discard and review navigation.')
             finally:
                 for gate in gates.values():
                     gate.set()

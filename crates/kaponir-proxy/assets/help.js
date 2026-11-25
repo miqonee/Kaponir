@@ -51,15 +51,15 @@ document.addEventListener("scroll", (event) => {
 }, true);
 function installSettingHelp() {
   for (const input of document.querySelectorAll("input[aria-describedby],select[aria-describedby]")) {
-    if (input.dataset.helpInstalled) continue;
+    if (input.dataset.helpInstalled || input.hasAttribute("data-inline-help")) continue;
     const note = document.getElementById(input.getAttribute("aria-describedby").split(" ")[0]), label = input.closest("label");
-    if (!note || !label || !note.classList.contains("hint")) continue;
+    if (!note?.textContent.trim() || !label || !note.classList.contains("hint")) continue;
     input.dataset.helpInstalled = "true";
     const text = note.dataset.i18n || note.textContent, wrapper = h("div", { class: label.classList.contains("field") ? "help-field" : "help-check" });
     label.before(wrapper); wrapper.append(label, helpButton(text)); note.hidden = true;
   }
   for (const input of document.querySelectorAll("input[type=checkbox]")) {
-    if (input.dataset.helpInstalled) continue;
+    if (input.dataset.helpInstalled || input.hasAttribute("data-inline-help")) continue;
     const label = input.closest("label"), note = label?.nextElementSibling;
     if (!label || !note?.matches("p.hint[data-i18n]")) continue;
     if (!note.id) note.id = input.id ? input.id + "-help" : "help-note-" + Math.random().toString(36).slice(2);

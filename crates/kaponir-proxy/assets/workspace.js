@@ -1098,7 +1098,9 @@ async function loadWorkspaceModels() {
     (a, b) =>
       Number(!!models[b.id]?.downloaded) - Number(!!models[a.id]?.downloaded) || a.bytes - b.bytes,
   );
-  const activeName = source => source && source.provider !== "none" ? modelName(source.model) || source.connection : tr("Отключено");
+  const method = source => source?.provider === "s1" ? (source.protocol === "probabilities" ? "S1 Probabilities" : "S1 Choice") : modelMethod(source?.provider);
+  const activeName = source => source?.provider === "local" ? modelName(source.model) : source?.model;
+  const remote = [cfg.analysis, cfg.categorization].some(source => ["api","s1"].includes(source?.provider));
   const pick = h(
     "select",
     { "aria-label": tr("Модель поиска и проверки") },
@@ -1167,20 +1169,10 @@ async function loadWorkspaceModels() {
       !info.editable || !catalog.length,
     ),
   );
-  if (
-    cfg.analysis?.provider === "api" &&
-    (cfg.categorization?.model !== cfg.analysis.model ||
-      cfg.categorization?.connection_id !== cfg.analysis.connection_id)
-  ) {
-    modelControls.append(
-      workButton(
-        "Использовать API-модель поиска для проверки",
-        () => save({ use_analysis_api: true }),
-        "secondary",
-        !info.editable,
-      ),
-    );
-  }
+  const shared = cfg.analysis?.model && cfg.analysis.model === cfg.categorization?.model &&
+    cfg.analysis.provider === cfg.categorization.provider && cfg.analysis.connection_id === cfg.categorization.connection_id;
+  const shareApi = cfg.analysis?.provider === "api" && !shared ? workButton("Использовать API-модель поиска для проверки",
+    () => save({use_analysis_api:true}), "secondary", !info.editable) : null;
   const slot = h("input", {
     type: "number",
     min: 1,
@@ -1280,17 +1272,33 @@ async function loadWorkspaceModels() {
     updateChoice();
   };
   updateChoice();
-  const shared = cfg.analysis?.model && cfg.analysis.model === cfg.categorization?.model &&
-    cfg.analysis.provider === cfg.categorization.provider && cfg.analysis.connection_id === cfg.categorization.connection_id;
+  const assignments = h("dl", {class:"model-assignments"});
+  for (const [role, title] of [["analysis","Обнаружение"],["categorization","Категоризация"]]) {
+    const source = cfg[role];
+    const caption = [method(source), role === "analysis" && source && !cfg.analysis_enabled ? tr("Обнаружение выключено") : null,
+      source?.provider !== "local" ? source?.connection : null].filter(Boolean).join(" · ");
+    assignments.append(h("div", {}, h("dt", {}, h("a", {href:"#"+role}, tr(title))),
+      h("dd", {}, h("strong", {}, activeName(source) || method(source)),
+        source && activeName(source) ? h("small", {}, caption) : null)));
+  }
+  const localSetup = h("div", {id:"workspace-local-setup"},
+    modelControls, candidates.length ? h("p", {class:"hint"}, tr("Подходит по памяти и проверен на задачах поиска и категоризации · {{0}}", [candidates[0].label || candidates[0].id])) : null,
+    !catalog.length ? h("p", {class:"hint"}, tr("Чтобы выбрать локальную модель, откройте службу моделей. Для внешней модели укажите API в настройках обнаружения.")) : null,
+    studyBox);
+  localSetup.hidden = remote && !desk.localSetupOpen;
+  const toggleLocal = h("button", {type:"button",class:"text-button","aria-controls":localSetup.id}, tr("Выбрать локальную модель"));
+  const showLocal = () => {
+    toggleLocal.setAttribute("aria-expanded", String(!localSetup.hidden));
+    toggleLocal.textContent = tr(localSetup.hidden ? "Выбрать локальную модель" : "Скрыть выбор локальной модели");
+    calibration.hidden = localSetup.hidden;
+  };
+  showLocal();
+  toggleLocal.onclick = () => { localSetup.hidden = !localSetup.hidden; desk.localSetupOpen = !localSetup.hidden; showLocal(); };
   box.replaceChildren(
     h("section", {id: "workspace-model-choice", class:"panel model-setup", "aria-labelledby": "workspace-model-title"},
       h("h2", {id: "workspace-model-title"}, tr("Модель поиска и проверки")),
-      h("p", {class:"model-assignment"}, shared ? tr("Для поиска и проверки используется {{0}}.", [activeName(cfg.analysis)]) :
-        tr("Поиск · {{0}}", [activeName(cfg.analysis)]) + "  ·  " + tr("Категоризация · {{0}}", [activeName(cfg.categorization)])),
-      modelControls, candidates.length ? h("p", {class:"hint"}, tr("Подходит по памяти и проверен на задачах поиска и категоризации · {{0}}", [candidates[0].label || candidates[0].id])) : null,
-      !catalog.length ? h("p", {class:"hint"}, tr("Чтобы выбрать локальную модель, откройте службу моделей. Для внешней модели укажите API в настройках обнаружения.")) : null,
-      studyBox, h("div", {class:"model-paths"},
-        h("a", {href:"#analysis"}, tr("Источник модели и API")), h("a", {href:"#worker"}, tr("Открыть службу моделей"))),
+      assignments, remote ? h("div",{class:"model-setup-actions"},shareApi,toggleLocal) : null, localSetup,
+      h("div", {class:"model-paths"}, h("a", {href:"#worker"}, tr("Открыть службу моделей"))),
       h("p", {id:"workspace-save-state", role:"status", class:"form-status"})),
     h("section", {class:"panel hardware-panel"}, h("h2", {}, tr("Производительность воркера")),
       viewHardware(worker), h("p", {id:"resource-error", role:"status", class:"form-status"}),

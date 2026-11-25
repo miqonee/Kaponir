@@ -152,8 +152,91 @@ function writeInference(role, inference) {
 }
 const apiProfiles = {analysis:{manual:new Set()},categorization:{manual:new Set()}};
 function isChatApi(role) {
-  return role==="analysis" ? $("#analysis-provider").value==="api" :
-    $("#categorization-provider").value==="s1" && $("#categorization-protocol").value==="openai";
+  return $("#" + role + "-provider").value === "api";
+}
+
+const apiCatalogs = {analysis: {}, categorization: {}};
+function catalogConnection(role) {
+  return {role, url: $("#" + role + "-url").value.trim(), key: $("#" + role + "-key").value.trim() || null,
+    clear_key: $("#" + role + "-clear-key").checked};
+}
+function catalogIdentity(connection) {
+  const saved = LearningUI[connection.role];
+  // A saved key may have changed since the last time this form was opened.
+  return JSON.stringify([connection, saved?.revision, saved?.key_saved]);
+}
+function renderApiPicker(role) {
+  const apiMode = isChatApi(role), state = apiCatalogs[role];
+  const input = $("#" + role + "-api-model"), select = $("#" + role + "-api-catalog");
+  const rows = state.result?.models || [];
+  const listed = rows.some(row => row.id === input.value);
+  const useList = apiMode && rows.length > 0 && state.mode !== "manual" &&
+    (state.mode === "list" || !input.value || listed);
+  $("#" + role + "-manual-field").hidden = !!useList;
+  $("#" + role + "-catalog-field").hidden = !useList;
+  $("#" + role + "-catalog-actions").hidden = !apiMode;
+  const toggle = $("#" + role + "-catalog-toggle");
+  toggle.hidden = !rows.length;
+  toggle.textContent = tr(useList ? "Ввести ID вручную" : "Выбрать из списка");
+  const url = $("#" + role + "-url");
+  $("#" + role + "-catalog-refresh").disabled = !LearningUI[role]?.editable || LearningUI.busy.has(role) ||
+    state.loading || !url.value.trim() || !url.validity.valid;
+  const s1Mode = role === "categorization" && $("#categorization-provider").value === "s1";
+  const required = apiMode || s1Mode && $("#categorization-protocol").value !== "probabilities";
+  const editable = LearningUI[role]?.editable && !LearningUI.busy.has(role);
+  input.disabled = !editable || !(apiMode || s1Mode) || !!useList;
+  select.disabled = !editable || !useList;
+  if (apiMode) input.setAttribute("aria-describedby", role + "-catalog-status");
+  else input.removeAttribute("aria-describedby");
+  input.required = required && !useList;
+  select.required = required && !!useList;
+  if (useList) {
+    if (select._catalog !== rows || select._custom !== (listed ? "" : input.value)) {
+      select.replaceChildren(h("option", {value:""}, tr("Выберите модель")),
+        !listed && input.value ? h("option", {value:input.value}, input.value) : null,
+        ...rows.map(row => h("option", {value:row.id}, row.id)));
+      select._catalog = rows;
+      select._custom = listed ? "" : input.value;
+    }
+    select.value = input.value;
+  }
+  const status = $("#" + role + "-catalog-status");
+  status.hidden = !apiMode;
+  const messages = {
+    unauthorized: "Провайдер отклонил доступ к каталогу. Проверьте ключ или введите ID модели.",
+    unavailable: "Каталог недоступен. Можно повторить загрузку или ввести ID модели.",
+    unsupported: "Этот endpoint не предоставляет каталог моделей. Введите ID модели.",
+    empty: "Каталог пуст. Введите ID модели.",
+    too_large: "Список моделей слишком велик для загрузки. Введите ID модели.",
+  };
+  const message = state.loading ? tr("Загружаем модели…") : rows.length ?
+    tr("Моделей в каталоге · {{0}}", [number(rows.length)]) : state.result ?
+    tr(messages[state.result.status] || messages.unavailable) : tr("Укажите адрес API для загрузки каталога.");
+  if (status.textContent !== message) status.textContent = message;
+}
+function loadApiCatalog(role, refresh = false) {
+  const connection = catalogConnection(role), state = apiCatalogs[role];
+  const identity = catalogIdentity(connection);
+  if (!refresh && state.identity === identity) return state.promise;
+  if (!isChatApi(role) || !connection.url || !URL.canParse(connection.url) || !/^https?:$/.test(new URL(connection.url).protocol)) {
+    state.identity = null; state.loading = false; state.result = null; state.promise = null;
+    renderApiPicker(role);
+    return;
+  }
+  if (state.identity !== identity) state.result = null;
+  state.identity = identity;
+  state.loading = true;
+  const request = api("/api/v1/ui/model-catalog", {method:"POST", body:connection})
+    .catch(() => ({status:"unavailable", models:[]}))
+    .then(result => {
+      if (state.promise !== request || identity !== catalogIdentity(catalogConnection(role)) || !isChatApi(role)) return;
+      state.loading = false; state.result = result;
+      renderApiPicker(role);
+      return result;
+    });
+  state.promise = request;
+  renderApiPicker(role);
+  return request;
 }
 function displayApiLimits(role, source) {
   const values = ["context-tokens","output-tokens","batch-size"].map(field => number(Number($("#"+role+"-"+field).value)));
@@ -197,9 +280,15 @@ function planApiProfile(role, force=false) {
   state.profile=null;
   const run=++state.sequence;
   note.textContent=tr("Проверяем лимиты модели…");
-  state.promise=api("/api/v1/ui/model-profile",{method:"POST",body:{url,model,role,key:$("#"+role+"-key").value || null,
-    clear_key:$("#"+role+"-clear-key").checked}}).then(profile=>{
+  state.promise=Promise.resolve(loadApiCatalog(role)).then(catalog => {
+    return catalog?.models.find(row => row.id === model)?.profile || catalog?.fallback;
+  }).then(profile=>{
     if (run!==state.sequence || !isChatApi(role) || identity!==JSON.stringify([$("#"+role+"-url").value.trim(),$("#"+role+"-api-model").value.trim()])) return;
+    if (!profile) {
+      state.identity = null;
+      note.textContent = tr("Параметры запроса сохранены. Пересчёт можно повторить после подключения к API.");
+      return;
+    }
     state.profile=profile;
     applyApiLimits(role,profile);
   }).catch(error=>{if(run===state.sequence){note.textContent=learningError(error.messageKey||error.message);state.identity=null;}});
@@ -263,17 +352,20 @@ function learningFormVisibility() {
   $("#analysis-local-fields").hidden = a !== "local";
   $("#analysis-api-fields").hidden = a !== "api";
   $("#categorization-local-fields").hidden = c !== "local";
-  $("#categorization-api-fields").hidden = c !== "s1";
+  $("#categorization-api-fields").hidden = !["api", "s1"].includes(c);
+  const legacy = LearningUI.categorization?.settings;
+  $("#categorization-legacy-field").hidden = !(c === "s1" && legacy?.http.url && legacy.http.protocol === "probabilities");
+  $("#categorization-url").placeholder = c === "s1" ? "https://s1.example/endpoint" : "https://api.example/v1/chat/completions";
+  const endpointHelp = $("#categorization-url-help");
+  endpointHelp.textContent = tr(c === "s1" ? "Укажите адрес сервера S1 для выбранного протокола." : "Для OpenAI-совместимого API подойдут адреса /v1, /chat/completions или /models.");
   $("#categorization-none-note").hidden = c !== "none";
   $("#categorization-timeout-field").hidden = c === "none";
-  $("#categorization-inference-settings").hidden = c === "none" || (c === "s1" && $("#categorization-protocol").value !== "openai");
+  $("#categorization-inference-settings").hidden = !["local", "api"].includes(c);
   $("#categorization-scenario-field").hidden = $("#categorization-inference-settings").hidden;
   $("#analysis-timeout").max = a === "local" ? "1800" : "300";
-  $("#categorization-timeout").max = c === "local" ? "1800000" : $("#categorization-protocol").value === "openai" ? "300000" : "60000";
+  $("#categorization-timeout").max = c === "local" ? "1800000" : c === "api" ? "300000" : "60000";
   $("#analysis-url").required = a === "api";
-  $("#analysis-api-model").required = a === "api";
-  $("#categorization-url").required = c === "s1";
-  $("#categorization-api-model").required = c === "s1";
+  $("#categorization-url").required = c === "s1" || c === "api";
   for (const role of ["analysis", "categorization"]) {
     const data = LearningUI[role],
       busy = LearningUI.busy.has(role),
@@ -282,12 +374,21 @@ function learningFormVisibility() {
     if (apiNote) apiNote.hidden = !isChatApi(role);
     for (const input of form.querySelectorAll("input,select,button"))
       input.disabled = busy || !data?.editable;
+    for (const input of form.querySelectorAll(":scope [hidden] :is(input,select)")) input.disabled = true;
     $(`#${role}-clear-key`).disabled =
       busy || !data?.editable || !data?.key_saved;
+    const savedUrl = role === "analysis" ? data?.settings.url : data?.settings.http.url;
+    const savedKeyHere = data?.key_saved && savedUrl === $("#"+role+"-url").value.trim();
+    const clear = $("#"+role+"-clear-key");
+    clear.closest("label").hidden = !savedKeyHere;
+    clear.disabled ||= !savedKeyHere;
+    if (!savedKeyHere) clear.checked = false;
+    $("#"+role+"-key").placeholder = tr(savedKeyHere ? "Сохранённый ключ останется без изменений" : "Введите ключ, если он требуется");
     $(`#${role}-test`).hidden = (role === "analysis" ? a : c) === "none";
     const local = (role === "analysis" ? a : c) === "local",
       button = $(`#${role}-test`);
     button.textContent = tr(local ? "Проверить запуск" : "Проверить подключение");
+    renderApiPicker(role);
     if (local) button.disabled = busy || !data?.editable || !WORKER.data?.enabled || !!localModelIssue(selectedModel(role));
   }
   if (!$("#categorization-scenario-field").hidden) {
@@ -327,7 +428,7 @@ function renderLearningForms() {
         $(`#analysis-${field}`).value = s.chunking?.[key] ?? ({target_input_tokens:0,context_hint_tokens:0,max_candidates:24,max_fragments:256})[key];
     } else {
       $("#categorization-local-model").value = canonicalModel(s.model);
-      $("#categorization-protocol").value = s.http.protocol;
+      $("#categorization-protocol").value = s.http.protocol === "probabilities" && s.provider === "s1" ? "probabilities" : "systemone";
       $("#categorization-scenario").value = s.scenario || "standard";
       $("#categorization-api-model").value = s.http.model || "";
       $("#categorization-url").value = s.http.url;
@@ -337,13 +438,10 @@ function renderLearningForms() {
     updateProfileNote(role);
     $(`#${role}-key`).value = "";
     $(`#${role}-clear-key`).checked = false;
-    $(`#${role}-key`).placeholder = tr(
-      data.key_saved
-        ? "Сохранённый ключ останется без изменений"
-        : "Введите ключ, если он требуется",
-    );
   }
   learningFormVisibility();
+  const role = location.hash.slice(1);
+  if (["analysis", "categorization"].includes(role) && isChatApi(role)) loadApiCatalog(role);
 }
 function readLearningForm(role) {
   const saved = LearningUI[role]?.settings || {};
@@ -374,7 +472,7 @@ function readLearningForm(role) {
       http: {
         ...saved.http,
         url: $("#categorization-url").value.trim(),
-        protocol: $("#categorization-protocol").value,
+        protocol: isChatApi(role) ? "openai" : $("#categorization-provider").value === "s1" ? $("#categorization-protocol").value : saved.http.protocol,
         model: $("#categorization-api-model").value.trim() || null,
         timeout_ms: Number($("#categorization-timeout").value),
         disclosure: "l2",
@@ -391,11 +489,14 @@ function readLearningForm(role) {
     strategy: $("#analysis-chunk-strategy").value,
     ...Object.fromEntries(Object.entries({target_input_tokens:"target-input", context_hint_tokens:"hint-tokens", max_candidates:"max-candidates", max_fragments:"max-fragments"}).map(([key,field]) => [key,Number($(`#analysis-${field}`).value)])),
   };
+  const remote = ["api","s1"].includes(settings.provider);
+  if (!remote && role === "analysis") settings.url = saved.url;
+  if (!remote && role === "categorization") settings.http = {...saved.http, timeout_ms:settings.http.timeout_ms};
   if (isChatApi(role)) { settings.api_manual=[...apiProfiles[role].manual]; settings.inference.local_generation=null; }
   return {
     settings,
-    ...(key ? { key } : {}),
-    clear_key: $(`#${role}-clear-key`).checked,
+    ...(remote && key ? { key } : {}),
+    clear_key: remote && $(`#${role}-clear-key`).checked,
   };
 }
 async function loadLearningSettings() {
@@ -415,7 +516,33 @@ for (const role of ["analysis", "categorization"]) {
     profile.manual.clear();LearningUI.dirty.add(role);void planApiProfile(role,true);
   }},tr("Пересчитать параметры API"));
   $("#"+role+"-api-fields").append(h("div",{class:"api-profile"},note,recalc));
-  const requestProfile=debounce(()=>planApiProfile(role),300);
+  const requestProfile = debounce(() => {
+    if (isChatApi(role)) { loadApiCatalog(role); planApiProfile(role); }
+  }, 400);
+  const picker = apiCatalogs[role], modelInput = $("#" + role + "-api-model");
+  const catalogSelect = $("#" + role + "-api-catalog");
+  $("#" + role + "-catalog-refresh").onclick = async () => {
+    if (await loadApiCatalog(role, true)) {
+      const current = apiProfiles[role];
+      if (!current.identity && modelInput.value) await planApiProfile(role);
+    }
+  };
+  $("#" + role + "-catalog-toggle").onclick = () => {
+    const manual = !$("#" + role + "-catalog-field").hidden;
+    picker.mode = manual ? "manual" : "list";
+    renderApiPicker(role);
+    (manual ? modelInput : catalogSelect).focus();
+  };
+  const selectApiModel = () => {
+    if (modelInput.value === catalogSelect.value) return;
+    modelInput.value = catalogSelect.value;
+    modelInput.dispatchEvent(new Event("input", {bubbles:true}));
+  };
+  catalogSelect.addEventListener("input", selectApiModel);
+  catalogSelect.addEventListener("change", selectApiModel);
+  modelInput.addEventListener("input", () => {
+    if (document.activeElement === modelInput) picker.mode = "manual";
+  });
   const fields=new Set([...Object.values(inferenceFields),"timeout","max-candidates","target-input","hint-tokens","chunk-strategy"]);
   $("#"+role+"-form").addEventListener("input",event=>{
     if (!isChatApi(role)) return;
@@ -425,7 +552,10 @@ for (const role of ["analysis", "categorization"]) {
       if (profile.profile) applyApiLimits(role,profile.profile);
       else displayApiLimits(role,"");
     }
-    if (["url","api-model","key","clear-key","protocol"].includes(name)) {++profile.sequence;profile.identity=null;profile.profile=null;requestProfile();}
+    if (["url","key","clear-key"].includes(name)) {
+      picker.identity = null; picker.promise = null; picker.result = null; picker.loading = false;
+    }
+    if (["url","api-model","key","clear-key"].includes(name)) {++profile.sequence;profile.identity=null;profile.profile=null;requestProfile();}
   });
   for(const event of ["input","change"]) $("#"+role+"-form").addEventListener(event,()=>{
     if($("#"+role+"-provider").value==="local")updateProfileNote(role);
@@ -436,17 +566,23 @@ for (const role of ["analysis", "categorization"]) {
     if (!drafts) return;
     const provider = $(`#${role}-provider`).value;
     const fieldIds = Object.values(inferenceFields).map(field => `${role}-${field}`);
-    if (role === "categorization") fieldIds.push("categorization-scenario");
+    if (role === "categorization") fieldIds.push("categorization-scenario", "categorization-url", "categorization-api-model",
+      "categorization-protocol", "categorization-key");
     fieldIds.push(`${role}-timeout`);
     if (role === "analysis") fieldIds.push("analysis-target-input", "analysis-hint-tokens",
       "analysis-max-candidates", "analysis-max-fragments", "analysis-chunk-strategy");
     drafts[drafts.provider] = {values:Object.fromEntries(fieldIds.map(id => [id, $("#" + id).value])),
-      generation:LearningUI.generation[role]};
+      generation:LearningUI.generation[role], clearKey:$("#"+role+"-clear-key").checked, manual:profile.manual, pickerMode:picker.mode};
+    picker.mode = null; picker.result = null; picker.promise = null; picker.identity = null; picker.loading = false;
+    profile.manual = new Set();
     drafts.provider = provider;
     const previous = drafts[provider];
     if (previous) {
       for (const [id, value] of Object.entries(previous.values)) $("#" + id).value = value;
       LearningUI.generation[role] = previous.generation;
+      profile.manual = previous.manual;
+      picker.mode = previous.pickerMode;
+      if (role === "categorization") $("#categorization-clear-key").checked = previous.clearKey;
     } else if (provider === "local") {
       const select = modelSelect(role);
       const installed = [...select.options].filter(option => WORKER.data?.models?.[option.value]?.downloaded);
@@ -454,9 +590,20 @@ for (const role of ["analysis", "categorization"]) {
       if (installed.length) select.value = installed.find(option => option.value === sibling)?.value || installed[0].value;
       applyLocalPreset(role);
     } else {
-      if (role === "categorization") $("#categorization-scenario").value = "standard";
+      if (role === "categorization") {
+        $("#categorization-scenario").value = "standard";
+        if (provider === "s1" || provider === "api") {
+          const saved = LearningUI.categorization.settings.http;
+          const reuse = saved.url && (saved.protocol === "openai" ? "api" : "s1") === provider;
+          $("#categorization-url").value = reuse ? saved.url : "";
+          $("#categorization-api-model").value = reuse ? saved.model || "" : "";
+          $("#categorization-key").value = "";
+          $("#categorization-clear-key").checked = false;
+          $("#categorization-protocol").value = reuse && saved.protocol === "probabilities" ? "probabilities" : "systemone";
+        }
+      }
       writeInference(role, defaultInference);
-      $(`#${role}-timeout`).value = role === "analysis" ? 180 : 30000;
+      $(`#${role}-timeout`).value = role === "analysis" ? 180 : provider === "api" ? 120000 : 30000;
       if (role === "analysis") applySearchLimits(null);
     }
     updateProfileNote(role);
@@ -491,7 +638,7 @@ async function saveModelSettings(path, body) {
     dialog.className = "queue-change-dialog"; dialog.setAttribute("aria-labelledby","queue-change-title");
     const model = body.settings?.provider === "local" ? body.settings.model : body.settings?.http?.model || body.settings?.model || body.model ||
       (body.use_analysis_api ? LearningUI.analysis?.settings.model : "");
-    const url = body.settings?.provider === "api" ? body.settings.url : body.settings?.provider === "s1" ? body.settings.http?.url :
+    const url = body.settings?.provider === "api" ? (body.settings.url || body.settings.http?.url) : body.settings?.provider === "s1" ? body.settings.http?.url :
       body.use_analysis_api ? LearningUI.analysis?.settings.url : null;
     const destination = [model, url && URL.canParse(url) ? new URL(url).origin : null].filter(Boolean).join(" · ");
     const actions = h("form",{method:"dialog",class:"dialog-actions"},

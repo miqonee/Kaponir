@@ -1517,3 +1517,39 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 :is(.dialogue-key,.dialogue-mark).uncertain { background:var(--warning-bg); text-decoration:underline dotted var(--warning) 2px; text-underline-offset:2px; }
 
 .occurrence-excerpts {display:grid; gap:1rem; list-style:none; padding:0}
+
+/* Keep each label with its control and its own help as forms change mode. */
+.form-stack { display: grid; align-content: start; gap: 16px; min-width: 0; }
+.field-with-hint, .api-picker, .api-picker-field { display: grid; gap: 6px; min-width: 0; }
+.form-stack .hint, .form-stack .field, .form-stack .check { margin: 0; }
+.form-stack .hint { overflow-wrap: anywhere; }
+.local-model-fields > :is(button,a), #worker-compare { justify-self: start; }
+.local-model-fields .model-install { margin-top: 0; }
+.help-field:has(> label[hidden]), .help-check:has(> label[hidden]) { display: none; }
+.api-picker-field label, .job-source legend { font-size: 13px; font-weight: 600; }
+.api-picker-field :is(input,select) { width: 100%; min-height: 38px; }
+.picker-actions, .model-setup-actions, .worker-job-actions { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.picker-actions :is(button,a) { min-height: 32px; }
+.api-profile { display: grid; gap: 4px; justify-items: start; padding-block-start: 10px; border-top: 1px solid var(--line); }
+.worker-job-card h2 { margin: 0 0 18px; }
+.job-source { padding: 0; margin: 0; min-width: 0; border: 0; }
+.job-source legend { padding: 0; margin-bottom: 6px; }
+.source-options { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 3px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel-subtle); }
+.source-options label { position: relative; padding: 5px 12px; cursor: pointer; border-radius: 5px; color: var(--dim); font-weight: 600; }
+.source-options label:has(:checked) { color: var(--accent); background: var(--soft-strong); }
+.source-options label:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }
+.source-options input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.worker-assignment:empty { display: none; }
+.worker-assignment { background: var(--panel-subtle); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; }
+.assignment-line { display: grid; grid-template-columns: minmax(100px,auto) 1fr; gap: 12px; align-items: baseline; padding-block: 3px; }
+.assignment-line span, .model-assignments dd { min-width: 0; overflow-wrap: anywhere; }
+.assignment-line a, .worker-job-actions a, .model-assignments a { color: var(--accent); }
+#worker-scenario-field { display: grid; gap: 6px; }
+#worker-compare { padding-inline: 0; }
+.worker-job-actions { border-top: 1px solid var(--line); padding-top: 14px; margin: 0; }
+.model-assignments { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(200px,100%),1fr)); gap: 12px; margin: 14px 0; }
+.model-assignments > div { padding: 12px 14px; background: var(--panel-subtle); border: 1px solid var(--line); border-radius: 8px; min-width: 0; }
+.model-assignments dt { margin-bottom: 6px; font-size: 12px; }
+.model-assignments dd { margin: 0; display: grid; gap: 3px; }
+.model-assignments small { color: var(--dim); }
+#workspace-local-setup:not([hidden]) { margin-top: 14px; }

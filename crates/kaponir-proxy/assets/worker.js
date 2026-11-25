@@ -246,6 +246,18 @@ function renderModelCards() {
     }
   }
 }
+function modelMethod(provider) {
+  if (provider === "api") return tr("Модель по API");
+  if (provider === "local") return tr("Локальная модель");
+  if (provider === "s1") return "S1";
+  return tr("Выключено");
+}
+function learningModelLabel(settings) {
+  if (!settings || settings.provider === "none") return tr("Выключено");
+  if (settings.provider === "local") return modelName(settings.model);
+  if (settings.provider === "s1") return [settings.http.protocol === "probabilities" ? "S1 Probabilities" : "S1 Choice", settings.http.model].filter(Boolean).join(" · ");
+  return [modelMethod(settings.provider), settings.http?.model || settings.model].filter(Boolean).join(" · ");
+}
 function renderWorkerSummary() {
   const data = WORKER.data || {};
   $("#analysis-worker-state").textContent = workerStateLabel(data);
@@ -258,7 +270,7 @@ function renderWorkerSummary() {
   $("#analysis-worker-summary").replaceChildren(...rows.map(([label, settings]) =>
     h("div", { class: "worker-summary-row" }, h("span", {}, tr(label)),
       h("strong", {}, settings?.provider === "local" ? `${modelName(settings.model)} · ${tr(localModelIssue(settings.model) || "Файлы готовы")}`
-        : settings?.provider === "none" ? tr("Выключено") : settings ? tr("Модель по API") : "—"))));
+        : settings ? learningModelLabel(settings) : "—"))));
   for (const id of ["worker-toggle", "analysis-worker-toggle"]) {
     const button = $("#" + id);
     button.textContent = WORKER.transition ? tr(WORKER.transition) : tr(data.enabled ? "Остановить обработку" : "Запустить обработку");
@@ -286,33 +298,53 @@ function renderWorker() {
     h("p", { class: "hint" }, tr("Служба обрабатывает очередь и запускает локальные модели. Её запуск не скачивает модели и не включает автоматический сбор сообщений.")),
     ...(data.state === "error" ? [h("p", { class: "err" }, tr("Служба анализа недоступна. Проверьте процесс и настройки подключения."))] : []),
     ...(WORKER.actionError ? [h("p", { class: "err" }, WORKER.actionError)] : []));
-  $("#worker-root").textContent = tr("Каталог на машине worker: {{0}}", [data.input_root || "—"]);
-  for (const id of ["worker-submit", "worker-scan-sessions"])
-    $("#" + id).disabled = WORKER.busy || !data.online || !data.enabled || !info.editable;
-  const mode = $("#worker-mode").value;
+  $("#worker-root").textContent = tr("Рабочий каталог · {{0}}. Точка означает весь каталог.", [data.input_root || "—"]);
+  const sessions = $("#worker-scan-sessions").checked;
+  $("#worker-file-field").hidden = sessions;
+  $("#worker-source").disabled = sessions;
+  $("#worker-session-note").hidden = !sessions;
+  const mode = $("#worker-mode").value, configured = mode === "configured";
+  const analysis = LearningUI.analysis?.settings, cat = LearningUI.categorization?.settings;
+  const disabledAnalysis = configured && analysis && (!analysis.enabled || analysis.provider === "none");
+  $("#worker-submit").disabled = WORKER.busy || !data.online || !data.enabled || !info.editable || !!disabledAnalysis;
   updateProfileNote("worker", mode === "qwen" ? chosenLocalPreset("worker")?.inference.local_generation : null);
-  $("#worker-scenario-field").hidden = mode !== "configured";
-  const cat = LearningUI.categorization?.settings;
-  if (mode === "configured" && cat) {
-    const select = $("#worker-scenario");
-    const supported = cat.provider === "local" || (cat.provider === "s1" && cat.http?.protocol === "openai");
-    select.disabled = !supported;
-    const study = $("#worker-scenario-study");
-    if (supported) {
-      renderScenarioStudy(study, cat.provider === "local" ? measuredModelId(cat.model, data.models) : null,
-        select.value || cat.scenario || "standard", select);
-    } else {
-      select.value = "";
-      delete study.dataset.study;
-      study.textContent = tr("Для сценариев A–D включите локальную или OpenAI-совместимую категоризацию.");
+  const scenario = $("#worker-scenario");
+  const supported = configured && ["local","api"].includes(cat?.provider);
+  $("#worker-scenario-field").hidden = !supported;
+  scenario.disabled = !supported;
+  if (supported) {
+    scenario.options[0].textContent = tr("Из настроек · {{0}}", [cat.scenario === "standard" ? tr("Стандартная категоризация") : cat.scenario]);
+    if (!$("#worker-scenario-study").hidden)
+      renderScenarioStudy($("#worker-scenario-study"), cat.provider === "local" ? measuredModelId(cat.model, data.models) : null,
+        scenario.value || cat.scenario || "standard", scenario, cat.provider === "api");
+  }
+  $("#worker-s1-field").hidden = configured;
+  $("#worker-mode-help").textContent = tr(configured
+    ? "Документы попадут в очередь обнаружения. После поиска включённая категоризация проверит тип и область каждой находки."
+    : mode === "qwen" ? "Worker ищет значения выбранной локальной моделью и дополняет результат быстрыми детекторами. Находки сохраняются для ручной проверки."
+      : "Worker ищет совпадения встроенными детекторами без языковой модели. Находки сохраняются для ручной проверки.");
+  const assignment = $("#worker-assignment");
+  // Polling must preserve focus on links and the per-job model selector.
+  const assignmentState = JSON.stringify([mode, analysis?.provider, analysis?.enabled, learningModelLabel(analysis),
+    learningModelLabel(cat), $("#worker-model").dataset.catalog, I18N.language]);
+  if (assignment.dataset.state !== assignmentState) {
+    assignment.dataset.state = assignmentState;
+    assignment.replaceChildren();
+    if (configured) {
+      if (disabledAnalysis) assignment.append(h("p", {class:"hint"}, tr("Чтобы поставить задание в эту очередь, включите обнаружение в настройках.")));
+      for (const [role, title, settings] of [["analysis","Обнаружение",analysis],["categorization","Категоризация",cat]])
+        assignment.append(h("div", {class:"assignment-line"}, h("a", {href:"#"+role}, tr(title)),
+          h("span", {}, settings ? learningModelLabel(settings) : "—")));
+    } else if (mode === "qwen") {
+      const current = $("#worker-model"), select = h("select", {id:"worker-job-model",
+        onchange:event => { current.value = event.target.value; current.dispatchEvent(new Event("change")); }});
+      for (const option of current.options) select.append(option.cloneNode(true));
+      select.value = current.value;
+      assignment.append(h("label", {class:"field", for:"worker-job-model"}, h("span", {}, tr("Локальная модель для задания")), select));
     }
   }
-  $("#worker-s1-field").hidden = mode === "configured";
-  $("#worker-s1-help").hidden = mode === "configured";
-  $("#worker-mode-help").textContent = tr(mode === "configured"
-    ? "Используются сохранённые настройки обнаружения и категоризации. Выбор модели в карточке установки не меняет эти настройки."
-    : mode === "qwen" ? "Используется модель, выбранная в карточке установки. Быстрые детекторы проверяют текст дополнительно."
-      : "Используются быстрые детекторы. Локальная модель для этого режима не нужна.");
+  const jobModel = $("#worker-job-model");
+  if (jobModel) jobModel.value = $("#worker-model").value;
   const openDetails = new Set([...$("#worker-jobs").querySelectorAll("details[open][data-job-id]")].map((node) => node.dataset.jobId));
   const rows = (data.jobs || []).map((job) => {
     const buttons = [], terminal = !["queued", "running", "paused"].includes(job.state);
@@ -334,8 +366,8 @@ function renderWorker() {
     }
     return h("tr", {}, h("td", { class: "mono" }, job.id.slice(0, 8)),
       h("td", {}, job.kind === "download" ? `${tr("Установка модели")} · ${modelName(job.model)}` : job.source,
-        h("div", { class: "hint" }, job.kind !== "scan" ? "" : tr(job.mode === "configured" ? "Настроенный фоновый анализ"
-          : ["qwen", "xiaomi"].includes(job.mode) ? "Поиск локальной моделью (CPU) + быстрые детекторы" : "Локальный поиск · быстрые детекторы")),
+        h("div", { class: "hint" }, job.kind !== "scan" ? "" : tr(job.mode === "configured" ? "Модели из настроек"
+          : ["qwen", "xiaomi"].includes(job.mode) ? "Локальная модель и быстрые детекторы" : "Только быстрые детекторы")),
         job.kind==="scan" && ["qwen","xiaomi"].includes(job.mode) ? h("small",{class:"hint"},modelName(job.model)) : null),
       h("td", {}, tr(workerStates[job.state] || job.state), job.control ? h("small", {}, " · " + tr("Остановка запрошена")) : null),
       h("td", {}, jobProgress(job), h("div", { class: "hint mono" }, job.current || ""), ...errors,
@@ -395,16 +427,25 @@ for (const role of ["analysis", "categorization", "worker"])
   });
 $("#worker-mode").addEventListener("change", renderWorker);
 $("#worker-scenario").addEventListener("change", renderWorker);
+$("#worker-compare").addEventListener("click", event => {
+  const study = $("#worker-scenario-study");
+  study.hidden = !study.hidden;
+  event.currentTarget.setAttribute("aria-expanded", String(!study.hidden));
+  renderWorker();
+});
 function submitWorkerSource(source) {
   const mode = $("#worker-mode").value;
   const preset = mode === "qwen" ? chosenLocalPreset("worker") : null;
   return runWorkerAction("/jobs", { source, model: $("#worker-model").value,
-    ...(mode === "configured" && $("#worker-scenario").value ? {scenario:$("#worker-scenario").value} : {}),
+    ...(mode === "configured" && !$("#worker-scenario").disabled && $("#worker-scenario").value ? {scenario:$("#worker-scenario").value} : {}),
     ...(preset ? {inference:preset.inference, timeout_seconds:preset.timeout} : {}),
     use_s1: mode !== "configured" && $("#worker-s1").checked, mode }).then(job=>{if(job?.id)showTab("jobs/file/"+encodeURIComponent(job.id));return job;});
 }
-$("#worker-submit").addEventListener("click", () => submitWorkerSource($("#worker-source").value.trim() || "."));
-$("#worker-scan-sessions").addEventListener("click", () => submitWorkerSource("@sessions"));
+$("#worker-job-form").addEventListener("submit", event => {
+  event.preventDefault();
+  if (!$("#worker-submit").disabled) submitWorkerSource($("#worker-scan-sessions").checked ? "@sessions" : $("#worker-source").value.trim() || ".");
+});
+for (const radio of document.querySelectorAll("[name=worker-source-type]")) radio.addEventListener("change", renderWorker);
 Object.assign(TABS, { worker: loadAnalysis });
 const workerTabs = ["#analysis", "#categorization", "#worker"];
 document.addEventListener("visibilitychange", () => {

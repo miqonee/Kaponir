@@ -239,6 +239,7 @@ function showTab(name, push = true) {
   if (!TABS[name]) name = 'overview';
   const nav = {mask:'lab',restore:'lab',discover:'lab',analysis:'settings',worker:'settings',categorization:'settings',proxy:'connect',metrics:'connect',setup:'rules'}[name] || name;
   const changed = $('#tab-' + name).hidden;
+  if (changed) for (const dialog of document.querySelectorAll('.inspector-dialog[open]')) dialog.close();
   for (const b of document.querySelectorAll('.tabs [data-tab]')) {
     if (b.dataset.tab === nav) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
@@ -961,7 +962,7 @@ async function updateDocumentStudy() {
   try {
     const {settings} = await api('/api/v1/ui/categorization');
     if (request !== documentStudyRequest || D.view !== 'input' || location.hash !== '#discover' || $('#d-mode').value !== 'background') return;
-    const supported = settings.provider === 'local' || (settings.provider === 's1' && settings.http?.protocol === 'openai');
+    const supported = ['local','api'].includes(settings.provider);
     const select = $('#d-scenario');
     select.disabled = !supported;
     if (!supported) {
@@ -971,7 +972,7 @@ async function updateDocumentStudy() {
       return;
     }
     renderScenarioStudy(host, settings.provider === 'local' ? measuredModelId(settings.model) : null,
-      select.value || settings.scenario || 'standard', select);
+      select.value || settings.scenario || 'standard', select, settings.provider === 'api');
   } catch (error) {
     if (request === documentStudyRequest) { delete host.dataset.study; host.textContent = error.message; }
   }

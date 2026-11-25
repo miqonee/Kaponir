@@ -63,8 +63,8 @@ LLM или HTTP S1 при маскировании. После успешног�
 
 Сценарий запускается после поиска кандидатов. Если C или D не может однозначно выделить вхождение, значение поступает на ручную проверку. Для API используются выдержки из текста, локальной модели также доступен короткий исходный документ. [Методика A–D](experiments/PRIVACY_RULE_REVIEW.md)
 
-**Категоризация** настраивается отдельно: локальная Qwen, S1/Choice либо выключено.
-Поддерживаются OpenAI-compatible и SystemOne Choice. Старый probabilities-контракт
+**Категоризацию** можно выключить или назначить ей локальную модель, модель через
+OpenAI-совместимый API или S1 Choice. Старый probabilities-контракт
 не выдаёт оценку правильности категории и не подходит для автоматического применения.
 L0–L2 относятся к прежним CLI/S1-интерфейсам; новый фоновый сценарий не использует эти уровни.
 
@@ -196,7 +196,9 @@ SQLite переиспользует освобождённые страницы;
 
 - `GET/PUT /api/v1/ui/analysis` — настройки обнаружения: `enabled`, `provider=none|local|api`,
   `model`, `url`, `background`, `auto_apply`, `threshold`, `parallelism`, `timeout_seconds`.
-- `GET/PUT /api/v1/ui/categorization` — `provider=none|local|s1`, локальная `model`, HTTP-настройки и `scenario=standard|A|B|C|D`.
+- `GET/PUT /api/v1/ui/categorization` — `provider=none|local|api|s1`, локальная `model`, HTTP-настройки и `scenario=standard|A|B|C|D`.
+- Метод `api` использует совместимый с OpenAI чат. Сохранённое сочетание `s1` и `openai` открывается как `api`. Для S1 Choice используется `s1` с протоколом `systemone`.
+- `POST /api/v1/ui/model-catalog` принимает `{role, url, key?, clear_key?}` и возвращает список ID и опубликованные лимиты моделей из `/models`. Если провайдер не публикует список, ID модели можно ввести вручную.
 - PUT принимает `{settings, key?, clear_key?}`. Ключ не возвращается в ответе.
 - `POST /api/v1/ui/analysis/test` и `/categorization/test` принимают тот же черновик без сохранения.
 - `POST /api/v1/ui/analysis/documents` принимает `{documents:[{name,text,format?}], scenario?}`. Без параметра `scenario` задание использует настройку категоризации.

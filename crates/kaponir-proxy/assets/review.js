@@ -415,9 +415,9 @@ function renderReviewSelection() {
   const choices=sources.filter((s,index)=>sources.findIndex(other=>other.model===s.model && other.connection_id===s.connection_id)===index);
   const source=choices.find(s=>s.role===ReviewUI.modelSource)||choices[0];
   if(source)ReviewUI.modelSource=source.role;
-  const modelLabel = id => (WORKER.data?.catalog || builtinModelChoices).find(row => row.id === id)?.label || modelName(id);
+  const modelLabel = source => source.provider === "local" ? modelName(source.model) : source.model || "S1";
   const model=choices.length>1?h("select",{id:"review-model-source","aria-label":tr("Модель пересмотра"),onchange:e=>{ReviewUI.modelSource=e.target.value;ReviewUI.scenario="";renderReviewSelection();}},
-    ...choices.map(s=>h("option",{value:s.role,selected:s===source},modelLabel(s.model)))):source?h("strong",{},modelLabel(source.model)):null;
+    ...choices.map(s=>h("option",{value:s.role,selected:s===source},modelLabel(s)))):source?h("strong",{},modelLabel(source)):null;
   const dialog = $("#review-options");
   const study = dialog.querySelector(".review-study") || h("div", {class: "scenario-study review-study"});
   const showStudy = () => renderScenarioStudy(study, source.provider === "local" ? measuredModelId(source.model) : null,
