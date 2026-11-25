@@ -224,7 +224,11 @@ function reviewCard(item) {
     }
     verdict.append(h("code",{},prefix));
   }
-  const excerpt=h("blockquote",{class:"candidate-fragment"},fragment);
+  const quote = h("blockquote", {class:"candidate-fragment"}, fragment);
+  const excerpt = item.path_suffix
+    ? h("figure", {class:"finding-fragment"},
+        h("figcaption", {}, tr("Начало пути уже скрыто. Решение касается только «{{0}}».", [item.value])), quote)
+    : quote;
   const origin = h("div", {class:"origin-reading"});
   const fields = h("dl", {class:"origin-fields"});
   function field(label, value) { if (value) fields.append(h("dt", {}, tr(label)), h("dd", {}, value)); }

@@ -227,7 +227,8 @@ const KNOWN_EXTS: &[&str] = &[
     "hcl",
 ];
 
-fn has_file_extension(lex: &Lexicon, seg: &str) -> bool {
+/// Whether the last component has a recognized technical file extension.
+pub fn has_file_extension(lex: &Lexicon, seg: &str) -> bool {
     let Some(dot) = seg.rfind('.').filter(|&d| d > 0) else {
         return false;
     };

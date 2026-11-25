@@ -1824,7 +1824,14 @@ async fn infer_packet(
                 .any(|c| c.hard && c.category == kaponir_core::Category::Credential),
             "protected_credential"
         );
-        input.push(json!({"id":model_id(target),"value":item["value"],"kind":item["kind"],"context":redacted_context(st,item["context"].as_str().unwrap_or_default(),value)}));
+        let quote = item["context"].as_str().unwrap_or_default();
+        let context = redacted_context(st, quote, value);
+        let mut packet =
+            json!({"id":model_id(target),"value":value,"kind":item["kind"],"context":context});
+        if item["path_suffix"] == true && context == quote {
+            packet["verified_at"] = item["context_span"][0].clone();
+        }
+        input.push(packet);
     }
     let reply = learning::review_infer(
         st,

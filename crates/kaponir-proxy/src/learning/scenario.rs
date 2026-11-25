@@ -56,6 +56,7 @@ pub(super) struct Target<'a> {
     pub id: &'a str,
     pub value: &'a str,
     pub quote: &'a str,
+    pub verified_at: Option<usize>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -90,7 +91,11 @@ fn record_for<'a>(text: &'a str, value: &str, marked: bool) -> Option<(&'a str, 
     {
         return None;
     }
-    let end = at + value.len();
+    Some(record_at(text, at, value.len()))
+}
+
+fn record_at(text: &str, at: usize, length: usize) -> (&str, usize) {
+    let end = at + length;
     let left = text[..at].rfind('\n').map_or(0, |i| i + 1);
     let right = text[end..].find('\n').map_or(text.len(), |i| end + i + 1);
     static LOG_START: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
@@ -107,9 +112,9 @@ fn record_for<'a>(text: &'a str, value: &str, marked: bool) -> Option<(&'a str, 
         }
     }
     if let Some(start) = start {
-        return Some((&text[start..right.max(stop)], at - start));
+        return (&text[start..right.max(stop)], at - start);
     }
-    Some((&text[left..right], at - left))
+    (&text[left..right], at - left)
 }
 
 pub(super) async fn check(
@@ -132,19 +137,30 @@ pub(super) async fn check(
     let shared = document.filter(|text| settings.provider == "local" && text.len() < available / 2);
     for (index, t) in targets.iter().enumerate() {
         let original = document.unwrap_or(t.quote);
-        let Some((record, at)) = record_for(original, t.value, scenario.marked()) else {
-            continue;
-        };
-        let (record, at) = if shared.is_some() {
-            (record, at)
-        } else {
-            // Never expand disclosure to a full log line just to mark an occurrence.
-            let Some(pair) = record_for(t.quote, t.value, scenario.marked() && document.is_none())
-            else {
+        let pair = if let Some(at) = t.verified_at {
+            if !t
+                .quote
+                .get(at..)
+                .is_some_and(|tail| tail.starts_with(t.value))
+                || (scenario.marked()
+                    && [original, t.quote]
+                        .iter()
+                        .any(|text| text.contains("[[TARGET:") || text.contains("[[/TARGET:")))
+            {
                 continue;
-            };
-            pair
+            }
+            Some(record_at(t.quote, at, t.value.len()))
+        } else {
+            record_for(original, t.value, scenario.marked()).and_then(|full| {
+                if shared.is_some() {
+                    Some(full)
+                } else {
+                    // Keep external requests bounded to the quoted evidence.
+                    record_for(t.quote, t.value, scenario.marked() && document.is_none())
+                }
+            })
         };
+        let Some((record, at)) = pair else { continue };
         let mut item = json!({"id":t.id,"value":t.value,"record":record});
         if shared.is_none() {
             item["context"] = json!(t.quote);

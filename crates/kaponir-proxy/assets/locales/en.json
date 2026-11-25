@@ -1924,6 +1924,7 @@
   "Каталог для правила": "Directory to mask",
   "Разобрать по одному": "Review individually",
   "Скрывать этот каталог": "Mask this directory",
+  "Начало пути уже скрыто. Решение касается только «{{0}}».": "The directory is already hidden. This decision applies only to “{{0}}”.",
   "Общий каталог": "Shared directory",
   "{{0}} путь": "{{0}} path",
   "{{0}} пути": "{{0}} paths",
