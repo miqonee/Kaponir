@@ -374,8 +374,10 @@ async function openFindingRule(item) {
   const rule=item.document_rule || item.unmatched_rule;
   const id=rule ? (rule.id || "index-"+rule.index) : item.decision?.rule_id || item.rule_id;
   const scope=rule?.scope || item.decision?.scope || item.scope;
-  $("#rules-query").value = ""; $("#rules-scope").value = scope || "";
+  $("#rules-query").value = "";
   selectRuleState("all");
+  chooseRuleScope(scope);
+  showRuleSection("rules");
   showRulesView("list");
   await showTab("rules");
   const row=document.getElementById("rule-"+scope+"-"+id);

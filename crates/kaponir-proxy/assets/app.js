@@ -1178,7 +1178,7 @@ syncRuleForm();
 const ruleEditor = $('#rule-editor');
 $('#rules-new').onclick = () => {
   rf.reset();
-  F.scope.value = $('#rules-scope').value || 'personal';
+  F.scope.value = ruleScope;
   F.action.value = selectedRuleState().value === 'keep' ? 'keep' : 'mask';
   $('#rf-error').textContent = '';
   F.kind.setCustomValidity('');
@@ -1211,7 +1211,7 @@ rf.addEventListener('submit', async (event) => {
   $('#rf-error').textContent = '';
   try {
     await api('/api/v1/rules', {method:'POST', body:{scope, rule}});
-    if ($('#rules-scope').value) $('#rules-scope').value = scope;
+    chooseRuleScope(scope);
     if (selectedRuleState().value !== 'all') selectRuleState(rule.action);
     if (!ruleSearchText(rule).includes($('#rules-query').value.trim().toLocaleLowerCase())) $('#rules-query').value = '';
     ruleEditor.close();
@@ -1232,6 +1232,54 @@ function rulePattern(r) {
 }
 
 const selectedRuleState = () => $('#rules-state input:checked');
+const scopeInputs = [...$('#rules-scope').querySelectorAll('input')];
+let ruleScope = sessionStorage.getItem('kaponir-rules-scope');
+let ruleSection = 'rules';
+
+function chooseRuleScope(scope, remember = true) {
+  const input = scopeInputs.find(input => input.value === scope);
+  if (!input) return;
+  ruleScope = input.value;
+  input.checked = true;
+  if (remember) sessionStorage.setItem('kaponir-rules-scope', ruleScope);
+  $('#rule-scope-title').textContent = SCOPE_TITLES[ruleScope];
+  $('#rule-scope-title').title = input.parentElement.title;
+  for (const group of $('#rules-domains').children) group.hidden = group.dataset.scope !== ruleScope;
+  filterRules();
+}
+$('#rules-scope').addEventListener('change', event => chooseRuleScope(event.target.value));
+
+const sectionTabs = [...$('#rule-sections').querySelectorAll('[role=tab]')];
+const nativeFocusGroup = 'focusGroup' in HTMLElement.prototype;
+function showRuleSection(section) {
+  if (section === ruleSection) return;
+  ruleSection = section;
+  sessionStorage.setItem('kaponir-rules-section', section);
+  for (const tab of sectionTabs) {
+    const active = tab.dataset.section === section;
+    tab.setAttribute('aria-selected', String(active));
+    tab.toggleAttribute('focusgroupstart', active);
+    if (nativeFocusGroup) tab.removeAttribute('tabindex');
+    else tab.tabIndex = active ? 0 : -1;
+    $('#scope-' + tab.dataset.section).hidden = !active;
+  }
+  $('#rules-new').hidden = section !== 'rules';
+  if ($('#rules-list table').tBodies.length) filterRules();
+}
+for (const tab of sectionTabs) {
+  tab.addEventListener('focus', () => showRuleSection(tab.dataset.section));
+  tab.addEventListener('click', () => showRuleSection(tab.dataset.section));
+}
+if (!nativeFocusGroup) $('#rule-sections').addEventListener('keydown', event => {
+  const index = sectionTabs.indexOf(event.target);
+  const next = {ArrowLeft:1-index, ArrowRight:1-index, Home:0, End:1}[event.key];
+  if (index < 0 || next === undefined) return;
+  event.preventDefault();
+  sectionTabs[next].focus();
+});
+if (nativeFocusGroup) for (const tab of sectionTabs) tab.removeAttribute('tabindex');
+if (sessionStorage.getItem('kaponir-rules-section') === 'domains') showRuleSection('domains');
+
 function selectRuleState(value) {
   $('#rules-state input[value="' + value + '"]').checked = true;
 }
@@ -1241,32 +1289,55 @@ function ruleSearchText(rule) {
 }
 function filterRules() {
   const query = $('#rules-query').value.trim().toLocaleLowerCase();
-  const scope = $('#rules-scope').value;
   const state = selectedRuleState().value;
-  const rows = $('#rules-list').querySelectorAll('[data-rule-search]');
-  let count = 0;
-  for (const row of rows) {
-    row.hidden = (state !== 'all' && state !== row.dataset.state) ||
-      (scope !== '' && scope !== row.dataset.scope) || !row.dataset.ruleSearch.includes(query);
-    if (!row.hidden) count++;
+  let count = 0, total = 0;
+  const otherMatches = [];
+  for (const group of $('#rules-list table').tBodies) {
+    const scope = group.dataset.scope;
+    group.hidden = scope !== ruleScope;
+    let matches = 0;
+    for (const row of group.rows) {
+      row.hidden = (state !== 'all' && state !== row.dataset.state) || !row.dataset.ruleSearch.includes(query);
+      if (!row.hidden) matches++;
+    }
+    const stats = $('#rules-scope input[value="' + scope + '"]').parentElement.querySelector('small');
+    stats.textContent = query && ruleSection === 'rules'
+      ? tr("Совпадений · {{0}} из {{1}}", [number(matches), number(group.rows.length)])
+      : tr("Правил {{0}} · доменов {{1}}", [number(group.rows.length), number(group.dataset.domains)]);
+    if (scope === ruleScope) {
+      count = matches;
+      total = group.rows.length;
+    } else if (query && matches) {
+      otherMatches.push([scope, matches]);
+    }
   }
-  $('#rules-match-count').textContent = tr("Показано {{0}} из {{1}}", [number(count), number(rows.length)]);
-  $('#rules-clear').hidden = !query && !scope && state === 'mask';
-  $('#rules-list .table-wrap').hidden = !count;
+  $('#rules-match-count').textContent = tr("Показано {{0}} из {{1}}", [number(count), number(total)]);
+  $('#rules-clear').hidden = !query && state === 'mask';
+  $('#rules-list .table-wrap').hidden = count === 0;
   const empty = $('#rules-empty');
   empty.hidden = count > 0;
-  empty.textContent = tr(rows.length ? "По этим фильтрам правил нет" : "Сохранённых правил пока нет");
+  if (count) return;
+  empty.querySelector('strong').textContent = tr(total ? "В этой группе нет правил по выбранным фильтрам" : "В этой группе пока нет правил");
+  const links = $('#rules-other-matches');
+  links.replaceChildren();
+  if (!query && total && state !== 'all') {
+    links.append(h('button', {type:'button', class:'text-button', onclick:() => {
+      selectRuleState('all'); filterRules(); selectedRuleState().focus();
+    }}, tr("Показать все правила группы")));
+  }
+  if (otherMatches.length) links.append(h('p', {}, tr("Совпадения в других группах")),
+    ...otherMatches.map(([scope, matches]) => h('button', {type:'button', class:'text-button', onclick:() => {
+      chooseRuleScope(scope); $('#rules-query').focus();
+    }}, SCOPE_TITLES[scope] + ' · ' + number(matches))));
 }
 function resetRuleFilters() {
   $('#rules-query').value = '';
-  $('#rules-scope').value = '';
   selectRuleState('mask');
   filterRules();
   $('#rules-query').focus();
 }
 $('#rules-clear').onclick = resetRuleFilters;
 $('#rules-query').addEventListener('input', filterRules);
-$('#rules-scope').addEventListener('change', filterRules);
 $('#rules-state').addEventListener('change', filterRules);
 
 let ruleSortAscending = true;
@@ -1278,8 +1349,8 @@ $('#rules-sort').onclick = () => {
   ruleSortAscending = !ruleSortAscending;
   $('#rules-sort').closest('th').setAttribute('aria-sort', ruleSortAscending ? 'ascending' : 'descending');
   $('#rules-sort-arrow').textContent = ruleSortAscending ? '↑' : '↓';
-  const body = $('#rules-list tbody');
-  body.replaceChildren(...sortRuleRows(Array.from(body.rows)));
+  for (const group of $('#rules-list table').tBodies)
+    group.replaceChildren(...sortRuleRows(Array.from(group.rows)));
 };
 
 function downloadJson(text, name) {
@@ -1353,60 +1424,113 @@ function ruleRow(set, rule, index) {
     h('td', {}, h('span', {class:'rule-action '+state}, tr(action === 'keep' ? 'Оставлять открытым' : 'Маскировать')),
       rule.disabled ? h('small', {class:'rule-off'}, tr('Отключено')) : null),
     h('td', {}, action === 'mask' ? kindBadge(rule.kind) : '—'),
-    h('td', {}, scopeLabel(set.scope)),
     h('td', {class:'rule-row-actions'}, h('button', {class:'text-button rule-remove', type:'button',
       'aria-label':tr("Удалить правило «{{0}}»", [value]), onclick:() => confirmRuleDelete(set, index, value)}, tr("Удалить"))));
 }
 let rulesLoad = 0;
 async function loadRules() {
   const request = ++rulesLoad;
-  $('#rule-filters').hidden = !info.editable;
-  $('#rules-domains').parentElement.hidden = !info.editable;
+  const table = $('#rules-list table');
+  const notice = $('#rules-notice');
   if (!info.editable) {
-    $('#rules-list tbody').replaceChildren();
+    table.replaceChildren(table.tHead);
     $('#rules-domains').replaceChildren();
-    $('#rules-list .table-wrap').hidden = true;
-    $('#rules-empty').hidden = false;
-    $('#rules-empty').textContent = tr("Этот сервер не управляет правилами (запущен без каталога правил).");
+    $('#rules-workspace').hidden = true;
+    notice.textContent = tr("Этот сервер не управляет правилами (запущен без каталога правил).");
+    notice.hidden = false;
     return;
   }
-  const sets = await api('/api/v1/rules');
+  let sets;
+  try {
+    sets = await api('/api/v1/rules');
+  } catch (error) {
+    if (request !== rulesLoad) return;
+    notice.textContent = error.message;
+    notice.hidden = false;
+    throw error;
+  }
   if (request !== rulesLoad) return;
-  const rows = sets.flatMap(set => (set.file.rule || []).map((rule, index) => ruleRow(set, rule, index)));
-  $('#rules-list tbody').replaceChildren(...sortRuleRows(rows));
-  filterRules();
-  $('#rules-domains').replaceChildren(...sets.map(set => {
-    const domains = set.file.corp.domains;
-    const putDomains = async (list) => {
-      try {
-        await api(`/api/v1/rules/${set.scope}/domains`, { method: 'PUT', body: { domains: list } });
-        await afterRulesChanged();
-      } catch (e) { fail(e); }
-    };
-    const dInput = h('input', { placeholder: tr("новый домен, напр. corp.local"), spellcheck: 'false', 'aria-label': tr("Корпоративный домен") });
-    const previewBox = h('div', { class: 'domain-preview' });
-    const updateDomainPreview = () => {
-      const sample = (dInput.value.trim() || domains[0] || 'company.com').replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
-      const parts = sample.split('.').filter(Boolean);
-      const tld = parts.length > 1 ? parts[parts.length - 1] : 'com';
-      previewBox.replaceChildren(
-        h('span', { text: tr("Пример маскирования (До → После):") }),
-        h('code', { text: `git.${sample}, ${sample}` }),
-        h('span', { text: '→' }),
-        h('code', { class: 'masked', text: `[SUB_1].[DOM_1].${tld}, [DOM_1].${tld}` }),
-      );
-    };
-    dInput.addEventListener('input', updateDomainPreview);
-    updateDomainPreview();
-    return h('section', {class:'rule-domain-scope'},
-      h('h3', {title:set.location}, scopeLabel(set.scope)),
-        h('div', { class: 'domains' },
-        domains.length ? domains.map((d) => h('span', { class: 'chip' }, h('span', {}, d),
-          h('button', { title: tr("Удалить"), 'aria-label': tr("Удалить ") + d, onclick: () => putDomains(domains.filter((x) => x !== d)) }, '×'))) : h('span', { class: 'hint', text: tr("нет") }),
-        h('form', { onsubmit: (e) => { e.preventDefault(); if (dInput.value.trim()) putDomains([...domains, dInput.value.trim()]); } },
-          dInput, h('button', { class: 'small', type: 'submit' }, tr("Добавить"))),
-        previewBox));
+  const groups = scopeInputs.map(input => {
+    const scope = input.value;
+    const set = sets.find(set => set.scope === scope) || {scope, file:{rule:[], corp:{domains:[]}}};
+    input.parentElement.title = set.location || '';
+    return set;
+  });
+  const domainForms = $('#rules-domains');
+  const drafts = new Map([...domainForms.querySelectorAll('input')].map(input => [input.id, input.value]));
+  domainForms.replaceChildren(...groups.map(set => domainPanel(set, drafts.get('domain-' + set.scope))));
+  table.replaceChildren(table.tHead, ...groups.map(set => {
+    const rows = (set.file.rule || []).map((rule, index) => ruleRow(set, rule, index));
+    return h('tbody', {dataset:{scope:set.scope, domains:set.file.corp.domains.length}}, ...sortRuleRows(rows));
   }));
+  if (!groups.some(set => set.scope === ruleScope)) {
+    const initial = groups.find(set => set.file.rule?.some(r => !r.disabled && r.action !== 'keep')) ||
+      groups.find(set => set.file.rule?.length || set.file.corp.domains.length);
+    ruleScope = initial?.scope || 'personal';
+  }
+  chooseRuleScope(ruleScope, false);
+  notice.hidden = true;
+  $('#rules-workspace').hidden = false;
+}
+
+function domainPanel(set, draft = '') {
+  const domains = set.file.corp.domains;
+  const id = 'domain-' + set.scope;
+  const input = h('input', {id, name:'domain', required:true, spellcheck:'false',
+    placeholder:'company.example', value:draft});
+  const preview = h('div', {class:'domain-preview'});
+  const normalize = domain => domain.trim().replace(/^\.+|\.+$/g, '').toLowerCase();
+  function updatePreview() {
+    input.setCustomValidity('');
+    const sample = normalize(input.value.trim() || domains[0] || 'company.example');
+    const suffix = sample.split('.').slice(1).join('.');
+    preview.hidden = !suffix || /[\s/:@]/.test(sample);
+    preview.replaceChildren(h('span', {}, tr("Пример маскирования")), h('code', {}, 'git.' + sample),
+      h('span', {}, '→'), h('code', {class:'masked'}, '[SUB_1].[DOM_1].' + suffix));
+  }
+  input.addEventListener('input', updatePreview);
+  updatePreview();
+  const form = h('form', {class:'domain-add', onsubmit:event => {
+    event.preventDefault();
+    const domain = normalize(input.value);
+    if (!domain.includes('.') || /[\s/:@"']/.test(domain)) {
+      input.setCustomValidity(tr("Введите домен без протокола и пути, например company.example"));
+    } else if (domains.some(saved => normalize(saved) === domain)) {
+      input.setCustomValidity(tr("Этот домен уже есть в выбранной группе"));
+    }
+    if (input.reportValidity()) save([...domains, domain], true);
+  }}, h('label', {class:'field', for:id}, h('span', {}, tr("Домен")), input),
+    h('button', {class:'primary', type:'submit'}, tr("Добавить домен")));
+  const list = domains.length ? h('ul', {class:'scope-domain-list'}, ...domains.map(domain =>
+    h('li', {}, h('code', {}, domain), h('button', {type:'button', class:'text-button',
+      'aria-label':tr("Удалить ") + domain, onclick:() => save(domains.filter(d => d !== domain), false)}, tr("Удалить")))))
+    : h('p', {class:'hint'}, tr("В этой группе пока нет доменов"));
+  const panel = h('div', {class:'domain-editor', dataset:{scope:set.scope}}, form, list, preview);
+  let saving = false;
+  async function save(next, adding) {
+    if (saving) return;
+    saving = true;
+    const controls = panel.querySelectorAll('input, button');
+    for (const control of controls) control.disabled = true;
+    try {
+      const query = set.revision ? '?revision=' + encodeURIComponent(set.revision) : '';
+      await api('/api/v1/rules/' + set.scope + '/domains' + query, {method:'PUT', body:{domains:next}});
+      if (adding) input.value = '';
+      await afterRulesChanged();
+      toast(tr(adding ? "Домен добавлен в группу «{{0}}»" : "Домен удалён из группы «{{0}}»", [SCOPE_TITLES[set.scope]]));
+    } catch (error) {
+      if (error.messageKey === 'rule_list_changed') {
+        await loadRules().catch(fail);
+        toast(tr("Список доменов обновлён. Проверьте его и повторите действие."), true);
+      } else fail(error);
+    } finally {
+      saving = false;
+      for (const control of controls) control.disabled = false;
+      if (document.activeElement === document.body && ruleScope === set.scope && ruleSection === 'domains' &&
+          !$('#tab-rules').hidden && !$('#rules-catalog').hidden) document.getElementById(id)?.focus({preventScroll:true});
+    }
+  }
+  return panel;
 }
 
 function renderPacks() {

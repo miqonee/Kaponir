@@ -512,9 +512,6 @@ mark, .tok { background: none; color: inherit; }
 .card h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; font-size: 15px; }
 .card h3 .path { color: var(--dim); font-family: var(--mono); font-size: 12px; font-weight: 400; overflow-wrap: anywhere; }
 #rules-list, #j-list { display: flex; flex-direction: column; gap: 12px; }
-.domains { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.domains form { display: inline-flex; gap: 6px; }
-.domains input { width: 200px; }
 .empty { padding: 6px 0; color: var(--dim); font-size: 13px; }
 .tag { display: inline-block; padding: 1px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--dim); font-size: 11px; white-space: nowrap; }
 .tag.keep { border-color: var(--success); color: var(--success); }
@@ -1173,14 +1170,30 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 #review-list,.finding-detail {scroll-margin-block:70px 115px}
 #page-title:focus {outline:0}
 #rules-catalog { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; }
-.rules-controls { padding: 18px 20px 14px; }
-.rules-command-row { display: grid; grid-template-columns: minmax(12rem, 1fr) minmax(9rem, 13rem) auto; align-items: end; gap: 16px; }
-.rules-actions, .rules-display-row, .rule-dialog-actions, .rule-checks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.rules-actions { justify-content: flex-end; }
-.rules-command-row .field, .rule-form .field { margin: 0; min-width: 0; gap: 5px; }
-.rules-command-row :is(input, select), .rule-form .field :is(input, select) { width: 100%; min-width: 0; min-height: 40px; margin: 0; font-weight: 400; }
-.rules-actions button { min-height: 40px; white-space: nowrap; }
-.rules-display-row { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
+#rules-view #rules-export { border-color:var(--line-strong); background:var(--panel); color:var(--text); }
+#rules-view #rules-export:hover { background:var(--soft); }
+.rules-workspace { display:grid; grid-template-columns:clamp(190px,18vw,246px) minmax(0,1fr); gap:20px; align-items:start; }
+.scope-picker { min-width:0; display:grid; gap:4px; margin:0; padding:0; border:0; }
+.scope-picker legend { padding:0 12px 9px; font-size:12px; font-weight:600; color:var(--dim); }
+.scope-picker label { position:relative; display:block; min-width:0; cursor:pointer; }
+.scope-picker input + span { display:grid; gap:3px; padding:12px; border:1px solid transparent; border-inline-start:3px solid transparent; border-radius:8px; }
+.scope-picker strong { font-size:14px; line-height:1.35; }
+.scope-picker small { color:var(--dim); font-size:12px; font-variant-numeric:tabular-nums; }
+.scope-picker label:hover input + span { background:var(--panel-subtle); }
+.scope-picker input:checked + span { border-color:var(--line); border-inline-start-color:var(--accent); background:var(--soft); color:var(--accent); }
+.scope-picker input:focus-visible + span { outline:2px solid var(--focus); outline-offset:1px; }
+.rule-group-header { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; min-height:67px; padding:16px 20px 10px; }
+.rule-group-header h2 { margin:0; font-size:20px; line-height:1.35; }
+.scope-tabs { display:flex; gap:4px; padding-inline:16px; border-bottom:1px solid var(--line); }
+.scope-tabs button { position:relative; padding:7px 12px; border:0; border-radius:4px 4px 0 0; background:transparent; color:var(--dim); }
+.scope-tabs button:hover { background:var(--panel-subtle); }
+.scope-tabs [aria-selected="true"] { color:var(--accent); }
+.scope-tabs [aria-selected="true"]::after { content:""; position:absolute; inset:auto 5px 0; border-block-end:3px solid currentColor; }
+.rules-controls { display:block; padding:16px 20px; }
+.rules-display-row, .rule-dialog-actions, .rule-checks { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.rules-controls .field, .rule-form .field, .domain-add .field { margin:0; min-width:0; gap:5px; }
+.rules-controls .field input, .rule-form .field :is(input, select), .domain-add input { width:100%; min-width:0; min-height:40px; margin:0; font-weight:400; }
+.rules-display-row { margin-top:12px; }
 .rule-switch { display:inline-flex; flex-wrap:wrap; gap:2px; min-width:0; margin:0; border:0; padding:3px; border-radius:8px; background:var(--panel-subtle); }
 .rule-switch label { position:relative; cursor:pointer; }
 .rule-switch label span { display:block; border:1px solid transparent; border-radius:6px; padding:5px 11px; font-size:12px; line-height:1.5; font-weight:600; color:var(--dim); }
@@ -1189,11 +1202,10 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 .rule-switch label:hover span { color:var(--accent); }
 #rules-match-count { margin-inline-start:auto; font-variant-numeric:tabular-nums; }
 .rules-results { min-width:0; }
-.rules-results .rules-table-wrap { max-height:none; }
+.rules-results .rules-table-wrap { max-height:none; border:0; border-top:1px solid var(--line); border-radius:0; }
 .rules-table { width:100%; table-layout:fixed; }
-.rules-table th:first-child { width:36%; }
-.rules-table th:nth-child(2) { width:18%; }
-.rules-table th:nth-child(3) { width:20%; }
+.rules-table th:first-child { width:44%; }
+.rules-table th:nth-child(2) { width:20%; }
 .rules-table th:last-child { width:100px; }
 .rules-table :is(th,td) { padding:10px 14px; vertical-align:middle; overflow-wrap:anywhere; }
 .rules-table .kind-badge { max-width:100%; flex-wrap:wrap; white-space:normal; }
@@ -1209,11 +1221,22 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 .rule-row-actions { text-align:end; }
 .rules-table .rule-remove { color:var(--dim); padding-inline:4px; white-space:nowrap; }
 .rules-table .rule-remove:hover, .rules-table .rule-remove:focus-visible { color:var(--danger); }
-#rules-empty { margin:0; border:1px solid var(--line); border-radius:var(--radius); background:var(--panel); }
+#rules-empty { margin:0; border-top:1px solid var(--line); }
+#rules-other-matches button { margin-inline:4px; }
 .rules-secondary { margin:0; padding:12px 16px; }
 .rules-secondary summary { cursor:pointer; font-weight:600; color:var(--dim); }
 .rules-secondary[open] summary { margin-bottom:12px; color:var(--text); }
-.rule-domain-scope + .rule-domain-scope { padding-top:10px; border-top:1px solid var(--line); }
+#scope-domains { padding:16px 20px 20px; }
+.domain-description { margin:0 0 14px; }
+.domain-editor { display:grid; gap:16px; }
+.domain-editor > p, .domain-editor .domain-preview { margin:0; }
+.domain-add { display:flex; align-items:end; gap:8px; }
+.domain-add label { flex:1; }
+.domain-add button { min-height:40px; }
+.scope-domain-list { list-style:none; margin:0; padding:0; }
+.scope-domain-list li { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 0; border-bottom:1px solid var(--line); }
+.scope-domain-list code { overflow-wrap:anywhere; }
+.domain-preview code { overflow-wrap:anywhere; }
 #rules-audit .panel-heading { align-items:start; padding:20px; }
 #rules-audit .panel-heading h2 { margin:0 0 6px; }
 #rules-audit .panel-heading p + p { margin-top:4px; }
@@ -1240,12 +1263,19 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 .rule-delete-dialog { width:min(440px,94vw); }
 #rule-delete-value { display:block; padding:10px 12px; border-radius:6px; background:var(--panel-subtle); overflow-wrap:anywhere; }
 @media (max-width: 1000px) {
-  .rules-command-row { grid-template-columns:minmax(0, 1fr) auto; }
-  .rules-actions { grid-column:1 / -1; justify-content:flex-start; }
+  .rules-workspace { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .scope-picker { grid-template-columns:repeat(3,minmax(0,1fr)); }
 }
 @media (max-width: 680px) {
-  .rules-controls, .rules-dialog form { padding:14px; }
-  .rules-command-row, .rule-form-grid { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .rules-controls, .rules-dialog form, #scope-domains { padding:14px; }
+  .rule-form-grid { grid-template-columns:minmax(0,1fr); gap:12px; }
+  .rule-group-header { padding-inline:14px; }
+  .scope-picker input + span { height:100%; padding:7px; }
+  .scope-picker strong { font-size:12px; overflow-wrap:anywhere; }
+  .scope-picker small { font-size:11px; }
+  .scope-tabs { padding-inline:9px; }
+  .domain-add { flex-wrap:wrap; }
+  .domain-add label { min-width:min(180px,100%); }
   .rule-switch label span { padding-inline:8px; }
   .rules-table { min-width:640px; }
   #audit-list table { min-width:760px; }

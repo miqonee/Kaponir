@@ -107,6 +107,7 @@ def check_navigation(page, output):
 
     sidebar.locator('[data-tab=rules]').click()
     page.locator('[data-rules-view=list]').click()
+    page.locator('#rules-scope label:has(input[value=personal])').click()
     page.locator('#rules-state label').filter(has_text='Отключены').click()
     query = page.locator('#rules-query')
     query.fill('kaponir discover')
@@ -114,7 +115,6 @@ def check_navigation(page, output):
     expect(rows).to_have_count(1)
     expect(rows).to_contain_text('questions')
     original_id = rows.get_attribute('id')
-    page.locator('#rules-scope').select_option('personal')
     query.fill('questions')
     expect(rows).to_have_attribute('id', original_id)
     query.fill('unmatched-example')
@@ -123,7 +123,7 @@ def check_navigation(page, output):
     page.locator('#rules-clear').click()
     expect(query).to_be_focused()
     expect(query).to_have_value('')
-    expect(page.locator('#rules-scope')).to_have_value('')
+    expect(page.locator('#rules-scope input[value=personal]')).to_be_checked()
 
     serve = use_sample_traffic(page)
     try:

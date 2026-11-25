@@ -215,43 +215,61 @@
 </section>
 <section class="tab" hidden id="tab-rules">
 <div class="section-tabs" id="rules-view">
-  <button type="button" aria-pressed="true" data-rules-view="list" data-i18n="Список правил">Список правил</button>
+  <button type="button" aria-pressed="true" data-rules-view="list" data-i18n="Группы правил">Группы правил</button>
   <button type="button" aria-pressed="false" data-rules-view="audit" data-i18n="Аудит правил">Аудит правил</button>
   <span class="grow"></span><a href="#setup" data-go="setup" data-i18n="Мастер настройки правил">Мастер настройки правил</a>
+  <button type="button" class="secondary" id="rules-export" data-i18n="Скачать все правила">Скачать все правила</button>
 </div>
 <div id="rules-catalog">
-  <search class="panel rules-controls" id="rule-filters" aria-label="Поиск правил" data-i18n-aria-label="Поиск правил">
-    <div class="rules-command-row">
-      <label class="field" for="rules-query"><span data-i18n="Поиск правил">Поиск правил</span><input type="search" id="rules-query" name="query" placeholder="Значение, тип или заметка" data-i18n-placeholder="Значение, тип или заметка" spellcheck="false"></label>
-      <label class="field" for="rules-scope"><span data-i18n="Область">Область</span><select name="scope" id="rules-scope"><option value="" data-i18n="Все области">Все области</option><option value="personal" data-i18n="Личные">Личные</option><option value="team" data-i18n="Команда">Команда</option><option value="global" data-i18n="Корпоративные">Корпоративные</option></select></label>
-      <div class="rules-actions">
-        <button type="button" id="rules-export" class="secondary" data-i18n="Скачать все правила">Скачать все правила</button>
+  <p class="hint" id="rules-notice" role="status" data-i18n="Загрузка…">Загрузка…</p>
+  <div class="rules-workspace" id="rules-workspace" hidden>
+    <fieldset class="scope-picker" id="rules-scope">
+      <legend data-i18n="Область">Область</legend>
+      <label><input class="sr-only" type="radio" name="rule-scope" value="team"><span><strong data-i18n="Правила команды">Правила команды</strong><small></small></span></label>
+      <label><input class="sr-only" type="radio" name="rule-scope" value="personal"><span><strong data-i18n="Личные правила">Личные правила</strong><small></small></span></label>
+      <label><input class="sr-only" type="radio" name="rule-scope" value="global"><span><strong data-i18n="Корпоративные правила">Корпоративные правила</strong><small></small></span></label>
+    </fieldset>
+    <article class="panel rule-group" aria-labelledby="rule-scope-title">
+      <header class="rule-group-header">
+        <h2 id="rule-scope-title"></h2>
         <button type="button" id="rules-new" class="primary" aria-haspopup="dialog" aria-controls="rule-editor" data-i18n="Новое правило">Новое правило</button>
+      </header>
+      <div class="scope-tabs" id="rule-sections" role="tablist" focusgroup="tablist nomemory" aria-labelledby="rule-scope-title">
+        <button type="button" id="scope-rules-tab" role="tab" aria-selected="true" focusgroupstart data-section="rules" data-i18n="Правила">Правила</button>
+        <button type="button" id="scope-domains-tab" role="tab" aria-selected="false" tabindex="-1" data-section="domains" data-i18n="Домены">Домены</button>
       </div>
-    </div>
-    <div class="rules-display-row">
-      <fieldset id="rules-state" class="rule-switch">
-        <legend class="sr-only" data-i18n="Какие правила показывать">Какие правила показывать</legend>
-        <label><input class="sr-only" type="radio" name="rules-state" value="mask" checked><span data-i18n="Маскируют">Маскируют</span></label>
-        <label><input class="sr-only" type="radio" name="rules-state" value="keep"><span data-i18n="Оставляют открытым">Оставляют открытым</span></label>
-        <label><input class="sr-only" type="radio" name="rules-state" value="disabled"><span data-i18n="Отключены">Отключены</span></label>
-        <label><input class="sr-only" type="radio" name="rules-state" value="all"><span data-i18n="Все">Все</span></label>
-      </fieldset>
-      <button type="button" id="rules-clear" class="text-button" hidden data-i18n="Сбросить фильтры">Сбросить фильтры</button>
-      <output id="rules-match-count" class="hint" for="rules-query rules-scope"></output>
-    </div>
-  </search>
-  <div id="rules-list" class="rules-results">
-    <div class="table-wrap rules-table-wrap" hidden><table class="rules-table">
-      <thead><tr>
-        <th scope="col" aria-sort="ascending"><button id="rules-sort" type="button" class="rule-sort"><span data-i18n="Значение">Значение</span> <span aria-hidden="true" id="rules-sort-arrow">↑</span></button></th>
-        <th scope="col" data-i18n="Действие">Действие</th><th scope="col" data-i18n="Тип">Тип</th>
-        <th scope="col" data-i18n="Область">Область</th><th scope="col"><span class="sr-only" data-i18n="Управление правилом">Управление правилом</span></th>
-      </tr></thead><tbody></tbody>
-    </table></div>
-    <p id="rules-empty" class="empty-state" hidden></p>
+      <section id="scope-rules" role="tabpanel" aria-labelledby="scope-rules-tab">
+        <search class="rules-controls" id="rule-filters" aria-label="Поиск правил" data-i18n-aria-label="Поиск правил">
+          <label class="field" for="rules-query"><span data-i18n="Поиск по всем группам">Поиск по всем группам</span><input type="search" id="rules-query" name="query" placeholder="Значение, тип или заметка" data-i18n-placeholder="Значение, тип или заметка" spellcheck="false"></label>
+          <div class="rules-display-row">
+            <fieldset id="rules-state" class="rule-switch">
+              <legend class="sr-only" data-i18n="Какие правила показывать">Какие правила показывать</legend>
+              <label><input class="sr-only" type="radio" name="rules-state" value="mask" checked><span data-i18n="Маскируют">Маскируют</span></label>
+              <label><input class="sr-only" type="radio" name="rules-state" value="keep"><span data-i18n="Оставляют открытым">Оставляют открытым</span></label>
+              <label><input class="sr-only" type="radio" name="rules-state" value="disabled"><span data-i18n="Отключены">Отключены</span></label>
+              <label><input class="sr-only" type="radio" name="rules-state" value="all"><span data-i18n="Все">Все</span></label>
+            </fieldset>
+            <button type="button" id="rules-clear" class="text-button" hidden data-i18n="Сбросить фильтры">Сбросить фильтры</button>
+            <output id="rules-match-count" class="hint" for="rules-query"></output>
+          </div>
+        </search>
+        <div id="rules-list" class="rules-results">
+          <div class="table-wrap rules-table-wrap" hidden><table class="rules-table">
+            <thead><tr>
+              <th scope="col" aria-sort="ascending"><button id="rules-sort" type="button" class="rule-sort"><span data-i18n="Значение">Значение</span> <span aria-hidden="true" id="rules-sort-arrow">↑</span></button></th>
+              <th scope="col" data-i18n="Действие">Действие</th><th scope="col" data-i18n="Тип">Тип</th>
+              <th scope="col"><span class="sr-only" data-i18n="Управление правилом">Управление правилом</span></th>
+            </tr></thead>
+          </table></div>
+          <div id="rules-empty" class="empty-state" hidden><strong></strong><div id="rules-other-matches"></div></div>
+        </div>
+      </section>
+      <section id="scope-domains" role="tabpanel" aria-labelledby="scope-domains-tab" hidden>
+        <p class="hint domain-description" data-i18n="Эти домены и их поддомены распознаются при маскировании адресов.">Эти домены и их поддомены распознаются при маскировании адресов.</p>
+        <div id="rules-domains"></div>
+      </section>
+    </article>
   </div>
-  <details class="card rules-secondary"><summary data-i18n="Корпоративные домены">Корпоративные домены</summary><div id="rules-domains"></div></details>
   <details class="card rules-secondary"><summary data-i18n="Пакеты правил">Пакеты правил</summary><div id="packs"></div></details>
 </div>
 <article class="panel" hidden id="rules-audit">

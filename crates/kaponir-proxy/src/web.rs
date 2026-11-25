@@ -1538,31 +1538,40 @@ async fn add_rule(
 }
 
 #[derive(Deserialize)]
-struct RemoveRuleQuery {
+struct RuleRevisionQuery {
     revision: Option<String>,
 }
 
-async fn remove_rule(
-    State(st): State<Shared>,
-    headers: HeaderMap,
-    Path((scope, index)): Path<(Scope, usize)>,
-    Query(query): Query<RemoveRuleQuery>,
-) -> ApiResult {
-    authorized(&st, &headers, true)?;
-    let _rules = st.rule_changes.lock().await;
-    let ctl = control(&st)?;
-    // Rule indices change on deletion. A stale browser must never remove the next rule.
-    if let Some(expected) = query.revision {
+fn check_rule_revision(
+    ctl: &dyn crate::Control,
+    scope: Scope,
+    expected: Option<&str>,
+) -> Result<(), ApiError> {
+    if let Some(expected) = expected {
         let sets = ctl.rules().map_err(internal)?;
         let current = sets
             .iter()
             .find(|s| s.scope == scope)
             .map(|s| rules_revision(&s.file))
             .transpose()?;
-        if current.as_ref() != Some(&expected) {
+        if current.as_deref() != Some(expected) {
             return Err(error(StatusCode::CONFLICT, "rule_list_changed"));
         }
     }
+    Ok(())
+}
+
+async fn remove_rule(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Path((scope, index)): Path<(Scope, usize)>,
+    Query(query): Query<RuleRevisionQuery>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
+    let ctl = control(&st)?;
+    // Rule indices change on deletion. A stale browser must never remove the next rule.
+    check_rule_revision(ctl, scope, query.revision.as_deref())?;
     let removed = ctl.remove_rule(scope, index).map_err(bad)?;
     reload(&st)?;
     Ok(Json(json!({"removed": removed})).into_response())
@@ -1577,13 +1586,14 @@ async fn set_domains(
     State(st): State<Shared>,
     headers: HeaderMap,
     Path(scope): Path<Scope>,
+    Query(query): Query<RuleRevisionQuery>,
     Json(req): Json<DomainsReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
     let _rules = st.rule_changes.lock().await;
-    control(&st)?
-        .set_corp_domains(scope, &req.domains)
-        .map_err(bad)?;
+    let ctl = control(&st)?;
+    check_rule_revision(ctl, scope, query.revision.as_deref())?;
+    ctl.set_corp_domains(scope, &req.domains).map_err(bad)?;
     reload(&st)?;
     Ok(Json(json!({"ok": true})).into_response())
 }
