@@ -229,7 +229,7 @@ async function loadInfo() {
   if (typeof setConnected === 'function') setConnected(true);
 }
 
-const TABS = { mask: () => {}, restore: () => {}, review: () => Promise.all([loadJournal(), loadInfo()]), rules: () => loadRules(), discover: () => { renderDiscover(); showDocumentScenario(); }, metrics: () => loadMetrics() };
+const TABS = { mask: () => {}, restore: () => {}, review: () => Promise.all([loadJournal(), loadInfo()]), rules: () => loadRules(), discover: () => { renderDiscover(); loadSearchMethod(); }, metrics: () => loadMetrics() };
 
 function showTab(name, push = true) {
   const route = name || 'overview';
@@ -865,10 +865,14 @@ async function showDiscoverView(view, skipLoad=false) {
   const previous=D.views[view];
   D.scope=view==="saved"?tr("Сохранённые находки"):previous?.scope||"";
   D.report=previous?.report||null;D.selected=previous?.selected||new Set();D.saved=view==='saved'||!!previous?.saved;D.documents=previous?.documents||[];
-  $('#discover-input-pane').hidden=view!=='input';
+  const sessions = view === 'sessions';
+  $('#discover-input-pane').hidden = view === 'saved' || (sessions && !!D.sessionTarget);
+  $('#d-document-input').hidden = sessions;
+  $('#d-session-input').hidden = !sessions;
+  $('#d-format').closest('label').hidden = sessions;
   $('#d-input-view').setAttribute('aria-pressed',String(view==='input'));$('#d-saved').setAttribute('aria-pressed',String(view==='saved'));
   $('#d-sessions').setAttribute('aria-pressed',String(view==='sessions'));
-  if (view === 'input') showDocumentScenario();
+  if (view !== 'saved') showDocumentScenario();
   if(view==='saved'&&!skipLoad){D.busy=true;renderDiscover();try{const r=await api('/api/v1/ui/discover/profile');D.report=r.report;D.selected.clear();}catch(e){fail(e);}finally{D.busy=false;}}
   renderDiscover();
 }
@@ -914,8 +918,8 @@ function renderDiscover() {
   $('#d-apply').disabled = D.busy || !info.editable || !D.selected.size;
   $('#d-reject').disabled = D.busy || !info.editable || !D.selected.size;
   $('#d-all').disabled = D.busy || !report || !report.suggestions.length;
-  $('#d-analyze').disabled = D.busy;
-  $('#d-saved').disabled = D.busy;
+  $('#d-analyze').disabled = D.busy || D.loadingMethod || ($('#d-mode').value === 'background' && !(D.method?.analysis_enabled && D.method.analysis));
+  for (const id of ['d-saved', 'd-input-view', 'd-sessions']) $('#'+id).disabled = D.busy;
   $('#d-none').disabled = !D.selected.size;
   if (!report) {
     $('#d-status').textContent = '';
@@ -949,47 +953,98 @@ function renderDiscover() {
     })))));
 }
 
-let documentStudyRequest = 0;
-function showDocumentScenario() {
-  const background = $('#d-mode').value === 'background';
-  $('#d-analyze').textContent = tr(background ? 'Отправить в очередь' : 'Найти значения');
-  $('#d-scenario-field').hidden = !background;
-  if (background && D.view === 'input' && location.hash === '#discover') updateDocumentStudy();
+function methodSummary(analysis, category, selected) {
+  const display = source => {
+    const name = source.provider === 'local' ? modelName(source.model) : source.model;
+    const origin = source.connection || (source.provider === 'local' ? 'CPU' : '');
+    return [source.provider === 's1' ? 'S1' : '', name, origin].filter(Boolean).join(' · ');
+  };
+  if (!analysis) return tr('Обнаружение выключено');
+  if (!category) return tr('Поиск · {{0}}. Категоризация выключена.', [display(analysis)]);
+  const scenario = ['local','api'].includes(category.provider)
+    ? (selected || category.scenario || 'standard') : null;
+  const shared = analysis.model === category.model && analysis.provider === category.provider &&
+    analysis.connection_id === category.connection_id;
+  const stages = shared ? tr('Поиск и проверка · {{0}}', [display(analysis)]) :
+    tr('Поиск · {{0}}. Проверка · {{1}}', [display(analysis), display(category)]);
+  return [stages, scenario === 'standard' ? tr('Стандартная проверка') : scenario].filter(Boolean).join(' · ');
 }
-async function updateDocumentStudy() {
-  const host = $('#d-scenario-study');
-  const request = ++documentStudyRequest;
+async function loadSearchMethod() {
+  const request = D.methodRequest = (D.methodRequest || 0) + 1;
+  D.loadingMethod = true;
+  showDocumentScenario();
   try {
-    const {settings} = await api('/api/v1/ui/categorization');
-    if (request !== documentStudyRequest || D.view !== 'input' || location.hash !== '#discover' || $('#d-mode').value !== 'background') return;
-    const supported = ['local','api'].includes(settings.provider);
-    const select = $('#d-scenario');
-    select.disabled = !supported;
-    if (!supported) {
-      select.value = '';
-      delete host.dataset.study;
-      host.textContent = tr('Для сценариев A–D включите локальную или OpenAI-совместимую категоризацию.');
-      return;
-    }
-    renderScenarioStudy(host, settings.provider === 'local' ? measuredModelId(settings.model) : null,
-      select.value || settings.scenario || 'standard', select, settings.provider === 'api');
+    const cfg = await api('/api/v1/ui/workspace/model');
+    if (request !== D.methodRequest) return;
+    if (D.method?.analysis?.revision !== cfg.analysis?.revision) $("#d-scenario").value = "";
+    D.method = cfg;
+    if (!D.overrideMethod) $('#d-mode').value = cfg.analysis_enabled && cfg.analysis ? 'background' : 'fast';
+    $('#d-launch-status').replaceChildren();
   } catch (error) {
-    if (request === documentStudyRequest) { delete host.dataset.study; host.textContent = error.message; }
+    if (request !== D.methodRequest) return;
+    D.method = null;
+    $('#d-mode').value = 'fast';
+    $('#d-launch-status').replaceChildren(document.createTextNode(tr('Настройки модели недоступны. Доступен поиск детекторами.')), workButton('Повторить', loadSearchMethod));
+  } finally {
+    if (request === D.methodRequest) { D.loadingMethod = false; showDocumentScenario(); }
   }
 }
-$('#d-mode').addEventListener('change', showDocumentScenario);
-$('#d-scenario').addEventListener('change', updateDocumentStudy);
+function showDocumentScenario() {
+  const background = $('#d-mode').value === 'background';
+  const cfg = D.method, category = cfg?.categorization;
+  const supported = background && ['local','api'].includes(category?.provider);
+  $('#d-scenario-field').hidden = !supported;
+  $('#d-scenario').disabled = !supported;
+  $('#d-fast-options').hidden = background;
+  $('#d-remember').closest('label').hidden = D.view === 'sessions';
+  $('#d-remember').closest('label').nextElementSibling.hidden = D.view === 'sessions';
+  $('#d-analyze').disabled = D.busy || D.loadingMethod || (background && !(cfg?.analysis_enabled && cfg.analysis));
+  $('#d-method-summary').textContent = D.loadingMethod ? tr('Загружаем настройки…') : background
+    ? methodSummary(cfg?.analysis_enabled ? cfg.analysis : null, category, $('#d-scenario').value)
+    : tr($('#d-s1').checked ? 'Быстрые детекторы и оценка S1' : 'Быстрые детекторы');
+  const remoteSearch = background && cfg?.analysis_enabled && cfg.analysis?.provider === 'api';
+  const remoteReview = background && ['api','s1'].includes(category?.provider);
+  $('#d-file-destination').textContent = D.loadingMethod ? '' : remoteSearch
+    ? tr('При поиске текст получит {{0}}.', [cfg.analysis.connection])
+    : remoteReview ? tr('При проверке данные получит {{0}}.', [category.connection])
+      : $('#d-s1').checked && !background ? tr('Для оценки будет вызван настроенный S1.') : tr('Поиск выполняется средствами Kaponir.');
+  if (supported && $('#d-settings').open)
+    renderScenarioStudy($('#d-scenario-study'), category.provider === 'local' ? measuredModelId(category.model) : null,
+      $('#d-scenario').value || category.scenario || 'standard', $('#d-scenario'), category.provider === 'api');
+}
+$('#d-settings').addEventListener('toggle', showDocumentScenario);
+$('#d-mode').addEventListener('change', () => { D.overrideMethod = true; showDocumentScenario(); });
+$('#d-scenario').addEventListener('change', showDocumentScenario);
+$('#d-s1').addEventListener('change', showDocumentScenario);
 $('#analysis-open-document').addEventListener('click', () => {
   showTab('discover');
   if (D.view !== 'input') showDiscoverView('input');
+  D.overrideMethod = true;
   $('#d-mode').value = 'background';
   showDocumentScenario();
 });
 $('#d-analyze').addEventListener('click', async () => {
   const button = $('#d-analyze');
-  if (D.busy) return;
+  if (button.disabled || D.busy) return;
+  if (D.view === 'sessions' && $('#d-mode').value === 'fast') return analyzeProxySessions(null, $('#d-s1').checked);
+  D.busy = true;
   button.disabled = true;
+  $('#d-launch-status').replaceChildren();
   try {
+    if (D.view === 'sessions') {
+      const worker = await api('/api/v1/ui/worker');
+      if (!worker.enabled || !worker.online) {
+        $('#d-launch-status').replaceChildren(document.createTextNode(tr('Для поиска по сессиям включите службу анализа.')),
+          workButton('Открыть службу анализа', () => showTab('worker')));
+        return;
+      }
+      const scenario = $('#d-scenario').disabled ? '' : $('#d-scenario').value || D.method.categorization.scenario;
+      const job = await api('/api/v1/ui/worker/jobs', {method:'POST',body:{mode:'configured',source:'@sessions',
+        revision:D.method.analysis.revision, ...(scenario ? {scenario} : {})}});
+      D.overrideMethod = false;
+      showTab('jobs/file/'+encodeURIComponent(job.id));
+      return;
+    }
     D.documents = await discoverDocuments();
     D.scope=D.documents.map(doc=>doc.name).join(", ");
     D.saved = $('#d-remember').checked;
@@ -999,16 +1054,20 @@ $('#d-analyze').addEventListener('click', async () => {
     renderDiscover();
     $('#d-status').textContent = tr($('#d-s1').checked ? 'Анализ и оценка S1…' : 'Локальный анализ…');
     if ($('#d-mode').value === 'background') {
-      const scenario = $('#d-scenario').value;
-      const queued=await api('/api/v1/ui/analysis/documents',{method:'POST',body:{documents:D.documents, ...(scenario ? {scenario} : {})}});
-      D.busy=false;renderDiscover();
+      const scenario = $('#d-scenario').disabled ? '' : $('#d-scenario').value || D.method.categorization.scenario;
+      const queued=await api('/api/v1/ui/analysis/documents',{method:'POST',body:{documents:D.documents, revision:D.method.analysis.revision, ...(scenario ? {scenario} : {})}});
+      D.busy=false;D.overrideMethod=false;renderDiscover();
       $('#d-status').textContent=queued.queued?tr('Поставлено в очередь: {{0}}',[queued.queued]):tr('Документы уже обработаны или находятся в очереди');
       showTab(queued.ids?.length === 1 ? "jobs/learning/" + encodeURIComponent(queued.ids[0]) : "jobs");
       return;
     }
     D.report = await api('/api/v1/ui/discover', { method: 'POST', body: { documents: D.documents, use_s1:$('#d-s1').checked, remember:D.saved } });
+    D.overrideMethod = false;
     renderDiscover();
-  } catch (e) { if($('#d-mode').value==='background')e.message=learningError(e.message); fail(e); } finally { D.busy=false; button.disabled = false; if($('#d-mode').value!=='background')renderDiscover(); }
+  } catch (e) {
+    if (e.messageKey === 'configuration_changed' || e.message === 'configuration_changed') await loadSearchMethod();
+    $('#d-launch-status').textContent = $('#d-mode').value === 'background' ? learningError(e.messageKey || e.message) : e.message;
+  } finally { D.busy = false; renderDiscover(); showDocumentScenario(); }
 });
 
 $('#d-all').addEventListener('click', () => {
@@ -1056,6 +1115,7 @@ async function analyzeProxySessions(target = null, useS1 = false) {
   const name = target?.session ? tr("Сессия {{0}}", [target.session]) :
     target?.request ? tr("Запрос {{0}}", [target.request]) : tr("Все сохранённые сессии");
   showTab('discover');
+  D.sessionTarget = target;
   await showDiscoverView('sessions', true);
   D.busy = true; D.report = null; D.saved = true; D.selected.clear(); D.scope = name;
   renderDiscover();
@@ -1073,7 +1133,12 @@ async function analyzeProxySessions(target = null, useS1 = false) {
   finally { D.busy = false; renderDiscover(); }
 }
 window.analyzeProxySessions = analyzeProxySessions;
-$('#d-sessions').addEventListener('click', () => analyzeProxySessions(null, D.view === 'input' && $('#d-s1').checked));
+$('#d-sessions').addEventListener('click', () => {
+  if (D.busy) return;
+  if (D.sessionTarget) { delete D.views.sessions; if (D.view === 'sessions') { D.report = null; D.scope = ''; D.selected.clear(); } }
+  D.sessionTarget = null;
+  showDiscoverView('sessions');
+});
 $('#events-scan-all').addEventListener('click', () => analyzeProxySessions());
 if ($('#settings-scan-sessions')) $('#settings-scan-sessions').addEventListener('click', () => analyzeProxySessions());
 for (const id of ['d-files','d-text','d-format']) $('#'+id).addEventListener('change', () => {

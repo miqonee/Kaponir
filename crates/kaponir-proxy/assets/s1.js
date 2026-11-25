@@ -495,6 +495,7 @@ function readLearningForm(role) {
   if (isChatApi(role)) { settings.api_manual=[...apiProfiles[role].manual]; settings.inference.local_generation=null; }
   return {
     settings,
+    ...(role === "analysis" && settings.provider === "api" && $("#analysis-share-api").checked ? {use_for_categorization:true} : {}),
     ...(remote && key ? { key } : {}),
     clear_key: remote && $(`#${role}-clear-key`).checked,
   };
@@ -688,6 +689,10 @@ async function saveLearningForm(role, test = false) {
     if (!test) {
       LearningUI[role] = result;
       saved = true;
+      if (body.use_for_categorization) {
+        $("#analysis-share-api").checked = false;
+        LearningUI.categorization = await api("/api/v1/ui/categorization");
+      }
       LearningUI.dirty.delete(role);
       renderLearningForms();
       if (role === "analysis" && (previous.enabled !== result.settings.enabled || (result.settings.enabled && !WORKER.data?.enabled)))

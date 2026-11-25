@@ -936,6 +936,8 @@ pub(crate) fn key(v: &SqliteVault, role: &str) -> anyhow::Result<Option<String>>
 }
 #[derive(Deserialize)]
 struct Update<T> {
+    #[serde(default)]
+    use_for_categorization: bool,
     queue_change: Option<QueueChange>,
     settings: T,
     key: Option<String>,
@@ -1097,6 +1099,29 @@ async fn workspace_model(
         "slots":settings.analysis.parallelism,"analysis_enabled":settings.analysis.enabled,"previous_slots":previous}),
     ))
 }
+fn share_analysis_api(settings: &mut Settings) {
+    let source = &settings.analysis;
+    if settings.categorization.provider != "api"
+        || settings.categorization.http.url != source.url
+        || settings.categorization.http.model.as_ref() != Some(&source.model)
+    {
+        settings.categorization.scenario = Scenario::Standard;
+    }
+    settings
+        .categorization
+        .api_manual
+        .clone_from(&source.api_manual);
+    settings.categorization.provider = "api".into();
+    settings.categorization.http = kaponir_s1::http::HttpSettings {
+        model: Some(source.model.clone()),
+        url: source.url.clone(),
+        protocol: kaponir_s1::http::HttpProtocol::Openai,
+        timeout_ms: source.timeout_seconds * 1000,
+        ..Default::default()
+    };
+    settings.categorization.inference = source.inference.clone();
+}
+
 async fn set_workspace_model(
     AxumState(st): AxumState<Shared>,
     headers: HeaderMap,
@@ -1111,26 +1136,7 @@ async fn set_workspace_model(
         if change.model.is_some() || settings.analysis.provider != "api" {
             return Err(bad(anyhow::anyhow!("invalid_review_source")));
         }
-        let source = &settings.analysis;
-        if settings.categorization.provider != "api"
-            || settings.categorization.http.url != source.url
-            || settings.categorization.http.model.as_ref() != Some(&source.model)
-        {
-            settings.categorization.scenario = Scenario::Standard;
-        }
-        settings
-            .categorization
-            .api_manual
-            .clone_from(&source.api_manual);
-        settings.categorization.provider = "api".into();
-        settings.categorization.http = kaponir_s1::http::HttpSettings {
-            model: Some(source.model.clone()),
-            url: source.url.clone(),
-            protocol: kaponir_s1::http::HttpProtocol::Openai,
-            timeout_ms: source.timeout_seconds * 1000,
-            ..Default::default()
-        };
-        settings.categorization.inference = source.inference.clone();
+        share_analysis_api(&mut settings);
     }
     if let Some(model) = change.model {
         if settings.analysis.provider == "none" && !settings.analysis.enabled {
@@ -1349,7 +1355,13 @@ fn save_settings(
         }
         _ => None,
     };
-    let changed_url = if role == "analysis" {
+    let key_role = if role == "shared-analysis-api" {
+        "analysis"
+    } else {
+        role
+    };
+    let share_api = matches!(role, "workspace-api" | "shared-analysis-api");
+    let changed_url = if key_role == "analysis" {
         previous.analysis.url != settings.analysis.url
     } else {
         previous.categorization.http.url != settings.categorization.http.url
@@ -1383,17 +1395,24 @@ fn save_settings(
                     "queue_choice_required"
                 );
             }
+            if share_api
+                && settings.revision == previous.revision
+                && v.private_setting("learning:analysis:key")?
+                    != v.private_setting("learning:categorization:key")?
+            {
+                settings.revision += 1;
+            }
             if settings.revision != previous.revision && queue_counts(v)? != (0, 0) {
                 let choice = queue.ok_or_else(|| anyhow::anyhow!("queue_choice_required"))?;
                 switch_queue(v, &settings, choice.action, review_role)?;
             }
             if clear || changed_url && new_key.is_none() {
-                v.delete_private_setting(&format!("learning:{role}:key"))?;
+                v.delete_private_setting(&format!("learning:{key_role}:key"))?;
             } else if let Some(k) = new_key {
                 anyhow::ensure!(!k.contains(['\n', '\r']) && k.len() <= 8192, "invalid_key");
-                v.set_private_setting(&format!("learning:{role}:key"), k.as_bytes())?;
+                v.set_private_setting(&format!("learning:{key_role}:key"), k.as_bytes())?;
             }
-            if role == "workspace-api" {
+            if share_api {
                 if let Some(token) = v.private_setting("learning:analysis:key")? {
                     v.set_private_setting("learning:categorization:key", &token)?;
                 } else {
@@ -1439,9 +1458,20 @@ async fn put_analysis(
     let mut s = st.learning.snapshot();
     let was_enabled = s.analysis.enabled;
     s.analysis = req.settings;
+    if req.use_for_categorization {
+        if s.analysis.provider != "api" {
+            return Err(bad(anyhow::anyhow!("invalid_review_source")));
+        }
+        share_analysis_api(&mut s);
+        validate_categorization(&s.categorization).map_err(bad)?;
+    }
     save_settings(
         &st,
-        "analysis",
+        if req.use_for_categorization {
+            "shared-analysis-api"
+        } else {
+            "analysis"
+        },
         s,
         req.key.as_deref().map(str::trim).filter(|s| !s.is_empty()),
         req.clear_key,
@@ -2111,6 +2141,7 @@ fn test_key(
 
 #[derive(Deserialize)]
 struct Documents {
+    revision: Option<u64>,
     scenario: Option<Scenario>,
     documents: Vec<kaponir_core::discover::Document>,
 }
@@ -2120,7 +2151,7 @@ async fn documents(
     Json(req): Json<Documents>,
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
-    queue_documents(&st, req.documents, req.scenario, "document", None).await
+    queue_documents(&st, req.documents, req.scenario, "document", req.revision).await
 }
 pub(crate) async fn queue_session(
     st: &Shared,
@@ -3584,9 +3615,24 @@ pub(crate) fn change_entry(
                 }
                 apply_entry(st, &mut entry, false).map_err(bad)?;
             }
-            "reject" | "rollback" | "rollback-job" => {
+            "reject" | "keep" | "rollback" | "rollback-job" => {
+                if action == "keep" {
+                    if entry.state != "pending" {
+                        return Err(bad(anyhow::anyhow!("entry_not_pending")));
+                    }
+                    if let Some(kind) = &req.kind {
+                        if !KINDS.contains(&kind.as_str()) {
+                            return Err(bad(anyhow::anyhow!("invalid_kind")));
+                        }
+                        entry.kind.clone_from(kind);
+                    }
+                    if let Some(scope) = req.scope {
+                        entry.scope = scope;
+                    }
+                    entry.reason = "human_keep".into();
+                }
                 let active = matches!(entry.state.as_str(), "active" | "applying" | "rolling_back");
-                if action != "reject" && !active {
+                if !matches!(action, "reject" | "keep") && !active {
                     return Err(bad(anyhow::anyhow!("entry_not_active")));
                 }
                 entry.state = if active { "rolling_back" } else { "rejected" }.into();

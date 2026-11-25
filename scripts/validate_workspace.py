@@ -82,7 +82,7 @@ def verify_repeated_findings(page, api, output):
     page.locator('[data-tab=review]').click()
     section.locator('#review-query').fill(value)
     section.locator('.finding-value').click()
-    section.get_by_role('button', name='Решить вручную').click()
+    section.get_by_role('button', name='Исправить').click()
     # Another operator finishes while the decision dialog is open.
     detector = next(item for item in raw if item['origin'] == 'detector')
     route = '/api/v1/ui/review/detector/' + detector['id']
@@ -100,7 +100,7 @@ def verify_repeated_findings(page, api, output):
     assert api('/api/v1/rules') == rules_before
     assert api('/api/v1/ui/info')['review_pending'] == api('/api/v1/ui/review')['total']
     page.screenshot(path=output/'findings-after-mask.png')
-    section.get_by_role('button', name='Искать в истории').click()
+    section.get_by_role('button', name='Искать в разобранных').click()
     expect(section.locator('.finding-value')).to_have_count(4)
     expect(section.locator('#review-query')).to_have_value(value)
     api(route + '/rollback', {})

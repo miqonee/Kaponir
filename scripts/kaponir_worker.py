@@ -648,7 +648,7 @@ class Worker:
             db.execute('UPDATE jobs SET updated=?,body=? WHERE id=?',(job['updated'],json.dumps(job),ident))
         return job
 
-    def submit(self, kind, source='.', model=None, use_s1=False, mode='local', inference=None, timeout_seconds=None, scenario=None):
+    def submit(self, kind, source='.', model=None, use_s1=False, mode='local', inference=None, timeout_seconds=None, scenario=None, revision=None):
         if kind not in ['scan','download','evaluate']: raise ValueError('invalid job kind')
         if not isinstance(use_s1,bool): raise ValueError('use_s1 must be a boolean')
         if not isinstance(mode, str) or mode not in MODES: raise ValueError('unsupported analysis mode')
@@ -661,6 +661,10 @@ class Worker:
         job={'id':uuid.uuid4().hex,'kind':kind,'source':source,'root':str(self.root),'model':model,'use_s1':bool(use_s1),'mode':mode,
              'state':'queued','created':time.time(),'updated':time.time(),'completed':0,'page':0,'files':None,
              'total':0,'errors':[],'skipped':0,'control':None,'progress':0,'progress_total':0,'current':''}
+        if revision is not None:
+            if kind != 'scan' or mode != 'configured' or type(revision) is not int or revision < 0:
+                raise ValueError('invalid_model_revision')
+            job['revision'] = revision
         if scenario is not None:
             if kind != 'scan' or mode != 'configured' or scenario not in ('standard','A','B','C','D'):
                 raise ValueError('invalid_analysis_scenario')
@@ -1490,6 +1494,8 @@ class Worker:
         if job.get('mode') == 'configured':
             if not self.cfg['api_url']: raise ValueError('configured analysis requires worker.api_url')
             payload = {'documents':[{'name':name,'text':text,'format':'auto'}]}
+            if 'revision' in job:
+                payload['revision'] = job['revision']
             if job.get('scenario'):
                 payload['scenario'] = job['scenario']
             http_json(self.cfg['api_url'].rstrip('/')+'/api/v1/ui/analysis/documents', payload, os.getenv('KAPONIR_API_TOKEN',''), timeout=30)
@@ -1680,7 +1686,7 @@ def handler(worker, token):
                 elif path=='/calibrate':result=worker.start_calibration(body)
                 elif path=='/evaluate':result=worker.evaluate(body)
                 elif path=='/privacy-suggest':result=worker.suggest_privacy_spans(body)
-                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'),body.get('inference'),body.get('timeout_seconds'),body.get('scenario'))
+                elif path=='/jobs':result=worker.submit('scan',body.get('source','.'),body.get('model'),body.get('use_s1',False),body.get('mode','local'),body.get('inference'),body.get('timeout_seconds'),body.get('scenario'),body.get('revision'))
                 elif path=='/models/resolve':result=resolve_hf(body.get('url'))
                 elif path=='/models/register':result=worker.register_model(body.get('url'),body.get('file'))
                 elif path=='/models/download':result=worker.submit('download',model=body.get('model'))

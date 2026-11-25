@@ -634,12 +634,52 @@ function openFindingSet(snap) {
   $("#review-kind").value = "";
   showTab("review");
 }
-async function collectFindings(selection) {
+let captureVersion = 0;
+let captureSaving = false;
+function syncCapturePreference(enabled, editable) {
+  if (captureSaving) return;
+  for (const input of document.querySelectorAll("[data-capture-review]")) {
+    input.checked = enabled;
+    input.disabled = !editable;
+  }
+}
+for (const input of document.querySelectorAll("[data-capture-review]")) input.onchange = async () => {
+  const enabled = input.checked;
+  captureVersion++;
+  captureSaving = true;
+  for (const control of document.querySelectorAll("[data-capture-review]")) control.disabled = true;
+  try {
+    await api("/api/v1/ui/dataset/preferences", {method:"PUT",body:{capture_review:enabled}});
+    toast(tr("Настройка сбора сохранена"));
+  } catch (error) {
+    input.checked = !enabled;
+    fail(error);
+  } finally {
+    captureSaving = false;
+    captureVersion++;
+    syncCapturePreference(input.checked, info.editable);
+  }
+};
+$("#dataset-collect-form").onsubmit = async event => {
+  event.preventDefault();
+  const button = $("#dataset-collect");
+  if (button.disabled) return;
+  button.disabled = true;
+  try { await collectFindings({from:$("#dataset-collect-source").value}, true); }
+  catch (error) { $("#dataset-feedback").textContent = error.message; }
+  finally { button.disabled = !info.editable; }
+};
+async function collectFindings(selection, inDataset = false) {
   const receipt = await postOnce("/api/v1/ui/dataset/collect", selection);
-  const status = $("#review-result");
-  status.replaceChildren(
-    h("strong", {}, tr("Добавлено {{0}} · уже были {{1}}", [receipt.added, receipt.existing])),
-    workButton("Открыть добавленные примеры", () => {
+  const status = $(inDataset ? "#dataset-feedback" : "#review-result");
+  const reload = inDataset ? () => loadVaultDataset() : () => loadReview();
+  if (inDataset) {
+    desk.collection = receipt.id;
+    desk.datasetStatus = "all";
+    desk.datasetOffset = 0;
+  }
+  status.replaceChildren(h("strong", {}, tr("Добавлено {{0}} · уже были {{1}}", [receipt.added, receipt.existing])));
+  if (!inDataset) status.append(workButton("Открыть добавленные примеры", () => {
       desk.collection = receipt.id;
       desk.datasetStatus = "all";
       desk.datasetOffset = 0;
@@ -658,10 +698,11 @@ async function collectFindings(selection) {
         status.textContent = r.removed_occurrences > r.removed
           ? tr("Убрано значений · {{0}}, вхождений · {{1}}", [number(r.removed), number(r.removed_occurrences)])
           : tr("Отменено · {{0}}", [r.removed]);
-        await loadReview();
+        if (inDataset) desk.collection = null;
+        await reload();
       }),
     );
-  await loadReview();
+  await reload();
 }
 function datasetQuery(extra = {}) {
   const q = { status: desk.datasetStatus, offset: desk.datasetOffset, limit: 100, ...extra };
@@ -870,6 +911,7 @@ function openFindingExample(id) {
   showTab("dataset");
 }
 async function loadVaultDataset(continueAt = null, example = null) {
+  const preferenceVersion = captureVersion;
   const seq = (desk.datasetRequest = (desk.datasetRequest || 0) + 1);
   let data;
   try {
@@ -881,6 +923,8 @@ async function loadVaultDataset(continueAt = null, example = null) {
     return;
   }
   if (seq !== desk.datasetRequest || desk.edit || location.hash !== "#dataset") return;
+  if (captureVersion === preferenceVersion) syncCapturePreference(data.capture_review, data.editable);
+  $("#dataset-collect").disabled = !data.editable;
   if (example) {
     if (data.items.length) return editExample(data.items[0], 0, data.drafts);
     $("#dataset-feedback").textContent = tr("Этого примера больше нет в датасете.");
@@ -946,27 +990,18 @@ async function loadVaultDataset(continueAt = null, example = null) {
     workButton("Выгрузить черновики", () => exportRows("draft"), "secondary", !data.drafts),
     workButton("Выгрузить для обучения", () => exportRows("checked"), "secondary", !data.checked),
   );
-  const content = [
-    tools,
-    h(
-      "details",
-      { class: "advanced-settings" },
-      h("summary", {}, tr("Загрузить исправления JSONL")),
-      file,
-    ),
-  ];
-  if (desk.collection)
-    content.push(
-      workButton("Весь датасет", () => {
-        desk.collection = null;
-        desk.datasetOffset = 0;
-        return loadVaultDataset();
-      }),
-    );
+  const content = [tools];
+  if (desk.collection) content.push(h("div", {class:"collection-context"},
+    h("span", {class:"hint"}, tr("Примеры выбранной подборки")),
+    workButton("Весь датасет", () => {
+      desk.collection = null;
+      desk.datasetOffset = 0;
+      return loadVaultDataset();
+    })));
   if (!data.items.length)
     content.push(
       h("div", { class: "empty-state" }, h("strong", {}, tr("В этой выборке пока нет примеров")),
-        h("p", {}, tr(desk.datasetStatus === "checked" && data.drafts ? "Откройте черновик и проверьте его разметку." : "В находках можно добавить в датасет отдельные значения или сразу всю выборку.")),
+        h("p", {}, tr(desk.datasetStatus === "checked" && data.drafts ? "Откройте черновик и проверьте его разметку." : "Выберите источник и нажмите «Собрать из находок».")),
         desk.datasetStatus === "checked" && data.drafts ? workButton("Открыть черновики", () => {
           desk.datasetStatus="draft"; desk.datasetOffset=0; return loadVaultDataset();
         }) : workButton("Открыть находки", () => showReview())),
@@ -1002,6 +1037,7 @@ async function loadVaultDataset(continueAt = null, example = null) {
         ),
       ),
     );
+  content.push(h("details", {class:"advanced-settings"}, h("summary", {}, tr("Загрузить исправления JSONL")), file));
   const focusedFilter = host.querySelector(".dataset-filter")?.contains(document.activeElement);
   host.replaceChildren(...content);
   if (focusedFilter) filter.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});

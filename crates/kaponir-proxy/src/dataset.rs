@@ -10,7 +10,7 @@ use axum::{
     Json, Router,
     extract::{DefaultBodyLimit, Path, Query, State},
     http::{HeaderMap, StatusCode},
-    routing::{get, post},
+    routing::{get, post, put},
 };
 use kaponir_vault::SqliteVault;
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ fn read(v: &SqliteVault, id: &str) -> anyhow::Result<Option<Value>> {
 fn store(v: &SqliteVault, id: &str, kind: &str, value: &Value) -> anyhow::Result<()> {
     Ok(v.put_app_record(id, kind, &serde_json::to_vec(value)?)?)
 }
-fn finding_id(item: &Value) -> String {
+pub(crate) fn finding_id(item: &Value) -> String {
     let material = json!([item["key"], item["source"], item["value"], item["context"]]);
     format!(
         "example/{}",
@@ -56,57 +56,64 @@ fn primary_order(row: &Value) -> (bool, bool, u64, &str) {
         row["id"].as_str().unwrap_or_default(),
     )
 }
+fn draft_group(row: &Value) -> Option<(&str, &str, &str)> {
+    if row["status"] != "draft" || !(untouched(row) || row["label_source"] == "finding") {
+        return None;
+    }
+    let value = row["value"].as_str().filter(|s| !s.is_empty())?;
+    let span = &row["spans"][0];
+    Some(match span["action"].as_str() {
+        Some(action @ ("mask" | "keep")) => {
+            (value, action, span["kind"].as_str().unwrap_or_default())
+        }
+        _ => (value, "review", ""),
+    })
+}
+fn example_rows(v: &SqliteVault) -> anyhow::Result<Vec<Value>> {
+    v.app_records_recent("dataset-example", i64::MAX as usize)?
+        .into_iter()
+        .map(|(_, bytes)| Ok(serde_json::from_slice(&bytes)?))
+        .collect()
+}
 struct Examples {
     rows: Vec<Value>,
-    primary: HashMap<String, usize>,
+    owners: Vec<usize>,
 }
 impl Examples {
     fn load(v: &SqliteVault) -> anyhow::Result<Self> {
-        let rows = v
-            .app_records_recent("dataset-example", i64::MAX as usize)?
-            .into_iter()
-            .map(|(_, bytes)| serde_json::from_slice(&bytes))
-            .collect::<Result<_, _>>()?;
-        Ok(Self::new(rows))
+        Ok(Self::new(example_rows(v)?))
     }
-
     fn new(rows: Vec<Value>) -> Self {
-        let mut primary = HashMap::<String, usize>::new();
+        let mut groups = HashMap::new();
         for (index, row) in rows.iter().enumerate() {
-            if let Some(value) = row["value"].as_str().filter(|s| !s.is_empty()) {
-                primary
-                    .entry(value.to_owned())
-                    .and_modify(|old| {
-                        if primary_order(row) < primary_order(&rows[*old]) {
-                            *old = index;
-                        }
-                    })
-                    .or_insert(index);
+            if let Some(key) = draft_group(row) {
+                let owner = groups.entry(key).or_insert(index);
+                if primary_order(row) < primary_order(&rows[*owner]) {
+                    *owner = index;
+                }
             }
         }
-        Self { rows, primary }
+        let owners = rows
+            .iter()
+            .enumerate()
+            .map(|(index, row)| {
+                draft_group(row)
+                    .and_then(|key| groups.get(&key).copied())
+                    .unwrap_or(index)
+            })
+            .collect();
+        Self { rows, owners }
     }
-
-    fn owner(&self, index: usize) -> usize {
-        let row = &self.rows[index];
-        if untouched(row)
-            && let Some(primary) = row["value"].as_str().and_then(|v| self.primary.get(v))
-        {
-            return *primary;
-        }
-        index
-    }
-
     fn list(&self, q: &List, members: Option<&HashSet<String>>) -> Value {
         let mut groups = HashMap::<usize, Vec<usize>>::new();
         let mut example = None;
         for (i, row) in self.rows.iter().enumerate() {
-            let owner = self.owner(i);
+            let owner = self.owners[i];
             let id = row["id"].as_str().unwrap_or_default();
-            if q.example.as_deref() == Some(id) {
-                example = Some(owner);
-            }
             if members.is_none_or(|m| m.contains(id)) {
+                if q.example.as_deref() == Some(id) {
+                    example = Some(i);
+                }
                 groups.entry(owner).or_default().push(i);
             }
         }
@@ -118,7 +125,7 @@ impl Examples {
             .count();
         let drafts = indices.len() - checked;
         indices.retain(|i| {
-            (q.example.is_none() || example == Some(*i))
+            (q.example.is_none() || example.is_some_and(|row| self.owners[row] == *i))
                 && q.status
                     .as_ref()
                     .is_none_or(|s| s == "all" || self.rows[*i]["status"] == *s)
@@ -134,7 +141,9 @@ impl Examples {
         for owner in page {
             let sources = &groups[owner];
             // Keep the excerpt inside the requested collection where it has its own untouched draft.
-            let displayed = if untouched(&self.rows[*owner]) && !sources.contains(owner) {
+            let displayed = if let Some(requested) = example {
+                requested
+            } else if !sources.contains(owner) {
                 *sources
                     .iter()
                     .min_by_key(|i| primary_order(&self.rows[**i]))
@@ -161,49 +170,63 @@ impl Examples {
 }
 
 pub(crate) struct ExampleIndex {
-    by_value: HashMap<String, String>,
-    annotated: HashSet<String>,
+    by_value: HashSet<String>,
+    by_finding: HashMap<String, String>,
 }
 
 impl ExampleIndex {
-    pub(crate) fn for_finding(&self, item: &Value) -> Option<&String> {
-        if !self.annotated.is_empty()
-            && let Some(id) = self.annotated.get(&finding_id(item))
-        {
-            return Some(id);
-        }
-        self.by_value.get(item["value"].as_str()?)
+    pub(crate) fn status(&self, id: &str) -> Option<&String> {
+        self.by_finding.get(id)
     }
 }
-
 pub(crate) fn example_index(v: &SqliteVault) -> anyhow::Result<ExampleIndex> {
-    let examples = Examples::load(v)?;
-    let annotated = examples
-        .rows
-        .iter()
-        .filter(|row| !untouched(row))
-        .filter_map(|row| row["id"].as_str().map(str::to_owned))
-        .collect();
-    let by_value = examples
-        .primary
-        .into_iter()
-        .map(|(value, index)| {
-            (
-                value,
-                examples.rows[index]["id"].as_str().unwrap().to_owned(),
-            )
-        })
-        .collect();
+    let mut by_value = HashSet::new();
+    let mut by_finding = HashMap::new();
+    for row in example_rows(v)? {
+        if let Some(value) = row["value"].as_str() {
+            by_value.insert(value.to_owned());
+        }
+        if let (Some(id), Some(status)) = (row["id"].as_str(), row["status"].as_str()) {
+            by_finding.insert(id.to_owned(), status.to_owned());
+        }
+    }
     Ok(ExampleIndex {
         by_value,
-        annotated,
+        by_finding,
     })
+}
+pub(crate) fn capture_enabled(v: &SqliteVault) -> anyhow::Result<bool> {
+    Ok(v.private_setting("dataset:capture-review")?.as_deref() == Some(b"true"))
+}
+#[derive(Deserialize)]
+struct Preferences {
+    capture_review: bool,
+}
+async fn preferences(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<Preferences>,
+) -> Response {
+    writable(&st, &headers)?;
+    st.with_vault(|_, v| {
+        Ok(v.set_private_setting(
+            "dataset:capture-review",
+            if req.capture_review {
+                b"true"
+            } else {
+                b"false"
+            },
+        )?)
+    })
+    .map_err(internal)?;
+    Ok(Json(json!({"capture_review":req.capture_review})))
 }
 
 pub(crate) fn routes() -> Router<Shared> {
     Router::new()
         .route("/api/v1/ui/dataset", get(list))
         .route("/api/v1/ui/dataset/collect", post(collect))
+        .route("/api/v1/ui/dataset/preferences", put(preferences))
         .route(
             "/api/v1/ui/dataset/import",
             post(import).layer(DefaultBodyLimit::max(32 * 1024 * 1024)),
@@ -216,6 +239,14 @@ struct Collect {
     #[serde(flatten)]
     selection: Selection,
     request_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    from: Option<CollectFrom>,
+}
+#[derive(Deserialize, Serialize, Clone, Copy)]
+#[serde(rename_all = "snake_case")]
+enum CollectFrom {
+    All,
+    Resolved,
 }
 async fn collect(
     State(st): State<Shared>,
@@ -242,7 +273,23 @@ async fn collect(
         }
         return Ok(summary(&saved));
     }
-    let items = req.selection.resolve(&st, true).map_err(bad)?;
+    let items = if let Some(source) = req.from {
+        if !req.selection.keys.is_empty()
+            || req.selection.snapshot.is_some()
+            || !req.selection.excluded.is_empty()
+        {
+            return Err(bad(anyhow::anyhow!("invalid_selection")));
+        }
+        crate::review::items(&st)
+            .map_err(internal)?
+            .into_iter()
+            .filter(|item| {
+                matches!(source, CollectFrom::All) || !crate::review::needs_decision(item)
+            })
+            .collect()
+    } else {
+        req.selection.resolve(&st, true).map_err(bad)?
+    };
     let result = st
         .with_vault(|_, vault| {
             transaction(vault, || {
@@ -258,15 +305,32 @@ async fn collect(
                     let key = finding_id(item);
                     values.insert(item["value"].as_str().unwrap_or_default());
                     members.push(key.clone());
-                    if vault.app_record(&key)?.is_none() {
-                        let row = draft_example(&key, &receipt, item);
-                        store(vault, &key, "dataset-example", &row)?;
-                        inserted.push(key);
+                    match read(vault, &key)? {
+                        None => {
+                            let row = draft_example(&key, &receipt, item);
+                            store(vault, &key, "dataset-example", &row)?;
+                            inserted.push(key);
+                        }
+                        Some(old) if req.from.is_some() && draft_group(&old).is_some() => {
+                            let draft = draft_example(&key, &receipt, item);
+                            if matches!(draft["spans"][0]["action"].as_str(), Some("mask" | "keep"))
+                                && old["spans"] != draft["spans"]
+                            {
+                                let mut row = old;
+                                row["spans"] = draft["spans"].clone();
+                                row["kind"] = draft["kind"].clone();
+                                row["updated"] = json!(now_ms());
+                                row["revision"] = json!(row["revision"].as_u64().unwrap_or(1) + 1);
+                                row["label_source"] = json!("finding");
+                                store(vault, &key, "dataset-example", &row)?;
+                            }
+                        }
+                        Some(_) => {}
                     }
                 }
                 let existing = values
                     .iter()
-                    .filter(|value| known.by_value.contains_key(**value))
+                    .filter(|value| known.by_value.contains(**value))
                     .count();
                 let result = json!({
                     "id": receipt, "added": values.len() - existing, "existing": existing,
@@ -287,15 +351,42 @@ fn draft_example(id: &str, collection: &str, item: &Value) -> Value {
         .filter(|s| !s.is_empty())
         .unwrap_or(value);
     let span: Option<[usize; 2]> = serde_json::from_value(item["context_span"].clone()).ok();
-    let start = span
-        .filter(|[a, b]| text.get(*a..*b) == Some(value))
-        .map(|[a, _]| a)
+    let range = span
+        .filter(|[start, end]| {
+            start < end
+                && text.get(*start..*end).is_some_and(|surface| {
+                    surface == value
+                        || surface.to_lowercase() == value.to_lowercase()
+                        || surface == value.replace(['\r', '\n'], " ")
+                })
+        })
         .or_else(|| {
-            text.find(value)
-                .filter(|_| !value.is_empty() && text.matches(value).count() == 1)
+            let start = text.find(value)?;
+            (!value.is_empty() && text.matches(value).count() == 1)
+                .then_some([start, start + value.len()])
         });
-    let spans: Vec<_> = start.into_iter().map(|from| json!({
-        "value": value, "start_byte": from, "end_byte": from + value.len(), "kind": item["kind"], "action": "review"
+    let decision = &item["decision"];
+    let rule = &item["document_rule"];
+    let resolved = match item["state"].as_str() {
+        Some("masked" | "active") => Some("mask"),
+        Some("kept") => Some("keep"),
+        Some("covered") => rule["action"].as_str(),
+        Some("rejected") if item["reason"] == "human_keep" || decision["action"] == "keep" => {
+            Some("keep")
+        }
+        _ => None,
+    };
+    let kind = if resolved.is_some() {
+        decision["kind"]
+            .as_str()
+            .or(rule["kind"].as_str().filter(|kind| *kind != "KEEP"))
+            .or(item["kind"].as_str())
+    } else {
+        item["kind"].as_str()
+    }
+    .unwrap_or("CUSTOM");
+    let spans: Vec<_> = range.into_iter().map(|[start,end]| json!({
+        "value": &text[start..end], "start_byte": start, "end_byte": end, "kind": kind, "action": resolved.unwrap_or("review")
     })).collect();
     let source = item["source"]
         .as_str()
@@ -309,8 +400,63 @@ fn draft_example(id: &str, collection: &str, item: &Value) -> Value {
     let now = now_ms();
     json!({
         "id": id, "collection": collection, "source": source, "finding": item["key"], "value": value,
-        "kind": item["kind"], "text": text, "status": "draft", "revision": 1, "created": now, "updated": now,
+        "kind": kind, "text": text, "status": "draft", "revision": 1, "created": now, "updated": now,
         "group": "field-feedback", "language": language, "format": "text", "spans": spans
+    })
+}
+
+pub(crate) enum Capture {
+    Checked,
+    Draft,
+    Unchanged,
+}
+
+/// Capture only the shown, grounded occurrence as checked. Related excerpts stay drafts.
+pub(crate) fn capture_finding(
+    v: &SqliteVault,
+    item: &Value,
+    label: Option<(&str, &str)>,
+    seen: bool,
+) -> anyhow::Result<Capture> {
+    let id = finding_id(item);
+    let existing = read(v, &id)?;
+    if let Some(row) = existing.as_ref() {
+        let may_update = untouched(row)
+            || (row["label_source"] == "finding" && (seen || row["status"] == "draft"));
+        if !may_update {
+            return Ok(Capture::Unchanged);
+        }
+    }
+    let grounded = draft_example(&id, "", item);
+    let mut row = existing.clone().unwrap_or_else(|| grounded.clone());
+    if let Some((action, kind)) = label
+        && let Some(mut span) = grounded["spans"]
+            .as_array()
+            .and_then(|s| s.first())
+            .cloned()
+    {
+        span["kind"] = json!(kind);
+        span["action"] = json!(action);
+        row["spans"] = json!([span]);
+        row["kind"] = json!(kind);
+        row["label_source"] = json!("finding");
+        if seen && item["context"].as_str().is_some_and(|s| !s.is_empty()) && validate(&row).is_ok()
+        {
+            row["status"] = json!("checked");
+        }
+    }
+    if existing.as_ref() == Some(&row) {
+        return Ok(Capture::Unchanged);
+    }
+    if existing.is_some() {
+        row["revision"] = json!(row["revision"].as_u64().unwrap_or(1) + 1);
+    }
+    row["updated"] = json!(now_ms());
+    store(v, &id, "dataset-example", &row)?;
+    Ok(if row["status"] == "checked" {
+        Capture::Checked
+    } else {
+        Capture::Draft
     })
 }
 
@@ -346,7 +492,7 @@ async fn undo(State(st): State<Shared>, headers: HeaderMap, Path(id): Path<Strin
                 let remaining = example_index(v)?;
                 let removed = removed_values
                     .iter()
-                    .filter(|value| !remaining.by_value.contains_key(*value))
+                    .filter(|value| !remaining.by_value.contains(*value))
                     .count();
                 Ok(json!({"removed":removed,"removed_occurrences":removed_occurrences}))
             })
@@ -377,7 +523,10 @@ async fn list(State(st): State<Shared>, headers: HeaderMap, Query(q): Query<List
                 }
                 None => None,
             };
-            Ok(Examples::load(v)?.list(&q, members.as_ref()))
+            let mut result = Examples::load(v)?.list(&q, members.as_ref());
+            result["editable"] = json!(st.control.is_some());
+            result["capture_review"] = json!(capture_enabled(v)?);
+            Ok(result)
         })
         .map_err(bad)?;
     Ok(Json(result))
@@ -459,6 +608,7 @@ async fn import(State(st): State<Shared>, headers: HeaderMap, Json(req): Json<Im
                                 matches!(row["status"].as_str(), Some("draft" | "checked")),
                                 "invalid_status"
                             );
+                            old.as_object_mut().unwrap().remove("label_source");
                             old["spans"] = row["spans"].clone();
                             old["status"] = row["status"].clone();
                             old["revision"] = json!(old["revision"].as_u64().unwrap_or(0) + 1);
@@ -493,6 +643,27 @@ mod tests {
 
     fn draft(id: usize, value: usize) -> Value {
         json!({"id":format!("example/{id}"),"value":value.to_string(),"status":"draft","revision":1,"created":id,"text":format!("source {id}: {value}"),"spans":[]})
+    }
+
+    #[test]
+    fn historical_drafts_use_the_actual_span_and_the_effective_action() {
+        let mut finding = json!({"key":"test","value":"cedar","kind":"PROJ","context":"CEDAR / cedar",
+            "context_span":[0,5],"state":"covered","document_rule":{"action":"keep","kind":"KEEP"}});
+        let draft = draft_example("example/1", "collection", &finding);
+        assert_eq!(draft["status"], "draft");
+        assert_eq!(
+            draft["spans"][0],
+            json!({"value":"CEDAR", "kind":"PROJ", "action":"keep","start_byte":0,"end_byte":5})
+        );
+        finding["state"] = json!("rejected");
+        finding["context"] = json!("cedar / cedar");
+        finding["context_span"] = Value::Null;
+        assert_eq!(draft_example("example/1", "", &finding)["spans"], json!([]));
+        finding["context"] = json!("cedar");
+        assert_eq!(
+            draft_example("example/1", "", &finding)["spans"][0]["action"],
+            "review"
+        );
     }
 
     #[test]
@@ -551,7 +722,7 @@ mod tests {
         ]);
         let result = examples.list(&List::default(), None);
         assert_eq!(result["checked"], 2);
-        assert_eq!(result["drafts"], 2);
+        assert_eq!(result["drafts"], 3);
         let alias = examples.list(
             &List {
                 example: Some("example/0".into()),
@@ -559,11 +730,13 @@ mod tests {
             },
             None,
         );
-        assert_eq!(alias["items"][0]["id"], "example/1");
-        assert_eq!(
-            alias["items"][0]["occurrences"].as_array().unwrap().len(),
-            2
-        );
+        assert_eq!(alias["items"][0]["id"], "example/0");
+        assert_eq!(alias["items"][0]["status"], "draft");
+        let exact = List {
+            example: Some("example/4".into()),
+            ..Default::default()
+        };
+        assert_eq!(examples.list(&exact, None)["items"][0]["id"], "example/4");
         let members = HashSet::from(["example/4".into()]);
         assert_eq!(
             examples.list(&List::default(), Some(&members))["items"][0]["id"],

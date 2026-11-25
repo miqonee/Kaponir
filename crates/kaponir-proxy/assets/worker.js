@@ -303,9 +303,23 @@ function renderWorker() {
   $("#worker-file-field").hidden = sessions;
   $("#worker-source").disabled = sessions;
   $("#worker-session-note").hidden = !sessions;
-  const mode = $("#worker-mode").value, configured = mode === "configured";
   const analysis = LearningUI.analysis?.settings, cat = LearningUI.categorization?.settings;
-  const disabledAnalysis = configured && analysis && (!analysis.enabled || analysis.provider === "none");
+  if (!WORKER.overrideMethod && analysis)
+    $("#worker-mode").value = analysis.enabled && analysis.provider !== "none" ? "configured" : "local";
+  const mode = $("#worker-mode").value, configured = mode === "configured";
+  const describe = settings => {
+    if (!settings || settings.provider === "none") return null;
+    const url = settings.http?.url || settings.url;
+    const remote = settings.provider !== "local";
+    return {model:remote ? settings.http?.model || settings.model : settings.model,
+      provider:settings.provider, scenario:settings.scenario,
+      connection:remote && url && URL.canParse(url) ? new URL(url).origin : "",
+      connection_id:remote ? url : "cpu"};
+  };
+  $("#worker-method-summary").textContent = configured ? methodSummary(describe(analysis), describe(cat), $("#worker-scenario").value)
+    : [mode === "local" ? tr("Быстрые детекторы") : modelName($("#worker-model").value) + " · " + tr("Быстрые детекторы"),
+      $("#worker-s1").checked ? "S1" : ""].filter(Boolean).join(" · ");
+  const disabledAnalysis = configured && (!analysis?.enabled || analysis.provider === "none");
   $("#worker-submit").disabled = WORKER.busy || !data.online || !data.enabled || !info.editable || !!disabledAnalysis;
   updateProfileNote("worker", mode === "qwen" ? chosenLocalPreset("worker")?.inference.local_generation : null);
   const scenario = $("#worker-scenario");
@@ -425,7 +439,8 @@ for (const role of ["analysis", "categorization", "worker"])
     else renderModelCards();
     loadWorkerSummary();
   });
-$("#worker-mode").addEventListener("change", renderWorker);
+$("#worker-mode").addEventListener("change", () => { WORKER.overrideMethod = true; renderWorker(); });
+$("#worker-s1").addEventListener("change", renderWorker);
 $("#worker-scenario").addEventListener("change", renderWorker);
 $("#worker-compare").addEventListener("click", event => {
   const study = $("#worker-scenario-study");
@@ -436,8 +451,8 @@ $("#worker-compare").addEventListener("click", event => {
 function submitWorkerSource(source) {
   const mode = $("#worker-mode").value;
   const preset = mode === "qwen" ? chosenLocalPreset("worker") : null;
-  return runWorkerAction("/jobs", { source, model: $("#worker-model").value,
-    ...(mode === "configured" && !$("#worker-scenario").disabled && $("#worker-scenario").value ? {scenario:$("#worker-scenario").value} : {}),
+  return runWorkerAction("/jobs", { source, revision:mode === "configured" ? LearningUI.analysis?.revision : undefined, model: $("#worker-model").value,
+    ...(mode === "configured" && !$("#worker-scenario").disabled ? {scenario:$("#worker-scenario").value || LearningUI.categorization?.settings.scenario} : {}),
     ...(preset ? {inference:preset.inference, timeout_seconds:preset.timeout} : {}),
     use_s1: mode !== "configured" && $("#worker-s1").checked, mode }).then(job=>{if(job?.id)showTab("jobs/file/"+encodeURIComponent(job.id));return job;});
 }

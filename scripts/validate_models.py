@@ -184,6 +184,8 @@ def main():
 
                 page.locator('#analysis-navigation [data-go=worker]').click()
                 assert not page.locator('#worker-s1').is_visible()
+                if page.locator('#worker-settings').get_attribute('open') is None:
+                    page.locator('#worker-settings > summary').click()
                 page.locator('#worker-mode').select_option('local')
                 assert page.locator('#worker-s1').is_visible()
                 page.get_by_role('radio',name='Сессии прокси').check()

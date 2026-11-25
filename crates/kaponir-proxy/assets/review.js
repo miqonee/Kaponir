@@ -2,6 +2,7 @@
 const ReviewUI = { data: null, view: "pending", selected: new Map(), drafts: new Map(), offset: 0, busy: false,
   request: 0, selectionVersion: 0, groups: false, jobs: new Map(), modelSource: "", selectionKey: "", keys: new URLSearchParams(location.search).get("review_keys") || "" };
 const reviewReasons = {
+  human_keep: "Пользователь оставил значение открытым.",
   numeric_type_corrected: "Числовой формат исправлен на финансовое значение. Исходный тип модели сохранён в подробностях. Требуется подтверждение.",
   type_format_conflict: "Предложенный тип противоречит формату значения. Автоматическое применение запрещено.",
   type_rechecked: "Исходный тип противоречил формату значения и был перепроверен категоризатором.",
@@ -14,7 +15,7 @@ const reviewReasons = {
   select_up_to_64: "Выберите от 1 до 64 записей.",
   entry_not_found: "Запись больше недоступна. Обновите очередь.",
   rule_misses_occurrence: "Точное правило уже есть, но его границы не совпадают с этим фрагментом. Проверьте шаблон правила.",
-  rule_action_conflict: "Действующее правило задаёт другое действие. Откройте его в истории находок.",
+  rule_action_conflict: "Действующее правило задаёт другое действие. Откройте его во вкладке «Разобранные».",
   entry_not_pending: "По записи уже принято решение. Обновите очередь.",
   event_not_found: "Подробности события больше не хранятся.",
   job_not_found: "Задание пересмотра больше не хранится.",
@@ -24,6 +25,7 @@ const reviewReasons = {
 };
 function reviewError(code) { return tr(reviewReasons[code] || learningErrors[code] || code); }
 function reviewState(item) {
+  if (item.state === "rejected" && item.reason === "human_keep") return tr("Оставлено открытым");
   if (item.state === "covered") return tr(item.document_rule?.action === "keep" ? "Оставляется по правилу" : "Скрывается по правилу");
   return tr(({ open: "На проверку", pending: "На проверку", masked: "Создано правило маскирования", kept: "Создано исключение",
     dismissed: "Закрыто без правила", rejected: "Находка отклонена", rolled_back: "Правило отменено", active: "Правило действует", covered: "Правило действует" })[item.state] || learningStates[item.state] || item.state);
@@ -62,7 +64,11 @@ async function queueEventReview(eventId,index,dialog) {
   catch(error){fail(new Error(reviewError(error.messageKey||error.message)));}
 }
 function reviewDraft(item) {
-  if (!ReviewUI.drafts.has(item.key)) ReviewUI.drafts.set(item.key, { kind: item.kind, scope: item.scope || item.recommended_scope || defaultScopeForKind(item.kind), scopeChanged: false });
+  if (!ReviewUI.drafts.has(item.key)) {
+    const proposal = item.proposal?.declined ? null : item.proposal;
+    const kind = proposal?.kind || item.kind;
+    ReviewUI.drafts.set(item.key, {kind, scope:proposal?.scope || item.scope || item.recommended_scope || defaultScopeForKind(kind), scopeChanged:false});
+  }
   return ReviewUI.drafts.get(item.key);
 }
 function selectReviewItem(item, checked) {
@@ -102,10 +108,18 @@ function decisionEffect(item, action) {
   if (action === "mask") return tr("В будущих запросах это значение будет заменяться токеном.");
   if (action === "keep" && item.origin === "detector")
     return tr("Будет создано точное исключение для будущих запросов. Обязательная защита секретов сохранится.");
-  if (action === "reject" || action === "keep")
+  if (action === "keep") return tr("Вы отметите значение как открытое в этом фрагменте. Поиск запомнит решение без создания правила.");
+  if (action === "reject")
     return tr("Фоновый поиск запомнит отклонение этого значения. Правила маскирования сохранятся.");
-  if (action === "dismiss") return tr("Находка переместится в историю. Её можно вернуть на проверку.");
+  if (action === "dismiss") return tr("Находка перейдёт в «Разобранные». Её можно вернуть на проверку.");
   return tr("Созданное правило отключится. Сохранённые токены останутся доступны.");
+}
+function effectLabel(item, action, scope) {
+  if (action === "keep" && item.origin === "learning") return tr("Оставить открытым");
+  return tr(action === "keep" ? "Оставлять открытым · {{0}}" : "Скрывать · {{0}}", [scopeLabel(scope)]);
+}
+function datasetMark(item) {
+  return tr(item.dataset_status === "checked" ? "Проверено в датасете" : "Черновик в датасете");
 }
 function reviewCard(item) {
   const pending = pendingFinding(item), proposal = item.proposal, rec = item.recommendation;
@@ -119,14 +133,16 @@ function reviewCard(item) {
     h("h2", {class:"review-value", tabindex:-1}, item.value));
   const verdict = h("section", {class:"decision-summary", "data-tone":hasProposal ? "proposal" : "neutral"},
     h("h3", {}, decisionStatus(item)));
+  if (item.deferred_at) heading.append(h("small", {class:"hint"}, tr("Отложено")));
   const primary = h("div", {class:"decision-actions"});
   if (hasProposal) {
     const why = proposal.reason;
     verdict.append(h("p", {}, decisionEffect(item, proposal.action)));
     if (why && why !== "configured_categorizer") verdict.append(h("p", {class:"decision-reason"}, learningError(why)));
     verdict.append(h("p", {class:"hint"}, [modelName(proposal.model), kindLabel(proposal.kind), scopeLabel(proposal.scope)].filter(Boolean).join(" · ")));
-    primary.append(workButton("Принять предложение", () => decideProposal(item, true), "primary", ro),
-      workButton("Отклонить предложение", () => decideProposal(item, false), "secondary", ro));
+    const accept = workButton(effectLabel(item, proposal.action, proposal.scope), () => decideProposal(item, true), "primary", ro);
+    accept.dataset.acceptProposal = "";
+    primary.append(accept);
   } else if (pending) {
     let note;
     if (currentJob) {
@@ -147,11 +163,18 @@ function reviewCard(item) {
       primary.append(workButton("Открыть правило", () => openFindingRule(item), "secondary"));
     }
     verdict.append(h("p", {}, note));
-    if (!currentJob && canAsk) primary.append(workButton("Получить предложение ИИ", () => requestReview([item]), "secondary", ro));
-  } else if (item.state === "active" || item.state === "masked" || item.state === "kept" || item.state === "covered") {
+    if (!item.unmatched_rule && !item.proposal_conflict) {
+      const draft = reviewDraft(item);
+      primary.prepend(workButton(effectLabel(item, "mask", draft.scope), () =>
+        item.validation_reason ? confirmReview([item], "mask", true) : applyReview([{item, action:"mask", kind:draft.kind, scope:draft.scope}], true), "primary", ro));
+    }
+  } else if (item.document_rule || item.state === "active" || item.state === "masked" || item.state === "kept") {
     primary.append(workButton("Открыть правило", () => openFindingRule(item), "secondary"));
   }
+  if (pending) primary.append(workButton("Исправить", () => manualDecision(item), "secondary", ro),
+    workButton("Отложить", () => applyReview([{item,action:"defer"}], true), "text-button", ro));
   if (primary.childElementCount) verdict.append(primary);
+  if (!pending && item.in_dataset) verdict.append(h("p", {class:"hint"}, datasetMark(item)));
   const excerpt = h("blockquote", {class:"candidate-fragment"}, candidateExcerpt(item.context,item.value,item.context_span));
   const origin = h("div", {class:"origin-reading"});
   const fields = h("dl", {class:"origin-fields"});
@@ -193,50 +216,58 @@ function reviewCard(item) {
   const tabs = contentTabs("Подробности находки", [
     {key:"excerpt", title:"Фрагмент", content:excerpt}, {key:"origin", title:"Происхождение", content:origin}]);
   const footer = h("footer", {class:"decision-footer"});
-  if (pending) footer.append(workButton("Решить вручную", () => manualDecision(item), !canAsk && !hasProposal ? "primary" : "secondary", ro));
+  if (hasProposal) footer.append(workButton("Отклонить предложение", () => decideProposal(item, false), "text-button", ro));
+  else if (!currentJob && canAsk) footer.append(workButton("Получить предложение ИИ", () => requestReview([item]), "text-button", ro));
   if (item.state === "dismissed") footer.append(workButton("Вернуть на проверку", () => applyReview([{item,action:"reopen"}]), "secondary", ro));
   if (item.state === "active" || item.decision?.rule_id && ["masked","kept"].includes(item.state))
     footer.append(workButton("Отменить правило", () => confirmReview([item],"rollback"), "secondary", ro));
   footer.append(item.in_dataset
     ? workButton("Открыть в датасете", () => openFindingExample(item.dataset_id), "text-button")
     : workButton("В датасет", () => collectFindings({keys:item.occurrence_keys || [item.key]}), "text-button", ro));
-  article.append(heading, verdict, tabs, footer);
+  article.append(heading, tabs, verdict, footer);
   return article;
 }
 function reviewField(id, label, control) {
   control.id = id;
   return h("div", {class:"field"}, h("label", {for:id}, tr(label)), control);
 }
+function displayedExcerpt(item) {
+  return ReviewUI.detailKey === item.key && $("#finding-detail [data-pane=excerpt][aria-selected=true]") &&
+    $("#finding-detail .candidate-fragment mark") ? item.excerpt_id : null;
+}
 function manualDecision(item) {
+  const seen = displayedExcerpt(item);
   const dialog = $("#review-confirm"), draft = reviewDraft(item);
   const kind = makeKindSelect(draft.kind), scope = makeScopeSelect(draft.scope);
   const kindField = reviewField("decision-kind", "Тип значения", kind);
   const scopeField = reviewField("decision-scope", "Область правила", scope);
   const dismiss = item.origin === "detector" ? "dismiss" : "reject";
-  const options = [["mask","Скрывать значение"], ...(item.origin === "detector" ? [["keep","Создать исключение"]] : []),
+  const options = [["mask","Скрывать значение"], ["keep",item.origin === "detector" ? "Создать исключение" : "Оставить открытым"],
     [dismiss, item.origin === "detector" ? "Закрыть без правила" : "Отклонить находку"]];
   const action = h("select", {autofocus:true}, options.map(([value,label]) => h("option", {value}, tr(label))));
   const effect = h("p", {class:"decision-effect"});
   function update() {
-    kindField.hidden = scopeField.hidden = action.value === dismiss;
+    kindField.hidden = action.value === dismiss;
+    scopeField.hidden = kindField.hidden || (item.origin === "learning" && action.value === "keep");
     effect.textContent = decisionEffect(item, action.value);
   }
   kind.onchange = () => { draft.kind = kind.value; if (!draft.scopeChanged) scope.value = draft.scope = defaultScopeForKind(kind.value); };
   scope.onchange = () => { draft.scopeChanged = true; draft.scope = scope.value; };
+  if (!item.proposal?.declined && item.proposal?.action === "keep") action.value = "keep";
   action.onchange = update; update();
   const cancel = h("button", {type:"button",class:"secondary",onclick:()=>dialog.close()}, tr("Отмена"));
   dialog.replaceChildren(h("div", {class:"review-confirm-body"}, h("h2",{id:"review-confirm-title"},tr("Ручное решение")),
     h("code", {class:"decision-value"}, item.value), reviewField("decision-action", "Действие", action),
     h("div", {class:"manual-fields"}, kindField,scopeField), effect,
     h("div", {class:"dialog-actions"},cancel,h("button", {id:"review-confirm-apply",class:"primary",type:"button",onclick:()=>{
-      dialog.close(); applyReview([{item, action:action.value, kind:kind.value, scope:scope.value}]);
+      dialog.close(); applyReview([{item, action:action.value, kind:kind.value, scope:scope.value}], true, seen);
     }},tr("Применить решение")))));
   dialog.showModal();
 }
 function decideProposal(item, accept) {
   if (accept && ["type_format_conflict","numeric_type_corrected","type_rechecked"].includes(item.validation_reason))
-    return confirmReview([item], "proposal");
-  return applyReview([{item,action:accept ? "accept-proposal" : "decline-proposal",proposal_id:item.proposal.id}]);
+    return confirmReview([item], "proposal", true);
+  return applyReview([{item,action:accept ? "accept-proposal" : "decline-proposal",proposal_id:item.proposal.id}], true);
 }
 function scopeLabel(scope) { return tr({ personal: "Личные", team: "Команда", global: "Корпоративные" }[scope] || scope); }
 function inferenceDetails(job) {
@@ -343,6 +374,7 @@ function showFinding(item, moveFocus = true) {
 function findingRow(item) {
   const rule = item.decision?.rule_id ? item.decision : item.document_rule ||
     (pendingFinding(item) && !item.proposal?.declined ? item.proposal : null);
+  const withoutRule = !rule && ["dismissed","rejected"].includes(item.state);
   const scope = rule?.scope || item.scope;
   const checkbox=h("input",{type:"checkbox",checked:picked(item),"aria-label":tr("Выбрать значение: {{0}}",[item.value]),
     onchange:event=>{selectReviewItem(item,event.target.checked);row.classList.toggle("picked",picked(item));syncPageCheck();}});
@@ -352,9 +384,9 @@ function findingRow(item) {
     if (!e.target.closest("button,input,label,a,select") && !e.target.closest("td:first-child") && window.getSelection()?.isCollapsed) showFinding(item);
   }},h("td",{},h("label",{class:"row-check"},checkbox)),
     h("td",{},record,item.occurrence_keys ? h("small",{class:"hint"},tr("Вхождений · {{0}}",[number(item.occurrence_keys.length)])) : null,h("small",{class:"mobile-source"},findingSource(item))),
-    h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(rule?.action === "keep" ? item.kind : rule?.kind || item.kind), " / ",
-      h("span",{class:"hint"},scope ? scopeLabel(scope) : tr("Область не задана"))),
-    h("td",{},h("span",{class:"table-verdict", "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),item.in_dataset?h("small",{class:"hint"},tr("В датасете")):null));
+    h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(rule?.kind && rule.kind !== "KEEP" ? rule.kind : item.kind), " / ",
+      h("span",{class:"hint"},withoutRule ? tr("Без правила") : scope ? scopeLabel(scope) : tr("Область не задана"))),
+    h("td",{},h("span",{class:"table-verdict", "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),item.deferred_at ? h("small",{class:"hint"},tr("Отложено")) : null,item.in_dataset?h("small",{class:"hint"},datasetMark(item)):null));
   return row;
 }
 function syncPageCheck() {
@@ -365,11 +397,15 @@ function syncPageCheck() {
 function renderReview() {
   const data=ReviewUI.data;
   if (!data) return;
-  for(const button of document.querySelectorAll("[data-review-view]"))button.setAttribute("aria-pressed",String(button.dataset.reviewView===ReviewUI.view));
+  const advice = ReviewUI.view === "proposals";
+  for (const button of document.querySelectorAll("[data-review-view]"))
+    button.setAttribute("aria-pressed", String(button.dataset.reviewView === (advice ? "pending" : ReviewUI.view)));
+  $("#review-advice-filter").checked = advice;
+  $("#review-advice-filter").closest("label").hidden = !["pending","proposals"].includes(ReviewUI.view);
   const nodes=[];
   const filters=reviewFilters();
   const filtered=!!(filters.q || filters.kind || filters.action || filters.source!=="all" || filters.sort!=="recent");
-  $("#review-clear-filters").hidden=!filtered;
+  $("#review-clear-filters").hidden=!filtered && !advice;
   $("#review-match-count").textContent=tr(["pending","proposals"].includes(ReviewUI.view) ? "Значений в выборке · {{0}}" : "Находок в выборке · {{0}}", [number(data.total)]);
   if (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob) nodes.push(h("div",{class:"inline-notice"},tr(ReviewUI.view === "all" ? "Все вхождения, включая обработанные" : ReviewUI.jobId || ReviewUI.learningJob ? "Результаты выбранного запуска" : "Находки из выбранных источников"),
     workButton("Все находки",()=>showReview())));
@@ -381,9 +417,9 @@ function renderReview() {
     nodes.push(h("div",{class:"empty-state"}, icon("search"), h("strong",{},tr(ReviewUI.view === "proposals" && !filtered ? "Готовых предложений ИИ пока нет" : "Находок по этим условиям нет")),
       ReviewUI.view === "proposals" && !filtered ? h("p", {}, tr("Откройте находку на проверку и запросите предложение ИИ.")) : null,
       filters.q && ["pending","proposals"].includes(ReviewUI.view)
-        ? workButton("Искать в истории", () => $("#review-navigation [data-review-view=history]").click()) :
+        ? workButton("Искать в разобранных", () => $("#review-navigation [data-review-view=history]").click()) :
       filtered ? workButton("Сбросить фильтры", resetReviewFilters) :
-        ReviewUI.view === "proposals" ? workButton("На проверку", () => $("#review-navigation [data-review-view=pending]").click()) :
+        ReviewUI.view === "proposals" ? workButton("Нужно решить", () => $("#review-navigation [data-review-view=pending]").click()) :
         scoped || ReviewUI.view==="history" ? workButton("Открыть находки",()=>showReview()) :
           workButton("Найти значения в документе",()=>{showTab("discover");showDiscoverView("input");})));
   }
@@ -549,7 +585,8 @@ async function maskSelectedFindings() {
   if (items.length) confirmReview(items, "mask");
   else $("#review-result").textContent = tr("В выборке больше нет находок на проверку.");
 }
-function confirmReview(items, operation) {
+function confirmReview(items, operation, fromCard = false) {
+  const seen = fromCard ? displayedExcerpt(items[0]) : null;
   const dialog = $("#review-confirm"), entries = items.map((item) => {
     const draft = reviewDraft(item);
     if (operation === "proposal" || operation === "decline-proposal") {
@@ -566,7 +603,7 @@ function confirmReview(items, operation) {
     operation === "mask" ? h("p", {}, tr("Выбранные значения будут скрываться в будущих запросах.")) : null,
     h("div", { class: "review-confirm-list" }, ...entries.map((entry) => h("div", {}, h("code", {}, entry.item.value),
       h("p", {}, `${kindLabel(entry.kind)} · ${scopeLabel(entry.scope)}`), operation === "mask" ? null : h("p", { class: "hint" }, operation === "decline-proposal" ? tr("Находка останется на ручной проверке.") : decisionEffect(entry.item,entry.effect)), entry.item.validation_reason ? h("p",{class:"hint"},reviewError(entry.item.validation_reason)) : null))),
-    h("div", { class: "form-actions" }, h("button", { class: "primary", id: "review-confirm-apply", onclick: () => { dialog.close(); origin?.focus(); applyReview(entries); } }, tr("Применить изменения")),
+    h("div", { class: "form-actions" }, h("button", { class: "primary", id: "review-confirm-apply", onclick: () => { dialog.close(); origin?.focus(); applyReview(entries, fromCard, seen); } }, tr("Применить изменения")),
       h("button", { class: "secondary", autofocus:true, onclick: () => { dialog.close(); origin?.focus(); } }, tr("Отмена")))));
   dialog.showModal();
 }
@@ -575,23 +612,27 @@ function setReviewBusy(busy) {
   $("#finding-detail").inert = busy;
   $("#finding-detail").setAttribute("aria-busy", String(busy));
 }
-async function applyReview(entries) {
+async function applyReview(entries, fromCard = false, seen = fromCard ? displayedExcerpt(entries[0].item) : null) {
   if (ReviewUI.busy) return;
   const page = ReviewUI.data, first = entries[0];
   const navigation = findingNavigation;
-  const advance = entries.length === 1 && ReviewUI.detailKey === first.item.key &&
-    ["accept-proposal","decline-proposal"].includes(first.action);
+  const advance = fromCard && entries.length === 1 && ReviewUI.detailKey === first.item.key;
   const index = advance ? page.items.findIndex(i=>i.key===first.item.key) : -1;
   const following = index >= 0 ? page.items.slice(index+1).map(i=>i.key) : [];
   setReviewBusy(true);
   const failures = [], snapshot = ReviewUI.snapshot;
+  let checked = 0, drafts = 0, captureError = false;
   let applied = 0, covered = 0, lastProgress = performance.now();
   renderReview(true);
   for (const entry of entries) {
     const item = entry.item;
     try {
       const result = await api(`/api/v1/ui/review/${item.origin}/${encodeURIComponent(item.id)}/${entry.action}`, {
-        method:"POST", body:{kind:entry.kind, scope:entry.scope, proposal_id:entry.proposal_id}});
+        method:"POST", body:{kind:entry.kind, scope:entry.scope, proposal_id:entry.proposal_id,
+          occurrences:item.occurrence_keys, seen_excerpt:seen}});
+      checked += result.dataset?.checked || 0;
+      drafts += result.dataset?.drafts || 0;
+      if (result.dataset?.error) captureError = true;
       if (result.state === "conflict") throw new Error(reviewError("existing_rule"));
       if (result.already_covered) covered++; else applied++;
       ReviewUI.selected.delete(item.key); ReviewUI.drafts.delete(item.key);
@@ -606,9 +647,11 @@ async function applyReview(entries) {
   if (snapshot && snapshot === ReviewUI.snapshot && pickedCount() === 0) clearPicking();
   setReviewBusy(false);
   const single = entries.length === 1 && applied === 1 ? entries[0] : null;
-  const message = single?.action === "decline-proposal" ? tr("Предложение отклонено. Находка осталась на проверке.") :
+  const message = single?.action === "defer" ? tr("Отложено до конца очереди.") : single?.action === "decline-proposal" ? tr("Предложение отклонено. Находка осталась на проверке.") :
     single?.action === "accept-proposal" ? tr("Предложение принято.") : applied || !covered ? tr("Применено: {{0}}", [applied]) : "";
-  $("#review-result").textContent = [message, covered ? tr("Уже учтено правилами · {{0}}", [number(covered)]) : "", ...failures].filter(Boolean).join(" · ");
+  $("#review-result").textContent = [message, covered ? tr("Уже учтено правилами · {{0}}", [number(covered)]) : "",
+    checked || drafts ? tr("В датасет · проверено {{0}}, черновиков {{1}}", [checked,drafts]) : "",
+    captureError ? tr("Решение сохранено. Добавьте пример из разобранных находок в датасете.") : "", ...failures].filter(Boolean).join(" · ");
   $("#review-result").classList.toggle("err", !!failures.length);
   const sameCard = advance && !failures.length && ReviewUI.detailKey === first.item.key;
   let [updated] = await Promise.all([loadReview(true), loadInfo()]);
@@ -653,6 +696,7 @@ function lockReviewResults(locked) {
 }
 async function loadReview(options) {
   clearTimeout(ReviewUI.filterTimer);
+  const preferenceVersion = captureVersion;
   const request=++ReviewUI.request;
   const background = options?.background === true;
   if (!background) lockReviewResults(true);
@@ -669,6 +713,7 @@ async function loadReview(options) {
     for (const job of data.jobs) for (const key of job.page_keys || []) {
       if (!ReviewUI.activeJobs.has(key)) ReviewUI.activeJobs.set(key,job);
     }
+    if (preferenceVersion === captureVersion) syncCapturePreference(data.capture_review, data.editable);
     ReviewUI.data=data;ReviewUI.offset=data.offset;ReviewUI.browseSet=data.snapshot;
     for(const item of data.items)if(ReviewUI.selected.has(item.key))ReviewUI.selected.set(item.key,item);
     $("#review-badge").textContent=data.pending||"";$("#review-badge").hidden=!data.pending;
@@ -704,11 +749,13 @@ function changedFilter(event) {
   ReviewUI.filterTimer = setTimeout(loadReview, 250);
 }
 function resetReviewFilters() {
+  if (ReviewUI.view === "proposals") ReviewUI.view = "pending";
   for(const [key, value] of [["source","all"],["sort","recent"],["query",""],["kind",""],["action",""]])
     $("#review-"+key).value=value;
   changedFilter();
   $("#review-query").focus();
 }
+$("#review-advice-filter").onchange = event => { ReviewUI.view = event.target.checked ? "proposals" : "pending"; changedFilter(); };
 $("#review-clear-filters").onclick=resetReviewFilters;
 for(const b of document.querySelectorAll("[data-review-view]")) b.onclick=()=>{ReviewUI.view=b.dataset.reviewView;changedFilter();};
 for(const id of ["review-source","review-sort","review-kind","review-action"])$("#"+id).onchange=changedFilter;

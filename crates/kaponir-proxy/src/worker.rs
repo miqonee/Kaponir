@@ -235,6 +235,13 @@ async fn submit(
     Json(body): Json<Value>,
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &headers, true)?;
+    if body["mode"] == "configured"
+        && body["revision"]
+            .as_u64()
+            .is_some_and(|r| r != st.learning.snapshot().revision)
+    {
+        return Err(error(StatusCode::CONFLICT, "configuration_changed"));
+    }
     forward(&st, "/jobs", Some(body)).await
 }
 async fn privacy_suggest(

@@ -9,7 +9,7 @@
 })();
 // Source-key dictionaries. Only explicitly marked interface strings are translated.
 // Document contents, tokens and rule values never pass through this translator.
-(async () => {
+window.uiReady = (async () => {
   const supported = ['ru', 'en'];
   let saved; try { saved=localStorage.getItem('kaponir-language'); } catch {}
   let language=supported.includes(saved)?saved:(navigator.language.startsWith('ru')?'ru':'en');

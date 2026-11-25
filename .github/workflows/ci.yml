@@ -38,6 +38,7 @@ jobs:
           .venv-browser/bin/python scripts/validate_model_transition.py target/release/kaponir --output artifacts/model-transition
           .venv-browser/bin/python scripts/validate_models.py target/release/kaponir --output artifacts/models
           .venv-browser/bin/python scripts/validate_review.py target/release/kaponir --output artifacts/review
+          .venv-browser/bin/python scripts/validate_review_dataset.py target/release/kaponir
       - uses: actions/upload-artifact@v4
         if: always()
         with:

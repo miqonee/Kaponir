@@ -91,6 +91,8 @@ def check_model_selection(page, base, upstream, api, catalog_reads, slow_started
     choice = response.value.json()['settings']
     assert choice['provider']=='s1' and choice['http']['protocol']=='systemone'
     page.goto(base+'/ui/#worker')
+    if page.locator('#worker-settings').get_attribute('open') is None:
+        page.locator('#worker-settings > summary').click()
     mode = page.locator('#worker-mode')
     expect(page.locator('#worker-assignment')).to_contain_text('S1 Choice · choice-fixture')
     expect(page.locator('#worker-scenario-field')).to_be_hidden()
@@ -102,6 +104,16 @@ def check_model_selection(page, base, upstream, api, catalog_reads, slow_started
     mode.select_option('local')
     expect(page.locator('#worker-job-model')).to_have_count(0)
     expect(page.locator('#worker-mode-help')).to_contain_text('без языковой модели')
+
+    page.goto(base + '/ui/#analysis')
+    page.locator('#analysis-share-api').check()
+    with page.expect_response(lambda r: r.url.endswith('/ui/analysis') and r.request.method == 'PUT') as saved:
+        page.locator('#analysis-save').click()
+    assert saved.value.ok and saved.value.request.post_data_json['use_for_categorization']
+    analysis = saved.value.json()['settings']
+    category = api('/api/v1/ui/categorization')['settings']
+    assert category['provider'] == 'api' and category['http']['url'] == analysis['url']
+    assert category['http']['model'] == analysis['model'] and category['inference'] == analysis['inference']
 
 
 def main():
@@ -318,21 +330,25 @@ def main():
                     assert 'context-tokens' in saved['api_manual'] and saved['inference']['max_output_tokens']==1024
                     # Act on successive proposals in place, including keyboard focus and the final empty state.
                     page.goto(base+'/ui/#review')
-                    page.locator('[data-review-view=proposals]').click()
+                    page.locator('#review-advice-filter').check()
                     buttons=page.locator('#review-list .finding-value')
                     wait_for(lambda:api('/api/v1/ui/review?status=proposals')['total']==3)
                     expect(buttons).to_have_count(3)
+                    page.locator('#review-capture').check()
+                    wait_for(lambda:api('/api/v1/ui/dataset')['capture_review'])
                     labels=buttons.all_text_contents()
                     expect(page.locator('#review-list tbody tr').first.locator('td').nth(3)).to_contain_text('/ Команда')
                     buttons.first.click()
                     card=page.locator('#finding-detail')
-                    card.get_by_role('button',name='Принять предложение',exact=True).click()
+                    card.locator('[data-accept-proposal]').click()
                     expect(card.locator('h2')).to_contain_text(labels[1])
                     expect(card.locator('h2')).to_be_focused()
                     card.get_by_role('button',name='Отклонить предложение',exact=True).click()
                     expect(card.locator('h2')).to_contain_text(labels[2])
+                    declined = next(i for i in api('/api/v1/ui/review')['items'] if i['value'] == labels[1])
+                    assert declined['proposal']['declined'] and not declined['in_dataset']
                     card.screenshot(path=str(args.output/'next-finding.png'))
-                    card.get_by_role('button',name='Принять предложение',exact=True).click()
+                    card.locator('[data-accept-proposal]').click()
                     expect(buttons).to_have_count(0)
                     expect(page.locator('#review-result')).to_be_focused()
                     saved['parallelism']=3

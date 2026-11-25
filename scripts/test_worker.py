@@ -309,10 +309,11 @@ class WorkerTests(unittest.TestCase):
 
     def test_configured_job_forwards_only_its_saved_scenario(self):
         self.worker.cfg['api_url'] = 'http://fixture'
-        job = self.worker.submit('scan', source='@sessions', mode='configured', scenario='C')
+        job = self.worker.submit('scan', source='@sessions', mode='configured', scenario='C', revision=12)
         with patch('kaponir_worker.http_json') as request:
             self.worker.import_text(job['id'], 'sample.txt', 'Document', False)
             self.assertEqual(request.call_args.args[1]['scenario'], 'C')
+            self.assertEqual(request.call_args.args[1]['revision'], 12)
         with self.assertRaisesRegex(ValueError, 'invalid_analysis_scenario'):
             self.worker.submit('scan', source='@sessions', mode='local', scenario='D')
 

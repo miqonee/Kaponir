@@ -118,9 +118,13 @@ def check_local_presets(page, api, output):
         assert page.locator('#categorization-scenario').input_value() == 'D'
         page.locator('#analysis-navigation [data-go=analysis]').click()
         page.locator('#analysis-open-document').click()
+        if page.locator('#d-settings').get_attribute('open') is None:
+            page.locator('#d-settings > summary').click()
         assert page.locator('#d-mode').input_value() == 'background'
         assert page.locator('#d-scenario').is_visible()
         expect(page.locator('#d-scenario-study .benchmark-summary')).to_contain_text('C · верно 26 из 32')
+        if page.locator('#d-settings').get_attribute('open') is None:
+            page.locator('#d-settings > summary').click()
         page.locator('#d-mode').select_option('fast')
         assert not page.locator('#d-scenario').is_visible()
         assert settings['http']['timeout_ms'] == 1200000
@@ -221,7 +225,7 @@ def check_manual_mask(page, base, api):
     detail = review.locator('#finding-detail')
     expect(detail.locator('blockquote mark')).to_have_text(names[0])
     expect(detail.locator('blockquote')).to_contain_text('/srv/' + names[0] + '/config.toml')
-    detail.get_by_role('button', name='Решить вручную', exact=True).click()
+    detail.get_by_role('button', name='Исправить', exact=True).click()
     confirm = page.locator('#review-confirm')
     expect(confirm.locator('code')).to_have_text(names[0])
     confirm.get_by_role('button', name='Отмена').click()
@@ -260,6 +264,8 @@ def check_manual_mask(page, base, api):
     confirm.get_by_role('button', name='Отмена').click()
 
     page.goto(base + '/ui/#discover')
+    if page.locator('#d-settings').get_attribute('open') is None:
+        page.locator('#d-settings > summary').click()
     page.locator('#d-mode').select_option('fast')
     page.locator('#d-text').fill('📄 Цена 125 000 ₽. Доплата 125 000 ₽.')
     page.locator('#d-analyze').click()
@@ -397,7 +403,7 @@ def main():
                     assert seen_formats and not any(seen_formats)
                     assert rows()[0].get('origin')
                     first_proposal = next(i for i in rows() if i['key']==target['key'])['proposal']['id']
-                    page.locator('[data-review-view=proposals]').click()
+                    page.locator('#review-advice-filter').check()
                     card = card_for(target)
                     expect(card.locator('.decision-summary')).to_contain_text('Команда')
                     card.get_by_role('button',name='Отклонить предложение',exact=True).click()
@@ -416,8 +422,8 @@ def main():
                     else:
                         raise AssertionError('accepted a superseded proposal')
                     return_to_findings()
-                    page.locator('[data-review-view=proposals]').click()
-                    card_for(target).get_by_role('button',name='Принять предложение',exact=True).click()
+                    page.locator('#review-advice-filter').check()
+                    card_for(target).locator('[data-accept-proposal]').click()
                     wait_for(lambda:not any(i['key']==target['key'] for i in rows()))
                     expect(page.locator('#review-confirm')).to_be_hidden()
                     # Hold the response after persistence to open another card while the UI is still saving.
@@ -436,14 +442,14 @@ def main():
                     route.fulfill(response=response)
                     page.unroute(rollback_url, hold_rollback)
                     expect(page.locator('#finding-detail')).to_have_js_property('inert', False)
-                    before=json.dumps(api('/api/v1/rules'));hidden_card.get_by_role('button',name='Решить вручную',exact=True).click();page.locator('#review-confirm').get_by_label('Действие',exact=True).select_option('dismiss')
-                    assert 'переместится в историю' in page.locator('#review-confirm').inner_text();page.locator('#review-confirm-apply').click()
+                    before=json.dumps(api('/api/v1/rules'));hidden_card.get_by_role('button',name='Исправить',exact=True).click();page.locator('#review-confirm').get_by_label('Действие',exact=True).select_option('dismiss')
+                    assert 'перейдёт в «Разобранные»' in page.locator('#review-confirm').inner_text();page.locator('#review-confirm-apply').click()
                     wait_for(lambda:not any(i['key']==hidden['key'] for i in rows()));assert json.dumps(api('/api/v1/rules'))==before
                     seed('zorgreviewhidden');assert not any(i['key']==hidden['key'] for i in rows())
                     page.locator('[data-review-view=history]').click();card_for(hidden).get_by_role('button',name='Вернуть на проверку',exact=True).click();wait_for(lambda:any(i['key']==hidden['key'] for i in rows()))
                     page.locator('[data-review-view=pending]').click()
                     public=next(i for i in rows() if i['value']=='zorgreviewpublictool');public_card=card_for(public)
-                    public_card.get_by_role('button',name='Решить вручную',exact=True).click();page.locator('#review-confirm').get_by_label('Действие',exact=True).select_option('keep');expect(page.locator('.decision-effect')).to_contain_text('точное исключение')
+                    public_card.get_by_role('button',name='Исправить',exact=True).click();page.locator('#review-confirm').get_by_label('Действие',exact=True).select_option('keep');expect(page.locator('.decision-effect')).to_contain_text('точное исключение')
                     with page.expect_response(lambda r: r.url.endswith('/keep') and r.request.method == 'POST') as kept:
                         page.locator('#review-confirm-apply').click()
                     assert kept.value.ok
@@ -463,8 +469,8 @@ def main():
                     wait_for(lambda:any(i['key']==uncertain['key'] and i.get('recommendation',{}).get('state')=='needs_review' for i in rows()))
                     return_to_findings();uncertain_card=card_for(uncertain);uncertain_card.locator('.decision-summary').wait_for()
                     assert 'ИИ просит решить вручную' in uncertain_card.inner_text()
-                    assert uncertain_card.get_by_role('button',name='Принять предложение',exact=True).count()==0
-                    expect(uncertain_card.get_by_role('button', name='Решить вручную', exact=True)).to_be_enabled()
+                    assert uncertain_card.locator('[data-accept-proposal]').count()==0
+                    expect(uncertain_card.get_by_role('button', name='Исправить', exact=True)).to_be_enabled()
                     assert json.dumps(api('/api/v1/rules'))==before
                     # One invalid row must not erase a usable neighboring recommendation.
                     seed('zorgreviewvalidanswer');seed('zorgreviewinvalidanswer');page.locator('#review-refresh').click()
@@ -479,7 +485,7 @@ def main():
                     for item in mixed:
                         mixed_card=card_for(item)
                         expected = 0 if 'invalidanswer' in item['value'] else 1
-                        wait_for(lambda: mixed_card.get_by_role('button',name='Принять предложение',exact=True).count() == expected)
+                        wait_for(lambda: mixed_card.locator('[data-accept-proposal]').count() == expected)
                     assert page.locator('#review-selection').get_by_role('button',name='Принять предложения',exact=True).count()==0
                     assert json.dumps(api('/api/v1/rules'))==before
                     page.locator('#review-selection').get_by_role('button',name='Снять выбор',exact=True).click()
@@ -531,6 +537,8 @@ def main():
                     page.locator('#d-text').fill('Private estimate. Аванс 40%, цена 1 320,00 ₽.\nPublic sample: 40%.')
                     for variant in 'ABCD':
                         page.evaluate("showTab('discover')")
+                        if page.locator('#d-settings').get_attribute('open') is None:
+                            page.locator('#d-settings > summary').click()
                         page.locator('#d-scenario').select_option(variant)
                         with page.expect_response(lambda r:r.url.endswith('/analysis/documents') and r.request.method == 'POST') as response:
                             page.locator('#d-analyze').click()

@@ -212,21 +212,47 @@ fn attach_proposal(
     }
 }
 
+pub(crate) fn needs_decision(item: &Value) -> bool {
+    matches!(item["state"].as_str(), Some("open" | "pending"))
+}
+
+fn raw_finding(
+    v: &kaponir_vault::SqliteVault,
+    origin: &str,
+    id: &str,
+) -> anyhow::Result<Option<Value>> {
+    match origin {
+        "detector" => match id.parse::<i64>() {
+            Ok(row) => v.journal_row(row)?.as_ref().map(detector_item).transpose(),
+            Err(_) => Ok(None),
+        },
+        "learning" if id.starts_with("learning:entry:") => v
+            .app_record(id)?
+            .map(|bytes| Ok(learning_item(serde_json::from_slice(&bytes)?)))
+            .transpose(),
+        _ => Ok(None),
+    }
+}
+
+fn excerpt_signature(item: &Value) -> String {
+    blake3::hash(
+        json!([
+            item["key"],
+            item["context"],
+            item["context_span"],
+            item["value"],
+            item["kind"]
+        ])
+        .to_string()
+        .as_bytes(),
+    )
+    .to_hex()
+    .to_string()
+}
+
 // Single and bulk decisions use the same projection as browsing without rereading unrelated excerpts.
 fn action_item(st: &Shared, origin: &str, id: &str) -> anyhow::Result<Option<Value>> {
-    let item = match origin {
-        "detector" => match id.parse::<i64>() {
-            Ok(row_id) => st.with_vault(|_, v| {
-                v.journal_row(row_id)?
-                    .as_ref()
-                    .map(detector_item)
-                    .transpose()
-            })?,
-            Err(_) => None,
-        },
-        "learning" if id.starts_with("learning:entry:") => read(st, id)?.map(learning_item),
-        _ => None,
-    };
+    let item = st.with_vault(|_, v| raw_finding(v, origin, id))?;
     let Some(mut item) = item else {
         return Ok(None);
     };
@@ -264,20 +290,22 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
     all.extend(learning::review_entries(st)?.into_iter().map(learning_item));
     let rules = active_rules(st)?;
     let revision = st.learning.snapshot().revision;
-    let (mut recommendations, mut decisions, mut declined, dataset) = st.with_vault(|_, v| {
-        let records = |kind: &str| -> anyhow::Result<HashMap<String, Value>> {
-            v.app_records(kind, i64::MAX as usize)?
-                .into_iter()
-                .map(|(id, data)| Ok((id, serde_json::from_slice(&data)?)))
-                .collect()
-        };
-        Ok((
-            records("review-recommendation")?,
-            records("review-decision")?,
-            records("review-declined")?,
-            crate::dataset::example_index(v)?,
-        ))
-    })?;
+    let (mut recommendations, mut decisions, mut declined, mut deferred, dataset) =
+        st.with_vault(|_, v| {
+            let records = |kind: &str| -> anyhow::Result<HashMap<String, Value>> {
+                v.app_records(kind, i64::MAX as usize)?
+                    .into_iter()
+                    .map(|(id, data)| Ok((id, serde_json::from_slice(&data)?)))
+                    .collect()
+            };
+            Ok((
+                records("review-recommendation")?,
+                records("review-decision")?,
+                records("review-declined")?,
+                records("review-deferred")?,
+                crate::dataset::example_index(v)?,
+            ))
+        })?;
     for item in &mut all {
         rules.project(item);
         let key = item["key"].as_str().unwrap().to_owned();
@@ -290,10 +318,18 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
         if let Some(decision) = decisions.remove(&format!("review-decision:{key}")) {
             item["decision"] = decision;
         }
-        let dataset_id = dataset.for_finding(item);
-        item["in_dataset"] = json!(dataset_id.is_some());
-        if let Some(id) = dataset_id {
-            item["dataset_id"] = json!(id);
+        if needs_decision(item)
+            && let Some(record) = deferred.remove(&format!("review-deferred:{key}"))
+        {
+            item["deferred_at"] = record["created"].clone();
+        }
+        let dataset_id = crate::dataset::finding_id(item);
+        item["excerpt_id"] = json!(excerpt_signature(item));
+        let status = dataset.status(&dataset_id);
+        item["in_dataset"] = json!(status.is_some());
+        if let Some(status) = status {
+            item["dataset_id"] = json!(dataset_id);
+            item["dataset_status"] = json!(status);
         }
     }
     Ok(all)
@@ -489,6 +525,7 @@ fn cleanup(st: &Shared) {
             "review-recommendation",
             "review-selection",
             "dataset-collection",
+            "review-deferred",
         ] {
             for (id, bytes) in v.app_records(kind, 4000)? {
                 let record: Value = serde_json::from_slice(&bytes)?;
@@ -607,7 +644,7 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
     let mut selected: Vec<_> = all
         .into_iter()
         .filter(|item| {
-            let is_pending = matches!(item["state"].as_str(), Some("open" | "pending"));
+            let is_pending = needs_decision(item);
             let key = item["key"].as_str().unwrap_or_default();
             allowed.as_ref().is_none_or(|set| set.contains(key))
                 && q.rule_id.as_ref().is_none_or(|id| {
@@ -692,6 +729,7 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
     }
     if !matches!(q.status.as_deref(), Some("all" | "history")) {
         selected = group_values(selected);
+        selected.sort_by_key(|item| (item["deferred_at"].is_u64(), item["deferred_at"].as_u64()));
     }
     Ok((pending, selected))
 }
@@ -710,6 +748,7 @@ fn group_values(rows: Vec<Value>) -> Vec<Value> {
             };
             keys.push(row["key"].clone());
             let proposed = |i: &Value| i["proposal"]["declined"] == false;
+            let both_deferred = first["deferred_at"].is_u64() && row["deferred_at"].is_u64();
             let conflict = first["proposal_conflict"] == true
                 || proposed(first)
                     && proposed(&row)
@@ -720,6 +759,9 @@ fn group_values(rows: Vec<Value>) -> Vec<Value> {
                 || row["protected"] == first["protected"] && !proposed(first) && proposed(&row)
             {
                 *first = row;
+            }
+            if !both_deferred {
+                first.as_object_mut().unwrap().remove("deferred_at");
             }
             if conflict {
                 first["proposal_conflict"] = json!(true);
@@ -863,8 +905,11 @@ async fn list(
                 .collect::<anyhow::Result<Vec<_>>>()
         })
         .map_err(internal)?;
+    let capture_review = st
+        .with_vault(|_, v| crate::dataset::capture_enabled(v))
+        .map_err(internal)?;
     Ok(Json(
-        json!({"snapshot":snapshot,"items":page,"total":total,"pending":pending,"offset":offset,"limit":limit,"sources":sources,"jobs":jobs,"editable":st.control.is_some()}),
+        json!({"capture_review":capture_review,"snapshot":snapshot,"items":page,"total":total,"pending":pending,"offset":offset,"limit":limit,"sources":sources,"jobs":jobs,"editable":st.control.is_some()}),
     ))
 }
 pub(crate) fn random_id() -> anyhow::Result<String> {
@@ -1745,6 +1790,9 @@ struct Apply {
     use_recommendation: bool,
     expected_job: Option<String>,
     proposal_id: Option<String>,
+    seen_excerpt: Option<String>,
+    #[serde(default)]
+    occurrences: Vec<String>,
 }
 async fn apply(
     State(st): State<Shared>,
@@ -1761,6 +1809,39 @@ async fn apply(
     let item = action_item(&st, &origin, &id)
         .map_err(internal)?
         .ok_or_else(|| bad("entry_not_found"))?;
+    let seen = req.seen_excerpt.is_some();
+    if req
+        .seen_excerpt
+        .as_ref()
+        .is_some_and(|id| *id != excerpt_signature(&item))
+    {
+        return Err(bad("review_stale"));
+    }
+    if action == "defer" {
+        if !needs_decision(&item) {
+            return Err(bad("entry_not_pending"));
+        }
+        let created =
+            serde_json::to_vec(&json!({"created":now_ms()})).map_err(|e| internal(e.into()))?;
+        st.with_vault(|_, v| {
+            learning::transaction(v, || {
+                let defer = |row: &Value| -> anyhow::Result<()> {
+                    if needs_decision(row) {
+                        v.put_app_record(
+                            &format!("review-deferred:{}", row["key"].as_str().unwrap()),
+                            "review-deferred",
+                            &created,
+                        )?;
+                    }
+                    Ok(())
+                };
+                defer(&item)?;
+                related_occurrences(v, &item, &req.occurrences, defer)
+            })
+        })
+        .map_err(internal)?;
+        return Ok(Json(json!({"ok":true,"state":"deferred"})));
+    }
     let mut kind = req
         .kind
         .unwrap_or_else(|| item["kind"].as_str().unwrap_or("CUSTOM").into());
@@ -1822,11 +1903,85 @@ async fn apply(
         scope = serde_json::from_value(rec["scope"].clone()).map_err(|_| bad("invalid_scope"))?;
         action = rec["action"].as_str().unwrap().into();
     }
-    if matches!(action.as_str(), "mask" | "keep") && !item["unmatched_rule"].is_null() {
+    let mut result = apply_effect(&st, &item, &action, &kind, scope, req.use_recommendation)?;
+    if result["state"] != "conflict"
+        && matches!(action.as_str(), "mask" | "keep" | "dismiss" | "reject")
+    {
+        let rule = &result["rule"];
+        let applied_kind = if action == "mask" {
+            rule["kind"].as_str().unwrap_or(&kind)
+        } else {
+            &kind
+        };
+        let confirmed = seen
+            && (result["already_covered"] != true
+                || (applied_kind == kind && rule["scope"] == json!(scope)));
+        let label =
+            matches!(action.as_str(), "mask" | "keep").then_some((action.as_str(), applied_kind));
+        let captured = st.with_vault(|_, v| {
+            learning::transaction(v, || {
+                if !crate::dataset::capture_enabled(v)? {
+                    return Ok(Value::Null);
+                }
+                let mut checked = 0;
+                let mut drafts = 0;
+                let mut record = |row: &Value, label, seen| -> anyhow::Result<()> {
+                    use crate::dataset::Capture;
+                    match crate::dataset::capture_finding(v, row, label, seen)? {
+                        Capture::Checked => checked += 1,
+                        Capture::Draft => drafts += 1,
+                        Capture::Unchanged => {}
+                    }
+                    Ok(())
+                };
+                record(&item, label, confirmed)?;
+                related_occurrences(v, &item, &req.occurrences, |row| record(row, None, false))?;
+                Ok(json!({"checked":checked,"drafts":drafts}))
+            })
+        });
+        // Rule application and optional collection have independent outcomes.
+        result["dataset"] = captured.unwrap_or_else(|_| json!({"error":"dataset_capture_failed"}));
+    }
+    Ok(result)
+}
+
+fn related_occurrences(
+    v: &kaponir_vault::SqliteVault,
+    item: &Value,
+    keys: &[String],
+    mut visit: impl FnMut(&Value) -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    let mut visited = HashSet::new();
+    for key in keys {
+        if item["key"] == *key || !visited.insert(key) {
+            continue;
+        }
+        if let Some((origin, id)) = key.split_once(':')
+            && let Some(other) = raw_finding(v, origin, id)?
+            && other["value"] == item["value"]
+        {
+            visit(&other)?;
+        }
+    }
+    Ok(())
+}
+
+fn apply_effect(
+    st: &Shared,
+    item: &Value,
+    action: &str,
+    kind: &str,
+    scope: Scope,
+    use_recommendation: bool,
+) -> ResultJson {
+    let origin = item["origin"].as_str().unwrap_or_default();
+    let id = item["id"].as_str().unwrap_or_default();
+    let key = item["key"].as_str().unwrap_or_default();
+    if matches!(action, "mask" | "keep") && !item["unmatched_rule"].is_null() {
         return Err(bad("rule_misses_occurrence"));
     }
     let active = &item["document_rule"];
-    if matches!(action.as_str(), "mask" | "keep") && !active.is_null() {
+    if matches!(action, "mask" | "keep") && !active.is_null() {
         if active["action"] != action {
             return Err(bad("rule_action_conflict"));
         }
@@ -1835,21 +1990,27 @@ async fn apply(
         ));
     }
     if origin == "learning" {
-        let mapped = match action.as_str() {
+        let mapped = match action {
             "mask" => "approve",
-            "keep" | "reject" => "reject",
+            "keep" => "keep",
+            "reject" => "reject",
             "rollback" => "rollback",
             _ => return Err(bad("invalid_action")),
         };
-        if mapped == "reject" && item["state"] != "pending" {
+        if item["state"] == "rejected"
+            && (mapped == "reject" || mapped == "keep" && item["reason"] == "human_keep")
+        {
+            return Ok(Json(json!({"ok":true,"state":"rejected"})));
+        }
+        if matches!(mapped, "reject" | "keep") && item["state"] != "pending" {
             return Err(bad("entry_not_pending"));
         }
         return learning::change_entry(
-            &st,
-            &id,
+            st,
+            id,
             mapped,
             learning::Action {
-                kind: Some(kind),
+                kind: Some(kind.to_owned()),
                 scope: Some(scope),
             },
         );
@@ -1863,14 +2024,14 @@ async fn apply(
     if row.value != item["value"].as_str().unwrap_or_default()
         || row.context != item["context"].as_str().unwrap_or_default()
         || row.kind != item["kind"].as_str().unwrap_or_default()
-        || req.use_recommendation
+        || use_recommendation
             && recommendation_revision(&item["recommendation"])
                 != Some(st.learning.snapshot().revision)
     {
         return Err(bad("review_stale"));
     }
     let mut decision = None;
-    let status = match action.as_str() {
+    let status = match action {
         "dismiss" if row.status == "open" => "dismissed",
         "reopen" if row.status == "dismissed" => "open",
         "mask" | "keep" => {
@@ -1882,12 +2043,12 @@ async fn apply(
                 || !kind
                     .bytes()
                     .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == b'_')
-                || kaponir_core::kinds::type_conflict(&kind, &row.value)
+                || kaponir_core::kinds::type_conflict(kind, &row.value)
             {
                 return Err(bad("type_format_conflict"));
             }
             let mut rule = if action == "mask" {
-                row.mask_rule(Some(&kind))
+                row.mask_rule(Some(kind))
             } else {
                 row.keep_rule()
             };
@@ -1901,12 +2062,12 @@ async fn apply(
             }
             ctl.add_rule(scope, rule.clone()).map_err(internal)?;
             decision = Some(
-                json!({"action":action,"scope":scope,"rule_id":rule.id,"rule":rule,"created":now_ms()}),
+                json!({"action":action,"kind":kind,"scope":scope,"rule_id":rule.id,"rule":rule,"created":now_ms()}),
             );
             if action == "mask" { "masked" } else { "kept" }
         }
         "rollback" => {
-            let saved = read(&st, &format!("review-decision:{key}"))
+            let saved = read(st, &format!("review-decision:{key}"))
                 .map_err(internal)?
                 .ok_or_else(|| bad("rule_was_edited"))?;
             let sets = ctl.rules().map_err(internal)?;
@@ -1938,20 +2099,21 @@ async fn apply(
         _ => return Err(bad("invalid_action")),
     };
     st.with_vault(|_, v| {
-        v.set_journal_status(row_id, status)?;
-        Ok(())
+        learning::transaction(v, || {
+            v.set_journal_status(row_id, status)?;
+            if let Some(decision) = decision {
+                v.put_app_record(
+                    &format!("review-decision:{key}"),
+                    "review-decision",
+                    &serde_json::to_vec(&decision)?,
+                )?;
+            }
+            v.delete_app_record(&format!("review-deferred:{key}"))?;
+            Ok(())
+        })
     })
     .map_err(internal)?;
-    if let Some(decision) = decision {
-        write(
-            &st,
-            &format!("review-decision:{key}"),
-            "review-decision",
-            &decision,
-        )
-        .map_err(internal)?;
-    }
-    if matches!(action.as_str(), "mask" | "keep" | "rollback") {
+    if matches!(action, "mask" | "keep" | "rollback") {
         st.replace_engine(ctl.build_engine().map_err(internal)?);
     }
     Ok(Json(json!({"ok":true,"state":status})))

@@ -1402,6 +1402,8 @@ Object.assign(TABS, {
 for (const input of $("#language-switch").querySelectorAll("input"))
   input.checked = input.value === I18N.language;
 $("#language-switch").addEventListener("change", async (e) => {
+  await window.uiReady;
+  if (!e.target.checked) return;
   captureWizard();
   I18N.setLanguage(e.target.value);
   relocalizeConstants();

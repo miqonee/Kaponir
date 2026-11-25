@@ -65,7 +65,7 @@ def check_browser(base, api, output, partial_job):
         page.locator('#review-list').get_by_role('button',name=pending['value'],exact=True).click()
         proposal = next(i for i in api('/api/v1/ui/review?status=proposals')['items'] if i['id']==pending['id'])['proposal']
         assert proposal['source']=='categorization' and proposal['action']=='mask'
-        page.locator('#finding-detail '+selector).get_by_role('button',name='Принять предложение',exact=True).click()
+        page.locator('#finding-detail '+selector).locator('[data-accept-proposal]').click()
         wait_for(lambda:any(e['id']==pending['id'] and e['state']=='active' for e in api('/api/v1/ui/learning')['entries']))
         page.locator('[data-review-view=history]').click()
         page.locator('#review-list').get_by_role('button',name=pending['value'],exact=True).click()
@@ -73,6 +73,8 @@ def check_browser(base, api, output, partial_job):
         page.locator('#review-confirm-apply').click()
         wait_for(lambda:any(e['id']==pending['id'] and e['state']=='rolled_back' for e in api('/api/v1/ui/learning')['entries']))
         page.locator('#tab-review [data-go=discover]').click()
+        if page.locator('#d-settings').get_attribute('open') is None:
+            page.locator('#d-settings > summary').click()
         page.locator('#d-mode').select_option('background')
         page.locator('#d-text').fill('Internal label CedarBrowser86')
         page.locator('#d-analyze').click()
