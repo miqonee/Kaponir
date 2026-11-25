@@ -584,8 +584,8 @@ fn validate(row: &Value) -> anyhow::Result<()> {
                     .is_some_and(|v| Some(v) == s["value"].as_str())
                 && s["kind"]
                     .as_str()
-                    .is_some_and(|k| kaponir_core::kinds::STANDARD.contains(&k)
-                        || matches!(k, "ADDRESS" | "ID"))
+                    .is_some_and(|k| crate::review::supported_kinds().any(|known| known == k)
+                        || k == "ADDRESS")
                 && matches!(s["action"].as_str(), Some("mask" | "keep" | "review")),
             "invalid_span"
         );

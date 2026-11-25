@@ -186,6 +186,42 @@ def seed_path_group(api):
     return root, suffixes
 
 
+def check_individual_path(page, api, base):
+    review = '/api/v1/ui/review'
+    for user, whole in [('single.account', False), ('exact.account', True)]:
+        root = f'/home/group.demo/{user}/'
+        path = root + '.local/bin/kaponir'
+        for i in range(3):
+            text = f'PID {1000+i} CMD {path} serve'
+            api('/api/v1/ui/discover', {'remember':True, 'documents':[{'name':f'{user}-{i}.log',
+                'text':text,'model_candidates':[{'value':path,'kind':'PATH','quote':text}]}]})
+        def rows(status):
+            return api(review+'?'+urlencode({'q':path,'status':status}))['items']
+        item = rows('pending')[0]
+        assert item['account_directory'] == root and len(item['occurrence_keys']) == 3
+        snapshot = api(review+'/selection', {'q':path,'status':'pending'})
+        selected = api(review+'?'+urlencode({'snapshot':snapshot['snapshot'],'status':'selection'}))
+        assert selected['items'][0]['account_directory'] == root
+        page.goto(base+'/ui/#review')
+        page.locator('#review-query').fill(path)
+        page.locator('#review-list').get_by_role('button', name=path, exact=True).click()
+        card = page.locator('#finding-detail')
+        expect(card.locator('.candidate-fragment mark')).to_have_text(root[:-1])
+        if whole:
+            card.get_by_role('button', name='Исправить').click()
+            dialog = page.locator('#review-confirm')
+            dialog.get_by_label('Что скрывать').select_option('whole')
+            dialog.get_by_role('button', name='Применить решение').click()
+        else:
+            card.get_by_role('button', name=re.compile('^Скрывать каталог')).click()
+        wait_for(lambda: not rows('pending'))
+        decided = rows('history')
+        assert len(decided) == 3
+        assert all(r['document_rule'].get('path_prefix') == (None if whole else root) for r in decided)
+        masked = api('/api/v1/ui/mask', {'text':path, 'commit':False})['text']
+        assert ('.local/bin/kaponir' in masked) != whole and user not in masked
+
+
 def check_path_group(page, api, base):
     root, suffixes = seed_path_group(api)
     review = '/api/v1/ui/review'
@@ -278,6 +314,7 @@ def main():
                 page.on('pageerror', lambda error: errors.append(str(error)))
                 exercise(page, api, base)
                 check_path_group(page, api, base)
+                check_individual_path(page, api, base)
                 assert not errors, errors
                 browser.close()
         finally:

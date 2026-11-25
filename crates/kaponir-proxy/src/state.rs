@@ -23,6 +23,22 @@ struct CachedMask {
 const CACHE_LIMIT: usize = 8192;
 pub(crate) const MEMORY_AUDIT_SETTING: &str = "audit:ignored-memory:v1";
 
+const FORGOTTEN_MEMORY: &str = "audit:forgotten-memory:v1";
+
+pub(crate) fn memory_id(kind: &str, value: &str) -> String {
+    blake3::hash(format!("{}\0{}", kind.to_uppercase(), value.to_lowercase()).as_bytes())
+        .to_hex()
+        .to_string()
+}
+
+fn forgotten_memory(vault: &SqliteVault) -> anyhow::Result<HashSet<String>> {
+    Ok(vault
+        .private_setting(FORGOTTEN_MEMORY)?
+        .map(|bytes| serde_json::from_slice(&bytes))
+        .transpose()?
+        .unwrap_or_default())
+}
+
 pub(crate) struct Session {
     known: Vec<Known>,
     seen: HashSet<Known>,
@@ -48,10 +64,13 @@ impl Session {
         }
     }
 
-    fn prune(&mut self, suppressed: &HashSet<(String, String)>) {
+    fn prune(&mut self, suppressed: &HashSet<String>) {
+        if suppressed.is_empty() {
+            return;
+        }
         let n = self.known.len();
         self.known
-            .retain(|k| !suppressed.contains(&(k.kind.to_uppercase(), k.text.to_lowercase())));
+            .retain(|k| !suppressed.contains(&memory_id(&k.kind, &k.text)));
         if n != self.known.len() {
             self.seen = self.known.iter().cloned().collect();
             self.cache.clear();
@@ -73,7 +92,7 @@ struct Inner {
     vault: SqliteVault,
     sessions: HashMap<String, Session>,
     last_evict: Instant,
-    suppressed: HashSet<(String, String)>,
+    suppressed: HashSet<String>,
 }
 
 /// Concurrency shared by background discovery and explicit calls to an external model.
@@ -261,11 +280,11 @@ impl State {
             .as_ref()
             .and_then(|c| c.rules().ok())
             .unwrap_or_default();
-        let mut suppressed: HashSet<(String, String)> = sets
+        let mut suppressed: HashSet<String> = sets
             .into_iter()
             .flat_map(|s| s.file.rules)
             .filter(|r| r.disabled)
-            .filter_map(|r| r.value.map(|v| (r.kind.to_uppercase(), v.to_lowercase())))
+            .filter_map(|r| r.value.map(|v| memory_id(&r.kind, &v)))
             .collect();
         let mut inner = self
             .inner
@@ -274,16 +293,43 @@ impl State {
         if let Ok(Some(bytes)) = inner.vault.private_setting(MEMORY_AUDIT_SETTING)
             && let Ok(values) = serde_json::from_slice::<Vec<(String, String)>>(&bytes)
         {
-            suppressed.extend(
-                values
-                    .into_iter()
-                    .map(|(k, v)| (k.to_uppercase(), v.to_lowercase())),
-            );
+            suppressed.extend(values.into_iter().map(|(k, v)| memory_id(&k, &v)));
+        }
+        if let Ok(forgotten) = forgotten_memory(&inner.vault) {
+            suppressed.extend(forgotten);
         }
         inner.suppressed = suppressed;
         for session in inner.sessions.values_mut() {
             session.cache.clear();
         }
+    }
+
+    pub(crate) fn forget_session_memory(&self, ids: &HashSet<String>) -> anyhow::Result<()> {
+        let mut inner = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let v = &inner.vault;
+        crate::learning::transaction(v, || {
+            v.forget_session_values(|k| ids.contains(&memory_id(&k.kind, &k.text)))?;
+            let mut ignored: Vec<(String, String)> = v
+                .private_setting(MEMORY_AUDIT_SETTING)?
+                .map(|bytes| serde_json::from_slice(&bytes))
+                .transpose()?
+                .unwrap_or_default();
+            ignored.retain(|(kind, value)| !ids.contains(&memory_id(kind, value)));
+            v.set_private_setting(MEMORY_AUDIT_SETTING, &serde_json::to_vec(&ignored)?)?;
+            let mut forgotten = forgotten_memory(v)?;
+            forgotten.extend(ids.iter().cloned());
+            v.set_private_setting(FORGOTTEN_MEMORY, &serde_json::to_vec(&forgotten)?)?;
+            Ok(())
+        })?;
+        inner.suppressed.extend(ids.iter().cloned());
+        for session in inner.sessions.values_mut() {
+            session.prune(ids);
+            session.cache.clear();
+        }
+        Ok(())
     }
 
     pub fn engine(&self) -> Arc<Engine> {

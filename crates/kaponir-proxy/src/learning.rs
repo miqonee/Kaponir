@@ -3708,7 +3708,7 @@ pub(crate) fn change_entry(
                     return Err(bad(anyhow::anyhow!("entry_not_pending")));
                 }
                 if let Some(k) = &req.kind {
-                    if !KINDS.contains(&k.as_str()) {
+                    if !crate::review::supported_kinds().any(|known| known == k) {
                         return Err(bad(anyhow::anyhow!("invalid_kind")));
                     }
                     entry.kind = k.clone();
@@ -3724,7 +3724,7 @@ pub(crate) fn change_entry(
                         return Err(bad(anyhow::anyhow!("entry_not_pending")));
                     }
                     if let Some(kind) = &req.kind {
-                        if !KINDS.contains(&kind.as_str()) {
+                        if !crate::review::supported_kinds().any(|known| known == kind) {
                             return Err(bad(anyhow::anyhow!("invalid_kind")));
                         }
                         entry.kind.clone_from(kind);

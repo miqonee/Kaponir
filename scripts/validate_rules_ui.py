@@ -209,6 +209,22 @@ def check(page, api, output):
     expect(rule.locator('.audit-state')).to_have_text('Включено')
     assert mask() != 'questions'
     page.screenshot(path=output/'after-audit.png', animations='disabled')
+    rule.get_by_role('button', name='Удалить правило').click()
+    expect(dialog.get_by_role('button', name='Отмена')).to_be_focused()
+    page.keyboard.press('Escape')
+    expect(rule.get_by_role('button', name='Удалить правило')).to_be_focused()
+    rule.get_by_role('button', name='Удалить правило').click()
+    dialog.get_by_role('button', name='Удалить правило').click()
+    expect(rule).to_have_count(0)
+    memory = audit.filter(has_text='questions').filter(has_text='Память сессии')
+    memory.get_by_role('button', name='Удалить из памяти').click()
+    expect(dialog.get_by_role('heading')).to_have_text('Удалить значение из памяти?')
+    dialog.get_by_role('button', name='Удалить из памяти').click()
+    expect(memory).to_have_count(0)
+    expect(page.locator('#audit-refresh')).to_be_focused()
+    assert api('/api/v1/deanonymize', {'text': token, 'session':'fresh-audit'})['text'] == 'questions'
+    assert mask() == 'questions'
+
 
     page.locator('[data-rules-view=list]').click()
     state('disabled')

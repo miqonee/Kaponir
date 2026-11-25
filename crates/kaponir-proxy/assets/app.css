@@ -1245,6 +1245,7 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 #audit-list td { vertical-align:middle; overflow-wrap:anywhere; }
 #audit-list td:first-child { width:40px; }
 #audit-list td small { display:block; }
+#audit-list .audit-buttons { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; }
 #audit-list .audit-action, #audit-list th:last-child { text-align:end; white-space:nowrap; }
 .rules-dialog { width:min(640px, 94vw); max-height:90vh; padding:0; }
 .rules-dialog:modal, .rules-dialog::backdrop { overscroll-behavior:contain; }
@@ -1693,6 +1694,13 @@ button.inline-decision { display:inline; border:0; border-radius:0; min-height:0
 
 .path-group-card { display:grid; gap:12px; }
 .path-group-card :is(h2,h3,p,ul) { margin:0; }
+.directory-preview { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:baseline; gap:8px 14px; padding:12px; border:1px solid var(--line); border-radius:6px; background:var(--panel); }
+.directory-preview > span { color:var(--dim); font-size:13px; }
+.directory-preview code { overflow-wrap:anywhere; }
+@media (max-width:640px) {
+  .directory-preview { grid-template-columns:minmax(0,1fr); gap:4px; }
+  .directory-preview > span:not(:first-child) { margin-block-start:6px; }
+}
 .path-examples { list-style:none; padding:0; max-height:34vh; overflow:auto; border-block:1px solid var(--line); }
 .path-examples li { display:flex; align-items:baseline; gap:8px; justify-content:space-between; padding:9px 0; }
 .path-examples li + li { border-block-start:1px solid var(--line); }

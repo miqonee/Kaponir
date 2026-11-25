@@ -1140,10 +1140,13 @@ async function loadAudit() {
       ),
       h("td", {}, h("span", {class:"audit-state " + (item.rule.disabled ? "off" : "on")},
         tr(item.rule.disabled ? "Отключено" : "Включено"))),
-      h("td", {class:"audit-action"}, h("button", {
+      h("td", {class:"audit-action"}, h("div", {class:"audit-buttons"}, h("button", {
         type:"button", class:"small secondary", disabled:!info.editable,
         onclick:() => changeAudit([item], !item.rule.disabled),
-      }, tr(item.rule.disabled ? "Включить снова" : "Отключить"))),
+      }, tr(item.rule.disabled ? "Включить снова" : "Отключить")), h("button", {
+        type:"button", class:"small danger", disabled:!info.editable,
+        onclick:() => confirmRuleDelete(item, item.index, rulePattern(item.rule)[1], true),
+      }, tr(item.scope === "memory" ? "Удалить из памяти" : "Удалить правило")))),
     );
   });
   $("#audit-list").replaceChildren(

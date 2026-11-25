@@ -596,6 +596,37 @@ impl SqliteVault {
         Ok(values)
     }
 
+    /// Remove matching entries from session memory while preserving token resolution and session age.
+    /// The caller holds a transaction across this operation and the audit settings update.
+    pub fn forget_session_values(&self, forget: impl Fn(&Known) -> bool) -> Result<(), VaultError> {
+        let mut scan = self
+            .conn
+            .prepare("SELECT blind, nonce, ct FROM sessions ORDER BY blind")
+            .map_err(db)?;
+        let mut rows = scan.query([]).map_err(db)?;
+        let mut update = self
+            .conn
+            .prepare("UPDATE sessions SET nonce = ?2, ct = ?3 WHERE blind = ?1")
+            .map_err(db)?;
+        while let Some(row) = rows.next().map_err(db)? {
+            let blind: Vec<u8> = row.get(0).map_err(db)?;
+            let nonce: Vec<u8> = row.get(1).map_err(db)?;
+            let ct: Vec<u8> = row.get(2).map_err(db)?;
+            let bytes = self.unseal(&nonce, &ct, &blind)?;
+            let mut known: Vec<Known> =
+                serde_json::from_slice(&bytes).map_err(|e| VaultError::Other(e.to_string()))?;
+            let previous = known.len();
+            known.retain(|k| !forget(k));
+            if previous != known.len() {
+                let payload =
+                    serde_json::to_vec(&known).map_err(|e| VaultError::Other(e.to_string()))?;
+                let (nonce, ct) = self.seal(&payload, &blind)?;
+                update.execute(params![blind, nonce, ct]).map_err(db)?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn save_session(&self, id: &str, known: &[Known]) -> Result<(), VaultError> {
         let blind = self.blind(&["session", id]);
         let payload = serde_json::to_vec(known).map_err(|e| VaultError::Other(e.to_string()))?;
@@ -1051,8 +1082,17 @@ mod tests {
         };
         v.save_session("s1", std::slice::from_ref(&k)).unwrap();
         v.save_session("s1", &[k.clone(), k.clone()]).unwrap();
-        assert_eq!(v.load_session("s1").unwrap(), vec![k.clone(), k]);
+        assert_eq!(v.load_session("s1").unwrap(), vec![k.clone(), k.clone()]);
         assert!(v.load_session("s2").unwrap().is_empty());
-        assert_eq!(v.purge_sessions(-10).unwrap(), 1);
+        let mut keep = k.clone();
+        keep.kind = "CUSTOM".into();
+        v.save_session("s2", &[k, keep.clone()]).unwrap();
+        v.begin().unwrap();
+        v.forget_session_values(|value| value.kind == "PROJ" && value.text == "zorg")
+            .unwrap();
+        v.commit().unwrap();
+        assert!(v.load_session("s1").unwrap().is_empty());
+        assert_eq!(v.load_session("s2").unwrap(), vec![keep]);
+        assert_eq!(v.purge_sessions(-10).unwrap(), 2);
     }
 }

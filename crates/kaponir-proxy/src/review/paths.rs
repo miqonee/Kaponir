@@ -26,25 +26,32 @@ pub(super) fn directories(path: &str) -> Vec<&str> {
         let Some(user) = parts.get(1) else {
             return vec![];
         };
-        if ["shared", "public", "default", "common", "all users"]
-            .iter()
-            .any(|s| user.eq_ignore_ascii_case(s))
-        {
-            return vec![];
-        }
-        if sep == '/'
+        let domain_home = sep == '/'
             && root == "home"
             && (["group.", "domain.", "corp."]
                 .iter()
                 .any(|p| user.starts_with(p))
                 || [".local", ".corp", ".internal"]
                     .iter()
-                    .any(|tail| user.ends_with(tail)))
-        {
-            3
-        } else {
-            2
+                    .any(|tail| user.ends_with(tail)));
+        let depth = if domain_home { 3 } else { 2 };
+        if parts.get(depth - 1).is_none_or(|account| {
+            [
+                "shared",
+                "public",
+                "default",
+                "default user",
+                "common",
+                "all users",
+                "guest",
+                "общие",
+            ]
+            .iter()
+            .any(|name| account.eq_ignore_ascii_case(name))
+        }) {
+            return vec![];
         }
+        depth
     } else if matches!(root, "workspaces" | "projects" | "repos" | "work") {
         2
     } else if root == "srv"
@@ -70,6 +77,21 @@ pub(super) fn directories(path: &str) -> Vec<&str> {
         .skip(depth - 1)
         .map(|(end, _)| &path[..head + end + 1])
         .collect()
+}
+
+// A home identifies an account even when only one distinct file has been seen.
+pub(super) fn account_directory(item: &Value) -> Option<&str> {
+    if item["kind"] != "PATH" || item["protected"] == true || item["path_suffix"] == true {
+        return None;
+    }
+    let path = item["value"].as_str()?;
+    let prefix = directories(path).first().copied()?;
+    let windows = prefix.get(3..).is_some_and(|tail| {
+        tail.split('\\')
+            .next()
+            .is_some_and(|root| root.eq_ignore_ascii_case("Users"))
+    }) && prefix.get(1..3) == Some(":\\");
+    (prefix.starts_with("/home/") || prefix.starts_with("/Users/") || windows).then_some(prefix)
 }
 
 pub(crate) fn selected_prefix<'a>(row: &Value, prefix: &'a str) -> Option<&'a str> {
@@ -103,6 +125,12 @@ pub(super) fn group(rows: Vec<Value>) -> Vec<Value> {
     for (index, item) in rows.iter().enumerate() {
         if item["kind"] == "PATH"
             && item["protected"] != true
+            && item["path_suffix"] != true
+            && item["unmatched_rule"].is_null()
+            && (item["proposal"]["declined"] != false
+                || (item["proposal"]["action"] == "mask"
+                    && item["proposal"]["kind"] == "PATH"
+                    && item["proposal"]["scope"] == json!(scope(item))))
             && needs_decision(item)
             && let Some(value) = item["value"].as_str()
             && let Some(prefix) = directories(value).first()
@@ -161,7 +189,13 @@ pub(super) fn group(rows: Vec<Value>) -> Vec<Value> {
         item["path_group"] =
             json!({"prefix":prefix,"choices":choices,"paths":records,"source_count":source_count});
         item["occurrence_keys"] = json!(keys);
-        for field in ["proposal", "recommendation", "in_dataset", "deferred_at"] {
+        for field in [
+            "proposal",
+            "recommendation",
+            "in_dataset",
+            "deferred_at",
+            "account_directory",
+        ] {
             item.as_object_mut().unwrap().remove(field);
         }
         for &index in others {
@@ -184,7 +218,6 @@ pub(super) async fn apply(
     Json(req): Json<ApplyPrefix>,
 ) -> ResultJson {
     authorized(&st, &headers, true)?;
-    let ctl = st.control.as_ref().ok_or_else(|| bad("read_only"))?;
     let _guard = st.rule_changes.lock().await;
     let sources = st
         .with_vault(|_, v| {
@@ -201,28 +234,41 @@ pub(super) async fn apply(
                 .collect::<anyhow::Result<Vec<_>>>()
         })
         .map_err(|_| bad("entry_not_found"))?;
-    let mut distinct = HashSet::new();
+    if sources.iter().any(|row| scope(row) != req.scope)
+        || sources
+            .windows(2)
+            .all(|pair| pair[0]["value"] == pair[1]["value"])
+    {
+        return Err(bad("path_group_changed"));
+    }
+    apply_directory(&st, sources, &req.prefix, req.scope, None)
+}
+
+// The caller holds rule_changes and has verified the decision or group that the user saw.
+pub(super) fn apply_directory(
+    st: &Shared,
+    sources: Vec<Value>,
+    prefix: &str,
+    target_scope: Scope,
+    seen_key: Option<&str>,
+) -> ResultJson {
+    let ctl = st.control.as_ref().ok_or_else(|| bad("read_only"))?;
     for row in &sources {
         let value = row["value"].as_str().unwrap_or_default();
         if row["kind"] != "PATH"
             || row["protected"] == true
-            || scope(row) != req.scope
-            || !directories(value).contains(&req.prefix.as_str())
+            || !directories(value).contains(&prefix)
         {
             return Err(bad("path_group_changed"));
         }
-        distinct.insert(value);
-    }
-    if distinct.len() < 2 {
-        return Err(bad("path_group_changed"));
     }
     let rule =
-        Rule::for_directory(&req.prefix, req.scope).ok_or_else(|| bad("path_group_changed"))?;
+        Rule::for_directory(prefix, target_scope).ok_or_else(|| bad("path_group_changed"))?;
     let mut sets = ctl.rules().map_err(internal)?;
     let current = ActiveRules::new(sets.clone()).map_err(internal)?;
     let set = sets
         .iter_mut()
-        .find(|s| s.scope == req.scope)
+        .find(|s| s.scope == target_scope)
         .ok_or_else(|| bad("invalid_scope"))?;
     let mut existing = false;
     let mut disabled = None;
@@ -233,7 +279,7 @@ pub(super) async fn apply(
         .enumerate()
         .find(|(_, r)| r.id == rule.id)
     {
-        if old.directory_prefix(req.scope) != Some(req.prefix.as_str()) {
+        if old.directory_prefix(target_scope) != Some(prefix) {
             return Err(bad("rule_was_edited"));
         }
         if old.disabled {
@@ -254,8 +300,9 @@ pub(super) async fn apply(
     let mut projected = Vec::new();
     for mut row in sources {
         current.project(&mut row);
-        if !(needs_decision(&row)
-            || (row["state"] == "covered" && row["document_rule"]["id"] == rule.id))
+        if !row["unmatched_rule"].is_null()
+            || !(needs_decision(&row)
+                || (row["state"] == "covered" && row["document_rule"]["id"] == rule.id))
         {
             return Err(bad("path_group_changed"));
         }
@@ -266,32 +313,35 @@ pub(super) async fn apply(
         projected.push(row);
     }
     if let Some((i, rev)) = disabled {
-        ctl.set_rule_disabled(req.scope, i, &rev, false)
+        ctl.set_rule_disabled(target_scope, i, &rev, false)
             .map_err(internal)?;
     } else if !existing {
-        ctl.add_rule(req.scope, rule).map_err(internal)?;
+        ctl.add_rule(target_scope, rule).map_err(internal)?;
     }
     st.replace_engine(ctl.build_engine().map_err(internal)?);
+    let applied_rule = projected.first().map(|row| &row["document_rule"]);
     let dataset = st
         .with_vault(|_, v| {
             learning::transaction(v, || {
                 let mut drafts = 0;
+                let mut checked = 0;
                 if crate::dataset::capture_enabled(v)? {
                     for row in &projected {
-                        if matches!(
-                            crate::dataset::capture_finding(v, row, Some(("mask", "PATH")), false)?,
-                            crate::dataset::Capture::Draft
-                        ) {
-                            drafts += 1;
+                        let seen = seen_key.is_some() && seen_key == row["key"].as_str();
+                        match crate::dataset::capture_finding(v, row, Some(("mask", "PATH")), seen)?
+                        {
+                            crate::dataset::Capture::Draft => drafts += 1,
+                            crate::dataset::Capture::Checked => checked += 1,
+                            crate::dataset::Capture::Unchanged => {}
                         }
                     }
                 }
-                Ok(json!({"drafts":drafts}))
+                Ok(json!({"drafts":drafts,"checked":checked}))
             })
         })
         .unwrap_or_else(|_| json!({"error":true}));
     Ok(Json(
-        json!({"ok":true,"state":"covered","already_covered":existing,"dataset":dataset}),
+        json!({"ok":true,"state":"covered","already_covered":existing,"dataset":dataset,"rule":applied_rule}),
     ))
 }
 
@@ -322,6 +372,34 @@ mod tests {
         ] {
             assert!(directories(path).is_empty(), "{path}");
         }
+    }
+
+    #[test]
+    fn a_single_path_only_suggests_a_private_account_directory() {
+        let row = |value: &str| json!({"kind":"PATH","value":value,"state":"pending"});
+        for (value, prefix) in [
+            (
+                "/home/group.demo/alice.smith/.local/bin/kaponir",
+                "/home/group.demo/alice.smith/",
+            ),
+            ("/Users/алиса/private/log", "/Users/алиса/"),
+            (r"C:\Users\user\work\file", r"C:\Users\user\"),
+        ] {
+            assert_eq!(account_directory(&row(value)), Some(prefix));
+        }
+        for value in [
+            "/home/group.demo/Shared/logs/file",
+            "/tmp/x/file",
+            "/usr/bin/kaponir",
+            r"C:\Users\Public\notes.txt",
+            "/projects/app/docs/plan",
+            "/home/user/../other/file",
+        ] {
+            assert_eq!(account_directory(&row(value)), None, "{value}");
+        }
+        let mut path = row("/home/user/notes/file");
+        path["path_suffix"] = json!(true);
+        assert_eq!(account_directory(&path), None);
     }
 
     #[test]

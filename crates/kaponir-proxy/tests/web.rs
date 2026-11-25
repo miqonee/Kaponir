@@ -596,6 +596,7 @@ async fn model_review_isolates_bad_rows_but_rejects_ambiguous_packet_identity() 
         if item["value"] == "zorginvalidrow" {
             assert_eq!(rec["state"], "failed");
             assert_eq!(rec["error"], "invalid_classification_response");
+            assert_eq!(rec["detail"], "review_unknown_kind");
             assert!(rec.get("action").is_none());
             assert!(rec.get("kind").is_none());
             assert_eq!(
@@ -657,7 +658,22 @@ async fn model_review_isolates_bad_rows_but_rejects_ambiguous_packet_identity() 
             .find(|row| row["key"] == item["key"])
             .unwrap()["recommendation"];
         assert_eq!(rec["state"], "failed");
+        assert_eq!(rec["detail"], "review_response_ids");
     }
+    // Retry ambiguous replies individually without reusing any previous decision.
+    let (status, retry) = call(
+        "POST",
+        format!(
+            "{base}/api/v1/ui/review/jobs/{}/retry",
+            job["id"].as_str().unwrap()
+        ),
+        Some(json!({"request_id":"single-row-retry"})),
+    )
+    .await;
+    assert_eq!(status, 200, "{retry}");
+    let recovered = finished(&base, &retry["id"]).await;
+    assert_eq!(recovered["state"], "succeeded", "{recovered}");
+    assert_eq!(recovered["completed"], 2);
     assert_eq!(
         call("GET", format!("{base}/api/v1/rules"), None).await.1,
         rules
@@ -1585,4 +1601,26 @@ async fn legacy_session_memory_can_be_excluded_without_rules_or_deleting_tokens(
         .1["text"],
         "questions"
     );
+    let audit_url = format!("{base}/api/v1/ui/rules/audit");
+    let forget_url = format!("{audit_url}/memory");
+    let stale = json!({"ids":[memory["index"]],"revision":memory["revision"]});
+    assert_eq!(call("DELETE", forget_url.clone(), Some(stale)).await.0, 409);
+    let disabled = call("GET", audit_url.clone(), None).await.1;
+    let row = &disabled["items"][0];
+    assert_eq!(row["rule"]["disabled"], true);
+    let selection = json!({"ids":[row["index"]],"revision":row["revision"]});
+    assert_eq!(call("DELETE", forget_url, Some(selection)).await.0, 200);
+    assert_eq!(
+        call("GET", audit_url.clone(), None).await.1["items"],
+        json!([])
+    );
+    let restored = call(
+        "POST",
+        format!("{base}/api/v1/deanonymize"),
+        Some(json!({"text":original["text"],"session":"a-new-session"})),
+    )
+    .await
+    .1;
+    assert_eq!(restored["text"], "questions");
+    assert_eq!(call("GET", audit_url, None).await.1["items"], json!([]));
 }

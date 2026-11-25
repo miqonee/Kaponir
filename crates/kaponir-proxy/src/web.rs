@@ -174,7 +174,10 @@ pub(crate) fn routes() -> Router<Shared> {
             "/api/v1/ui/rules/audit",
             get(audit_rules).put(update_audit_rule),
         )
-        .route("/api/v1/ui/rules/audit/memory", put(update_memory_audit))
+        .route(
+            "/api/v1/ui/rules/audit/memory",
+            put(update_memory_audit).delete(forget_memory_audit),
+        )
         .route("/api/v1/ui/config/export", post(export_settings))
         .route("/api/v1/ui/config/import", post(import_settings))
         .route("/api/v1/ui/s1", get(get_s1).put(put_s1))
@@ -1339,7 +1342,7 @@ fn memory_audit_items(st: &Shared) -> anyhow::Result<(Vec<serde_json::Value>, St
         candidates.insert((kind, value.to_lowercase()), (value, reason, true));
     }
     let mut items: Vec<serde_json::Value> = candidates.into_iter().map(|((kind,_),(value,reason,disabled))| {
-        let id = blake3::hash(format!("{kind}\0{}", value.to_lowercase()).as_bytes()).to_hex().to_string();
+        let id = crate::state::memory_id(&kind, &value);
         json!({"scope":"memory","index":id,"rule":{"kind":kind,"value":value,"disabled":disabled,"note":"Память сессии · источник не сохранён"},"reason":"session_memory","detail_reason":reason})
     }).collect();
     let revision = blake3::hash(&serde_json::to_vec(&items)?)
@@ -1351,11 +1354,54 @@ fn memory_audit_items(st: &Shared) -> anyhow::Result<(Vec<serde_json::Value>, St
     Ok((items, revision))
 }
 #[derive(Deserialize)]
-struct MemoryAuditReq {
+struct MemoryAuditSelection {
     ids: Vec<String>,
     revision: String,
+}
+
+#[derive(Deserialize)]
+struct MemoryAuditReq {
+    #[serde(flatten)]
+    selection: MemoryAuditSelection,
     disabled: bool,
 }
+fn selected_memory_items(
+    st: &Shared,
+    req: &MemoryAuditSelection,
+) -> Result<Vec<serde_json::Value>, ApiError> {
+    let (items, revision) = memory_audit_items(st).map_err(internal)?;
+    if req.ids.is_empty() || req.ids.len() > 10_000 {
+        return Err(bad("select at least one memory value"));
+    }
+    let ids: std::collections::HashSet<_> =
+        items.iter().filter_map(|i| i["index"].as_str()).collect();
+    if req.revision != revision || req.ids.iter().any(|id| !ids.contains(id.as_str())) {
+        return Err(error(
+            StatusCode::CONFLICT,
+            "memory changed; refresh the audit",
+        ));
+    }
+    let selected: std::collections::HashSet<_> = req.ids.iter().map(String::as_str).collect();
+    Ok(items
+        .into_iter()
+        .filter(|i| i["index"].as_str().is_some_and(|id| selected.contains(id)))
+        .collect())
+}
+
+async fn forget_memory_audit(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<MemoryAuditSelection>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    control(&st)?;
+    let _rules = st.rule_changes.lock().await;
+    selected_memory_items(&st, &req)?;
+    st.forget_session_memory(&req.ids.into_iter().collect())
+        .map_err(internal)?;
+    Ok(Json(json!({"ok":true})).into_response())
+}
+
 async fn update_memory_audit(
     State(st): State<Shared>,
     headers: HeaderMap,
@@ -1364,34 +1410,17 @@ async fn update_memory_audit(
     authorized(&st, &headers, true)?;
     control(&st)?;
     let _rules = st.rule_changes.lock().await;
-    let (items, revision) = memory_audit_items(&st).map_err(internal)?;
-    if req.ids.is_empty() || req.ids.len() > 10_000 {
-        return Err(bad("select at least one memory value"));
-    }
-    if req.revision != revision
-        || req
-            .ids
-            .iter()
-            .any(|id| !items.iter().any(|i| i["index"] == *id))
-    {
-        return Err(error(
-            StatusCode::CONFLICT,
-            "memory changed; refresh the audit",
-        ));
-    }
+    let items = selected_memory_items(&st, &req.selection)?;
     st.with_vault(|_, v| {
         let mut ignored: Vec<(String, String)> = v
             .private_setting(crate::state::MEMORY_AUDIT_SETTING)?
             .map(|b| serde_json::from_slice(&b))
             .transpose()?
             .unwrap_or_default();
-        for item in items
-            .iter()
-            .filter(|i| req.ids.iter().any(|id| i["index"] == *id))
-        {
+        for item in &items {
             let kind = item["rule"]["kind"].as_str().unwrap_or_default();
             let value = item["rule"]["value"].as_str().unwrap_or_default();
-            ignored.retain(|(k, x)| k != kind || !x.eq_ignore_ascii_case(value));
+            ignored.retain(|(k, x)| k != kind || x.to_lowercase() != value.to_lowercase());
             if req.disabled {
                 ignored.push((kind.to_string(), value.to_string()));
             }

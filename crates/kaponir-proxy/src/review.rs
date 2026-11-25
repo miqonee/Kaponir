@@ -214,8 +214,28 @@ fn attach_proposal(
         item["recommendation"] = rec;
     }
     if let Some(mut proposal) = model_proposal(item) {
-        proposal["declined"] = json!(declined.as_ref() == Some(&proposal["id"]));
+        let previously_declined = declined.as_ref() == Some(&proposal["id"]);
+        if proposal["action"] == "mask"
+            && proposal["kind"] == "PATH"
+            && let Some(prefix) = paths::account_directory(item)
+        {
+            // A tab that still shows the old whole-path action must refresh before it can accept.
+            let target = json!([proposal["id"], prefix]);
+            proposal["id"] = json!(
+                blake3::hash(target.to_string().as_bytes())
+                    .to_hex()
+                    .to_string()
+            );
+        }
+        proposal["declined"] =
+            json!(previously_declined || declined.as_ref() == Some(&proposal["id"]));
         item["proposal"] = proposal;
+    }
+    if needs_decision(item)
+        && item["unmatched_rule"].is_null()
+        && let Some(prefix) = paths::account_directory(item)
+    {
+        item["account_directory"] = json!(prefix);
     }
 }
 
@@ -764,7 +784,7 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
 
 // Keep a deterministic representative and the exact records matched by the current filters.
 fn group_values(rows: Vec<Value>) -> Vec<Value> {
-    let mut positions = HashMap::<String, usize>::new();
+    let mut positions = HashMap::<_, usize>::new();
     let mut groups: Vec<Value> = Vec::new();
     for row in rows {
         let value = row["value"].as_str().unwrap_or_default();
@@ -772,7 +792,9 @@ fn group_values(rows: Vec<Value>) -> Vec<Value> {
             groups.push(row);
             continue;
         }
-        if let Some(index) = positions.get(value) {
+        let path_scope = (row["kind"] == "PATH").then(|| paths::scope(&row));
+        let group_key = (value.to_owned(), path_scope);
+        if let Some(index) = positions.get(&group_key) {
             let first = &mut groups[*index];
             let mut keys = match first["occurrence_keys"].take() {
                 Value::Array(keys) => keys,
@@ -801,7 +823,7 @@ fn group_values(rows: Vec<Value>) -> Vec<Value> {
             }
             first["occurrence_keys"] = Value::Array(keys);
         } else {
-            positions.insert(value.to_owned(), groups.len());
+            positions.insert(group_key, groups.len());
             groups.push(row);
         }
     }
@@ -847,6 +869,14 @@ impl SavedSelection {
                         .collect(),
                 );
             }
+            if let Some(prefix) = item["account_directory"].as_str()
+                && !matches!(item["proposal"]["action"].as_str(), Some("keep"))
+                && item["proposal"]["kind"]
+                    .as_str()
+                    .is_none_or(|k| k == "PATH")
+            {
+                saved.prefixes.insert(key.clone(), prefix.to_owned());
+            }
             saved.keys.push(key);
         }
         saved
@@ -867,7 +897,11 @@ impl SavedSelection {
             if let Some(others) = self.occurrences.get(key) {
                 members.extend(others.iter().filter_map(|k| by_key.remove(k)));
             }
-            if let Some(prefix) = self.prefixes.get(key) {
+            if let Some(prefix) = self
+                .prefixes
+                .get(key)
+                .filter(|_| self.path_targets.contains_key(key))
+            {
                 if members.iter().all(needs_decision) {
                     selected.extend(
                         paths::group(members)
@@ -1511,38 +1545,52 @@ async fn jobs(
     ))
 }
 
+/// Reviews also handle identifiers already present in findings and labelled datasets.
+pub(crate) fn supported_kinds() -> impl Iterator<Item = &'static str> {
+    kaponir_core::kinds::STANDARD.iter().copied().chain(["ID"])
+}
+
 fn schema(ids: &[String]) -> Value {
     let count = ids.len();
     json!({"type":"object","properties":{"decisions":{"type":"array","minItems":count,"maxItems":count,"items":{"type":"object","properties":{
-        "id":{"type":"string","enum":ids},"action":{"type":"string","enum":["mask","keep","review"]},"kind":{"type":"string","enum":kaponir_core::kinds::STANDARD},
+        "id":{"type":"string","enum":ids},"action":{"type":"string","enum":["mask","keep","review"]},"kind":{"type":"string","enum":supported_kinds().collect::<Vec<_>>()},
         "scope":{"type":"string","enum":["personal","team","global"]},"confidence":{"type":"number","minimum":0,"maximum":1},"reason":{"type":"string","minLength":1,"maxLength":400}},
         "required":["id","action","kind","scope","confidence","reason"],"additionalProperties":false}}},"required":["decisions"],"additionalProperties":false})
 }
 
-fn validate_decision(decision: &Value, value: &str, research: bool) -> anyhow::Result<()> {
+fn validate_decision(decision: &Value, value: &str, research: bool) -> Result<(), &'static str> {
     let kind = decision["kind"].as_str().unwrap_or_default();
-    anyhow::ensure!(
-        kaponir_core::kinds::STANDARD.contains(&kind)
-            && matches!(
-                decision["action"].as_str(),
-                Some("mask" | "keep" | "review")
-            )
-            && ((research && decision["confidence"].is_null())
-                || decision["confidence"]
-                    .as_f64()
-                    .is_some_and(|p| p.is_finite() && (0.0..=1.0).contains(&p)))
-            && decision["scope"]
-                .as_str()
-                .is_some_and(|s| s.parse::<Scope>().is_ok())
-            && decision["reason"]
-                .as_str()
-                .is_some_and(|s| !s.is_empty() && s.len() <= 1600),
-        "invalid_classification_response"
-    );
-    anyhow::ensure!(
-        decision["action"] == "review" || !kaponir_core::kinds::type_conflict(kind, value),
-        "type_format_conflict"
-    );
+    if !supported_kinds().any(|known| known == kind) {
+        return Err("review_unknown_kind");
+    }
+    if !matches!(
+        decision["action"].as_str(),
+        Some("mask" | "keep" | "review")
+    ) {
+        return Err("review_invalid_action");
+    }
+    if !(research && decision["confidence"].is_null()
+        || decision["confidence"]
+            .as_f64()
+            .is_some_and(|p| p.is_finite() && (0.0..=1.0).contains(&p)))
+    {
+        return Err("review_invalid_confidence");
+    }
+    if !decision["scope"]
+        .as_str()
+        .is_some_and(|s| s.parse::<Scope>().is_ok())
+    {
+        return Err("review_invalid_scope");
+    }
+    if !decision["reason"]
+        .as_str()
+        .is_some_and(|s| !s.trim().is_empty() && s.len() <= 1600)
+    {
+        return Err("review_invalid_reason");
+    }
+    if decision["action"] != "review" && kaponir_core::kinds::type_conflict(kind, value) {
+        return Err("type_format_conflict");
+    }
     Ok(())
 }
 
@@ -1636,7 +1684,7 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
         .collect();
     let source = job["source"].clone();
     let id = job["id"].as_str().unwrap().to_owned();
-    let batches = review_batches(targets, &map, inference, source["provider"] != "local");
+    let batches = review_batches(targets, &map, inference, &source);
     let mut scheduled = slots.min(batches.len());
     let mut active: usize = batches[..scheduled].iter().map(|b| b.len()).sum();
     let mut packets = stream::iter(0..batches.len())
@@ -1647,7 +1695,18 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
             let id = &id;
             async move {
                 let start = std::time::Instant::now();
-                let result = infer_bounded(st, source, id, map, batch).await;
+                let mut effective = source.clone();
+                let recheck = needs_type_check(source, map.get(&batch[0].key));
+                if recheck {
+                    effective["scenario"] = json!("standard");
+                }
+                let (mut records, identified) = infer_bounded(st, &effective, id, map, batch).await;
+                if recheck {
+                    for (_, row) in &mut records {
+                        row["type_recheck"] = json!(true);
+                    }
+                }
+                let result = (records, identified);
                 (index, batch, result, start.elapsed().as_secs_f64())
             }
         })
@@ -1732,11 +1791,41 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
     Ok(())
 }
 
+// Scenario D supplies only a privacy verdict. An incompatible inherited label
+// requires a fresh type and scope from the same model before proposing a rule.
+fn needs_type_check(source: &Value, item: Option<&Value>) -> bool {
+    source["scenario"] == "D"
+        && item.is_some_and(|row| {
+            let kind = row["kind"].as_str().unwrap_or_default();
+            !supported_kinds().any(|known| known == kind)
+                || kaponir_core::kinds::type_conflict(
+                    kind,
+                    row["value"].as_str().unwrap_or_default(),
+                )
+        })
+}
+
+fn retry_individually(item: Option<&Value>) -> bool {
+    item.is_some_and(|row| {
+        let rec = &row["recommendation"];
+        rec["state"] == "failed"
+            && matches!(
+                rec["error"].as_str(),
+                Some(
+                    "invalid_classification_response"
+                        | "invalid_model_json"
+                        | "model_response_truncated"
+                        | "protected_credential"
+                )
+            )
+    })
+}
+
 fn review_batches<'a>(
     targets: &'a [Target],
     items: &HashMap<String, Value>,
     inference: &learning::InferenceSettings,
-    api: bool,
+    source: &Value,
 ) -> Vec<&'a [Target]> {
     let mut batches = Vec::new();
     let budget = inference
@@ -1745,14 +1834,25 @@ fn review_batches<'a>(
     let mut start = 0;
     while start < targets.len() {
         let mut end = start;
+        let first = items.get(&targets[start].key);
+        let recheck = needs_type_check(source, first);
+        let limit = if retry_individually(first) {
+            1
+        } else {
+            inference.batch_size.max(1)
+        };
         // Reserve room for the instructions/schema and conservatively budget UTF-8 input bytes.
         let mut used = 1024;
-        while end < targets.len() && end - start < inference.batch_size.max(1) {
+        while end < targets.len() && end - start < limit {
             let item = items.get(&targets[end].key);
             let weight = item.map_or(0, |v| {
                 v["value"].as_str().unwrap_or("").len() + v["context"].as_str().unwrap_or("").len()
             }) + 160;
-            if api && end > start && used + weight > budget {
+            if end > start
+                && (needs_type_check(source, item) != recheck
+                    || retry_individually(item)
+                    || source["provider"] != "local" && used + weight > budget)
+            {
                 break;
             }
             used += weight;
@@ -1781,24 +1881,87 @@ async fn infer_bounded(
             }
             Err(e) => {
                 let code = learning::safe_error(&e);
-                if source["provider"] != "local"
-                    && part.len() > 1
-                    && matches!(
-                        code.as_str(),
-                        "model_context_budget_exceeded" | "model_response_truncated"
-                    )
-                {
+                let preflight = matches!(
+                    code.as_str(),
+                    "protected_credential" | "review_stale" | "entry_not_found"
+                );
+                let too_large = matches!(
+                    code.as_str(),
+                    "model_context_budget_exceeded" | "model_response_truncated"
+                );
+                if part.len() > 1 && (preflight || source["provider"] != "local" && too_large) {
                     let (left, right) = part.split_at(part.len() / 2);
                     pending.extend([right, left]);
                     continue;
                 }
-                records.extend(part.iter().map(|t|(t.key.clone(),json!({"state":"failed","error":code,"fingerprint":t.fingerprint,
-                    "job_id":id,"revision":source["revision"],"model":source["model"],"created":now_ms()}))));
+                for target in part {
+                    let mut rec = json!({"fingerprint":target.fingerprint, "job_id":id, "revision":source["revision"],
+                        "model":source["model"],"created":now_ms()});
+                    if code == "protected_credential" {
+                        rec["state"] = json!("needs_review");
+                        rec["reason"] = json!(code);
+                    } else {
+                        rec["state"] = json!("failed");
+                        if code == "review_response_ids" {
+                            rec["detail"] = json!(code);
+                            rec["error"] = json!("invalid_classification_response");
+                        } else {
+                            rec["error"] = json!(code);
+                        }
+                    }
+                    records.push((target.key.clone(), rec));
+                }
             }
         }
     }
     (records, identified)
 }
+// A truncated file URL can look like a password in isolation. Review only its
+// structure when the exact occurrence is grounded, and keep the digest local.
+fn git_revision_in_url<'a>(
+    value: &'a str,
+    context: &str,
+    span: Option<[usize; 2]>,
+) -> Option<&'a str> {
+    let (extension, digest) = value.split_once("?ref=")?;
+    if extension.is_empty()
+        || extension.len() > 8
+        || !extension.bytes().all(|b| b.is_ascii_alphabetic())
+        || !matches!(digest.len(), 40 | 64)
+        || !digest.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return None;
+    }
+    let (start, end) = if let Some([start, end]) = span {
+        (context.get(start..end) == Some(value)).then_some((start, end))?
+    } else {
+        let mut matches = context.match_indices(value);
+        let (start, _) = matches.next()?;
+        matches
+            .next()
+            .is_none()
+            .then_some((start, start + value.len()))?
+    };
+    if context[end..].starts_with(|ch: char| ch.is_ascii_alphanumeric() || ch == '_' || ch == '-') {
+        return None;
+    }
+    let url = context[..end]
+        .rsplit(|ch: char| ch.is_whitespace() || matches!(ch, '"' | '\'' | '<' | '>' | '(' | '['))
+        .next()?;
+    let url = reqwest::Url::parse(url).ok()?;
+    let file = url.path_segments()?.next_back()?;
+    (matches!(url.scheme(), "http" | "https")
+        && url.host().is_some()
+        && url.username().is_empty()
+        && url.password().is_none()
+        && context[..start].ends_with('.')
+        && file
+            .rsplit_once('.')
+            .is_some_and(|(name, ext)| !name.is_empty() && ext == extension)
+        && url.query()?.strip_prefix("ref=") == Some(digest))
+    .then_some(digest)
+}
+
 async fn infer_packet(
     st: &Shared,
     source: &Value,
@@ -1811,23 +1974,36 @@ async fn infer_packet(
         "configuration_changed"
     );
     let mut input = Vec::new();
+    let mut redacted_revisions = HashSet::new();
     for target in batch {
         let item = current
             .get(&target.key)
             .ok_or_else(|| anyhow::anyhow!("entry_not_found"))?;
         anyhow::ensure!(fingerprint(item) == target.fingerprint, "review_stale");
+        anyhow::ensure!(item["protected"] != true, "protected_credential");
         let value = item["value"].as_str().unwrap_or_default();
-        anyhow::ensure!(
-            !st.engine()
-                .analyze(&kaponir_core::Input::text(value))
-                .iter()
-                .any(|c| c.hard && c.category == kaponir_core::Category::Credential),
-            "protected_credential"
-        );
+        let protected = st
+            .engine()
+            .analyze(&kaponir_core::Input::text(value))
+            .iter()
+            .any(|c| c.hard && c.category == kaponir_core::Category::Credential);
         let quote = item["context"].as_str().unwrap_or_default();
-        let context = redacted_context(st, quote, value);
-        let mut packet =
-            json!({"id":model_id(target),"value":value,"kind":item["kind"],"context":context});
+        let mut context = redacted_context(st, quote, value);
+        let id = model_id(target);
+        let shown = if protected {
+            let digest = git_revision_in_url(
+                value,
+                quote,
+                serde_json::from_value(item["context_span"].clone()).ok(),
+            )
+            .ok_or_else(|| anyhow::anyhow!("protected_credential"))?;
+            redacted_revisions.insert(id.clone());
+            context = context.replace(digest, "[GIT_REVISION]");
+            value.replace(digest, "[GIT_REVISION]")
+        } else {
+            value.to_owned()
+        };
+        let mut packet = json!({"id":id,"value":shown,"kind":item["kind"],"context":context});
         if item["path_suffix"] == true && context == quote {
             packet["verified_at"] = item["context_span"][0].clone();
         }
@@ -1847,17 +2023,14 @@ async fn infer_packet(
     let decisions = reply["decisions"]
         .as_array()
         .ok_or_else(|| anyhow::anyhow!("invalid_classification_response"))?;
-    anyhow::ensure!(
-        decisions.len() == batch.len(),
-        "invalid_classification_response"
-    );
+    anyhow::ensure!(decisions.len() == batch.len(), "review_response_ids");
     // Uncertain identity invalidates the packet. Once every ID is unique and
     // expected, a row's type/shape error must not discard its neighbors.
     for target in batch {
         let id = model_id(target);
         anyhow::ensure!(
             decisions.iter().filter(|d| d["id"] == id).count() == 1,
-            "invalid_classification_response"
+            "review_response_ids"
         );
     }
     let mut validated = Vec::new();
@@ -1879,14 +2052,17 @@ async fn infer_packet(
                 });
                 rec
             }
-            Err(error) => {
-                let code = learning::safe_error(&error);
-
-                // Do not retain a malformed action, type or confidence as a
-                // usable recommendation. Applying this row remains blocked.
-                json!({"state":"failed","error":code})
+            Err("type_format_conflict") => {
+                json!({"state":"needs_review","reason":"type_format_conflict"})
+            }
+            // Retain only a diagnostic for malformed responses; the user can retry the finding separately.
+            Err(detail) => {
+                json!({"state":"failed","error":"invalid_classification_response","detail":detail})
             }
         };
+        if redacted_revisions.contains(&id) {
+            rec["redacted_git_revision"] = json!(true);
+        }
         rec["job_id"] = json!(job_id);
         rec["revision"] = source["revision"].clone();
         rec["fingerprint"] = json!(target.fingerprint);
@@ -1928,6 +2104,8 @@ struct Apply {
     scope: Option<Scope>,
     #[serde(default)]
     use_recommendation: bool,
+    #[serde(default)]
+    whole_path: bool,
     expected_job: Option<String>,
     proposal_id: Option<String>,
     seen_excerpt: Option<String>,
@@ -1982,6 +2160,7 @@ async fn apply(
         .map_err(internal)?;
         return Ok(Json(json!({"ok":true,"state":"deferred"})));
     }
+    let manual_whole_path = req.whole_path && action == "mask" && !req.use_recommendation;
     let mut kind = req
         .kind
         .unwrap_or_else(|| item["kind"].as_str().unwrap_or("CUSTOM").into());
@@ -2042,6 +2221,27 @@ async fn apply(
         kind = rec["kind"].as_str().unwrap().into();
         scope = serde_json::from_value(rec["scope"].clone()).map_err(|_| bad("invalid_scope"))?;
         action = rec["action"].as_str().unwrap().into();
+    }
+    if action == "mask"
+        && kind == "PATH"
+        && !manual_whole_path
+        && let Some(prefix) = paths::account_directory(&item)
+        && (needs_decision(&item) || item["document_rule"]["path_prefix"] == prefix)
+    {
+        let mut sources = vec![item.clone()];
+        st.with_vault(|_, v| {
+            related_occurrences(v, &item, &req.occurrences, |other| {
+                if paths::scope(other) == paths::scope(&item)
+                    && paths::account_directory(other) == Some(prefix)
+                    && needs_decision(other)
+                {
+                    sources.push(other.clone());
+                }
+                Ok(())
+            })
+        })
+        .map_err(internal)?;
+        return paths::apply_directory(&st, sources, prefix, scope, seen.then_some(key.as_str()));
     }
     let mut result = apply_effect(&st, &item, &action, &kind, scope, req.use_recommendation)?;
     if result["state"] != "conflict"
@@ -2129,6 +2329,11 @@ fn apply_effect(
             json!({"ok":true,"state":"covered","already_covered":true,"rule":active}),
         ));
     }
+    if (action == "mask" || action == "keep" && origin == "detector")
+        && kaponir_core::kinds::type_conflict(kind, item["value"].as_str().unwrap_or_default())
+    {
+        return Err(bad("type_format_conflict"));
+    }
     if origin == "learning" {
         let mapped = match action {
             "mask" => "approve",
@@ -2183,7 +2388,6 @@ fn apply_effect(
                 || !kind
                     .bytes()
                     .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == b'_')
-                || kaponir_core::kinds::type_conflict(kind, &row.value)
             {
                 return Err(bad("type_format_conflict"));
             }
@@ -2262,6 +2466,59 @@ fn apply_effect(
 #[cfg(test)]
 mod proposal_tests {
     use super::*;
+
+    #[test]
+    fn a_git_revision_requires_an_exact_file_url_before_redacted_review() {
+        let digest = "a7acf7442f68a01bff5fbbb028ad357ac88dfb49";
+        let value = format!("py?ref={digest}");
+        let url = format!("https://code.example/repo/read.py?ref={digest}");
+        assert_eq!(git_revision_in_url(&value, &url, None), Some(digest));
+        assert_eq!(git_revision_in_url(&value, &value, None), None);
+        assert_eq!(git_revision_in_url(&value, &format!("{url}f"), None), None);
+        let two = format!("{url} {url}");
+        assert_eq!(git_revision_in_url(&value, &two, None), None);
+        let start = two.rfind(&value).unwrap();
+        assert_eq!(
+            git_revision_in_url(&value, &two, Some([start, start + value.len()])),
+            Some(digest)
+        );
+        assert_eq!(git_revision_in_url(&value, &url, Some([1, 2])), None);
+    }
+
+    #[test]
+    fn a_saved_path_proposal_gets_a_target_bound_action_and_preserves_old_declines() {
+        let mut row = json!({"key":"learning:fixture","origin":"learning","state":"pending","value":"/home/alice/bin/tool",
+            "kind":"PATH","scope":"team","categorization_state":"succeeded","classification_action":"mask"});
+        let old_id = model_proposal(&row).unwrap()["id"].clone();
+        attach_proposal(&mut row, 1, None, Some(old_id.clone()));
+        assert_ne!(row["proposal"]["id"], old_id);
+        assert_eq!(row["proposal"]["declined"], true);
+        assert_eq!(row["account_directory"], "/home/alice/");
+        let new_id = row["proposal"]["id"].clone();
+        attach_proposal(&mut row, 1, None, Some(new_id.clone()));
+        assert_eq!(row["proposal"]["declined"], true);
+        assert_eq!(row["proposal"]["id"], new_id);
+    }
+
+    #[test]
+    fn privacy_only_review_checks_incompatible_inherited_types_with_the_model() {
+        let d = json!({"scenario":"D"});
+        for (value, kind, recheck) in [
+            ("40%", "PERSON", true),
+            ("20 рабочих дней", "PERSON", true),
+            ("1 317 079,97 ₽", "SVC", true),
+            ("INC-2026-047", "ID", false),
+            ("40%", "AMOUNT", false),
+            ("opaque", "LEGACY_KIND", true),
+        ] {
+            let row = json!({"value":value,"kind":kind});
+            assert_eq!(needs_type_check(&d, Some(&row)), recheck);
+            assert!(!needs_type_check(
+                &json!({"scenario":"standard"}),
+                Some(&row)
+            ));
+        }
+    }
 
     #[test]
     fn grouping_preserves_disagreeing_proposals_and_protected_targets() {

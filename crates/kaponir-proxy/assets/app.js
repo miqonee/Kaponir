@@ -88,6 +88,7 @@ const KIND_LABELS = {
   MNAME: "Отчество",
   PATH: "Часть пути",
   AMOUNT: "Финансовое значение",
+  ID: "Идентификатор",
 };
 
 const KIND_TOOLTIPS = {
@@ -1375,9 +1376,14 @@ $('#rules-export').onclick = async (event) => {
 
 const ruleDelete = $('#rule-delete');
 let deleteTarget;
-function confirmRuleDelete(set, index, value) {
-  deleteTarget = {scope:set.scope, index, revision:set.revision};
-  $('#rule-delete-scope').textContent = tr("Правило будет удалено из области «{{0}}».", [scopeLabel(set.scope)]);
+function confirmRuleDelete(set, index, value, fromAudit = false) {
+  deleteTarget = {scope:set.scope, index, revision:set.revision, fromAudit};
+  const memory = set.scope === 'memory';
+  $('#rule-delete-title').textContent = tr(memory ? "Удалить значение из памяти?" : "Удалить правило?");
+  ruleDelete.querySelector('[value=delete]').textContent = tr(memory ? "Удалить из памяти" : "Удалить правило");
+  $('#rule-delete-scope').textContent = memory
+    ? tr("Kaponir забудет это значение во всех сессиях. Старые токены по-прежнему можно раскрыть.")
+    : tr("Правило будет удалено из области «{{0}}».", [scopeLabel(set.scope)]);
   $('#rule-delete-value').textContent = value;
   $('#rule-delete-error').textContent = '';
   ruleDelete.showModal();
@@ -1387,22 +1393,31 @@ ruleDelete.querySelector('form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const button = event.submitter;
   if (button.disabled) return;
-  const {scope, index, revision} = deleteTarget;
+  const {scope, index, revision, fromAudit} = deleteTarget;
+  const memory = scope === 'memory';
+  const focusList = () => $(fromAudit ? '#audit-refresh' : '#rules-query').focus({preventScroll:true});
   button.disabled = true;
   try {
-    await api('/api/v1/rules/' + scope + '/' + index + '?revision=' + encodeURIComponent(revision), {method:'DELETE'});
-    ruleDelete.close();
-    await afterRulesChanged();
-    $('#rules-query').focus({preventScroll:true});
-    toast(tr("Правило удалено"));
-  } catch (error) {
-    if (error.messageKey === 'rule_list_changed') {
-      ruleDelete.close();
-      await loadRules().catch(fail);
-      $('#rules-query').focus({preventScroll:true});
-      fail(error);
+    if (memory) {
+      await api('/api/v1/ui/rules/audit/memory', {method:'DELETE', body:{ids:[index],revision}});
     } else {
+      await api('/api/v1/rules/' + scope + '/' + index + '?revision=' + encodeURIComponent(revision), {method:'DELETE'});
+    }
+    ruleDelete.close();
+    if (!memory) await afterRulesChanged();
+    if (fromAudit) await loadAudit();
+    focusList();
+    toast(tr(memory ? "Значение удалено из памяти сессий" : "Правило удалено"));
+  } catch (error) {
+    if (['rule_list_changed', 'memory changed; refresh the audit'].includes(error.messageKey)) {
+      ruleDelete.close();
+      await (fromAudit ? loadAudit() : loadRules()).catch(fail);
+      focusList();
+      fail(error);
+    } else if (ruleDelete.open) {
       $('#rule-delete-error').textContent = error.message;
+    } else {
+      fail(error);
     }
   } finally { button.disabled = false; }
 });

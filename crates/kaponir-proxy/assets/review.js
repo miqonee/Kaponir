@@ -2,6 +2,13 @@
 const ReviewUI = { data: null, view: "pending", selected: new Map(), drafts: new Map(), offset: 0, busy: false,
   request: 0, selectionVersion: 0, groups: false, jobs: new Map(), modelSource: "", selectionKey: "", keys: new URLSearchParams(location.search).get("review_keys") || "" };
 const reviewReasons = {
+  review_unknown_kind: "В ответе модели неизвестный тип значения.",
+  review_invalid_action: "В ответе модели не указано допустимое решение.",
+  review_invalid_confidence: "В ответе модели отсутствует оценка уверенности от 0 до 1.",
+  review_invalid_scope: "В ответе модели не указана допустимая область правила.",
+  review_invalid_reason: "Обоснование решения отсутствует или превышает допустимую длину.",
+  review_response_ids: "Не удалось сопоставить ответы модели с находками по идентификаторам.",
+  invalid_classification_response: "Ответ модели не соответствует формату проверки.",
   human_keep: "Пользователь оставил значение открытым.",
   numeric_type_corrected: "Числовой формат исправлен на финансовое значение. Исходный тип модели сохранён в подробностях. Требуется подтверждение.",
   type_format_conflict: "Предложенный тип противоречит формату значения. Автоматическое применение запрещено.",
@@ -90,6 +97,13 @@ function findingOrigin(item) {
 function activeReview(item) {
   return ReviewUI.activeJobs?.get(item.key);
 }
+function reviewIssue(item) {
+  const rec = item.recommendation;
+  if (rec?.state === "failed") return rec.detail || rec.error || "review_failed";
+  if (rec?.state === "needs_review" && ["type_format_conflict","protected_credential","invalid_classification_response"].includes(rec.reason)) return rec.reason;
+  if (!rec && categoryStage(item) === "failed") return item.reason || "categorization_failed";
+  return null;
+}
 function decisionStatus(item) {
   if (item.path_group) return tr("Проверить общий каталог");
   if (!pendingFinding(item)) return reviewState(item);
@@ -100,14 +114,32 @@ function decisionStatus(item) {
   if (item.proposal) return tr(item.proposal.action === "mask" ? "ИИ предлагает скрыть" : "ИИ предлагает оставить");
   const rec = item.recommendation;
   if (rec?.state === "stale") return tr("Предложение устарело");
-  if (rec?.state === "failed" || categoryStage(item) === "failed") return tr("Ошибка проверки ИИ");
+  const issue = reviewIssue(item);
+  if (issue === "type_format_conflict") return tr("Нужно уточнить тип");
+  if (issue === "protected_credential") return tr("Возможный секрет · вручную");
+  if (rec?.state === "failed") return tr("Проверка не завершена");
+  if (!rec && categoryStage(item) === "failed") return tr("Ошибка определения типа");
   if (rec?.state === "needs_review" && rec.reason === "configured_categorizer") return tr("Нет решения о маскировании");
   if (rec?.state === "needs_review" || item.scenario_result?.verdict === "review") return tr("ИИ просит решить вручную");
   if (categoryStage(item) === "succeeded") return tr("ИИ проверил только тип");
   if (item.origin === "learning" && item.model) return tr("ИИ нашёл значение");
   return tr("Без проверки ИИ");
 }
-function decisionEffect(item, action) {
+function directoryTarget(item, action, kind) {
+  return action === "mask" && kind === "PATH" ? item.account_directory : null;
+}
+function defaultDirectory(item) {
+  const proposal = item.proposal?.declined ? null : item.proposal;
+  return directoryTarget(item, proposal?.action || "mask", proposal?.kind || reviewDraft(item).kind);
+}
+function directoryPreview(item, prefix) {
+  return h("div", {class:"directory-preview"},
+    h("span", {}, tr("Каталог для правила")), h("code", {}, prefix),
+    h("span", {}, tr("После маскирования")), h("code", {},
+      h("mark", {class:"dialogue-mark masked"}, ReviewUI.data.path_token_example), item.value.slice(prefix.length - 1)));
+}
+function decisionEffect(item, action, prefix) {
+  if (prefix) return tr("Правило скроет каталог учётной записи во всех путях. Имена вложенных папок и файлов останутся видны.");
   if (action === "mask") return tr("В будущих запросах это значение будет заменяться токеном.");
   if (action === "keep" && item.origin === "detector")
     return tr("Будет создано точное исключение для будущих запросов. Обязательная защита секретов сохранится.");
@@ -117,7 +149,8 @@ function decisionEffect(item, action) {
   if (action === "dismiss") return tr("Находка перейдёт в «Разобранные». Её можно вернуть на проверку.");
   return tr("Созданное правило отключится. Сохранённые токены останутся доступны.");
 }
-function effectLabel(item, action, scope) {
+function effectLabel(item, action, scope, prefix) {
+  if (prefix) return tr("Скрывать каталог · {{0}}", [scopeLabel(scope)]);
   if (action === "keep" && item.origin === "learning") return tr("Оставить открытым");
   return tr(action === "keep" ? "Оставлять открытым · {{0}}" : "Скрывать · {{0}}", [scopeLabel(scope)]);
 }
@@ -163,7 +196,7 @@ function reviewCard(item) {
   const pending = pendingFinding(item), proposal = item.proposal, rec = item.recommendation;
   const ro = !ReviewUI.data.editable, currentJob = activeReview(item);
   const hasProposal = pending && proposal && !proposal.declined && !currentJob;
-  const canAsk = pending && !item.protected && ReviewUI.data.sources.some(source => source.provider !== "none");
+  const canAsk = pending && !item.protected && reviewIssue(item) !== "protected_credential" && ReviewUI.data.sources.some(source => source.provider !== "none");
   const article = h("article", {class:"panel review-card", "data-review-key":item.key,
     "data-learning-id":item.origin === "learning" ? item.id : null});
   const heading = h("header", {class:"decision-heading"},
@@ -173,12 +206,14 @@ function reviewCard(item) {
     h("h3", {}, decisionStatus(item)));
   if (item.deferred_at) heading.append(h("small", {class:"hint"}, tr("Отложено")));
   const primary = h("div", {class:"decision-actions"});
+  const target = pending && !item.proposal_conflict && !currentJob
+    ? directoryTarget(item, hasProposal ? proposal.action : "mask", hasProposal ? proposal.kind : reviewDraft(item).kind) : null;
   if (hasProposal) {
     const why = proposal.reason;
-    verdict.append(h("p", {}, decisionEffect(item, proposal.action)));
+    verdict.append(h("p", {}, decisionEffect(item, proposal.action, target)));
     if (why && why !== "configured_categorizer") verdict.append(h("p", {class:"decision-reason"}, learningError(why)));
     verdict.append(h("p", {class:"hint"}, [modelName(proposal.model), kindLabel(proposal.kind), scopeLabel(proposal.scope)].filter(Boolean).join(" · ")));
-    const accept = workButton(effectLabel(item, proposal.action, proposal.scope), () => decideProposal(item, true), "primary", ro);
+    const accept = workButton(effectLabel(item, proposal.action, proposal.scope, target), () => decideProposal(item, true), "primary", ro);
     accept.dataset.acceptProposal = "";
     primary.append(accept);
   } else if (pending) {
@@ -188,7 +223,7 @@ function reviewCard(item) {
       primary.append(workButton("Открыть задание", () => showTab("jobs/review/"+encodeURIComponent(currentJob.id)), "secondary"));
     } else if (item.proposal_conflict) note = tr("Откройте вхождения и сравните предложения по исходным фрагментам.");
     else if (proposal?.declined) note = tr("Правила не менялись. Можно принять ручное решение или запросить новое предложение.");
-    else if (rec?.state === "failed" || rec?.state === "stale") note = reviewError(rec.error || "review_stale");
+    else if (rec?.state === "failed" || rec?.state === "stale") note = reviewError(rec.detail || rec.error || "review_stale");
     else if (rec?.state === "needs_review" && rec.reason === "configured_categorizer")
       note = tr("Категоризатор вернул тип значения. Проверьте фрагмент и выберите действие вручную.");
     else if (rec?.state === "needs_review" || item.scenario_result?.verdict === "review")
@@ -201,9 +236,11 @@ function reviewCard(item) {
       primary.append(workButton("Открыть правило", () => openFindingRule(item), "secondary"));
     }
     verdict.append(h("p", {}, note));
-    if (!item.unmatched_rule && !item.proposal_conflict) {
+    if (reviewIssue(item) === "type_format_conflict" && canAsk) {
+      primary.append(workButton("Уточнить тип моделью", () => requestReview([item], "standard"), "primary", ro));
+    } else if (!item.unmatched_rule && !item.proposal_conflict && reviewIssue(item) !== "type_format_conflict") {
       const draft = reviewDraft(item);
-      primary.prepend(workButton(effectLabel(item, "mask", draft.scope), () =>
+      primary.prepend(workButton(effectLabel(item, "mask", draft.scope, target), () =>
         item.validation_reason ? confirmReview([item], "mask", true) : applyReview([{item, action:"mask", kind:draft.kind, scope:draft.scope}], true), "primary", ro));
     }
   } else if (item.document_rule || item.state === "active" || item.state === "masked" || item.state === "kept") {
@@ -211,10 +248,15 @@ function reviewCard(item) {
   }
   if (pending) primary.append(workButton("Исправить", () => manualDecision(item), "secondary", ro),
     workButton("Отложить", () => applyReview([{item,action:"defer"}], true), "text-button", ro));
+  if (rec?.state === "failed" && ["invalid_classification_response","invalid_model_json","model_response_truncated"].includes(rec.error))
+    verdict.append(h("p", {class:"hint"}, tr("При повторной проверке Kaponir отправит эту находку отдельно.")));
+  if (rec?.redacted_git_revision) verdict.append(h("p", {class:"hint"}, tr("Хеш ревизии заменён на [GIT_REVISION] в примере для модели.")));
+  if (rec?.type_recheck) verdict.append(h("p", {class:"hint"}, tr("Исходный тип не подходил. Для этой находки использована стандартная проверка типа и решения.")));
+  if (target) verdict.append(directoryPreview(item, target));
   if (primary.childElementCount) verdict.append(primary);
   if (!pending && item.in_dataset) verdict.append(h("p", {class:"hint"}, datasetMark(item)));
   const fragment=candidateExcerpt(item.context,item.value,item.context_span);
-  const prefix=item.document_rule?.path_prefix;
+  const prefix=item.document_rule?.path_prefix || target;
   if (prefix) {
     for (const mark of fragment.querySelectorAll("mark")) {
       if (mark.textContent.startsWith(prefix)) {
@@ -222,7 +264,7 @@ function reviewCard(item) {
         mark.textContent=surface.slice(0,length); mark.after(surface.slice(length));
       }
     }
-    verdict.append(h("code",{},prefix));
+    if (!target) verdict.append(h("code",{},prefix));
   }
   const quote = h("blockquote", {class:"candidate-fragment"}, fragment);
   const excerpt = item.path_suffix
@@ -270,13 +312,17 @@ function reviewCard(item) {
     {key:"excerpt", title:"Фрагмент", content:excerpt}, {key:"origin", title:"Происхождение", content:origin}]);
   const footer = h("footer", {class:"decision-footer"});
   if (hasProposal) footer.append(workButton("Отклонить предложение", () => decideProposal(item, false), "text-button", ro));
-  else if (!currentJob && canAsk) footer.append(workButton("Получить предложение ИИ", () => requestReview([item]), "text-button", ro));
+  else if (!currentJob && canAsk && reviewIssue(item) !== "type_format_conflict") {
+    const issue = reviewIssue(item);
+    const label = issue ? "Повторить проверку" : "Получить предложение ИИ";
+    footer.append(workButton(label, () => requestReview([item]), "text-button", ro));
+  }
   if (item.state === "dismissed") footer.append(workButton("Вернуть на проверку", () => applyReview([{item,action:"reopen"}]), "secondary", ro));
   if (item.state === "active" || item.decision?.rule_id && ["masked","kept"].includes(item.state))
     footer.append(workButton("Отменить правило", () => confirmReview([item],"rollback"), "secondary", ro));
   footer.append(item.in_dataset
     ? workButton("Открыть в датасете", () => openFindingExample(item.dataset_id), "text-button")
-    : workButton("В датасет", () => collectFindings({keys:item.occurrence_keys || [item.key]}), "text-button", ro));
+    : workButton("В датасет", async () => collectFindings(await selectedPayload([item], true)), "text-button", ro));
   article.append(heading, tabs, verdict, footer);
   return article;
 }
@@ -298,22 +344,30 @@ function manualDecision(item) {
   const options = [["mask","Скрывать значение"], ["keep",item.origin === "detector" ? "Создать исключение" : "Оставить открытым"],
     [dismiss, item.origin === "detector" ? "Закрыть без правила" : "Отклонить находку"]];
   const action = h("select", {autofocus:true}, options.map(([value,label]) => h("option", {value}, tr(label))));
+  const target = h("select", {}, h("option", {value:"directory"}, tr("Каталог учётной записи")),
+    h("option", {value:"whole"}, tr("Весь путь")));
+  const targetField = reviewField("decision-target", "Что скрывать", target);
+  const preview = h("div");
   const effect = h("p", {class:"decision-effect"});
   function update() {
     kindField.hidden = action.value === dismiss;
     scopeField.hidden = kindField.hidden || (item.origin === "learning" && action.value === "keep");
-    effect.textContent = decisionEffect(item, action.value);
+    const directory = directoryTarget(item, action.value, kind.value);
+    targetField.hidden = !directory;
+    const prefix = directory && target.value === "directory" ? directory : null;
+    effect.textContent = decisionEffect(item, action.value, prefix);
+    preview.replaceChildren(...(prefix ? [directoryPreview(item, prefix)] : []));
   }
-  kind.onchange = () => { draft.kind = kind.value; if (!draft.scopeChanged) scope.value = draft.scope = defaultScopeForKind(kind.value); };
+  kind.onchange = () => { draft.kind = kind.value; if (!draft.scopeChanged) scope.value = draft.scope = defaultScopeForKind(kind.value); update(); };
   scope.onchange = () => { draft.scopeChanged = true; draft.scope = scope.value; };
   if (!item.proposal?.declined && item.proposal?.action === "keep") action.value = "keep";
-  action.onchange = update; update();
+  target.onchange = action.onchange = update; update();
   const cancel = h("button", {type:"button",class:"secondary",onclick:()=>dialog.close()}, tr("Отмена"));
   dialog.replaceChildren(h("div", {class:"review-confirm-body"}, h("h2",{id:"review-confirm-title"},tr("Ручное решение")),
     h("code", {class:"decision-value"}, item.value), reviewField("decision-action", "Действие", action),
-    h("div", {class:"manual-fields"}, kindField,scopeField), effect,
+    h("div", {class:"manual-fields"}, kindField,scopeField), targetField, effect, preview,
     h("div", {class:"dialog-actions"},cancel,h("button", {id:"review-confirm-apply",class:"primary",type:"button",onclick:()=>{
-      dialog.close(); applyReview([{item, action:action.value, kind:kind.value, scope:scope.value}], true, seen);
+      dialog.close(); applyReview([{item, action:action.value, kind:kind.value, scope:scope.value, whole_path:!targetField.hidden && target.value === "whole"}], true, seen);
     }},tr("Применить решение")))));
   dialog.showModal();
 }
@@ -351,8 +405,9 @@ async function selectedPayload(items, includeOccurrences = false) {
   function explicit(rows) {
     const keys=[],prefixes={};
     for (const item of rows) {
-      if (includeOccurrences && item.path_group) {
-        for (const key of item.occurrence_keys) prefixes[key]=item.path_group.prefix;
+      const prefix = item.path_group?.prefix || defaultDirectory(item);
+      if (includeOccurrences && prefix) {
+        for (const key of item.occurrence_keys || [item.key]) prefixes[key]=prefix;
       }
       keys.push(...(includeOccurrences ? item.occurrence_keys || [item.key] : item.path_group?.paths.map(p=>p.keys[0]) || [item.key]));
     }
@@ -437,6 +492,7 @@ function showFinding(item, moveFocus = true) {
   }
 }
 function findingRow(item) {
+  const issue = pendingFinding(item) && !activeReview(item) ? reviewIssue(item) : null;
   const rule = item.decision?.rule_id ? item.decision : item.document_rule ||
     (pendingFinding(item) && !item.proposal?.declined ? item.proposal : null);
   const withoutRule = !rule && ["dismissed","rejected"].includes(item.state);
@@ -451,7 +507,7 @@ function findingRow(item) {
     h("td",{},record,item.path_group ? h("small",{class:"hint"},pathGroupCounts(item.path_group.paths)) : item.occurrence_keys ? h("small",{class:"hint"},tr("Вхождений · {{0}}",[number(item.occurrence_keys.length)])) : null,h("small",{class:"mobile-source"},findingSource(item))),
     h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(rule?.kind && rule.kind !== "KEEP" ? rule.kind : item.kind), " / ",
       h("span",{class:"hint"},withoutRule ? tr("Без правила") : scope ? scopeLabel(scope) : tr("Область не задана"))),
-    h("td",{},h("span",{class:"table-verdict", "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),item.deferred_at ? h("small",{class:"hint"},tr("Отложено")) : null,item.in_dataset?h("small",{class:"hint"},datasetMark(item)):null));
+    h("td",{},h("span",{class:"table-verdict", "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),issue ? h("small",{class:"hint review-issue"},reviewError(issue)) : null,item.deferred_at ? h("small",{class:"hint"},tr("Отложено")) : null,item.in_dataset?h("small",{class:"hint"},datasetMark(item)):null));
   return row;
 }
 function syncPageCheck() {
@@ -673,8 +729,8 @@ function confirmReview(items, operation, fromCard = false) {
   dialog.replaceChildren(h("div", { class: "review-confirm-body" }, h("h2", { id: "review-confirm-title" }, tr("Проверить изменения")),
     h("p", { class: "hint" }, tr("Записей: {{0}}", [entries.length])),
     operation === "mask" ? h("p", {}, tr("Выбранные значения будут скрываться в будущих запросах.")) : null,
-    h("div", { class: "review-confirm-list" }, ...entries.map((entry) => h("div", {}, h("code", {}, entry.item.value),
-      h("p", {}, `${kindLabel(entry.kind)} · ${scopeLabel(entry.scope)}`), operation === "mask" ? null : h("p", { class: "hint" }, operation === "decline-proposal" ? tr("Находка останется на ручной проверке.") : decisionEffect(entry.item,entry.effect)), entry.item.validation_reason ? h("p",{class:"hint"},reviewError(entry.item.validation_reason)) : null))),
+    h("div", { class: "review-confirm-list" }, ...entries.map((entry) => h("div", {}, h("code", {}, operation !== "decline-proposal" && directoryTarget(entry.item, entry.effect, entry.kind) || entry.item.value),
+      h("p", {}, `${kindLabel(entry.kind)} · ${scopeLabel(entry.scope)}`), operation === "mask" ? null : h("p", { class: "hint" }, operation === "decline-proposal" ? tr("Находка останется на ручной проверке.") : decisionEffect(entry.item,entry.effect,directoryTarget(entry.item,entry.effect,entry.kind))), entry.item.validation_reason ? h("p",{class:"hint"},reviewError(entry.item.validation_reason)) : null))),
     h("div", { class: "form-actions" }, h("button", { class: "primary", id: "review-confirm-apply", onclick: () => { dialog.close(); origin?.focus(); applyReview(entries, fromCard, seen); } }, tr("Применить изменения")),
       h("button", { class: "secondary", autofocus:true, onclick: () => { dialog.close(); origin?.focus(); } }, tr("Отмена")))));
   dialog.showModal();
@@ -700,7 +756,7 @@ async function applyReview(entries, fromCard = false, seen = fromCard ? displaye
     const item = entry.item;
     try {
       const result = item.path_group && entry.action==="mask" ? await api("/api/v1/ui/review/path-prefix",{method:"POST",body:{keys:entry.keys || item.occurrence_keys,prefix:entry.prefix || item.path_group.prefix,scope:item.scope}}) : await api(`/api/v1/ui/review/${item.origin}/${encodeURIComponent(item.id)}/${entry.action}`, {
-        method:"POST", body:{kind:entry.kind, scope:entry.scope, proposal_id:entry.proposal_id,
+        method:"POST", body:{kind:entry.kind, scope:entry.scope, proposal_id:entry.proposal_id, whole_path:entry.whole_path,
           occurrences:item.occurrence_keys, seen_excerpt:seen}});
       checked += result.dataset?.checked || 0;
       drafts += result.dataset?.drafts || 0;
@@ -750,13 +806,13 @@ async function applyReview(entries, fromCard = false, seen = fromCard ? displaye
     $("#review-result").focus({preventScroll:true});
   }
 }
-async function requestReview(items) {
+async function requestReview(items, scenario) {
   if(ReviewUI.busy)return;
   if(!ReviewUI.data?.sources.some(s=>s.provider!=="none")){showTab("settings");return;}
   setReviewBusy(true);renderReviewSelection();
   try {
     const selection=await selectedPayload(items);
-    const body={...selection,model_source:ReviewUI.modelSource||"auto",scenario:ReviewUI.scenario||undefined};
+    const body={...selection,model_source:ReviewUI.modelSource||"auto",scenario:scenario||ReviewUI.scenario||undefined};
     const job=await postOnce("/api/v1/ui/review/jobs",body);
     rememberFindings(job.id);showTab("jobs/review/"+job.id);
   } catch(e){$("#review-result").textContent=reviewError(e.messageKey||e.message);}
