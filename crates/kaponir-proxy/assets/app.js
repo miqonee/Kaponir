@@ -963,7 +963,7 @@ function methodSummary(analysis, category, selected) {
   };
   if (!analysis) return tr('Обнаружение выключено');
   if (!category) return tr('Поиск · {{0}}. Категоризация выключена.', [display(analysis)]);
-  const scenario = ['local','api'].includes(category.provider)
+  const scenario = category.provider === 'local'
     ? (selected || category.scenario || 'standard') : null;
   const shared = analysis.model === category.model && analysis.provider === category.provider &&
     analysis.connection_id === category.connection_id;
@@ -994,7 +994,7 @@ async function loadSearchMethod() {
 function showDocumentScenario() {
   const background = $('#d-mode').value === 'background';
   const cfg = D.method, category = cfg?.categorization;
-  const supported = background && ['local','api'].includes(category?.provider);
+  const supported = background && category?.provider === 'local';
   $('#d-scenario-field').hidden = !supported;
   $('#d-scenario').disabled = !supported;
   $('#d-fast-options').hidden = background;
@@ -1011,8 +1011,8 @@ function showDocumentScenario() {
     : remoteReview ? tr('При проверке данные получит {{0}}.', [category.connection])
       : $('#d-s1').checked && !background ? tr('Для оценки будет вызван настроенный S1.') : tr('Поиск выполняется средствами Kaponir.');
   if (supported && $('#d-settings').open)
-    renderScenarioStudy($('#d-scenario-study'), category.provider === 'local' ? measuredModelId(category.model) : null,
-      $('#d-scenario').value || category.scenario || 'standard', $('#d-scenario'), category.provider === 'api');
+    renderScenarioStudy($('#d-scenario-study'), measuredModelId(category.model),
+      $('#d-scenario').value || category.scenario || 'standard', $('#d-scenario'));
 }
 $('#d-settings').addEventListener('toggle', showDocumentScenario);
 $('#d-mode').addEventListener('change', () => { D.overrideMethod = true; showDocumentScenario(); });

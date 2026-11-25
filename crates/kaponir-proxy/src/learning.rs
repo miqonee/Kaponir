@@ -20,7 +20,7 @@ use kaponir_core::{
     s1::{CandidateView, RuleClassification, S1Provider, features},
 };
 use kaponir_vault::SqliteVault;
-use scenario::Scenario;
+pub(crate) use scenario::Scenario;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use std::{
@@ -1021,10 +1021,11 @@ fn normalize_categorization(s: &mut CategorizationSettings) {
     if s.provider == "api" {
         s.http.protocol = kaponir_s1::http::HttpProtocol::Openai;
     }
+    s.scenario = s.scenario.for_provider(&s.provider);
 }
 fn validate_categorization(s: &CategorizationSettings) -> anyhow::Result<()> {
     anyhow::ensure!(
-        s.scenario == Scenario::Standard || supports_scenarios(s),
+        s.scenario == Scenario::Standard || uses_llm(s),
         "scenario_requires_llm"
     );
 
@@ -1106,12 +1107,6 @@ async fn workspace_model(
 }
 fn share_analysis_api(settings: &mut Settings) {
     let source = &settings.analysis;
-    if settings.categorization.provider != "api"
-        || settings.categorization.http.url != source.url
-        || settings.categorization.http.model.as_ref() != Some(&source.model)
-    {
-        settings.categorization.scenario = Scenario::Standard;
-    }
     settings
         .categorization
         .api_manual
@@ -1125,6 +1120,7 @@ fn share_analysis_api(settings: &mut Settings) {
         ..Default::default()
     };
     settings.categorization.inference = source.inference.clone();
+    normalize_categorization(&mut settings.categorization);
 }
 
 async fn set_workspace_model(
@@ -1170,9 +1166,11 @@ async fn set_workspace_model(
             settings.categorization.inference = v;
         }
     }
-    if let Some(scenario) = change.scenario {
-        settings.categorization.scenario = scenario;
-    }
+    let category = &mut settings.categorization;
+    category.scenario = change
+        .scenario
+        .unwrap_or(category.scenario)
+        .for_provider(&category.provider);
     if let Some(slots) = change.slots {
         settings.analysis.parallelism = slots;
     }
@@ -1899,7 +1897,7 @@ fn local_categorization_timeout(st: &Shared, s: &CategorizationSettings) -> u64 
         st.learning.snapshot().analysis.timeout_seconds
     }
 }
-fn supports_scenarios(s: &CategorizationSettings) -> bool {
+fn uses_llm(s: &CategorizationSettings) -> bool {
     matches!(s.provider.as_str(), "local" | "api")
 }
 async fn classify_request(
@@ -1943,7 +1941,7 @@ async fn classify(
     if s.provider == "none" {
         anyhow::bail!("categorization_disabled");
     }
-    let result = if supports_scenarios(s) {
+    let result = if uses_llm(s) {
         let input = json!({"candidates":candidates.iter().map(|e|json!({"value":e.value,"quote":e.quote})).collect::<Vec<_>>()});
         let reply = classify_request(
             st,
@@ -2190,9 +2188,9 @@ async fn queue_documents(
         return Err(bad(anyhow::anyhow!("analysis_disabled")));
     }
     let mut categorization = s.categorization.clone();
-    if let Some(scenario) = scenario {
-        categorization.scenario = scenario;
-    }
+    categorization.scenario = scenario
+        .unwrap_or(categorization.scenario)
+        .for_provider(&categorization.provider);
     validate_categorization(&categorization).map_err(bad)?;
     let (ids, existing) = st
         .with_vault(|engine, v| {
@@ -2807,8 +2805,15 @@ fn source_for(settings: &Settings, source: &str) -> anyhow::Result<Value> {
     };
     let protocol = (role == "categorization" && provider == "s1")
         .then_some(&settings.categorization.http.protocol);
+    let scenario = if role == "categorization" {
+        settings.categorization.scenario
+    } else {
+        Scenario::Standard
+    }
+    .for_provider(provider);
     Ok(
-        json!({"role":role,"provider":provider,"protocol":protocol,"model":model,"connection":connection,"connection_id":binding,"scenario":if role=="categorization" {settings.categorization.scenario} else {Scenario::Standard},"revision":settings.revision}),
+        json!({"role":role,"provider":provider,"protocol":protocol,"model":model,"connection":connection,
+            "connection_id":binding,"scenario":scenario,"supports_scenarios":provider=="local","revision":settings.revision}),
     )
 }
 
@@ -2818,17 +2823,16 @@ pub(crate) fn review_configuration(
     mode: Option<&str>,
 ) -> anyhow::Result<Value> {
     let mut source = review_source(st, role)?;
-    let supported =
-        source["role"] == "analysis" || supports_scenarios(&st.learning.snapshot().categorization);
-    source["supports_scenarios"] = json!(supported);
     if let Some(mode) = mode {
         let scenario: Scenario =
             serde_json::from_value(json!(mode)).map_err(|_| anyhow::anyhow!("invalid_scenario"))?;
-        anyhow::ensure!(
-            scenario == Scenario::Standard || supported,
-            "scenario_requires_llm"
-        );
-        source["scenario"] = json!(scenario);
+        if source["provider"] != "api" {
+            anyhow::ensure!(
+                scenario == Scenario::Standard || source["supports_scenarios"] == true,
+                "scenario_requires_llm"
+            );
+            source["scenario"] = json!(scenario);
+        }
     }
     Ok(source)
 }
@@ -3000,8 +3004,12 @@ fn report_progress(st: &Shared, job: &mut Job, progress: LearningProgress) -> an
 
 async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usize> {
     let mut categorization = s.categorization.clone();
-    if let Some(choice) = job.scenario {
-        categorization.scenario = choice;
+    categorization.scenario = job
+        .scenario
+        .unwrap_or(categorization.scenario)
+        .for_provider(&categorization.provider);
+    if categorization.provider == "api" {
+        job.scenario = Some(categorization.scenario);
     }
     validate_categorization(&categorization)?;
 
@@ -4127,6 +4135,48 @@ mod tests {
             fingerprint
         );
         validate_categorization(&saved.categorization).unwrap();
+    }
+    #[tokio::test]
+    async fn saved_api_settings_and_document_overrides_use_scenario_d() {
+        let mut settings = Settings::default();
+        settings.analysis.enabled = true;
+        settings.analysis.provider = "api".into();
+        settings.analysis.url = "https://example.test/v1".into();
+        settings.categorization.provider = "api".into();
+        settings.categorization.http.url = settings.analysis.url.clone();
+        settings.categorization.http.model = Some("fixture".into());
+        settings.categorization.scenario = Scenario::B;
+        let v = vault();
+        v.set_private_setting(SETTINGS, &serde_json::to_vec(&settings).unwrap())
+            .unwrap();
+        let st = Arc::new(
+            State::new(
+                kaponir_core::Engine::builder([11; 32]).build().unwrap(),
+                v,
+                "test",
+                Default::default(),
+            )
+            .unwrap(),
+        );
+        assert_eq!(st.learning.snapshot().categorization.scenario, Scenario::D);
+        let queued = queue_documents(
+            &st,
+            vec![kaponir_core::discover::Document {
+                name: "fixture.txt".into(),
+                text: "private project Cedar Plum".into(),
+                format: Default::default(),
+                model_candidates: vec![],
+            }],
+            Some(Scenario::C),
+            "document",
+            None,
+        )
+        .await
+        .unwrap_or_else(|error| panic!("{}", error.message()))
+        .0;
+        let id = queued["ids"][0].as_str().unwrap();
+        let job = st.with_vault(|_, v| record::<Job>(v, id)).unwrap().unwrap();
+        assert_eq!(job.scenario, Some(Scenario::D));
     }
 
     #[test]

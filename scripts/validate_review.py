@@ -339,7 +339,16 @@ def main():
                 if 'items' in content:
                     release.wait(timeout=10)
                     if fail.is_set():self.respond({'error':'RAW_BODY_MUST_NOT_LEAK'},503);return
-                    result={'decisions':[{'id':item['id'],'action':'review' if 'uncertain' in item['value'] else 'keep' if 'publictool' in item['value'] else 'mask','kind':'NOT_A_KIND' if 'invalidanswer' in item['value'] else 'PROJ','scope':'team','confidence':.97,'reason':'Not enough context to establish confidentiality.' if 'uncertain' in item['value'] else 'Confirmed private project in source context.'} for item in content['items']]}
+                    decisions = []
+                    for item in content['items']:
+                        assert 'marked_record' in item
+                        value = item['value']
+                        verdict = ('invalid' if 'invalidanswer' in value else 'review' if 'uncertain' in value
+                                   else 'keep' if 'publictool' in value else 'mask')
+                        reason = ('Not enough context to establish confidentiality.' if verdict == 'review'
+                                  else 'Confirmed private project in source context.')
+                        decisions.append({'id':item['id'],'verdict':verdict,'reason':reason})
+                    result = {'decisions':decisions}
                 else:result={'candidates':[{'value':'40%','kind':'PERSON','confidence':.90},{'value':'1 320,00 ₽','kind':'SVC','confidence':.78}]}
                 self.respond({'choices':[{'finish_reason':'stop','message':{'content':json.dumps(result,ensure_ascii=False)}}]});return
             self.respond({'choices':[{'message':{'role':'assistant','content':'ready'}}]})
@@ -389,6 +398,10 @@ def main():
                     assert not page.locator('#analysis-enabled-help').is_visible()
                     page.keyboard.press('Escape');assert not page.locator('#setting-help-popup').is_visible()
                     page.evaluate("showTab('review')");page.locator('#review-list .finding-value').first.wait_for()
+                    page.get_by_role('button', name='Параметры проверки', exact=True).click()
+                    expect(page.locator('#review-options')).to_be_visible()
+                    expect(page.locator('#review-options #review-scenario-choice')).to_have_count(0)
+                    page.locator('#review-options').get_by_role('button', name='Готово').click()
                     assert 'Нет общей оценки' not in page.locator('#review-list').inner_text()
                     money=next(i for i in rows() if i['value']=='40%');assert money['kind']=='AMOUNT' and money['proposed_kind']=='PERSON' and money['categorization_state']=='disabled'
                     money_card=card_for(money)
@@ -479,8 +492,8 @@ def main():
                     for item in mixed:
                         page.locator('#review-list').get_by_role('checkbox',name='Выбрать значение: '+item['value']).check()
                     page.locator('#review-selection').get_by_role('button',name='Проверить моделью · 2',exact=True).click()
-                    wait_for(lambda:all(any(i['key']==item['key'] and i.get('recommendation',{}).get('state')==('failed' if 'invalidanswer' in item['value'] else 'succeeded') for i in rows()) for item in mixed))
-                    page.locator('#jobs-content').get_by_role('button',name='Ошибки · 1',exact=True).wait_for()
+                    wait_for(lambda:all(any(i['key']==item['key'] and i.get('recommendation',{}).get('state')==('needs_review' if 'invalidanswer' in item['value'] else 'succeeded') for i in rows()) for item in mixed))
+                    page.locator('#jobs-content').get_by_role('button',name='Вручную · 1',exact=True).wait_for()
                     return_to_findings()
                     for item in mixed:
                         mixed_card=card_for(item)

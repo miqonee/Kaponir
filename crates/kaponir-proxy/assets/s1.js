@@ -29,7 +29,7 @@ const learningStates = {
 const learningErrors = {
   model_queue_timeout: "Служба была занята до конца проверки. Повторите после текущего задания.",
   local_probe_failed: "Служба не подтвердила готовность модели. Проверьте версию воркера и среду запуска.",
-  scenario_requires_llm: "Для сценариев A–D включите локальную или OpenAI-совместимую категоризацию.",
+  scenario_requires_llm: "Сценарий можно выбрать для локальной модели.",
   target_occurrence_uncertain: "Точное вхождение не удалось выделить однозначно.",
   scenario_mask: "Модель предлагает скрыть значение",
   scenario_review: "Требуется ручная проверка значения",
@@ -361,7 +361,7 @@ function learningFormVisibility() {
   $("#categorization-none-note").hidden = c !== "none";
   $("#categorization-timeout-field").hidden = c === "none";
   $("#categorization-inference-settings").hidden = !["local", "api"].includes(c);
-  $("#categorization-scenario-field").hidden = $("#categorization-inference-settings").hidden;
+  $("#categorization-scenario-field").hidden = c !== "local";
   $("#analysis-timeout").max = a === "local" ? "1800" : "300";
   $("#categorization-timeout").max = c === "local" ? "1800000" : c === "api" ? "300000" : "60000";
   $("#analysis-url").required = a === "api";
@@ -393,7 +393,7 @@ function learningFormVisibility() {
   }
   if (!$("#categorization-scenario-field").hidden) {
     const select = $("#categorization-scenario");
-    renderScenarioStudy($("#categorization-scenario-study"), c === "local" ? studyModelId("categorization") : null, select.value, select, isChatApi("categorization"));
+    renderScenarioStudy($("#categorization-scenario-study"), studyModelId("categorization"), select.value, select);
   }
   $("#analysis-threshold").disabled ||= !$("#analysis-auto").checked;
   if (typeof renderModelCards === "function") renderModelCards();
@@ -467,7 +467,7 @@ function readLearningForm(role) {
     settings = {
       ...saved,
       provider: $("#categorization-provider").value,
-      scenario: $("#categorization-scenario-field").hidden ? "standard" : $("#categorization-scenario").value,
+      scenario: $("#categorization-scenario-field").hidden ? undefined : $("#categorization-scenario").value,
       model: $("#categorization-local-model").value,
       http: {
         ...saved.http,

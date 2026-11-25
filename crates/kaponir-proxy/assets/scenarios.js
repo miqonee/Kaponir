@@ -86,9 +86,9 @@ function scenarioPriorities(rows, control, host) {
         }}, h("strong", {}, tr(label)), h("span", {}, best.variant + " · " + evidence));
     })), h("p", {class:"hint"}, tr("Выбор подставит сценарий по замерам этой модели на стенде.")));
 }
-async function renderScenarioStudy(host, id, selected, control, apiModel = false) {
+async function renderScenarioStudy(host, id, selected, control) {
   host.scenarioControl = control;
-  const key = JSON.stringify([id || "", selected || "", !!control, !!control?.disabled, I18N.language, apiModel]);
+  const key = JSON.stringify([id || "", selected || "", !!control, !!control?.disabled, I18N.language]);
   if (host.dataset.study === key) return;
   host.dataset.study = key;
   const chosenPane = host.querySelector('[role="tab"][aria-selected="true"]')?.dataset.pane || "choice";
@@ -108,7 +108,6 @@ async function renderScenarioStudy(host, id, selected, control, apiModel = false
   const model = Object.hasOwn(data, id) ? data[id] : null;
   const choice = h("div", {class:"scenario-choice"});
   const pages = [{key:"choice", title:"Выбор сценария", content:choice}];
-  if (apiModel) choice.append(h("p", {}, tr("Для API начните со стандартной проверки. За один запрос модель может принять пакет значений и вернуть отдельное решение по каждому. Сценарий D пригодится, когда нужно объяснение конкретного вхождения.")));
   if (selected && scenarioDescriptions[selected]) choice.append(h("p", {}, tr(scenarioDescriptions[selected])));
   if (model) {
     const variant = selected || model.recommended, row = model.variants[variant];

@@ -13,6 +13,10 @@ pub enum Scenario {
 }
 
 impl Scenario {
+    pub(super) fn for_provider(self, provider: &str) -> Self {
+        if provider == "api" { Self::D } else { self }
+    }
+
     fn marked(self) -> bool {
         matches!(self, Self::C | Self::D)
     }

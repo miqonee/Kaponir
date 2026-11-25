@@ -146,12 +146,12 @@ def exercise(page, api, base):
     api('/api/v1/ui/analysis', {'settings':analysis, 'key':'fixture-key', 'use_for_categorization':True}, 'PUT')
     cat = api('/api/v1/ui/categorization')
     assert cat['key_saved'] and cat['settings']['provider'] == 'api' and cat['settings']['http']['model'] == 'sample-model'
+    assert cat['settings']['scenario'] == 'D'
     page.reload()
     expect(page.locator('#d-method-summary')).to_contain_text('Поиск и проверка · sample-model')
     expect(page.locator('#d-method-summary')).to_contain_text(base)
     page.locator('#d-settings summary').click()
-    page.locator('#d-scenario').select_option('D')
-    expect(page.locator('#d-method-summary')).to_contain_text(' · D')
+    expect(page.locator('#d-scenario')).to_be_hidden()
     page.locator('#d-sessions').click()
     page.route('**/api/v1/ui/worker', lambda route: route.fulfill(json={'enabled': False, 'online': False}))
     page.locator('#d-analyze').click()
@@ -165,7 +165,7 @@ def exercise(page, api, base):
     page.route('**/api/v1/ui/worker/jobs', queue)
     page.locator('#d-analyze').click()
     expect(page).to_have_url(re.compile(r'#jobs/file/session-fixture$'))
-    assert jobs == [{'mode': 'configured', 'source': '@sessions', 'revision': cat['revision'], 'scenario': 'D'}]
+    assert jobs == [{'mode': 'configured', 'source': '@sessions', 'revision': cat['revision']}]
     try:
         api('/api/v1/ui/analysis/documents', {'revision': cat['revision']-1, 'documents': [
             {'name': 'memo.txt', 'text': 'Synthetic stale request'}]})

@@ -584,8 +584,8 @@ function renderReviewSelection() {
     ...choices.map(s=>h("option",{value:s.role,selected:s===source},modelLabel(s)))):source?h("strong",{},modelLabel(source)):null;
   const dialog = $("#review-options");
   const study = dialog.querySelector(".review-study") || h("div", {class: "scenario-study review-study"});
-  const showStudy = () => renderScenarioStudy(study, source.provider === "local" ? measuredModelId(source.model) : null,
-    ReviewUI.scenario || source.scenario || "standard", mode, source.provider !== "local");
+  const showStudy = () => renderScenarioStudy(study, measuredModelId(source.model),
+    ReviewUI.scenario || source.scenario || "standard", mode);
   const mode = source?.supports_scenarios ? h("select", {"aria-label": tr("Способ проверки для запуска"), onchange: e => {
     ReviewUI.scenario = e.target.value; showStudy();
   }}, scenarioOptions(ReviewUI.scenario || source.scenario || "standard")) : null;
@@ -656,7 +656,7 @@ function renderReviewSelection() {
         else close.autofocus = true;
         const header = h("header",{class:"options-heading"},h("span",{class:"dialog-symbol"},icon("settings")),
           h("div",{},h("h2",{id:"review-options-title"},tr("Параметры проверки")),
-            h("p",{},tr("Модель и сценарий для следующего запуска из находок."))),
+            mode ? h("p",{},tr("Модель и сценарий для следующего запуска из находок.")) : null),
           h("button",{class:"dialog-close",type:"button","aria-label":tr("Закрыть"),onclick:()=>dialog.close()},"×"));
         const modelField = choices.length > 1 ? reviewField("review-model-source","Модель пересмотра",model) :
           h("div",{class:"model-identity"},h("span",{},tr("Модель пересмотра")),model,source.connection ? h("small",{class:"hint"},source.connection) : null);
@@ -812,7 +812,10 @@ async function requestReview(items, scenario) {
   setReviewBusy(true);renderReviewSelection();
   try {
     const selection=await selectedPayload(items);
-    const body={...selection,model_source:ReviewUI.modelSource||"auto",scenario:scenario||ReviewUI.scenario||undefined};
+    const modelSource = ReviewUI.modelSource || "auto";
+    const source = ReviewUI.data.sources.find(s => s.role === modelSource);
+    const body = {...selection, model_source: modelSource};
+    if (source?.supports_scenarios) body.scenario = scenario || ReviewUI.scenario || undefined;
     const job=await postOnce("/api/v1/ui/review/jobs",body);
     rememberFindings(job.id);showTab("jobs/review/"+job.id);
   } catch(e){$("#review-result").textContent=reviewError(e.messageKey||e.message);}

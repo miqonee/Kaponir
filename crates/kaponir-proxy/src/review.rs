@@ -1626,8 +1626,13 @@ async fn run(st: Shared, submitted: Value, targets: Vec<Target>) {
             }
             continue;
         }
+        let processed = job["processed"].as_u64().unwrap_or(0);
+        // A partially processed job retains the scenario used for its saved packets.
+        if processed == 0 && job["source"]["provider"] == "api" {
+            job["source"]["scenario"] = json!(learning::Scenario::D);
+        }
         let remaining;
-        let work = if job["processed"].as_u64().unwrap_or(0) > 0 {
+        let work = if processed > 0 {
             let Ok(Some(saved)) = full_job(&st, id) else {
                 return;
             };
@@ -1798,6 +1803,9 @@ fn needs_type_check(source: &Value, item: Option<&Value>) -> bool {
         && item.is_some_and(|row| {
             let kind = row["kind"].as_str().unwrap_or_default();
             !supported_kinds().any(|known| known == kind)
+                || source["provider"] == "api"
+                    && (row["reason"] == "type_format_conflict"
+                        || row["recommendation"]["reason"] == "type_format_conflict")
                 || kaponir_core::kinds::type_conflict(
                     kind,
                     row["value"].as_str().unwrap_or_default(),
@@ -2518,6 +2526,12 @@ mod proposal_tests {
                 Some(&row)
             ));
         }
+        let row = json!({"value":"project", "kind":"PROJ",
+            "recommendation":{"state":"needs_review","reason":"type_format_conflict"}});
+        assert!(needs_type_check(
+            &json!({"provider":"api","scenario":"D"}),
+            Some(&row)
+        ));
     }
 
     #[test]

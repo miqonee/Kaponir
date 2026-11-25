@@ -21,9 +21,10 @@ def check_model_selection(page, base, upstream, api, catalog_reads, slow_started
     catalog = lambda **fields: api('/api/v1/ui/model-catalog', {'role':'categorization', 'url':private, **fields})
     settings = api('/api/v1/ui/categorization')['settings']
     settings['provider'] = 's1'  # Previously saved chat configuration.
+    settings['scenario'] = 'B'
     settings['http'].update(url=private, protocol='openai', model='old')
     saved = api('/api/v1/ui/categorization', {'settings':settings, 'key':'fixture-key'}, 'PUT')['settings']
-    assert saved['provider'] == 'api' and saved['http']['protocol'] == 'openai'
+    assert saved['provider'] == 'api' and saved['http']['protocol'] == 'openai' and saved['scenario'] == 'D'
     assert catalog()['status'] == 'available'
     assert catalog(clear_key=True)['status'] == 'unauthorized'
     assert catalog(url=upstream+'/other/v1')['status'] == 'unauthorized'
@@ -35,6 +36,7 @@ def check_model_selection(page, base, upstream, api, catalog_reads, slow_started
     expect(page.locator('#session-dialog')).to_be_hidden()
     method = page.locator('#categorization-provider')
     expect(method).to_have_value('api')
+    expect(page.locator('#categorization-scenario-field')).to_be_hidden()
     assert method.locator('option').all_text_contents() == ['Выключено','Локальная модель','Модель по API','S1 Choice']
     picker = page.locator('#categorization-api-catalog')
     manual = page.locator('#categorization-api-model')
@@ -114,6 +116,12 @@ def check_model_selection(page, base, upstream, api, catalog_reads, slow_started
     category = api('/api/v1/ui/categorization')['settings']
     assert category['provider'] == 'api' and category['http']['url'] == analysis['url']
     assert category['http']['model'] == analysis['model'] and category['inference'] == analysis['inference']
+    assert category['scenario'] == 'D'
+    page.goto(base + '/ui/#worker')
+    if page.locator('#worker-settings').get_attribute('open') is None:
+        page.locator('#worker-settings > summary').click()
+    page.locator('#worker-mode').select_option('configured')
+    expect(page.locator('#worker-scenario-field')).to_be_hidden()
 
 
 def main():
@@ -199,8 +207,9 @@ def main():
                     old_review_calls += 1
                 may_finish = model == 'old' and 'items' in payload and old_review_calls == 1
             if 'items' in payload:
-                reply = {'decisions':[{'id':i['id'],'action':'mask','kind':'PROJ','scope':'team',
-                                       'confidence':.95,'reason':'Internal project'} for i in payload['items']]}
+                assert all('marked_record' in item for item in payload['items'])
+                reply = {'decisions':[{'id':i['id'],'verdict':'mask','reason':'Internal project'}
+                                      for i in payload['items']]}
             else:
                 reply = {'candidates':[]}
             text = json.dumps(reply)

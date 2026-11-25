@@ -55,7 +55,7 @@ def check_browser(base, api, output, partial_job):
         page.keyboard.press('Escape')
         page.locator('#analysis-navigation [data-go=categorization]').click()
         page.locator('#categorization-test').click()
-        page.wait_for_function("() => document.querySelector('#categorization-result').textContent==='Подключение проверено'")
+        page.wait_for_function("() => document.querySelector('#categorization-result').textContent==='Модель загружена. Токенизатор ответил.'")
         page.locator('#analysis-navigation [data-go=worker]').click()
         page.locator('#learning-open-history').click()
         page.wait_for_function("() => location.hash==='#review' && document.querySelector('[data-review-view=history]').getAttribute('aria-pressed')==='true'")
@@ -118,7 +118,7 @@ def main():
         def reply(self,body,status=200):
             data=json.dumps(body).encode();self.send_response(status);self.send_header('Content-Type','application/json');self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
         def do_GET(self):
-            if self.path=='/status':self.reply({'online':True,'configured':True,'can_manage':True,'enabled':enabled,'state':'ready' if enabled else 'disabled','models':{},'runtime_ready':True})
+            if self.path=='/status':self.reply({'online':True,'configured':True,'can_manage':True,'enabled':enabled,'state':'ready' if enabled else 'disabled','models':{'qwen3-0.6b':{'downloaded':True,'state':'ready'}},'model_verification':True,'runtime_ready':True})
             else:self.reply({'data':[{'id':'fixture-model'}]})
         def do_POST(self):
             nonlocal enabled,active,peak
@@ -149,10 +149,16 @@ def main():
                     candidates=[{'value':'CedarRepeatOne','kind':'PROJ','confidence':.96}]*24
                 with lock:active-=1
                 self.reply({'choices':[{'finish_reason':'stop','message':{'content':json.dumps({'candidates':candidates})}}]});return
-            if self.path=='/categorize':
+            if self.path=='/evaluate':
+                if body.get('operation') == 'probe':
+                    self.reply({'ready':True});return
                 classify_allowed.wait(timeout=15)
+                decisions=[{'kind':'PROJ','scope':'team','action':'mask','confidence':.85 if 'Cat85' in c['value'] else .99} for c in body['input']['candidates']]
+                self.reply({'decisions':decisions});return
+            if self.path=='/categorize':
                 payload=json.loads(body['messages'][1]['content'])
-                decisions=[{'kind':'PROJ','scope':'team','action':'mask','confidence':.85 if 'Cat85' in c.get('value',c.get('surface','')) else .99} for c in payload['candidates']]
+                assert all('marked_record' in item for item in payload['items'])
+                decisions=[{'id':item['id'],'verdict':'mask','reason':'Internal project'} for item in payload['items']]
                 self.reply({'choices':[{'finish_reason':'stop','message':{'content':json.dumps({'decisions':decisions})}}]});return
             upstream.append(body)
             text=body['messages'][-1]['content']
@@ -188,8 +194,7 @@ def main():
             start()
             assert not api('/api/v1/ui/analysis')['settings']['enabled']
             api('/api/v1/connections',{'kind':'openai','name':'Fixture','base_url':model_base,'api_key':'fixture','pool':True,'models':['fixture-model'],'auto_models':False})
-            cat=api('/api/v1/ui/categorization')['settings'];cat['provider']='s1';cat['http'].update(url=model_base+'/categorize',protocol='openai',model='fixture',timeout_ms=30000)
-            api('/api/v1/ui/categorization',{'settings':cat},'PUT')
+            configure('categorization',provider='local',model='qwen3-0.6b')
             configure('analysis',provider='api',enabled=True,url=model_base+'/analysis',model='fixture',parallelism=1)
             first={'model':'fixture-model','stream':True,'messages':[{'role':'user','content':'Internal label CedarFirst86'}]}
             before=time.monotonic();response=api('/v1/chat/completions',first);elapsed=time.monotonic()-before
@@ -213,7 +218,7 @@ def main():
             allow.set()
             wait_for(lambda:api(route)['jobs'][0]['progress']['stage']=='categorizing')
             classification=api(route)['jobs'][0]['progress']
-            assert (classification['completed'],classification['total'],classification['model'])==(0,1,'fixture')
+            assert (classification['completed'],classification['total'],classification['model'])==(0,1,'qwen3-0.6b')
             classify_allowed.set()
             result=wait_for(completed)
             first_entry=next(e for e in result['entries'] if e['value']=='CedarFirst86');assert first_entry['state']=='active',first_entry
@@ -316,6 +321,18 @@ def main():
             evening=next(e for e in result['entries'] if e['value']=='CedarEveningDraft')
             assert evening['categorization_state']=='succeeded' and evening['state']=='pending',evening
             assert api('/api/v1/anonymize',{'text':'CedarEveningDraft'})['text']=='CedarEveningDraft'
+            # API categorization uses D even when the caller sends a previous scenario.
+            cat=api('/api/v1/ui/categorization')['settings']
+            cat.update(provider='api',scenario='B')
+            cat['http'].update(url=model_base+'/categorize',model='fixture')
+            assert api('/api/v1/ui/categorization',{'settings':cat},'PUT')['settings']['scenario']=='D'
+            configure('analysis',auto_apply=True)
+            queued=api('/api/v1/ui/analysis/documents',{'scenario':'A','documents':[
+                {'name':'api-review','text':'Private project CedarApiReview'}]})
+            result=wait_for(completed)
+            assert next(j for j in result['jobs'] if j['id']==queued['ids'][0])['scenario']=='D'
+            api_finding=next(e for e in result['entries'] if e['value']=='CedarApiReview')
+            assert api_finding['scenario_result']['verdict']=='mask' and api_finding['state']=='pending',api_finding
             report={'passed':True,'nonblocking_request_seconds':round(elapsed,3),'model_peak_concurrency':peak,'summary':result['summary'],'checks':['SSE completion','no LLM wait','history deduplication','strict 85%','grounding','manual approval','rollback','revocation','parallelism','pause','encrypted queue','restart','source deletion']}
             (args.output/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(json.dumps(report,ensure_ascii=False))
         finally:

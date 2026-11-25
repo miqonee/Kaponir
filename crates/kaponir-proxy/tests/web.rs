@@ -142,8 +142,13 @@ fn engine(rules: &[ScopedRules], s1: Option<kaponir_core::s1::S1Config>) -> Engi
 }
 
 async fn spawn(token: Option<&str>) -> String {
+    spawn_with_worker(token, None).await
+}
+
+async fn spawn_with_worker(token: Option<&str>, worker_url: Option<String>) -> String {
     let cfg = ProxyConfig {
         api_token: token.map(Into::into),
+        worker_url,
         ..ProxyConfig::default()
     };
     let st = State::new(
@@ -285,16 +290,37 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
         let input: Value =
             serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
         for item in input["items"].as_array().unwrap() {
-            assert_eq!(item.as_object().unwrap().len(), 3);
             let id = item["id"].as_str().unwrap();
             assert_eq!(id.len(), 24);
             assert!(id.bytes().all(|b| b.is_ascii_hexdigit()));
+            assert!(
+                item["marked_record"]
+                    .as_str()
+                    .unwrap()
+                    .contains(&format!("[[TARGET:{id}]]"))
+            );
             assert!(item.get("kind").is_none());
             assert!(item.get("probability").is_none());
         }
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        let decisions:Vec<_>=input["items"].as_array().unwrap().iter().map(|item|json!({"id":item["id"],"action":if item["context"].as_str().unwrap().contains("UncertainReview") {"review"} else {"mask"},"kind":"PROJ","scope":"team",
-            "confidence":if item["context"].as_str().unwrap().contains("InvalidScore") {100.0} else {0.97},"reason":if item["context"].as_str().unwrap().contains("UncertainReview") {"Context does not establish confidentiality."} else {"A private project in the quoted path."}})).collect();
+        let decisions: Vec<_> = input["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|item| !item["context"].as_str().unwrap().contains("InvalidPacket"))
+            .map(|item| {
+                let (verdict, reason) = if item["context"]
+                    .as_str()
+                    .unwrap()
+                    .contains("UncertainReview")
+                {
+                    ("review", "Context does not establish confidentiality.")
+                } else {
+                    ("mask", "A private project in the quoted path.")
+                };
+                json!({"id":item["id"],"verdict":verdict,"reason":reason})
+            })
+            .collect();
         axum::Json(
             json!({"choices":[{"finish_reason":"stop","message":{"content":json!({"decisions":decisions}).to_string()}}]}),
         )
@@ -329,15 +355,24 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
     );
     mask(&base, PATH_TEXT, json!({"commit":true})).await;
     let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
+    let source = list["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["role"] == "analysis")
+        .unwrap();
+    assert_eq!(source["supports_scenarios"], false);
+    assert_eq!(source["scenario"], "D");
     let item = list["items"][0].clone();
     let key = item["key"].clone();
     let (_, job) = call(
         "POST",
         format!("{base}/api/v1/ui/review/jobs"),
-        Some(json!({"keys":[key],"model_source":"analysis"})),
+        Some(json!({"keys":[key],"model_source":"analysis","scenario":"A"})),
     )
     .await;
     assert_eq!(job["state"], "queued");
+    assert_eq!(job["source"]["scenario"], "D");
     // No long rule lock is held while awaiting the model.
     assert_eq!(
         call(
@@ -369,8 +404,8 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
     assert_eq!(state["state"], "succeeded", "{state}");
     let (_, list) = call("GET", format!("{base}/api/v1/ui/review"), None).await;
     assert_eq!(list["items"][0]["probability"], item["probability"]);
-    assert_eq!(list["items"][0]["recommendation"]["kind"], "PROJ");
-    assert_eq!(list["items"][0]["recommendation"]["confidence"], 0.97);
+    assert_eq!(list["items"][0]["recommendation"]["kind"], item["kind"]);
+    assert_eq!(list["items"][0]["recommendation"]["verdict_only"], true);
     let rules = call("GET", format!("{base}/api/v1/rules"), None).await.1;
     assert!(!rules.to_string().contains("review-"));
     mask(
@@ -391,10 +426,10 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
     )
     .await;
     assert_eq!(status, 400);
-    // Some constrained local models still return percentages despite a 0..1 JSON schema.
+    // Omitting a decision invalidates the packet.
     mask(
         &base,
-        &format!("InvalidScore: {PATH_TEXT}"),
+        &format!("InvalidPacket: {PATH_TEXT}"),
         json!({"commit":true}),
     )
     .await;
@@ -491,9 +526,7 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
 #[tokio::test]
 async fn model_review_isolates_bad_rows_but_rejects_ambiguous_packet_identity() {
     async fn model(axum::Json(body): axum::Json<Value>) -> axum::Json<Value> {
-        let input: Value =
-            serde_json::from_str(body["messages"][1]["content"].as_str().unwrap()).unwrap();
-        let items = input["items"].as_array().unwrap();
+        let items = body["input"]["items"].as_array().unwrap();
         let duplicate = items
             .iter()
             .any(|item| item["value"] == "zorgduplicatefirst");
@@ -505,8 +538,7 @@ async fn model_review_isolates_bad_rows_but_rejects_ambiguous_packet_identity() 
                 "scope":"team","confidence":0.97,"reason":"A private project in this deployment path."})
             })
             .collect();
-        axum::Json(json!({"choices":[{"finish_reason":"stop","message":{
-            "content":json!({"decisions":decisions}).to_string()}}]}))
+        axum::Json(json!({"decisions":decisions}))
     }
     async fn finished(base: &str, id: &Value) -> Value {
         for _ in 0..100 {
@@ -529,19 +561,17 @@ async fn model_review_isolates_bad_rows_but_rejects_ambiguous_packet_identity() 
     tokio::spawn(async move {
         axum::serve(
             listener,
-            axum::Router::new().route("/v1/chat/completions", axum::routing::post(model)),
+            axum::Router::new().route("/evaluate", axum::routing::post(model)),
         )
         .await
         .unwrap()
     });
-    let base = spawn(None).await;
+    let base = spawn_with_worker(None, Some(format!("http://{addr}"))).await;
     let mut settings = call("GET", format!("{base}/api/v1/ui/analysis"), None)
         .await
         .1["settings"]
         .clone();
-    settings["provider"] = json!("api");
-    settings["url"] = json!(format!("http://{addr}/v1/chat/completions"));
-    settings["model"] = json!("fixture-review");
+    settings["provider"] = json!("local");
     settings["inference"]["batch_size"] = json!(2);
     assert_eq!(
         call(

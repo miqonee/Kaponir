@@ -323,18 +323,18 @@ function renderWorker() {
   $("#worker-submit").disabled = WORKER.busy || !data.online || !data.enabled || !info.editable || !!disabledAnalysis;
   updateProfileNote("worker", mode === "qwen" ? chosenLocalPreset("worker")?.inference.local_generation : null);
   const scenario = $("#worker-scenario");
-  const supported = configured && ["local","api"].includes(cat?.provider);
+  const supported = configured && cat?.provider === "local";
   $("#worker-scenario-field").hidden = !supported;
   scenario.disabled = !supported;
   if (supported) {
     scenario.options[0].textContent = tr("Из настроек · {{0}}", [cat.scenario === "standard" ? tr("Стандартная категоризация") : cat.scenario]);
     if (!$("#worker-scenario-study").hidden)
-      renderScenarioStudy($("#worker-scenario-study"), cat.provider === "local" ? measuredModelId(cat.model, data.models) : null,
-        scenario.value || cat.scenario || "standard", scenario, cat.provider === "api");
+      renderScenarioStudy($("#worker-scenario-study"), measuredModelId(cat.model, data.models),
+        scenario.value || cat.scenario || "standard", scenario);
   }
   $("#worker-s1-field").hidden = configured;
   $("#worker-mode-help").textContent = tr(configured
-    ? "Документы попадут в очередь обнаружения. После поиска включённая категоризация проверит тип и область каждой находки."
+    ? "Документы попадут в очередь обнаружения. После поиска включённая категоризация проверит найденные значения."
     : mode === "qwen" ? "Worker ищет значения выбранной локальной моделью и дополняет результат быстрыми детекторами. Находки сохраняются для ручной проверки."
       : "Worker ищет совпадения встроенными детекторами без языковой модели. Находки сохраняются для ручной проверки.");
   const assignment = $("#worker-assignment");
