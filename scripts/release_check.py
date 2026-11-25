@@ -76,8 +76,7 @@ def main():
         revision = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
         for name in ('README.md', 'README.ru.md', 'CONTRIBUTING.md', 'LICENSE'):
             shutil.copy2(root / name, staged / name)
-        shutil.copytree(root / 'docs', staged / 'docs',
-                        ignore=shutil.ignore_patterns('WORK_LOG.md'))
+        shutil.copytree(root / 'docs', staged / 'docs')
         shutil.copytree(root / 'examples', staged / 'examples')
         source_links = qualify_source_links(root, staged, revision)
         with tarfile.open(artifact, 'w:gz') as archive:
