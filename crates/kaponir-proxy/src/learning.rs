@@ -2696,15 +2696,20 @@ pub(crate) fn pending_values(
             let entry: Entry = decode(&bytes)?;
             if (entry.state == "pending" || entry.reason == "existing_rule")
                 && rules
-                    .covering(
+                    .covering_finding(
                         &entry.value,
                         &entry.quote,
                         entry.context_span,
                         entry.kind == "SECRET",
+                        &entry.kind,
                     )
                     .is_none()
             {
-                values.insert(entry.value);
+                values.insert(crate::review::paths::pending_id(
+                    &entry.kind,
+                    entry.scope,
+                    &entry.value,
+                ));
             }
         }
     }
@@ -3372,7 +3377,13 @@ fn apply_entry(st: &State, e: &mut Entry, automatic: bool) -> anyhow::Result<()>
         .any(|s| s.file.rules.iter().any(|r| r.id == e.rule_id));
     let rules = crate::review::coverage::ActiveRules::new(sets)?;
     if !own
-        && let Some(rule) = rules.covering(&e.value, &e.quote, e.context_span, e.kind == "SECRET")
+        && let Some(rule) = rules.covering_finding(
+            &e.value,
+            &e.quote,
+            e.context_span,
+            e.kind == "SECRET",
+            &e.kind,
+        )
     {
         // The other rule owns the decision. Never give this occurrence permission to undo it.
         if rule["action"] == "mask" {
@@ -3586,11 +3597,12 @@ pub(crate) fn change_entry(
         match action {
             "approve" => {
                 let rules = crate::review::active_rules(st).map_err(internal)?;
-                if let Some(rule) = rules.covering(
+                if let Some(rule) = rules.covering_finding(
                     &entry.value,
                     &entry.quote,
                     entry.context_span,
                     entry.kind == "SECRET",
+                    &entry.kind,
                 ) {
                     if rule["action"] != "mask" {
                         return Err(bad(anyhow::anyhow!("rule_action_conflict")));

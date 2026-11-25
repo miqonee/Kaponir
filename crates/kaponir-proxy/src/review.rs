@@ -1,5 +1,6 @@
 //! Explicit, durable model review. Recommendations never mutate rules until the user applies them.
 pub(crate) mod coverage;
+pub(crate) mod paths;
 use crate::{
     Shared, learning,
     server::{ApiError, authorized, error, internal},
@@ -140,15 +141,21 @@ pub(crate) fn pending_count(st: &Shared, rules: &ActiveRules) -> anyhow::Result<
         let mut values = learning::pending_values(v, rules)?;
         for row in v.journal(Some("open"), i64::MAX as usize)? {
             if rules
-                .covering(
+                .covering_finding(
                     &row.value,
                     &row.context,
                     row.context_span,
                     row.category == "credential",
+                    &row.kind,
                 )
                 .is_none()
             {
-                values.insert(row.value);
+                values.insert(paths::pending_id(
+                    &row.kind,
+                    serde_json::from_value(json!(row.recommended_scope))
+                        .unwrap_or_else(|_| kaponir_core::s1::default_scope_for_kind(&row.kind)),
+                    &row.value,
+                ));
             }
         }
         Ok(values.len())
@@ -338,6 +345,7 @@ pub(crate) fn routes() -> Router<Shared> {
     Router::new()
         .route("/api/v1/ui/review", get(list))
         .route("/api/v1/ui/review/selection", post(selection))
+        .route("/api/v1/ui/review/path-prefix", post(paths::apply))
         .route("/api/v1/ui/jobs", get(jobs))
         .route("/api/v1/ui/review/jobs/{id}/retry", post(retry))
         .route("/api/v1/ui/review/jobs", post(submit))
@@ -601,11 +609,14 @@ pub(crate) struct Filters {
 }
 fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
     let all = items(st)?;
-    let snapshot = if let Some(id) = &q.snapshot {
-        Some(saved_selection(st, id)?.expanded(&HashSet::new()))
-    } else {
-        None
-    };
+    let saved = q
+        .snapshot
+        .as_deref()
+        .map(|id| saved_selection(st, id))
+        .transpose()?;
+    let snapshot = saved
+        .as_ref()
+        .map(|selection| selection.expanded(&HashSet::new()));
     let allowed = snapshot
         .as_ref()
         .map(|keys| keys.iter().map(String::as_str).collect::<HashSet<_>>());
@@ -638,7 +649,13 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
     let pending = all
         .iter()
         .filter(|i| matches!(i["state"].as_str(), Some("open" | "pending")))
-        .filter_map(|item| item["value"].as_str())
+        .map(|item| {
+            paths::pending_id(
+                item["kind"].as_str().unwrap_or_default(),
+                paths::scope(item),
+                item["value"].as_str().unwrap_or_default(),
+            )
+        })
         .collect::<HashSet<_>>()
         .len();
     let mut selected: Vec<_> = all
@@ -666,7 +683,7 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
                     .is_none_or(|id| item["job_id"] == *id)
                 && job_keys.as_ref().is_none_or(|set| set.contains(key))
                 && match q.status.as_deref() {
-                    Some("all") => true,
+                    Some("all" | "selection") => true,
                     Some("history") => !is_pending,
                     Some("proposals") => is_pending && item["proposal"]["declined"] == false,
                     _ => is_pending,
@@ -723,11 +740,22 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
             }
         }
     }
+    if q.status.as_deref() == Some("selection") {
+        let saved = saved.ok_or_else(|| anyhow::anyhow!("selection_expired"))?;
+        return Ok((pending, saved.for_masking(selected)));
+    }
     if let Some(keys) = snapshot {
         let order: HashMap<_, _> = keys.into_iter().enumerate().map(|(i, k)| (k, i)).collect();
         selected.sort_by_key(|item| order.get(item["key"].as_str().unwrap()).copied());
     }
     if !matches!(q.status.as_deref(), Some("all" | "history")) {
+        if q.status.as_deref() != Some("proposals")
+            && q.keys.is_none()
+            && q.job_id.is_none()
+            && q.learning_job.is_none()
+        {
+            selected = paths::group(selected);
+        }
         selected = group_values(selected);
         selected.sort_by_key(|item| (item["deferred_at"].is_u64(), item["deferred_at"].as_u64()));
     }
@@ -740,6 +768,10 @@ fn group_values(rows: Vec<Value>) -> Vec<Value> {
     let mut groups: Vec<Value> = Vec::new();
     for row in rows {
         let value = row["value"].as_str().unwrap_or_default();
+        if row["path_group"].is_object() {
+            groups.push(row);
+            continue;
+        }
         if let Some(index) = positions.get(value) {
             let first = &mut groups[*index];
             let mut keys = match first["occurrence_keys"].take() {
@@ -781,6 +813,10 @@ struct SavedSelection {
     keys: Vec<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     occurrences: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    path_targets: BTreeMap<String, Vec<String>>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    prefixes: BTreeMap<String, String>,
 }
 
 impl SavedSelection {
@@ -798,9 +834,52 @@ impl SavedSelection {
                         .collect(),
                 );
             }
+            if let Some(paths) = item["path_group"]["paths"].as_array() {
+                saved.prefixes.insert(
+                    key.clone(),
+                    item["path_group"]["prefix"].as_str().unwrap().to_owned(),
+                );
+                saved.path_targets.insert(
+                    key.clone(),
+                    paths
+                        .iter()
+                        .filter_map(|p| p["keys"][0].as_str().map(str::to_owned))
+                        .collect(),
+                );
+            }
             saved.keys.push(key);
         }
         saved
+    }
+
+    // A snapshot fixes both the selected rows and what each proposed rule would mask.
+    fn for_masking(&self, rows: Vec<Value>) -> Vec<Value> {
+        let mut by_key: HashMap<_, _> = rows
+            .into_iter()
+            .map(|r| (r["key"].as_str().unwrap().to_owned(), r))
+            .collect();
+        let mut selected = Vec::new();
+        for key in &self.keys {
+            let Some(first) = by_key.remove(key) else {
+                continue;
+            };
+            let mut members = vec![first];
+            if let Some(others) = self.occurrences.get(key) {
+                members.extend(others.iter().filter_map(|k| by_key.remove(k)));
+            }
+            if let Some(prefix) = self.prefixes.get(key) {
+                if members.iter().all(needs_decision) {
+                    selected.extend(
+                        paths::group(members)
+                            .into_iter()
+                            .filter(|r| r["path_group"]["prefix"] == *prefix),
+                    );
+                }
+            } else {
+                selected.extend(group_values(members));
+            }
+        }
+        selected
     }
 
     fn expanded(&self, excluded: &HashSet<&String>) -> Vec<String> {
@@ -829,6 +908,12 @@ async fn list(
     authorized(&st, &headers, true)?;
     let (pending, selected) = filtered(&st, &q).map_err(internal)?;
     let total = selected.len();
+    let model_count = total
+        + selected
+            .iter()
+            .filter_map(|row| row["path_group"]["paths"].as_array())
+            .map(|paths| paths.len() - 1)
+            .sum::<usize>();
     let snapshot =
         if q.stable == Some(true) && q.snapshot.is_none() && total > q.limit.unwrap_or(100) {
             let saved = SavedSelection::from_items(&selected);
@@ -908,8 +993,17 @@ async fn list(
     let capture_review = st
         .with_vault(|_, v| crate::dataset::capture_enabled(v))
         .map_err(internal)?;
+    let engine = st.engine();
+    let sample_id = if engine.policy().strategy("PATH") == kaponir_core::Strategy::Hmac {
+        kaponir_core::TokenId::Hash("a1b2c3".into())
+    } else {
+        kaponir_core::TokenId::Num(1)
+    };
+    let sample = engine
+        .codec()
+        .format("PATH", &sample_id, kaponir_core::TokenForm::Snake);
     Ok(Json(
-        json!({"capture_review":capture_review,"snapshot":snapshot,"items":page,"total":total,"pending":pending,"offset":offset,"limit":limit,"sources":sources,"jobs":jobs,"editable":st.control.is_some()}),
+        json!({"path_token_example":sample,"model_count":model_count,"capture_review":capture_review,"snapshot":snapshot,"items":page,"total":total,"pending":pending,"offset":offset,"limit":limit,"sources":sources,"jobs":jobs,"editable":st.control.is_some()}),
     ))
 }
 pub(crate) fn random_id() -> anyhow::Result<String> {
@@ -946,7 +1040,14 @@ async fn selection(
         &selection_record(&saved),
     )
     .map_err(internal)?;
-    Ok(Json(json!({"snapshot":id,"total":saved.keys.len()})))
+    let path_sizes: BTreeMap<_, _> = saved
+        .path_targets
+        .iter()
+        .map(|(key, paths)| (key, paths.len()))
+        .collect();
+    Ok(Json(
+        json!({"snapshot":id,"total":saved.keys.len(),"grouped":!saved.occurrences.is_empty(),"path_sizes":path_sizes}),
+    ))
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -956,6 +1057,8 @@ pub(crate) struct Selection {
     pub snapshot: Option<String>,
     #[serde(default)]
     pub excluded: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub prefixes: BTreeMap<String, String>,
 }
 
 impl Selection {
@@ -965,13 +1068,34 @@ impl Selection {
         include_occurrences: bool,
     ) -> anyhow::Result<Vec<Value>> {
         let excluded: HashSet<_> = self.excluded.iter().collect();
+        let mut prefixes = self.prefixes.clone();
         let keys = match self.snapshot.as_deref() {
             Some(id) => {
                 let saved = saved_selection(st, id)?;
                 if include_occurrences {
+                    for (key, prefix) in &saved.prefixes {
+                        if !excluded.contains(key)
+                            && let Some(records) = saved.occurrences.get(key)
+                        {
+                            for record in records {
+                                prefixes.insert(record.clone(), prefix.clone());
+                            }
+                        }
+                    }
                     saved.expanded(&excluded)
                 } else {
-                    saved.keys
+                    saved
+                        .keys
+                        .into_iter()
+                        .filter(|key| !excluded.contains(key))
+                        .flat_map(|key| {
+                            saved
+                                .path_targets
+                                .get(&key)
+                                .cloned()
+                                .unwrap_or_else(|| vec![key])
+                        })
+                        .collect()
                 }
             }
             None => self.keys.clone(),
@@ -984,8 +1108,17 @@ impl Selection {
         keys.into_iter()
             .filter(|key| !excluded.contains(key) && seen.insert(key.clone()))
             .map(|key| {
-                all.remove(&key)
-                    .ok_or_else(|| anyhow::anyhow!("entry_not_found"))
+                let mut row = all
+                    .remove(&key)
+                    .ok_or_else(|| anyhow::anyhow!("entry_not_found"))?;
+                if include_occurrences
+                    && let Some(prefix) = prefixes
+                        .get(&key)
+                        .and_then(|p| paths::selected_prefix(&row, p))
+                {
+                    row["dataset_prefix"] = json!(prefix);
+                }
+                Ok(row)
             })
             .collect()
     }

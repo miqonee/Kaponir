@@ -21,10 +21,12 @@ const reviewReasons = {
   job_not_found: "Задание пересмотра больше не хранится.",
   invalid_action: "Действие недоступно для этого состояния записи.",
   invalid_kind: "Выберите допустимый тип значения.",
+  path_group_changed: "Состав группы изменился. Обновите находки и проверьте каталог ещё раз.",
   invalid_scope: "Выберите контур правила.",
 };
 function reviewError(code) { return tr(reviewReasons[code] || learningErrors[code] || code); }
 function reviewState(item) {
+  if (item.document_rule?.path_prefix && item.value.startsWith(item.document_rule.path_prefix)) return tr("Скрывается начало пути");
   if (item.state === "rejected" && item.reason === "human_keep") return tr("Оставлено открытым");
   if (item.state === "covered") return tr(item.document_rule?.action === "keep" ? "Оставляется по правилу" : "Скрывается по правилу");
   return tr(({ open: "На проверку", pending: "На проверку", masked: "Создано правило маскирования", kept: "Создано исключение",
@@ -89,6 +91,7 @@ function activeReview(item) {
   return ReviewUI.activeJobs?.get(item.key);
 }
 function decisionStatus(item) {
+  if (item.path_group) return tr("Проверить общий каталог");
   if (!pendingFinding(item)) return reviewState(item);
   if (item.proposal_conflict) return tr("Предложения ИИ различаются");
   const job = activeReview(item);
@@ -121,7 +124,42 @@ function effectLabel(item, action, scope) {
 function datasetMark(item) {
   return tr(item.dataset_status === "checked" ? "Проверено в датасете" : "Черновик в датасете");
 }
+function pathGroupCounts(paths) {
+  const plural=new Intl.PluralRules(I18N.language);
+  const count=(n,labels)=>tr(labels[plural.select(n)] || labels.other,[number(n)]);
+  return [count(paths.length,{one:"{{0}} путь",few:"{{0}} пути",other:"{{0}} путей"}),
+    count(paths.reduce((n,p)=>n+p.count,0),{one:"{{0}} вхождение",few:"{{0}} вхождения",other:"{{0}} вхождений"})].join(" · ");
+}
+function pathGroupCard(item) {
+  const group=item.path_group;
+  const directory=h("select",{"aria-label":tr("Каталог для правила")},group.choices.map(prefix=>h("option",{value:prefix},prefix)));
+  const summary=h("p",{class:"hint","aria-live":"polite"}), examples=h("ul",{class:"path-examples",role:"list"});
+  const keys=()=>group.paths.filter(p=>p.value.startsWith(directory.value)).flatMap(p=>p.keys);
+  const separate=workButton("Разобрать по одному",async()=>{
+    const set=await api("/api/v1/ui/review/selection",{method:"POST",body:{status:"all",keys:keys().join(",")}});
+    openFindingSet(set);
+  },"secondary");
+  const apply=workButton("Скрывать этот каталог",()=>applyReview([{item,action:"mask",prefix:directory.value,
+    keys:keys(),scope:item.scope,kind:"PATH"}],true,null),"primary",!ReviewUI.data.editable);
+  const explanation=h("p",{class:"hint"},tr("Это правило заменяет выбранный каталог во всех путях, включая новые."));
+  function render() {
+    const prefix=directory.value, paths=group.paths.filter(p=>p.value.startsWith(prefix));
+    summary.textContent=pathGroupCounts(paths);
+    const sample=ReviewUI.data.path_token_example;
+    examples.replaceChildren(...paths.map(path=>h("li",{},h("code",{},h("mark",{class:"dialogue-mark masked"},sample),path.value.slice(prefix.length-1)),
+      path.count>1 ? h("small",{class:"hint"},"×"+number(path.count)) : null)));
+  }
+  directory.value=group.prefix; directory.onchange=render; render();
+  return h("article",{class:"panel review-card path-group-card","data-review-key":item.key},
+    h("header",{class:"decision-heading"},h("div",{class:"finding-meta"},kindLabel("PATH")," / ",scopeLabel(item.scope)),
+      h("h2",{tabindex:-1},tr("Общий каталог"))),
+    group.choices.length>1 ? h("label",{class:"field"},tr("Каталог для правила"),directory) : h("code",{class:"review-value"},group.prefix),
+    explanation,h("div",{class:"decision-actions"},apply,separate),
+    h("div",{class:"path-preview-heading"},h("h3",{},tr("Пример действия правила")),summary),examples);
+}
+
 function reviewCard(item) {
+  if (item.path_group) return pathGroupCard(item);
   const pending = pendingFinding(item), proposal = item.proposal, rec = item.recommendation;
   const ro = !ReviewUI.data.editable, currentJob = activeReview(item);
   const hasProposal = pending && proposal && !proposal.declined && !currentJob;
@@ -175,7 +213,18 @@ function reviewCard(item) {
     workButton("Отложить", () => applyReview([{item,action:"defer"}], true), "text-button", ro));
   if (primary.childElementCount) verdict.append(primary);
   if (!pending && item.in_dataset) verdict.append(h("p", {class:"hint"}, datasetMark(item)));
-  const excerpt = h("blockquote", {class:"candidate-fragment"}, candidateExcerpt(item.context,item.value,item.context_span));
+  const fragment=candidateExcerpt(item.context,item.value,item.context_span);
+  const prefix=item.document_rule?.path_prefix;
+  if (prefix) {
+    for (const mark of fragment.querySelectorAll("mark")) {
+      if (mark.textContent.startsWith(prefix)) {
+        const surface=mark.textContent, length=prefix.length-1;
+        mark.textContent=surface.slice(0,length); mark.after(surface.slice(length));
+      }
+    }
+    verdict.append(h("code",{},prefix));
+  }
+  const excerpt=h("blockquote",{class:"candidate-fragment"},fragment);
   const origin = h("div", {class:"origin-reading"});
   const fields = h("dl", {class:"origin-fields"});
   function field(label, value) { if (value) fields.append(h("dt", {}, tr(label)), h("dd", {}, value)); }
@@ -295,15 +344,25 @@ function clearPicking() {
 function picked(item) {return ReviewUI.snapshot ? !ReviewUI.excluded.has(item.key) : ReviewUI.selected.has(item.key);}
 function pickedCount() {return ReviewUI.snapshot ? ReviewUI.snapshot.total - ReviewUI.excluded.size : ReviewUI.selected.size;}
 async function selectedPayload(items, includeOccurrences = false) {
-  if (items) return {keys:items.map(i=>i.key)};
+  function explicit(rows) {
+    const keys=[],prefixes={};
+    for (const item of rows) {
+      if (includeOccurrences && item.path_group) {
+        for (const key of item.occurrence_keys) prefixes[key]=item.path_group.prefix;
+      }
+      keys.push(...(includeOccurrences ? item.occurrence_keys || [item.key] : item.path_group?.paths.map(p=>p.keys[0]) || [item.key]));
+    }
+    return Object.keys(prefixes).length ? {keys,prefixes} : {keys};
+  }
+  if (items) return explicit(items);
   if (ReviewUI.snapshot) return {snapshot:ReviewUI.snapshot.snapshot,excluded:[...ReviewUI.excluded]};
-  if (ReviewUI.selected.size) return {keys:includeOccurrences
-    ? [...ReviewUI.selected.values()].flatMap(item => item.occurrence_keys || [item.key]) : [...ReviewUI.selected.keys()]};
+  if (ReviewUI.selected.size) return explicit(ReviewUI.selected.values());
   if(ReviewUI.data?.snapshot)return {snapshot:ReviewUI.data.snapshot};
   const snapshot = await api("/api/v1/ui/review/selection",{method:"POST",body:reviewFilters()});
   return {snapshot:snapshot.snapshot};
 }
 function findingSource(item) {
+  if (item.path_group?.source_count>1) return tr("Источников · {{0}}",[number(item.path_group.source_count)]);
   if (item.event_id) return tr("Запрос {{0}}", [item.event_id]);
   return item.source || (item.session ? tr("Сессия · {{0}}",[item.session]) : null) || tr(item.origin === "detector" ? "Быстрый детектор" : "Фоновый анализ");
 }
@@ -383,7 +442,7 @@ function findingRow(item) {
   const row=h("tr",{class:picked(item)?"picked":"",onclick:e=>{
     if (!e.target.closest("button,input,label,a,select") && !e.target.closest("td:first-child") && window.getSelection()?.isCollapsed) showFinding(item);
   }},h("td",{},h("label",{class:"row-check"},checkbox)),
-    h("td",{},record,item.occurrence_keys ? h("small",{class:"hint"},tr("Вхождений · {{0}}",[number(item.occurrence_keys.length)])) : null,h("small",{class:"mobile-source"},findingSource(item))),
+    h("td",{},record,item.path_group ? h("small",{class:"hint"},pathGroupCounts(item.path_group.paths)) : item.occurrence_keys ? h("small",{class:"hint"},tr("Вхождений · {{0}}",[number(item.occurrence_keys.length)])) : null,h("small",{class:"mobile-source"},findingSource(item))),
     h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(rule?.kind && rule.kind !== "KEEP" ? rule.kind : item.kind), " / ",
       h("span",{class:"hint"},withoutRule ? tr("Без правила") : scope ? scopeLabel(scope) : tr("Область не задана"))),
     h("td",{},h("span",{class:"table-verdict", "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),item.deferred_at ? h("small",{class:"hint"},tr("Отложено")) : null,item.in_dataset?h("small",{class:"hint"},datasetMark(item)):null));
@@ -445,6 +504,13 @@ function renderReviewSelection() {
   const data=ReviewUI.data, panel=$("#review-selection"), quick=$("#review-quick-actions");
   if(!data)return;
   const selected=pickedCount(), count=selected || data.total, busy=ReviewUI.busy || !info.editable;
+  let modelCount=data.model_count ?? count;
+  if (selected) {
+    const sizes=ReviewUI.snapshot
+      ? Object.entries(ReviewUI.snapshot.path_sizes || {}).filter(([key])=>!ReviewUI.excluded.has(key)).map(([,size])=>size)
+      : [...ReviewUI.selected.values()].filter(item=>item.path_group).map(item=>item.path_group.paths.length);
+    modelCount=selected+sizes.reduce((sum,size)=>sum+size-1,0);
+  }
   panel.hidden=!selected || !data.total;
   quick.hidden=!data.total;
   const sources=(data.sources||[]).filter(s=>s.provider!=="none");
@@ -477,10 +543,10 @@ function renderReviewSelection() {
     const label = manualCount && (!ReviewUI.snapshot || ReviewUI.view === "pending")
       ? tr("Создать правила маскирования · {{0}}", [manualCount]) : tr("Создать правила маскирования");
     if (selected) controls.append(batchButton(label, manualCount === selected ? tr("Скрыть") : label, maskSelectedFindings, "primary", busy || !manualCount));
-    if (source) controls.append(batchButton(tr(selected ? "Проверить моделью · {{0}}" : "Проверить моделью все {{0}}", [count]),
+    if (source) controls.append(batchButton(tr(selected || modelCount!==count ? "Проверить моделью · {{0}}" : "Проверить моделью все {{0}}", [modelCount]),
       tr("Проверить моделью"), () => requestReview(), manualCount ? "secondary" : "primary", busy));
   }
-  controls.append(batchButton(tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload(null, true)),"secondary",busy));
+  controls.append(batchButton(modelCount!==count ? tr("Добавить примеры в датасет") : tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload(null, true)),"secondary",busy));
   quick.replaceChildren();
   if(!ReviewUI.snapshot && data.total>selected)quick.append(workButton(tr("Выбрать все {{0}} по фильтру",[data.total]),async()=>{
     const version = ReviewUI.selectionVersion;
@@ -574,8 +640,8 @@ async function maskSelectedFindings() {
   if (snapshot) {
     const version = ReviewUI.selectionVersion, excluded = new Set(ReviewUI.excluded);
     items = [];
-    for (let offset = 0; offset < snapshot.total; offset += 250) {
-      const params = new URLSearchParams({snapshot: snapshot.snapshot, status: "all", offset, limit: 250});
+    for (let offset = 0; ; offset += 250) {
+      const params = new URLSearchParams({snapshot:snapshot.snapshot,status:snapshot.grouped?"selection":"all",offset,limit:250});
       const page = await api("/api/v1/ui/review?" + params);
       if (location.hash !== "#review" || version !== ReviewUI.selectionVersion || snapshot !== ReviewUI.snapshot) return;
       items.push(...page.items.filter(item => pendingFinding(item) && !excluded.has(item.key)));
@@ -627,7 +693,7 @@ async function applyReview(entries, fromCard = false, seen = fromCard ? displaye
   for (const entry of entries) {
     const item = entry.item;
     try {
-      const result = await api(`/api/v1/ui/review/${item.origin}/${encodeURIComponent(item.id)}/${entry.action}`, {
+      const result = item.path_group && entry.action==="mask" ? await api("/api/v1/ui/review/path-prefix",{method:"POST",body:{keys:entry.keys || item.occurrence_keys,prefix:entry.prefix || item.path_group.prefix,scope:item.scope}}) : await api(`/api/v1/ui/review/${item.origin}/${encodeURIComponent(item.id)}/${entry.action}`, {
         method:"POST", body:{kind:entry.kind, scope:entry.scope, proposal_id:entry.proposal_id,
           occurrences:item.occurrence_keys, seen_excerpt:seen}});
       checked += result.dataset?.checked || 0;

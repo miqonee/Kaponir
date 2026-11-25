@@ -41,6 +41,15 @@ fn boundary_ok(text: &str, start: usize) -> bool {
     }
 }
 
+// Other recognizers and explicit rules still examine the complete input.
+fn reviewed_directory(lex: &Lexicon, path: &str, separator: char) -> bool {
+    !lex.reviewed_directories.is_empty()
+        && kaponir_core::rules::unambiguous_path(path, separator)
+        && path
+            .match_indices(separator)
+            .any(|(i, _)| lex.reviewed_directories.contains(&path[..i + 1]))
+}
+
 fn segments(
     lex: &Lexicon,
     text: &str,
@@ -288,7 +297,9 @@ impl Recognizer for Paths {
             if !has_dot_or_tilde && (seg_count < 2 || !raw.is_ascii()) {
                 continue;
             }
-            segments(lex, text, m.start(), m.end(), '/', out);
+            if !reviewed_directory(lex, raw, '/') {
+                segments(lex, text, m.start(), m.end(), '/', out);
+            }
             covered.push((m.start(), m.end()));
         }
         for m in self.relative.find_iter(text) {
@@ -309,7 +320,9 @@ impl Recognizer for Paths {
         }
         for m in self.windows.find_iter(text) {
             let s = m.start() + 3;
-            if s < m.end() {
+            if s < m.end()
+                && !(boundary_ok(text, m.start()) && reviewed_directory(lex, m.as_str(), '\\'))
+            {
                 segments(lex, text, s, m.end(), '\\', out);
             }
         }
@@ -392,6 +405,22 @@ mod tests {
             2,
             "{f:?}"
         );
+    }
+
+    #[test]
+    fn only_unambiguous_suffixes_in_the_reviewed_directory_skip_path_heuristics() {
+        let mut lexicon = lex();
+        lexicon.reviewed_directories.insert("/home/alice/".into());
+        let recognizer = Paths::new();
+        for (path, ordinary) in [
+            ("/home/alice/customer-schedule.txt", true),
+            ("/home/alice/../bob/customer-schedule.txt", false),
+            ("/home/alice/one.txt,/home/bob/customer-schedule.txt", false),
+        ] {
+            let mut found = Vec::new();
+            recognizer.analyze(&Input::text(path), &AnalyzeCtx::new(&lexicon), &mut found);
+            assert_eq!(found.is_empty(), ordinary, "{path}");
+        }
     }
 
     #[test]

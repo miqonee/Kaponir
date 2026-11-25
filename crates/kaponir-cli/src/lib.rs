@@ -756,7 +756,7 @@ pub fn build_engine(
     }
     if !rules.is_empty() {
         for set in rules {
-            b = b.lexicon(&set.file.lexicon());
+            b = b.lexicon(&set.lexicon());
         }
         b = b.recognizer(Box::new(kaponir_recognizers::RulesRecognizer::new(rules)?));
     }

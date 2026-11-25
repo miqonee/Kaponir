@@ -622,6 +622,7 @@ pub fn profile_categories() -> HashMap<&'static str, Category> {
         ("CLIENT", Category::Custom),
         ("ID", Category::Custom),
         ("PROJ", Category::Infra),
+        ("PATH", Category::Infra),
         ("AMOUNT", Category::Financial),
         ("SECRET", Category::Credential),
         ("PERSON", Category::Identity),

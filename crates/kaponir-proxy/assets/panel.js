@@ -606,40 +606,80 @@ function renderEventViews() {
     (target || $("#events-refresh")).focus({ preventScroll: true });
   }
 }
-async function openInspector(id, initialTab = null) {
+function inspectorComparison(insp,usage,response) {
+  const pairs=response ? sessionReplyRanges(insp,usage) : sessionMaskRanges(insp.original_request || "",insp.masked_request || "",usage.masked_items);
+  const original=pairs.map(r=>({...r,label:response ? "Восстановлено для клиента" : "Скрыто при передаче"}));
+  const tokens=pairs.map(r=>({start:r.otherStart,end:r.otherEnd,masked:true,label:"Токен поставщика"}));
+  function pane(title,value,ranges) {
+    const pre=h("pre",{tabindex:0,"aria-label":tr(title)});
+    const tools=h("div",{class:"inspector-pane-tools"});
+    const copyButton=workButton("Копировать",async()=>{await copy(pre.textContent);toast(tr("Скопировано"));},"small ghost");
+    tools.append(copyButton);
+    function render(text,marks) {
+      copyButton.disabled=!text;
+      pre.replaceChildren(text ? markedDialogue(text,marks) : tr("Нет данных"));
+    }
+    render(value,ranges);
+    return {pre,tools,render,section:h("section",{class:"inspector-pane"},
+      h("div",{class:"inspector-pane-head"},h("span",{},tr(title)),tools),pre)};
+  }
+  const left=response ? pane("Ответ поставщика",insp.raw_response,tokens) : pane("Исходный запрос",insp.original_request,original);
+  const right=response ? pane("Возвращено клиенту",insp.restored_response,original) : pane("Отправлено поставщику",insp.masked_request,tokens);
+  const sync=h("input",{type:"checkbox",checked:localStorage.getItem("inspector-sync-scroll")!=="off"});
+  const expected=new WeakMap();
+  function align(from,to) {
+    const distance=from.scrollHeight-from.clientHeight;
+    if (!sync.checked || sync.disabled || distance<=0) return;
+    to.scrollTop=(to.scrollHeight-to.clientHeight)*from.scrollTop/distance;
+    expected.set(to,to.scrollTop);
+  }
+  for (const [from,to] of [[left.pre,right.pre],[right.pre,left.pre]]) {
+    from.addEventListener("scroll",()=>{
+      const target=expected.get(from);
+      expected.delete(from);
+      if (target==null || Math.abs(from.scrollTop-target)>1) align(from,to);
+    },{passive:true});
+  }
+  sync.onchange=()=>{localStorage.setItem("inspector-sync-scroll",sync.checked?"on":"off");align(left.pre,right.pre);};
+  const missing=!(response ? insp.raw_response && insp.restored_response : insp.original_request && insp.masked_request);
+  sync.disabled=missing;
+  const clear=response ? insp.restored_response : insp.original_request, wire=response ? insp.raw_response : insp.masked_request;
+  const last=pairs.at(-1);
+  const incomplete=!missing && clear.slice(last?.end || 0)!==wire.slice(last?.otherEnd || 0);
+  const caption=incomplete ? tr(pairs.length ? "В сохранённом тексте удалось сопоставить только часть замен." : "Для подсветки нужны сведения о заменах из этого события.") :
+    !pairs.length ? tr("Сохранённые тексты совпадают.") : tr(response ? "Подчёркнуты токены и восстановленные значения." : "Подчёркнуты скрытые значения и их токены.");
+  const explanation=h("span",{class:"hint"},caption);
+  explanation.hidden=missing;
+  if (!response && insp.masked_payload_json) {
+    let raw=false;
+    const toggle=h("button",{type:"button",class:"small secondary","aria-pressed":"false",onclick:()=>{
+      raw=!raw;
+      toggle.setAttribute("aria-pressed",String(raw)); toggle.textContent=tr(raw?"Текст":"JSON");
+      right.render(raw ? insp.masked_payload_json : insp.masked_request,raw ? [] : tokens);
+      sync.disabled=missing || raw;
+      explanation.hidden=raw || missing;
+      if (!raw) align(left.pre,right.pre);
+    }},"JSON");
+    right.tools.prepend(toggle);
+  }
+  return h("div",{class:"inspector-comparison"},h("div",{class:"comparison-options"},explanation,
+    h("label",{class:"check"},sync,tr("Синхронная прокрутка"))),h("div",{class:"inspector-panes"},left.section,right.section));
+}
+
+async function openInspector(id, initialTab = null, target = null) {
   try {
     const ev = await api("/api/v1/ui/events/" + id),
       insp = ev.inspector || {},
       dlg = $("#inspector-dialog");
     const nav = h("div", { class: "section-tabs inspector-tabs" }),
       body = h("div", { class: "inspector-body" });
-    const pane = (title, value) =>
-      h(
-        "section",
-        { class: "inspector-pane" },
-        h(
-          "div",
-          { class: "inspector-pane-head" },
-          h("span", {}, tr(title)),
-          h(
-            "button",
-            {
-              class: "small ghost",
-              onclick: () =>
-                copy(value || "").then(() => toast(tr("Скопировано"))),
-            },
-            tr("Копировать"),
-          ),
-        ),
-        h("pre", {}, value || tr("Нет данных")),
-      );
     const tabs = {
       review: () => {
         const reasons = ev.review_reasons || [], nodes = [];
         const titles = reviewReasonLabels;
         for (const reason of reasons) {
           const tokens = reason.code === "unknown_restore_token" ? ev.usage?.unknown_tokens : reason.code === "restore_access_denied" ? ev.usage?.denied_tokens : null;
-          nodes.push(h("article", { class: "panel review-card" }, h("strong", {}, tr(titles[reason.code] || reason.code)),
+          nodes.push(h("article", { class: "panel review-card", tabindex:-1,"data-review-reason":reason.code }, h("strong", {}, tr(titles[reason.code] || reason.code)),
             h("p", {}, tr("Значений: {{0}}", [reason.count]), " · ", tr(reason.state === "resolved" ? "Проверка закрыта" : "Требует проверки")),
             reason.code === "legacy_uncertain" ? h("p", { class: "hint" }, tr("Старая версия сохранила число спорных решений, но не их связи с этим событием.")) : null,
             tokens?.length ? h("p", { class: "mono" }, tokens.join(" · ")) : null,
@@ -647,49 +687,15 @@ async function openInspector(id, initialTab = null) {
             reason.code === "unknown_restore_token" ? h("p", { class: "hint" }, tr("Для токена нет соответствия в Vault. Проверьте исходную сессию, хранилище и ответ поставщика.")) : null,
             reason.keys?.length ? h("button", { class: "secondary", onclick: () => { dlg.close(); showReview(reason.keys, reason.state === "resolved" ? "history" : "pending"); } }, tr("Открыть связанные решения")) : null));
         }
-        for (const reference of ev.usage?.review_items || []) nodes.push(h("div", { class: "review-card" },
+        for (const [index,reference] of (ev.usage?.review_items || []).entries()) nodes.push(h("div", { class: "review-card", tabindex:-1, "data-ref-index":index },
           h("code", {}, reference.value), h("p", {}, `${kindLabel(reference.kind)} · ${tr("Оценка детектора")}: ${(reference.probability * 100).toFixed(1)}%`),
           h("p", { class: "hint" }, tr(reference.applied === "mask" ? "В этом запросе значение замаскировано по политике." : "В этом запросе значение осталось в тексте.")),
           h("blockquote", { class: "candidate-fragment" }, candidateExcerpt(reference.context, reference.value, reference.context_span))));
         if (ev.error) nodes.push(h("div", { class: "event-error-banner" }, h("strong", {}, ev.error.kind), h("p", {}, ev.error.message)));
         body.replaceChildren(...(nodes.length ? nodes : [h("p", { class: "hint" }, tr("Причин для проверки не зарегистрировано"))]));
       },
-      request: () => {
-        let raw = false;
-        const right = pane("Отправлено поставщику", insp.masked_request);
-        const toggle = h(
-          "button",
-          {
-            class: "small secondary",
-            onclick: () => {
-              raw = !raw;
-              right.querySelector("pre").textContent =
-                (raw ? insp.masked_payload_json : insp.masked_request) ||
-                tr("Нет данных");
-              toggle.textContent = tr(raw ? "Текст" : "JSON");
-            },
-          },
-          "JSON",
-        );
-        right.querySelector(".inspector-pane-head").append(toggle);
-        body.replaceChildren(
-          h(
-            "div",
-            { class: "inspector-panes" },
-            pane("Исходный запрос", insp.original_request),
-            right,
-          ),
-        );
-      },
-      response: () =>
-        body.replaceChildren(
-          h(
-            "div",
-            { class: "inspector-panes" },
-            pane("Ответ поставщика", insp.raw_response),
-            pane("Возвращено клиенту", insp.restored_response),
-          ),
-        ),
+      request: () => body.replaceChildren(inspectorComparison(insp,ev.usage || {},false)),
+      response: () => body.replaceChildren(inspectorComparison(insp,ev.usage || {},true)),
       replacements: () => {
         const items = ev.usage?.masked_items || [];
         body.replaceChildren(
@@ -856,6 +862,12 @@ async function openInspector(id, initialTab = null) {
     );
     select(initialTab || (hasIssue(ev) ? "review" : "request"));
     if (!dlg.open) dlg.showModal();
+    const record=Number.isInteger(target) ? body.querySelector('[data-ref-index="'+target+'"]') :
+      [...body.querySelectorAll("[data-review-reason]")].find(node=>node.dataset.reviewReason===target);
+    if (record) {
+      record.focus({preventScroll:true});
+      record.scrollIntoView({block:"center"});
+    }
   } catch (e) {
     fail(e);
   }

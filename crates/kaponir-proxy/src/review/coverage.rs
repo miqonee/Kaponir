@@ -26,7 +26,8 @@ impl ActiveRules {
                 let slot = rules.len();
                 rules.push(json!({
                     "id": rule.id, "scope": set.scope, "index": index,
-                    "action": rule.action, "kind": rule.kind, "literal": rule.value.is_some()
+                    "action": rule.action, "kind": rule.kind, "literal": rule.value.is_some(),
+                    "path_prefix": rule.directory_prefix(set.scope)
                 }));
                 // IDs in user-managed files can be empty or reused. Keep the exact UI address.
                 rule.id = slot.to_string();
@@ -48,6 +49,17 @@ impl ActiveRules {
         context: &str,
         span: Option<[usize; 2]>,
         protected: bool,
+    ) -> Option<&Value> {
+        self.covering_finding(value, context, span, protected, "")
+    }
+
+    pub(crate) fn covering_finding(
+        &self,
+        value: &str,
+        context: &str,
+        span: Option<[usize; 2]>,
+        protected: bool,
+        kind: &str,
     ) -> Option<&Value> {
         if self.rules.is_empty() || value.is_empty() {
             return None;
@@ -72,7 +84,10 @@ impl ActiveRules {
             _ => None,
         };
         candidates.retain(|c| {
-            (has_excerpt || address(c).is_some_and(|r| r["literal"] == true))
+            (has_excerpt
+                || address(c).is_some_and(|r| {
+                    r["literal"] == true || (kind == "PATH" && r["path_prefix"].is_string())
+                }))
                 && (c.polarity != Polarity::Keep || !protected || c.origin.is_enforced())
         });
         let effective = Engine::resolve_rule_matches(candidates);
@@ -81,9 +96,16 @@ impl ActiveRules {
                 .iter()
                 .find(|c| c.polarity == Polarity::Mask && c.start < end && start < c.end)
             {
-                return (mask.start <= start && end <= mask.end)
-                    .then(|| address(mask))
-                    .flatten();
+                let rule = address(mask)?;
+                let prefix = rule["path_prefix"].as_str();
+                let directory = kind == "PATH"
+                    && mask.start == start
+                    && prefix.is_some_and(|p| {
+                        super::paths::directories(value).contains(&p)
+                            && mask.end == start + p.len() - 1
+                            && mask.end < end
+                    });
+                return (mask.start <= start && end <= mask.end || directory).then_some(rule);
             }
             let keep = effective
                 .iter()
@@ -105,7 +127,7 @@ impl ActiveRules {
     pub(crate) fn project(&self, item: &mut Value) {
         let previous_conflict = item["state"] == "conflict" && item["reason"] == "existing_rule";
         let protected = item["protected"] == true || item["kind"] == "SECRET";
-        let rule = self.covering(
+        let rule = self.covering_finding(
             item["value"].as_str().unwrap_or_default(),
             item["context"]
                 .as_str()
@@ -113,6 +135,7 @@ impl ActiveRules {
                 .unwrap_or_default(),
             serde_json::from_value(item["context_span"].clone()).ok(),
             protected,
+            item["kind"].as_str().unwrap_or_default(),
         );
         if let Some(rule) = rule {
             item["document_rule"] = rule.clone();

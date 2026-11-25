@@ -241,8 +241,30 @@ pub enum Escape {
     Json,
 }
 
+/// Transport spelling and output width of an actual restoration, without storing the secret.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RestoreMark {
+    pub token: String,
+    pub restored_utf16: usize,
+}
+
+impl RestoreMark {
+    pub fn merge(into: &mut Vec<Self>, items: impl IntoIterator<Item = Self>) {
+        for item in items {
+            if into.len() >= 128 {
+                break;
+            }
+            if !into.contains(&item) {
+                into.push(item);
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Restored {
+    #[serde(skip)]
+    pub marks: Vec<RestoreMark>,
     pub text: String,
     pub restored: usize,
     /// Похожие на токен строки без записи в vault.
@@ -1140,7 +1162,17 @@ impl Engine {
                         continue;
                     }
                     out.push_str(&text[pos..a]);
+                    let start = out.len();
                     push_escaped(&mut out, &res.original, escape);
+                    if r.marks.len() < 128 {
+                        RestoreMark::merge(
+                            &mut r.marks,
+                            [RestoreMark {
+                                token: text[a..b].to_owned(),
+                                restored_utf16: out[start..].encode_utf16().count(),
+                            }],
+                        );
+                    }
                     pos = b;
                     r.restored += 1;
                     r.known.push(Known {
@@ -1184,7 +1216,17 @@ impl Engine {
                             end += suffix.len();
                         }
                     }
+                    let start = out.len();
                     push_escaped(&mut out, &value, escape);
+                    if r.marks.len() < 128 {
+                        RestoreMark::merge(
+                            &mut r.marks,
+                            [RestoreMark {
+                                token: text[m.start..end].to_owned(),
+                                restored_utf16: out[start..].encode_utf16().count(),
+                            }],
+                        );
+                    }
                     pos = end;
                     r.restored += 1;
                     let form = if text[m.start..m.end].contains('_') {
@@ -1323,6 +1365,7 @@ impl StreamRestorer {
         self.stats.unknown.extend(r.unknown);
         self.stats.denied.extend(r.denied);
         self.stats.known.extend(r.known);
+        RestoreMark::merge(&mut self.stats.marks, r.marks);
         Ok(r.text)
     }
 

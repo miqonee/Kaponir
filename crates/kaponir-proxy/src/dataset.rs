@@ -303,7 +303,7 @@ async fn collect(
                 let mut members = Vec::new();
                 for item in &items {
                     let key = finding_id(item);
-                    values.insert(item["value"].as_str().unwrap_or_default());
+                    values.insert(training_value(item));
                     members.push(key.clone());
                     match read(vault, &key)? {
                         None => {
@@ -318,6 +318,7 @@ async fn collect(
                             {
                                 let mut row = old;
                                 row["spans"] = draft["spans"].clone();
+                                row["value"] = draft["value"].clone();
                                 row["kind"] = draft["kind"].clone();
                                 row["updated"] = json!(now_ms());
                                 row["revision"] = json!(row["revision"].as_u64().unwrap_or(1) + 1);
@@ -344,6 +345,17 @@ async fn collect(
         .map_err(bad)?;
     Ok(summary(&result))
 }
+// Ground the full original first so two filenames with the same directory remain distinguishable.
+fn training_value(item: &Value) -> &str {
+    let value = item["value"].as_str().unwrap_or_default();
+    item["document_rule"]["path_prefix"]
+        .as_str()
+        .or(item["dataset_prefix"].as_str())
+        .filter(|prefix| item["kind"] == "PATH" && value.starts_with(prefix))
+        .map(|p| p.trim_end_matches(['/', '\\']))
+        .unwrap_or(value)
+}
+
 fn draft_example(id: &str, collection: &str, item: &Value) -> Value {
     let value = item["value"].as_str().unwrap_or_default();
     let text = item["context"]
@@ -365,6 +377,16 @@ fn draft_example(id: &str, collection: &str, item: &Value) -> Value {
             (!value.is_empty() && text.matches(value).count() == 1)
                 .then_some([start, start + value.len()])
         });
+    let value = training_value(item);
+    let range = range.and_then(|[start, end]| {
+        if item["document_rule"]["path_prefix"].is_string() || item["dataset_prefix"].is_string() {
+            text.get(start..end)?
+                .starts_with(value)
+                .then_some([start, start + value.len()])
+        } else {
+            Some([start, end])
+        }
+    });
     let decision = &item["decision"];
     let rule = &item["document_rule"];
     let resolved = match item["state"].as_str() {
@@ -439,6 +461,7 @@ pub(crate) fn capture_finding(
         span["action"] = json!(action);
         row["spans"] = json!([span]);
         row["kind"] = json!(kind);
+        row["value"] = grounded["value"].clone();
         row["label_source"] = json!("finding");
         if seen && item["context"].as_str().is_some_and(|s| !s.is_empty()) && validate(&row).is_ok()
         {

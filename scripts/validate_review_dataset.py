@@ -175,6 +175,85 @@ def exercise(page, api, base):
         raise AssertionError('a stale model binding was accepted')
 
 
+def seed_path_group(api):
+    root = '/home/group.demo/alice.smith/'
+    suffixes = ['.local/bin/tool', 'IdeaProjects/bucket-remover/recreate_buckets.sh', 'IdeaProjects/bucket-remover/buckets.txt']
+    for i, suffix in enumerate([*suffixes, suffixes[-1]]):
+        path = root + suffix
+        text = f'📁 Фрагмент {i+1}. Read file {path}, lines 1–32.'
+        api('/api/v1/ui/discover', {'remember': True, 'documents': [
+            {'name': f'path-{i}.md', 'text': text, 'model_candidates': [{'value': path, 'kind': 'PATH', 'quote': text}]}]})
+    return root, suffixes
+
+
+def check_path_group(page, api, base):
+    root, suffixes = seed_path_group(api)
+    review = '/api/v1/ui/review'
+    def query(status):
+        return api(review+'?'+urlencode({'status':status,'q':root,'kind':'PATH'}))
+    group = next(row for row in query('pending')['items'] if row.get('path_group'))
+    paths = group['path_group']['paths']
+    assert sorted(p['value'] for p in paths) == sorted(root+s for s in suffixes), paths
+    assert sum(p['count'] for p in paths) == 4 and len(group['occurrence_keys']) == 4
+    assert group['path_group']['prefix'] == root
+    saved = api(review+'/selection', {'status':'pending','q':root,'kind':'PATH'})
+    assert saved['grouped'] and saved['total'] == 1
+    frozen = api(review+'?'+urlencode({'snapshot':saved['snapshot'],'status':'selection'}))
+    assert frozen['items'][0]['path_group']['prefix'] == root
+    draft = api('/api/v1/ui/dataset/collect', {'snapshot':saved['snapshot'],'request_id':'path-prefix-drafts'})
+    assert draft['added'] == 1 and draft['new_occurrences'] == 4, draft
+    try:
+        api(review+'/path-prefix', {'prefix':'/home/','keys':group['occurrence_keys'],'scope':group['scope']})
+    except HTTPError as exc:
+        assert exc.code == 400
+    else:
+        raise AssertionError('accepted a generic root')
+    page.goto(base+'/ui/#review')
+    page.reload()
+    page.locator('#review-query').fill(root)
+    def open_group():
+        page.locator('#review-list').get_by_role('button', name=root, exact=True).click()
+    open_group()
+    card = page.locator('#finding-detail')
+    expect(card.locator('.path-examples li')).to_have_count(3)
+    card.get_by_label('Каталог для правила').select_option(root+'IdeaProjects/bucket-remover/')
+    expect(card.locator('.path-examples li')).to_have_count(2)
+    card.get_by_role('button', name='Разобрать по одному').click()
+    expect(page.locator('#review-list')).to_contain_text('buckets.txt')
+    expect(page.locator('#review-list')).not_to_contain_text('.local/bin/tool')
+    page.goto(base+'/ui/#review')
+    page.reload()
+    page.locator('#review-query').fill(root)
+    open_group()
+    page.locator('#review-capture').check()
+    card.get_by_role('button', name='Скрывать этот каталог').click()
+    wait_for(lambda: not any(row.get('path_group') for row in query('pending')['items']))
+    history = [r for r in query('history')['items'] if r.get('document_rule',{}).get('path_prefix') == root]
+    assert len(history) == 4, history
+    assert len({row['document_rule']['id'] for row in history}) == 1
+    for row in history:
+        example = api('/api/v1/ui/dataset?'+urlencode({'example':row['dataset_id']}))['items'][0]
+        span = example['spans'][0]
+        assert example['status'] == 'draft' and example['value'] == root[:-1]
+        assert span['action'] == 'mask' and example['text'].encode()[span['start_byte']:span['end_byte']].decode() == root[:-1]
+    replay = api(review+'/path-prefix', {'prefix':root,'keys':group['occurrence_keys'],'scope':group['scope']})
+    assert replay['already_covered']
+    future = root+'notes/tomorrow.txt'
+    masked = api('/api/v1/anonymize', {'text':future,'session':'directory-check'})['text']
+    assert masked.endswith('/notes/tomorrow.txt') and root[:-1] not in masked, masked
+    assert api('/api/v1/deanonymize', {'text':masked,'session':'directory-check'})['text'] == future
+    api('/api/v1/rules', {'scope':'team','rule':{'kind':'PROJ','id':'independent-project','value':'PrivateSuffix'}})
+    independent = api('/api/v1/anonymize', {'text':root+'notes/PrivateSuffix.txt','session':'independent'})['text']
+    assert 'PrivateSuffix' not in independent and '/notes/' in independent, independent
+    lookalike = root[:-1]+'-other/notes/tomorrow.txt'
+    unrelated = api('/api/v1/anonymize', {'text':lookalike,'session':'lookalike'})['text']
+    assert not unrelated.startswith(masked.split('/')[0]+'/'), unrelated
+    active = history[0]['document_rule']
+    api(f"/api/v1/rules/{active['scope']}/{active['index']}", method='DELETE')
+    assert any(row.get('path_group') for row in query('pending')['items'])
+
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary', type=Path)
@@ -198,12 +277,13 @@ def main():
                 errors = []
                 page.on('pageerror', lambda error: errors.append(str(error)))
                 exercise(page, api, base)
+                check_path_group(page, api, base)
                 assert not errors, errors
                 browser.close()
         finally:
             proc.terminate()
             proc.wait()
-    print('Verified opt-in, grounded decisions, deferral, untouched repeats, historical collection and shared search settings.')
+    print('Verified dataset capture and backfill, directory grouping, individual review, scoped masking, replay and undo.')
 
 
 if __name__ == '__main__':

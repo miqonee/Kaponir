@@ -49,6 +49,51 @@ pub struct Rule {
     pub note: String,
 }
 
+/// Traversal and joined expressions do not describe a single reviewed directory tree.
+pub fn unambiguous_path(path: &str, separator: char) -> bool {
+    let doubled = if separator == '/' { "//" } else { r"\\" };
+    !path.contains(doubled)
+        && !path
+            .split(separator)
+            .any(|part| matches!(part, "." | "..") || part.ends_with([',', '=']))
+}
+
+impl Rule {
+    /// A component-bounded self. Capture just the directory so restoration retains the separator.
+    pub fn for_directory(prefix: &str, scope: Scope) -> Option<Self> {
+        if prefix.len() < 2 || !prefix.ends_with(['/', '\\']) {
+            return None;
+        }
+        let (directory, sep) = prefix.split_at(prefix.len() - 1);
+        let digest = blake3::hash(format!("{}\0{prefix}", scope.as_str()).as_bytes()).to_hex();
+        Some(Self {
+            id: format!("path-prefix-{}", &digest[..24]),
+            kind: "PATH".into(),
+            case_sensitive: true,
+            regex: Some(format!(
+                r"(?:^|[^\p{{L}}\p{{N}}_./\\-])({}){}",
+                regex::escape(directory),
+                regex::escape(sep)
+            )),
+            note: prefix.to_owned(),
+            ..Rule::default()
+        })
+    }
+
+    pub fn directory_prefix(&self, scope: Scope) -> Option<&str> {
+        if !self.id.starts_with("path-prefix-")
+            || self.kind != "PATH"
+            || self.action != RuleAction::Mask
+            || !self.case_sensitive
+            || !self.note.ends_with(['/', '\\'])
+        {
+            return None;
+        }
+        let expected = Self::for_directory(&self.note, scope)?;
+        (self.id == expected.id && self.regex == expected.regex).then_some(&self.note)
+    }
+}
+
 fn default_kind() -> String {
     "CUSTOM".into()
 }
@@ -98,4 +143,19 @@ impl RuleFile {
 pub struct ScopedRules {
     pub scope: Scope,
     pub file: RuleFile,
+}
+
+impl ScopedRules {
+    pub fn lexicon(&self) -> Lexicon {
+        let mut lexicon = self.file.lexicon();
+        lexicon.reviewed_directories.extend(
+            self.file
+                .rules
+                .iter()
+                .filter(|r| !r.disabled)
+                .filter_map(|r| r.directory_prefix(self.scope))
+                .map(str::to_owned),
+        );
+        lexicon
+    }
 }

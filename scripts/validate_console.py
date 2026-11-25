@@ -5,6 +5,7 @@ python3 scripts/validate_console.py target/debug/kaponir --output artifacts/cons
 No external models or provider accounts are used.
 """
 import argparse
+import re
 import json
 import os
 from pathlib import Path
@@ -120,6 +121,60 @@ def check_session_conversation(page, api, session_id, output):
     expect(page.locator('#page-title')).to_have_text('Сессии')
 
 
+def check_session_inspector(page, api, base):
+    from playwright.sync_api import expect
+    session = {'X-Kaponir-Session':'inspector-regression'}
+    api('/api/v1/rules', {'scope':'team','rule':{'kind':'PROJ','value':'InspectorProject'}})
+    source = 'Проверка InspectorProject.\n' + '\n'.join(f'Строка {i} отчёта.' for i in range(70))
+    past = {'role':'user','content':'Открой /srv/qzworkitem/log.txt перед публикацией.'}
+    api('/v1/chat/completions', {'model':'fixture-model','messages':[past,
+        {'role':'assistant','content':'Проверю журнал.'},{'role':'user','content':source}]}, session)
+    api('/v1/chat/completions', {'model':'fixture-model','messages':[
+        {'role':'user','content':'Верни первое значение сравнения.'}]}, session)
+    event = max(api('/api/v1/metrics')['traffic']['events'], key=lambda row:row['id'])
+    detail = api('/api/v1/ui/events/'+str(event['id']))
+    assert not detail['usage']['masked_items'] and len(detail['usage']['restore_marks']) == 1
+    page.context.grant_permissions(['clipboard-read','clipboard-write'], origin=base)
+    page.locator('#sidebar [data-tab=events]').click()
+    entry = page.locator('#events-table [data-session-open="'+event['session_id']+'"]')
+    entry.click()
+    dialog = page.locator('#session-dialog')
+    dialog.get_by_role('button', name='Подробности запроса').click()
+    viewer = page.locator('#inspector-dialog')
+    viewer.locator('[data-key=response]').click()
+    panes = viewer.locator('.inspector-pane pre')
+    expect(panes.last.locator('mark')).to_have_text('InspectorProject')
+    expect(panes.first.locator('mark')).to_have_text(detail['usage']['restore_marks'][0]['token'])
+    page.keyboard.press('Escape')
+    entry.click()
+    dialog.locator('.conversation-requests').get_by_role('button', name='Спорное решение детектора').first.click()
+    focused = dialog.locator('.session-history button:focus')
+    expect(focused).to_have_text('qzworkitem')
+    focused.press('Enter')
+    expect(viewer.locator('.review-card:focus code')).to_have_text('qzworkitem')
+    viewer.locator('[data-key=request]').click()
+    expect(panes.first.locator('mark').filter(has_text='InspectorProject')).to_have_count(1)
+    expect(panes.last.locator('mark').filter(has_text='PROJ')).to_have_count(1)
+    panes.first.evaluate('el=>{el.scrollTop=el.scrollHeight}')
+    wait_for(lambda:panes.last.evaluate('el=>el.scrollTop>0 && Math.abs(el.scrollHeight-el.clientHeight-el.scrollTop)<2'))
+    panes.last.evaluate('el=>{el.scrollTop=0}')
+    wait_for(lambda:panes.first.evaluate('el=>el.scrollTop<1'))
+    sync = viewer.get_by_role('checkbox', name='Синхронная прокрутка')
+    sync.uncheck()
+    viewer.locator('[data-key=response]').click()
+    expect(sync).not_to_be_checked()
+    viewer.locator('[data-key=request]').click()
+    sync.check()
+    viewer.get_by_role('button', name='JSON').click()
+    expect(sync).to_be_disabled()
+    viewer.locator('.inspector-pane').last.get_by_role('button', name='Копировать').click()
+    assert json.loads(page.evaluate('navigator.clipboard.readText()'))['model'] == 'fixture-model'
+    viewer.get_by_role('button', name='Текст', exact=True).click()
+    expect(sync).to_be_enabled()
+    page.keyboard.press('Escape')
+    page.keyboard.press('Escape')
+
+
 def main():
     from playwright.sync_api import expect, sync_playwright
 
@@ -146,6 +201,8 @@ def main():
             payload = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
             seen.append(payload)
             text = payload['messages'][-1]['content']
+            if text == 'Верни первое значение сравнения.':
+                text = re.search(r'ANON_PROJ_\d+',seen[-2]['messages'][-1]['content'])[0]
             if text.startswith('Проверь смету. '):
                 text = 'Смета принята. ' + text.removeprefix('Проверь смету. ')
             self.send_response(200)
@@ -318,6 +375,7 @@ def main():
                 page.go_back()
                 page.wait_for_function("() => location.hash==='#analysis' && !document.querySelector('#tab-analysis').hidden")
                 check_session_conversation(page, api, traffic['events'][0]['session_id'], args.output)
+                check_session_inspector(page, api, base)
                 from validate_navigation import check_navigation
                 check_navigation(page, args.output)
                 assert not errors, errors
@@ -326,7 +384,7 @@ def main():
             stop()
             start()
             wait_for(lambda: api('/api/v1/ui/worker').get('enabled'))
-            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 3
+            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 5
             assert api('/api/v1/anonymize', {'text':'character','session':'legacy-chat'})['text'] == 'character'
             assert api('/api/v1/deanonymize', {'text':legacy['text'],'session':'legacy-chat'})['text'] == 'character'
             api('/api/v1/ui/worker/stop', {})

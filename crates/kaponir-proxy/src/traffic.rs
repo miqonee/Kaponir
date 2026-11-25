@@ -111,6 +111,8 @@ pub struct Usage {
     pub total_tokens: u64,
     #[serde(default)]
     pub masked_items: Vec<ReplacementItem>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub restore_marks: Vec<kaponir_core::engine::RestoreMark>,
     #[serde(default)]
     pub unknown_tokens: Vec<String>,
     #[serde(default)]
@@ -148,6 +150,10 @@ impl Usage {
         self.prompt_tokens += other.prompt_tokens;
         self.completion_tokens += other.completion_tokens;
         self.total_tokens += other.total_tokens;
+        kaponir_core::engine::RestoreMark::merge(
+            &mut self.restore_marks,
+            other.restore_marks.iter().cloned(),
+        );
         for item in &other.masked_items {
             if self.masked_items.len() < MAX_ITEMS_PER_EVENT {
                 self.masked_items.push(item.clone());
@@ -243,6 +249,7 @@ impl Usage {
         }
         Self {
             restored: r.restored as u64,
+            restore_marks: r.marks.clone(),
             unknown: r.unknown.len() as u64,
             denied: r.denied.len() as u64,
             unknown_tokens,
@@ -339,6 +346,7 @@ fn add_to_bucket(bucket: &mut Bucket, event: &Event) {
     bucket.cancelled += u64::from(event.outcome == "cancelled");
     bucket.usage.add(&event.usage);
     bucket.usage.masked_items.clear();
+    bucket.usage.restore_marks.clear();
     bucket.usage.review_items.clear();
     bucket.usage.review_ids.clear();
     bucket.usage.unknown_tokens.clear();
@@ -454,6 +462,7 @@ impl Traffic {
         for event in snapshot.events.iter_mut().chain(snapshot.active.iter_mut()) {
             event.inspector = None;
             event.usage.masked_items.clear();
+            event.usage.restore_marks.clear();
             event.usage.review_items.clear();
             event.usage.unknown_tokens.clear();
             event.usage.denied_tokens.clear();

@@ -7,6 +7,8 @@ use crate::pack::Gender;
 
 #[derive(Clone, Debug, Default)]
 pub struct Lexicon {
+    /// Directories whose ordinary filename components have been reviewed as a group.
+    pub reviewed_directories: HashSet<String>,
     /// Безопасные слова в нижнем регистре (allowlist для структурных слотов).
     pub words: HashSet<String>,
     /// Окончания словоформ: `s`, `ing`, `ies>y` (отрезать `ies`, добавить `y`).
@@ -130,6 +132,8 @@ pub enum PartClass {
 
 impl Lexicon {
     pub fn merge(&mut self, o: &Lexicon) {
+        self.reviewed_directories
+            .extend(o.reviewed_directories.iter().cloned());
         self.words.extend(o.words.iter().cloned());
         for inf in &o.inflections {
             if !self.inflections.contains(inf) {
