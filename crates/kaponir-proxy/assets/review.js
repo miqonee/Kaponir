@@ -13,6 +13,8 @@ const reviewReasons = {
   review_busy: "Уже выполняются задания пересмотра. Дождитесь их завершения.",
   select_up_to_64: "Выберите от 1 до 64 записей.",
   entry_not_found: "Запись больше недоступна. Обновите очередь.",
+  rule_misses_occurrence: "Точное правило уже есть, но его границы не совпадают с этим фрагментом. Проверьте шаблон правила.",
+  rule_action_conflict: "Действующее правило задаёт другое действие. Откройте его в истории находок.",
   entry_not_pending: "По записи уже принято решение. Обновите очередь.",
   event_not_found: "Подробности события больше не хранятся.",
   job_not_found: "Задание пересмотра больше не хранится.",
@@ -22,6 +24,7 @@ const reviewReasons = {
 };
 function reviewError(code) { return tr(reviewReasons[code] || learningErrors[code] || code); }
 function reviewState(item) {
+  if (item.state === "covered") return tr(item.document_rule?.action === "keep" ? "Оставляется по правилу" : "Скрывается по правилу");
   return tr(({ open: "На проверку", pending: "На проверку", masked: "Создано правило маскирования", kept: "Создано исключение",
     dismissed: "Закрыто без правила", rejected: "Находка отклонена", rolled_back: "Правило отменено", active: "Правило действует", covered: "Правило действует" })[item.state] || learningStates[item.state] || item.state);
 }
@@ -81,6 +84,7 @@ function activeReview(item) {
 }
 function decisionStatus(item) {
   if (!pendingFinding(item)) return reviewState(item);
+  if (item.proposal_conflict) return tr("Предложения ИИ различаются");
   const job = activeReview(item);
   if (job) return tr(job.state === "queued" ? "В очереди на проверку ИИ" : "Идёт проверка ИИ");
   if (item.proposal?.declined) return tr("Предложение отклонено");
@@ -128,7 +132,8 @@ function reviewCard(item) {
     if (currentJob) {
       note = tr("Результат появится здесь после ответа модели.");
       primary.append(workButton("Открыть задание", () => showTab("jobs/review/"+encodeURIComponent(currentJob.id)), "secondary"));
-    } else if (proposal?.declined) note = tr("Правила не менялись. Можно принять ручное решение или запросить новое предложение.");
+    } else if (item.proposal_conflict) note = tr("Откройте вхождения и сравните предложения по исходным фрагментам.");
+    else if (proposal?.declined) note = tr("Правила не менялись. Можно принять ручное решение или запросить новое предложение.");
     else if (rec?.state === "failed" || rec?.state === "stale") note = reviewError(rec.error || "review_stale");
     else if (rec?.state === "needs_review" && rec.reason === "configured_categorizer")
       note = tr("Категоризатор вернул тип значения. Проверьте фрагмент и выберите действие вручную.");
@@ -137,6 +142,10 @@ function reviewCard(item) {
     else if (categoryStage(item) === "failed") note = learningError(item.reason || "categorization_failed");
     else if (item.protected) note = reviewError("protected_credential");
     else note = tr(canAsk ? "Решения о маскировании пока нет. Проверьте фрагмент или запросите предложение модели." : "Проверьте фрагмент и выберите ручное решение.");
+    if (item.unmatched_rule) {
+      note = reviewError("rule_misses_occurrence");
+      primary.append(workButton("Открыть правило", () => openFindingRule(item), "secondary"));
+    }
     verdict.append(h("p", {}, note));
     if (!currentJob && canAsk) primary.append(workButton("Получить предложение ИИ", () => requestReview([item]), "secondary", ro));
   } else if (item.state === "active" || item.state === "masked" || item.state === "kept" || item.state === "covered") {
@@ -176,6 +185,11 @@ function reviewCard(item) {
   if (rec?.job_id) sourceLinks.append(workButton("Задание пересмотра", () => showTab("jobs/review/"+encodeURIComponent(rec.job_id))));
   if (hasProposal && canAsk) sourceLinks.append(workButton("Запросить повторную проверку", () => requestReview([item]), "text-button", ro));
   if (sourceLinks.childElementCount) origin.append(sourceLinks);
+  if (item.occurrence_keys?.length) heading.append(workButton(tr("Показать вхождения · {{0}}", [number(item.occurrence_keys.length)]),
+    async () => {
+      const snap = await api("/api/v1/ui/review/selection", {method:"POST", body:{keys:item.occurrence_keys.join(","), status:"all"}});
+      openFindingSet(snap);
+    }, "text-button"));
   const tabs = contentTabs("Подробности находки", [
     {key:"excerpt", title:"Фрагмент", content:excerpt}, {key:"origin", title:"Происхождение", content:origin}]);
   const footer = h("footer", {class:"decision-footer"});
@@ -185,7 +199,7 @@ function reviewCard(item) {
     footer.append(workButton("Отменить правило", () => confirmReview([item],"rollback"), "secondary", ro));
   footer.append(item.in_dataset
     ? workButton("Открыть в датасете", () => openFindingExample(item.dataset_id), "text-button")
-    : workButton("В датасет", () => collectFindings({keys:[item.key]}), "text-button", ro));
+    : workButton("В датасет", () => collectFindings({keys:item.occurrence_keys || [item.key]}), "text-button", ro));
   article.append(heading, verdict, tabs, footer);
   return article;
 }
@@ -249,10 +263,11 @@ function clearPicking() {
 }
 function picked(item) {return ReviewUI.snapshot ? !ReviewUI.excluded.has(item.key) : ReviewUI.selected.has(item.key);}
 function pickedCount() {return ReviewUI.snapshot ? ReviewUI.snapshot.total - ReviewUI.excluded.size : ReviewUI.selected.size;}
-async function selectedPayload(items) {
+async function selectedPayload(items, includeOccurrences = false) {
   if (items) return {keys:items.map(i=>i.key)};
   if (ReviewUI.snapshot) return {snapshot:ReviewUI.snapshot.snapshot,excluded:[...ReviewUI.excluded]};
-  if (ReviewUI.selected.size) return {keys:[...ReviewUI.selected.keys()]};
+  if (ReviewUI.selected.size) return {keys:includeOccurrences
+    ? [...ReviewUI.selected.values()].flatMap(item => item.occurrence_keys || [item.key]) : [...ReviewUI.selected.keys()]};
   if(ReviewUI.data?.snapshot)return {snapshot:ReviewUI.data.snapshot};
   const snapshot = await api("/api/v1/ui/review/selection",{method:"POST",body:reviewFilters()});
   return {snapshot:snapshot.snapshot};
@@ -262,7 +277,7 @@ function findingSource(item) {
   return item.source || (item.session ? tr("Сессия · {{0}}",[item.session]) : null) || tr(item.origin === "detector" ? "Быстрый детектор" : "Фоновый анализ");
 }
 async function openFindingRule(item) {
-  const rule=item.document_rule;
+  const rule=item.document_rule || item.unmatched_rule;
   const id=rule ? (rule.id || "index-"+rule.index) : item.decision?.rule_id || item.rule_id;
   const scope=rule?.scope || item.decision?.scope || item.scope;
   $("#rules-query").value = ""; $("#rules-scope").value = scope || "";
@@ -336,8 +351,8 @@ function findingRow(item) {
   const row=h("tr",{class:picked(item)?"picked":"",onclick:e=>{
     if (!e.target.closest("button,input,label,a,select") && !e.target.closest("td:first-child") && window.getSelection()?.isCollapsed) showFinding(item);
   }},h("td",{},h("label",{class:"row-check"},checkbox)),
-    h("td",{},record,h("small",{class:"mobile-source"},findingSource(item))),
-    h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(rule?.kind || item.kind), " / ",
+    h("td",{},record,item.occurrence_keys ? h("small",{class:"hint"},tr("Вхождений · {{0}}",[number(item.occurrence_keys.length)])) : null,h("small",{class:"mobile-source"},findingSource(item))),
+    h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(rule?.action === "keep" ? item.kind : rule?.kind || item.kind), " / ",
       h("span",{class:"hint"},scope ? scopeLabel(scope) : tr("Область не задана"))),
     h("td",{},h("span",{class:"table-verdict", "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),item.in_dataset?h("small",{class:"hint"},tr("В датасете")):null));
   return row;
@@ -355,8 +370,8 @@ function renderReview() {
   const filters=reviewFilters();
   const filtered=!!(filters.q || filters.kind || filters.action || filters.source!=="all" || filters.sort!=="recent");
   $("#review-clear-filters").hidden=!filtered;
-  $("#review-match-count").textContent=tr("Находок в выборке · {{0}}", [number(data.total)]);
-  if (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob) nodes.push(h("div",{class:"inline-notice"},tr("Результаты выбранного запуска"),
+  $("#review-match-count").textContent=tr(["pending","proposals"].includes(ReviewUI.view) ? "Значений в выборке · {{0}}" : "Находок в выборке · {{0}}", [number(data.total)]);
+  if (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob) nodes.push(h("div",{class:"inline-notice"},tr(ReviewUI.view === "all" ? "Все вхождения, включая обработанные" : ReviewUI.jobId || ReviewUI.learningJob ? "Результаты выбранного запуска" : "Находки из выбранных источников"),
     workButton("Все находки",()=>showReview())));
   function table(items) {
     return h("table",{class:"findings-table"},h("thead",{},h("tr",{},...["","Значение","Источник","Тип / область правила","Состояние"].map((title,i)=>h("th",{class:i===2?"source-cell":""},tr(title))))),h("tbody",{},items.map(findingRow)));
@@ -365,6 +380,8 @@ function renderReview() {
     const scoped=!!(ReviewUI.jobId || ReviewUI.learningJob || ReviewUI.keys || ReviewUI.filterSet);
     nodes.push(h("div",{class:"empty-state"}, icon("search"), h("strong",{},tr(ReviewUI.view === "proposals" && !filtered ? "Готовых предложений ИИ пока нет" : "Находок по этим условиям нет")),
       ReviewUI.view === "proposals" && !filtered ? h("p", {}, tr("Откройте находку на проверку и запросите предложение ИИ.")) : null,
+      filters.q && ["pending","proposals"].includes(ReviewUI.view)
+        ? workButton("Искать в истории", () => $("#review-navigation [data-review-view=history]").click()) :
       filtered ? workButton("Сбросить фильтры", resetReviewFilters) :
         ReviewUI.view === "proposals" ? workButton("На проверку", () => $("#review-navigation [data-review-view=pending]").click()) :
         scoped || ReviewUI.view==="history" ? workButton("Открыть находки",()=>showReview()) :
@@ -427,7 +444,7 @@ function renderReviewSelection() {
     if (source) controls.append(batchButton(tr(selected ? "Проверить моделью · {{0}}" : "Проверить моделью все {{0}}", [count]),
       tr("Проверить моделью"), () => requestReview(), manualCount ? "secondary" : "primary", busy));
   }
-  controls.append(batchButton(tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload()),"secondary",busy));
+  controls.append(batchButton(tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload(null, true)),"secondary",busy));
   quick.replaceChildren();
   if(!ReviewUI.snapshot && data.total>selected)quick.append(workButton(tr("Выбрать все {{0}} по фильтру",[data.total]),async()=>{
     const version = ReviewUI.selectionVersion;
@@ -568,24 +585,30 @@ async function applyReview(entries) {
   const following = index >= 0 ? page.items.slice(index+1).map(i=>i.key) : [];
   setReviewBusy(true);
   const failures = [], snapshot = ReviewUI.snapshot;
-  let applied = 0; renderReview(true);
+  let applied = 0, covered = 0, lastProgress = performance.now();
+  renderReview(true);
   for (const entry of entries) {
     const item = entry.item;
     try {
       const result = await api(`/api/v1/ui/review/${item.origin}/${encodeURIComponent(item.id)}/${entry.action}`, {
         method:"POST", body:{kind:entry.kind, scope:entry.scope, proposal_id:entry.proposal_id}});
       if (result.state === "conflict") throw new Error(reviewError("existing_rule"));
-      applied++; ReviewUI.selected.delete(item.key); ReviewUI.drafts.delete(item.key);
+      if (result.already_covered) covered++; else applied++;
+      ReviewUI.selected.delete(item.key); ReviewUI.drafts.delete(item.key);
       if (snapshot && snapshot === ReviewUI.snapshot) ReviewUI.excluded.add(item.key);
     } catch (error) { failures.push(`${item.value}: ${reviewError(error.messageKey || error.message)}`); }
-    if (entries.length > 1) $("#review-result").textContent = tr("Обработано {{0}} из {{1}}", [applied + failures.length, entries.length]);
+    const processed = applied + covered + failures.length;
+    if (processed < entries.length && performance.now() - lastProgress >= 1000) {
+      lastProgress = performance.now();
+      $("#review-result").textContent = tr("Обработано {{0}} из {{1}}", [processed, entries.length]);
+    }
   }
   if (snapshot && snapshot === ReviewUI.snapshot && pickedCount() === 0) clearPicking();
   setReviewBusy(false);
   const single = entries.length === 1 && applied === 1 ? entries[0] : null;
   const message = single?.action === "decline-proposal" ? tr("Предложение отклонено. Находка осталась на проверке.") :
-    single?.action === "accept-proposal" ? tr("Предложение принято.") : tr("Применено: {{0}}", [applied]);
-  $("#review-result").textContent = message + (failures.length ? " · " + failures.join("; ") : "");
+    single?.action === "accept-proposal" ? tr("Предложение принято.") : applied || !covered ? tr("Применено: {{0}}", [applied]) : "";
+  $("#review-result").textContent = [message, covered ? tr("Уже учтено правилами · {{0}}", [number(covered)]) : "", ...failures].filter(Boolean).join(" · ");
   $("#review-result").classList.toggle("err", !!failures.length);
   const sameCard = advance && !failures.length && ReviewUI.detailKey === first.item.key;
   let [updated] = await Promise.all([loadReview(true), loadInfo()]);
@@ -643,9 +666,8 @@ async function loadReview(options) {
       return loadReview();
     }
     ReviewUI.activeJobs = new Map();
-    const current = new Map(data.items.map(item => [item.key, item.recommendation?.job_id]));
     for (const job of data.jobs) for (const key of job.page_keys || []) {
-      if (current.has(key) && current.get(key) !== job.id && !ReviewUI.activeJobs.has(key)) ReviewUI.activeJobs.set(key,job);
+      if (!ReviewUI.activeJobs.has(key)) ReviewUI.activeJobs.set(key,job);
     }
     ReviewUI.data=data;ReviewUI.offset=data.offset;ReviewUI.browseSet=data.snapshot;
     for(const item of data.items)if(ReviewUI.selected.has(item.key))ReviewUI.selected.set(item.key,item);

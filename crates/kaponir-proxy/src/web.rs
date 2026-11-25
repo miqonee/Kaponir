@@ -305,20 +305,21 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
                     .events
                     .iter()
                     .any(|e| e.sent && e.status < 400 && e.status >= 200)));
-    let (stats, learning_pending) = st
-        .with_vault(|_, v| Ok((v.stats()?, v.app_record_count("learning-entry-pending")?)))
-        .map_err(internal)?;
-    let (rules_count, corp_domains_count) = control(&st)
-        .ok()
-        .and_then(|ctl| ctl.rules().ok())
-        .map_or((0usize, 0usize), |sets| {
-            let r = sets
-                .iter()
-                .map(|s| s.file.rules.iter().filter(|r| !r.disabled).count())
-                .sum();
-            let d = sets.iter().map(|s| s.file.corp.domains.len()).sum();
-            (r, d)
-        });
+    let stats = st.with_vault(|_, v| Ok(v.stats()?)).map_err(internal)?;
+    let sets = st
+        .control
+        .as_ref()
+        .map(|ctl| ctl.rules())
+        .transpose()
+        .map_err(internal)?
+        .unwrap_or_default();
+    let rules_count: usize = sets
+        .iter()
+        .map(|s| s.file.rules.iter().filter(|r| !r.disabled).count())
+        .sum();
+    let corp_domains_count: usize = sets.iter().map(|s| s.file.corp.domains.len()).sum();
+    let rules = crate::review::coverage::ActiveRules::new(sets).map_err(internal)?;
+    let review_pending = crate::review::pending_count(&st, &rules).map_err(internal)?;
     let uncertain_policy = match engine.policy().uncertain {
         kaponir_core::UncertainAction::Mask => "mask",
         kaponir_core::UncertainAction::Keep => "keep",
@@ -344,7 +345,7 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
         "provider_configured": provider_configured,
         "corp_domains_count": corp_domains_count,
         "unique_entities": stats.entries,
-        "review_pending": (stats.journal_open.max(0) as usize).saturating_add(learning_pending),
+        "review_pending": review_pending,
         "api_token_required": st.cfg.api_token.is_some(),
         "upstreams": {
             "openai": reqwest::Url::parse(openai.as_ref().map_or(st.cfg.openai_upstream.as_str(), |p| p.base_url.as_str())).ok().and_then(|u| u.host_str().map(str::to_owned)),

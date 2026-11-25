@@ -1515,3 +1515,5 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 .dialogue-mark { padding:0; border-radius:2px; color:var(--text); }
 :is(.dialogue-key,.dialogue-mark).masked { background:var(--success-bg); border-bottom:2px solid var(--success); }
 :is(.dialogue-key,.dialogue-mark).uncertain { background:var(--warning-bg); text-decoration:underline dotted var(--warning) 2px; text-underline-offset:2px; }
+
+.occurrence-excerpts {display:grid; gap:1rem; list-style:none; padding:0}

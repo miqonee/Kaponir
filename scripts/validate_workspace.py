@@ -26,6 +26,91 @@ def word(number):
             return 'zorgworkspace' + suffix
 
 
+def verify_repeated_findings(page, api, output):
+    value = 'zorgdedupaccount'
+    api('/api/v1/ui/mask', {'text': f'/srv/{value}/config.toml', 'commit': True})
+    api('/api/v1/ui/mask', {'text': '/srv/zorgdedupneighbor/config.toml', 'commit': True})
+    for index in range(3):
+        text = f'ticket {index}\nПроект: {value}\naccount: {value}'
+        api('/api/v1/ui/discover', {'remember': True, 'documents': [{'name': f'origin-{index}.txt', 'text': text}]})
+
+    findings = '/api/v1/ui/review?q=' + value
+    raw = api(findings + '&status=all')['items']
+    assert len(raw) == 4
+    assert {(item['origin'], item['kind']) for item in raw} == {('detector', 'PATH'), ('learning', 'PROJ')}
+    assert api(findings)['total'] == 1
+    assert api('/api/v1/ui/info')['review_pending'] == api('/api/v1/ui/review')['total']
+    snapshot = api('/api/v1/ui/review?q=zorgdedup&stable=true&limit=1')['snapshot']
+    frozen = api('/api/v1/ui/review?snapshot=' + snapshot)
+    assert frozen['total'] == 2 and sum(len(i.get('occurrence_keys', [i['key']])) for i in frozen['items']) == 5
+    group = next(item for item in frozen['items'] if item['value'] == value)
+    only_neighbor = api('/api/v1/ui/dataset/collect', {'snapshot': snapshot, 'excluded': [group['key']],
+                                                        'request_id': 'exclude-whole-value'})
+    assert only_neighbor['added'] == only_neighbor['new_occurrences'] == 1
+
+    page.locator('[data-tab=review]').click()
+    section = page.locator('#tab-review')
+    section.locator('[data-review-view=pending]').click()
+    section.locator('#review-query').fill(value)
+    expect(section.get_by_role('button', name='В датасет все 1', exact=True)).to_be_visible()
+    section.locator('.finding-value').click()
+    occurrences = section.get_by_role('button', name='Показать вхождения · 4')
+    expect(occurrences).to_be_visible()
+    page.screenshot(path=output/'findings-one-value.png')
+    occurrences.click()
+    expect(section.locator('.finding-value')).to_have_count(4)
+    section.get_by_role('button', name='Все находки', exact=True).click()
+    section.locator('#review-query').fill(value)
+    section.get_by_role('button', name='В датасет все 1', exact=True).click()
+    expect(section.locator('#review-result')).to_contain_text('Добавлено 1 · уже были 0')
+    section.get_by_role('button', name='Открыть добавленные примеры').click()
+    with page.expect_download() as download:
+        page.get_by_role('button', name='Выгрузить черновики').click()
+    example = json.loads(Path(download.value.path()).read_text())
+    assert example['value'] == value
+    assert {entry['finding'] for entry in example['occurrences']} == {item['key'] for item in raw}
+    for entry in example['occurrences']:
+        mark, = entry['spans']
+        assert entry['text'].encode()[mark['start_byte']:mark['end_byte']].decode() == value
+    page.locator('#vault-dataset .finding-value').click()
+    page.get_by_role('button', name='Показать вхождения · 4').click()
+    dialog = page.get_by_role('dialog', name='Вхождения значения')
+    expect(dialog.locator('li')).to_have_count(4)
+    expect(dialog.locator('mark')).to_have_count(4)
+    dialog.get_by_role('button', name='Закрыть').click()
+
+    page.locator('[data-tab=review]').click()
+    section.locator('#review-query').fill(value)
+    section.locator('.finding-value').click()
+    section.get_by_role('button', name='Решить вручную').click()
+    # Another operator finishes while the decision dialog is open.
+    detector = next(item for item in raw if item['origin'] == 'detector')
+    route = '/api/v1/ui/review/detector/' + detector['id']
+    api(route + '/mask', {'kind': 'USER', 'scope': 'team'})
+    rules_before = api('/api/v1/rules')
+    page.locator('#review-confirm-apply').click()
+    expect(section.locator('#review-result')).to_contain_text('Уже учтено правилами · 1')
+    expect(section.locator('.finding-value')).to_have_count(0)
+    assert api(findings)['total'] == 0
+    assert api(findings + '&status=proposals')['total'] == 0
+    assert {item['state'] for item in api(findings + '&status=history')['items']} == {'masked', 'covered'}
+    for item in raw:
+        path = f"/api/v1/ui/review/{item['origin']}/{item['id']}/mask"
+        assert api(path, {})['already_covered']
+    assert api('/api/v1/rules') == rules_before
+    assert api('/api/v1/ui/info')['review_pending'] == api('/api/v1/ui/review')['total']
+    page.screenshot(path=output/'findings-after-mask.png')
+    section.get_by_role('button', name='Искать в истории').click()
+    expect(section.locator('.finding-value')).to_have_count(4)
+    expect(section.locator('#review-query')).to_have_value(value)
+    api(route + '/rollback', {})
+    reopened = api(findings)
+    assert reopened['total'] == 1 and len(reopened['items'][0]['occurrence_keys']) == 4
+    api(route + '/mask', {'kind': 'USER', 'scope': 'team'})
+    api(route + '/rollback', {})
+    assert api(findings)['total'] == 1
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary', type=Path)
@@ -274,6 +359,7 @@ def main():
                     page.locator('#vault-dataset').get_by_role('button',name='Повторить').click()
                     expect(page.locator('#dataset-feedback')).to_contain_text('Все черновики этой выборки проверены')
                     expect(page.get_by_role('button',name='Выгрузить для обучения')).to_be_enabled()
+                    verify_repeated_findings(page, api, output)
                     assert not errors,errors
                     browser.close()
                 proc.terminate();proc.wait();proc=start()

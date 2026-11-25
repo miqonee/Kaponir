@@ -1813,5 +1813,21 @@
   "Задано вручную · {{0}}.": "Set manually · {{0}}.",
   "Ручное значение превышает опубликованный лимит этой модели.": "A manual value exceeds this model’s published limit.",
   "Отмечено вхождений · {{0}}": "Marked occurrences · {{0}}",
-  "Лимит ответа API · {{0}} токенов.": "API output limit · {{0}} tokens."
+  "Лимит ответа API · {{0}} токенов.": "API output limit · {{0}} tokens.",
+  "Действующее правило задаёт другое действие. Откройте его в истории находок.": "The active rule specifies a different action. Open it in the findings history.",
+  "Оставляется по правилу": "Kept by rule",
+  "Скрывается по правилу": "Masked by rule",
+  "Предложения ИИ различаются": "AI proposals disagree",
+  "Откройте вхождения и сравните предложения по исходным фрагментам.": "Open the occurrences to compare the proposals in context.",
+  "Показать вхождения · {{0}}": "Show occurrences · {{0}}",
+  "Вхождений · {{0}}": "Occurrences · {{0}}",
+  "Значений в выборке · {{0}}": "Values in selection · {{0}}",
+  "Находки из выбранных источников": "Findings from selected sources",
+  "Уже учтено правилами · {{0}}": "Already covered by rules · {{0}}",
+  "Новых вхождений · {{0}}": "New occurrences · {{0}}",
+  "Убрано значений · {{0}}, вхождений · {{1}}": "Removed {{0}} values and {{1}} occurrences",
+  "Вхождения значения": "Occurrences of this value",
+  "Точное правило уже есть, но его границы не совпадают с этим фрагментом. Проверьте шаблон правила.": "An exact rule exists, but its boundaries do not match this excerpt. Check the rule pattern.",
+  "Все вхождения, включая обработанные": "All occurrences, including resolved ones",
+  "Искать в истории": "Search history"
 }

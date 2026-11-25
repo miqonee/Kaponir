@@ -626,6 +626,7 @@ function openFindingSet(snap) {
     filterSet: snap.snapshot,
     offset: 0,
     view: "all",
+    detailKey: null,
   });
   $("#review-query").value = "";
   $("#review-source").value = "all";
@@ -645,14 +646,18 @@ async function collectFindings(selection) {
       showTab("dataset");
     }),
   );
-  if (receipt.added)
+  if (receipt.new_occurrences > receipt.added)
+    status.append(h("span", {class:"hint"}, tr("Новых вхождений · {{0}}", [number(receipt.new_occurrences)])));
+  if (receipt.added || receipt.new_occurrences)
     status.append(
       workButton("Отменить добавление", async () => {
         const r = await api("/api/v1/ui/dataset/collections/" + receipt.id + "/undo", {
           method: "POST",
           body: {},
         });
-        status.textContent = tr("Отменено · {{0}}", [r.removed]);
+        status.textContent = r.removed_occurrences > r.removed
+          ? tr("Убрано значений · {{0}}, вхождений · {{1}}", [number(r.removed), number(r.removed_occurrences)])
+          : tr("Отменено · {{0}}", [r.removed]);
         await loadReview();
       }),
     );
@@ -696,6 +701,20 @@ function datasetSource(row) {
     case "synthetic-curated": return tr("Примеры из этого браузера");
     default: return row.source;
   }
+}
+function showExampleOccurrences(row) {
+  const dialog = h("dialog", {class:"review-confirm", "aria-labelledby":"occurrence-title"});
+  dialog.addEventListener("close", () => dialog.remove(), {once:true});
+  document.body.append(dialog);
+  const excerpts = row.occurrences.map(source => {
+    const span = source.spans.find(mark => mark.value === row.value);
+    return h("li", {}, h("strong", {}, datasetSource(source)),
+      h("blockquote", {class:"candidate-fragment"}, candidateExcerpt(source.text, row.value, span && [span.start_byte,span.end_byte])));
+  });
+  dialog.replaceChildren(h("div", {class:"review-confirm-body"},
+    h("h2", {id:"occurrence-title"}, tr("Вхождения значения")), h("code", {class:"decision-value"}, row.value),
+    h("ul", {class:"occurrence-excerpts"}, excerpts), workButton("Закрыть", () => dialog.close(), "secondary")));
+  dialog.showModal();
 }
 function editExample(row, index = 0, drafts = 0) {
   desk.edit = row.id;
@@ -821,6 +840,7 @@ function editExample(row, index = 0, drafts = 0) {
     h("div", {class:"dataset-editor-grid"},
       h("section", {class:"panel dataset-source"}, h("h2", {tabindex:-1}, row.value || tr("Пример для датасета")),
         h("p", {class:"hint"}, datasetSource(row)), preview, sourceInput,
+        row.occurrences ? workButton(tr("Показать вхождения · {{0}}", [number(row.occurrences.length)]), () => showExampleOccurrences(row), "secondary") : null,
         row.finding ? workButton("Открыть исходную находку", () => showReview([row.finding], "all")) : null),
       h("section", {class:"panel dataset-annotations"}, h("h2", {}, tr("Разметка примера")), marks, fields,
       workButton("Новая отметка", () => {
@@ -956,7 +976,7 @@ async function loadVaultDataset(continueAt = null, example = null) {
     h("tbody", {}, data.items.map((row, index) => h("tr", {},
       h("td", {}, workButton(row.value || row.text.slice(0, 70), () => editExample(row, index, data.drafts), "finding-value")),
       h("td", {}, h("span", {class:"dataset-state", "data-state":row.status}, tr(row.status==="checked" ? "Проверено" : "Черновик"))),
-      h("td", {}, datasetSource(row)))))));
+      h("td", {}, datasetSource(row), row.occurrences ? h("small", {class:"hint"}, tr("Вхождений · {{0}}", [number(row.occurrences.length)])) : null))))));
   if (desk.datasetOffset || desk.datasetOffset + 100 < data.total)
     content.push(
       h(

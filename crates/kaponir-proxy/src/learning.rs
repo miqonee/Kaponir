@@ -23,7 +23,7 @@ use scenario::Scenario;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Value, json};
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     sync::{Arc, RwLock},
     time::Duration,
 };
@@ -2631,6 +2631,31 @@ pub(crate) fn retain_findings(
         .collect()
 }
 
+pub(crate) fn pending_values(
+    v: &SqliteVault,
+    rules: &crate::review::coverage::ActiveRules,
+) -> anyhow::Result<HashSet<String>> {
+    let mut values = HashSet::new();
+    for kind in ["learning-entry-pending", "learning-entry-conflict"] {
+        for (_, bytes) in v.app_records(kind, i64::MAX as usize)? {
+            let entry: Entry = decode(&bytes)?;
+            if (entry.state == "pending" || entry.reason == "existing_rule")
+                && rules
+                    .covering(
+                        &entry.value,
+                        &entry.quote,
+                        entry.context_span,
+                        entry.kind == "SECRET",
+                    )
+                    .is_none()
+            {
+                values.insert(entry.value);
+            }
+        }
+    }
+    Ok(values)
+}
+
 pub(crate) fn review_entries(st: &State) -> anyhow::Result<Vec<Value>> {
     st.with_vault(|_, v| {
         learning_entries(v, i64::MAX as usize, true)?
@@ -3267,31 +3292,50 @@ fn apply_entry(st: &State, e: &mut Entry, automatic: bool) -> anyhow::Result<()>
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("read_only"))?;
     let sets = ctl.rules()?;
+    let own_note = format!("kaponir learning: {}", e.id);
     let own = sets.iter().any(|s| {
-        s.file
-            .rules
-            .iter()
-            .any(|r| r.id == e.rule_id && !r.disabled)
+        s.scope == e.scope
+            && s.file.rules.iter().any(|r| {
+                !r.disabled
+                    && r.id == e.rule_id
+                    && r.note == own_note
+                    && r.action == RuleAction::Mask
+                    && r.value.as_deref() == Some(&e.value)
+                    && r.kind == e.kind
+            })
     });
-    let matching_rule = st
-        .engine()
-        .analyze(&kaponir_core::Input::text(&e.value))
+    let id_taken = sets
         .iter()
-        .any(|c| matches!(c.origin, kaponir_core::Origin::Rule { .. }));
+        .any(|s| s.file.rules.iter().any(|r| r.id == e.rule_id));
+    let rules = crate::review::coverage::ActiveRules::new(sets)?;
     if !own
-        && (matching_rule
-            || sets.iter().any(|s| {
-                s.file.rules.iter().any(|r| {
-                    r.value
-                        .as_ref()
-                        .is_some_and(|v| v.to_lowercase() == e.value.to_lowercase())
-                })
-            }))
+        && let Some(rule) = rules.covering(&e.value, &e.quote, e.context_span, e.kind == "SECRET")
     {
-        e.state = "conflict".into();
-        e.reason = "existing_rule".into();
+        // The other rule owns the decision. Never give this occurrence permission to undo it.
+        if rule["action"] == "mask" {
+            e.state = "pending".into();
+            e.reason.clear();
+        } else {
+            e.state = "conflict".into();
+            e.reason = "existing_rule".into();
+        }
         st.with_vault(|_, v| store_entry(v, e))?;
         return Ok(());
+    }
+    if !own
+        && rules
+            .covering(&e.value, "", None, e.kind == "SECRET")
+            .is_some()
+    {
+        if !automatic {
+            anyhow::bail!("rule_misses_occurrence");
+        }
+        e.reason = "rule_misses_occurrence".into();
+        st.with_vault(|_, v| store_entry(v, e))?;
+        return Ok(());
+    }
+    if !own && id_taken {
+        e.rule_id = format!("learn-{}", crate::review::random_id()?);
     }
     let newly_applied = !own || e.state == "applying";
     e.automatic = automatic;
@@ -3478,7 +3522,23 @@ pub(crate) fn change_entry(
     for mut entry in entries {
         match action {
             "approve" => {
-                if entry.state != "pending" {
+                let rules = crate::review::active_rules(st).map_err(internal)?;
+                if let Some(rule) = rules.covering(
+                    &entry.value,
+                    &entry.quote,
+                    entry.context_span,
+                    entry.kind == "SECRET",
+                ) {
+                    if rule["action"] != "mask" {
+                        return Err(bad(anyhow::anyhow!("rule_action_conflict")));
+                    }
+                    return Ok(Json(
+                        json!({"ok":true,"updated":0,"state":"covered","already_covered":true,"rule":rule}),
+                    ));
+                }
+                if entry.state != "pending"
+                    && !(entry.state == "conflict" && entry.reason == "existing_rule")
+                {
                     return Err(bad(anyhow::anyhow!("entry_not_pending")));
                 }
                 if let Some(k) = &req.kind {
@@ -3534,6 +3594,7 @@ pub(crate) fn change_entry(
 }
 async fn history(AxumState(st): AxumState<Shared>, h: HeaderMap) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
+    let rules = crate::review::active_rules(&st).map_err(internal)?;
     let value = st
         .with_vault(|_, v| {
             let mut jobs = v
@@ -3547,20 +3608,21 @@ async fn history(AxumState(st): AxumState<Shared>, h: HeaderMap) -> Result<Json<
             jobs.truncate(100);
             let mut entries = learning_entries(v, 500, true)?;
             entries.sort_by_key(|e| std::cmp::Reverse(e.created));
-            let pending = v.app_record_count("learning-entry-pending")?;
-            let history = entries
-                .iter()
-                .filter(|e| e.state != "pending")
-                .take(500)
-                .cloned()
-                .collect::<Vec<_>>();
-            entries.retain(|e| e.state == "pending");
-            entries.truncate(500);
-            entries.extend(history);
+            let pending = pending_values(v, &rules)?.len();
+            let mut projected = Vec::with_capacity(entries.len());
+            for entry in entries {
+                let mut item = serde_json::to_value(entry)?;
+                rules.project(&mut item);
+                projected.push(item);
+            }
+            let (mut open, history): (Vec<_>, Vec<_>) =
+                projected.into_iter().partition(|e| e["state"] == "pending");
+            open.truncate(500);
+            open.extend(history.into_iter().take(500));
             let totals: Counters = private(v, "learning:counters")?;
             Ok(json!({
                 "jobs": jobs,
-                "entries": entries,
+                "entries": open,
                 "summary": {
                     "queued": queued,
                     "running": running,

@@ -523,7 +523,7 @@ impl Engine {
         }
 
         // 5. Пересечения.
-        let accepted = self.resolve_conflicts(&scored);
+        let accepted = Self::resolve_conflicts(&scored, self.policy.uncertain);
         let mut applied_flags = vec![false; scored.len()];
         for &i in &accepted {
             applied_flags[i] = true;
@@ -974,10 +974,46 @@ impl Engine {
         }
     }
 
+    /// Return the effective masks and keep rules for an excerpt without running detectors or writing tokens.
+    /// Both the review queue and masking pipeline use the same keep and overlap precedence.
+    pub fn resolve_rule_matches(candidates: Vec<Candidate>) -> Vec<Candidate> {
+        if candidates.len() <= 1 {
+            return candidates;
+        }
+        let mut scored: Vec<_> = candidates
+            .into_iter()
+            .map(|c| Scored {
+                verdict: if c.polarity == Polarity::Keep {
+                    Verdict::Keep
+                } else {
+                    Verdict::Mask
+                },
+                c,
+            })
+            .collect();
+        let keeps = KeepIndex::new(&scored);
+        for item in &mut scored {
+            if keeps.covers(&item.c) {
+                item.verdict = Verdict::Keep;
+            }
+        }
+        let accepted = Self::resolve_conflicts(&scored, UncertainAction::Keep);
+        let accepted = accepted
+            .into_iter()
+            .collect::<std::collections::HashSet<_>>();
+        scored
+            .into_iter()
+            .enumerate()
+            .filter_map(|(i, row)| {
+                (row.c.polarity == Polarity::Keep || accepted.contains(&i)).then_some(row.c)
+            })
+            .collect()
+    }
+
     /// Индексы принятых масок, отсортированные по началу.
-    fn resolve_conflicts(&self, scored: &[Scored]) -> Vec<usize> {
+    fn resolve_conflicts(scored: &[Scored], uncertain: UncertainAction) -> Vec<usize> {
         let mut masks: Vec<usize> = (0..scored.len())
-            .filter(|&i| scored[i].applied_mask(self.policy.uncertain))
+            .filter(|&i| scored[i].applied_mask(uncertain))
             .collect();
         masks.sort_by(|&a, &b| {
             let (x, y) = (&scored[a].c, &scored[b].c);
@@ -1941,7 +1977,10 @@ mod tests {
                 }
             }
             legacy.sort_by_key(|&i| scored[i].c.start);
-            assert_eq!(engine.resolve_conflicts(&scored), legacy);
+            assert_eq!(
+                Engine::resolve_conflicts(&scored, engine.policy.uncertain),
+                legacy
+            );
         }
     }
 }

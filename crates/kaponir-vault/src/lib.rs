@@ -453,17 +453,27 @@ impl SqliteVault {
         status: Option<&str>,
         limit: usize,
     ) -> Result<Vec<JournalRow>, VaultError> {
-        let mut stmt = self
-            .conn
-            .prepare(
-                "SELECT id, kind, category, recognizer, shape, probability, applied, count, first_seen, last_seen,
-                        status, nonce, ct
-                 FROM journal WHERE (?1 IS NULL OR status = ?1)
-                 ORDER BY count DESC, last_seen DESC LIMIT ?2",
-            )
-            .map_err(db)?;
+        self.journal_rows(
+            "WHERE (?1 IS NULL OR status = ?1) ORDER BY count DESC, last_seen DESC LIMIT ?2",
+            params![status, limit as i64],
+        )
+    }
+
+    /// Fetch one finding for review without decrypting the entire journal.
+    pub fn journal_row(&self, id: i64) -> Result<Option<JournalRow>, VaultError> {
+        Ok(self.journal_rows("WHERE id = ?1", [id])?.pop())
+    }
+
+    fn journal_rows(
+        &self,
+        clause: &str,
+        params: impl rusqlite::Params,
+    ) -> Result<Vec<JournalRow>, VaultError> {
+        let sql = format!("SELECT id, kind, category, recognizer, shape, probability, applied, count, first_seen, last_seen,
+                                    status, nonce, ct FROM journal {clause}");
+        let mut stmt = self.conn.prepare_cached(&sql).map_err(db)?;
         let rows = stmt
-            .query_map(params![status, limit as i64], |r| {
+            .query_map(params, |r| {
                 let kind: String = r.get(1)?;
                 let recommended_scope = kaponir_core::s1::default_scope_for_kind(&kind)
                     .as_str()

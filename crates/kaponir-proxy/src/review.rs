@@ -1,4 +1,5 @@
 //! Explicit, durable model review. Recommendations never mutate rules until the user applies them.
+pub(crate) mod coverage;
 use crate::{
     Shared, learning,
     server::{ApiError, authorized, error, internal},
@@ -10,11 +11,12 @@ use axum::{
     http::{HeaderMap, StatusCode},
     routing::{get, post},
 };
+use coverage::ActiveRules;
 use futures_util::{StreamExt, stream};
 use kaponir_core::Scope;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 type ResultJson = Result<Json<Value>, ApiError>;
 fn bad(code: &str) -> ApiError {
@@ -123,6 +125,122 @@ fn model_proposal(item: &Value) -> Option<Value> {
     );
     Some(proposal)
 }
+pub(crate) fn active_rules(st: &crate::State) -> anyhow::Result<ActiveRules> {
+    ActiveRules::new(
+        st.control
+            .as_ref()
+            .map(|ctl| ctl.rules())
+            .transpose()?
+            .unwrap_or_default(),
+    )
+}
+
+pub(crate) fn pending_count(st: &Shared, rules: &ActiveRules) -> anyhow::Result<usize> {
+    st.with_vault(|_, v| {
+        let mut values = learning::pending_values(v, rules)?;
+        for row in v.journal(Some("open"), i64::MAX as usize)? {
+            if rules
+                .covering(
+                    &row.value,
+                    &row.context,
+                    row.context_span,
+                    row.category == "credential",
+                )
+                .is_none()
+            {
+                values.insert(row.value);
+            }
+        }
+        Ok(values.len())
+    })
+}
+
+fn detector_item(row: &kaponir_vault::JournalRow) -> anyhow::Result<Value> {
+    let mut item = serde_json::to_value(row)?;
+    item["key"] = json!(format!("detector:{}", row.id));
+    item["origin"] = json!("detector");
+    item["id"] = json!(row.id.to_string());
+    item["state"] = json!(row.status);
+    item["updated"] = json!(row.last_seen.saturating_mul(1000));
+    item["protected"] = json!(row.category == "credential");
+    Ok(item)
+}
+
+fn learning_item(mut entry: Value) -> Value {
+    entry["key"] = json!(format!(
+        "learning:{}",
+        entry["id"].as_str().unwrap_or_default()
+    ));
+    entry["origin"] = json!("learning");
+    let job_id = entry["job_id"].as_str().unwrap_or_default();
+    let session = job_id.starts_with("learning:job:turn:")
+        || job_id.starts_with("learning:job:session:")
+        || (job_id.starts_with("document/")
+            && entry["source"]
+                .as_str()
+                .unwrap_or_default()
+                .starts_with("session-"));
+    if let Some(event) = job_id
+        .strip_prefix("learning:job:turn:")
+        .and_then(|s| s.parse::<u64>().ok())
+    {
+        entry["event_id"] = json!(event);
+    }
+    entry["source_type"] = json!(if session { "session" } else { "document" });
+    entry["context"] = entry["quote"].clone();
+    entry["protected"] = json!(entry["kind"] == "SECRET");
+    entry
+}
+
+fn attach_proposal(
+    item: &mut Value,
+    revision: u64,
+    recommendation: Option<Value>,
+    declined: Option<Value>,
+) {
+    if let Some(mut rec) = recommendation {
+        if recommendation_revision(&rec) != Some(revision)
+            || rec["fingerprint"] != fingerprint(item)
+        {
+            rec["state"] = json!("stale");
+        }
+        item["recommendation"] = rec;
+    }
+    if let Some(mut proposal) = model_proposal(item) {
+        proposal["declined"] = json!(declined.as_ref() == Some(&proposal["id"]));
+        item["proposal"] = proposal;
+    }
+}
+
+// Single and bulk decisions use the same projection as browsing without rereading unrelated excerpts.
+fn action_item(st: &Shared, origin: &str, id: &str) -> anyhow::Result<Option<Value>> {
+    let item = match origin {
+        "detector" => match id.parse::<i64>() {
+            Ok(row_id) => st.with_vault(|_, v| {
+                v.journal_row(row_id)?
+                    .as_ref()
+                    .map(detector_item)
+                    .transpose()
+            })?,
+            Err(_) => None,
+        },
+        "learning" if id.starts_with("learning:entry:") => read(st, id)?.map(learning_item),
+        _ => None,
+    };
+    let Some(mut item) = item else {
+        return Ok(None);
+    };
+    active_rules(st)?.project(&mut item);
+    let key = format!("{origin}:{id}");
+    attach_proposal(
+        &mut item,
+        st.learning.snapshot().revision,
+        read(st, &format!("review-rec:{key}"))?,
+        read(st, &format!("review-declined:{key}"))?,
+    );
+    Ok(Some(item))
+}
+
 pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
     let rows = st.with_vault(|_, v| Ok(v.journal(None, i64::MAX as usize)?))?;
     let mut events = HashMap::new();
@@ -135,13 +253,7 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
     }
     let mut all = Vec::new();
     for row in rows {
-        let mut item = serde_json::to_value(&row)?;
-        item["key"] = json!(format!("detector:{}", row.id));
-        item["origin"] = json!("detector");
-        item["id"] = json!(row.id.to_string());
-        item["state"] = json!(row.status);
-        item["updated"] = json!(row.last_seen.saturating_mul(1000));
-        item["protected"] = json!(row.category == "credential");
+        let mut item = detector_item(&row)?;
         if let Some((event, session)) = events.get(&row.id) {
             item["event_id"] = json!(event);
             item["session"] = json!(session);
@@ -149,56 +261,8 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
         }
         all.push(item);
     }
-    let mut document_rules = HashMap::new();
-    if let Some(ctl) = &st.control {
-        for set in ctl.rules()? {
-            for (index, rule) in set.file.rules.iter().enumerate() {
-                if !rule.disabled
-                    && rule.note.starts_with("kaponir discover:")
-                    && let Some(value) = &rule.value
-                {
-                    document_rules
-                        .entry((value.clone(), rule.kind.clone()))
-                        .or_insert(json!({"id":rule.id,"scope":set.scope,"index":index}));
-                }
-            }
-        }
-    }
-    for mut entry in learning::review_entries(st)? {
-        entry["key"] = json!(format!(
-            "learning:{}",
-            entry["id"].as_str().unwrap_or_default()
-        ));
-        entry["origin"] = json!("learning");
-        let job_id = entry["job_id"].as_str().unwrap_or_default();
-        let session = job_id.starts_with("learning:job:turn:")
-            || job_id.starts_with("learning:job:session:")
-            || (job_id.starts_with("document/")
-                && entry["source"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .starts_with("session-"));
-        if let Some(event) = job_id
-            .strip_prefix("learning:job:turn:")
-            .and_then(|s| s.parse::<u64>().ok())
-        {
-            entry["event_id"] = json!(event);
-        }
-        entry["source_type"] = json!(if session { "session" } else { "document" });
-        let pair = (
-            entry["value"].as_str().unwrap_or_default().to_owned(),
-            entry["kind"].as_str().unwrap_or_default().to_owned(),
-        );
-        if let Some(rule) = document_rules.get(&pair) {
-            entry["document_rule"] = rule.clone();
-            if entry["state"] == "pending" {
-                entry["state"] = json!("covered");
-            }
-        }
-        entry["context"] = entry["quote"].clone();
-        entry["protected"] = json!(entry["kind"] == "SECRET");
-        all.push(entry);
-    }
+    all.extend(learning::review_entries(st)?.into_iter().map(learning_item));
+    let rules = active_rules(st)?;
     let revision = st.learning.snapshot().revision;
     let (mut recommendations, mut decisions, mut declined, dataset) = st.with_vault(|_, v| {
         let records = |kind: &str| -> anyhow::Result<HashMap<String, Value>> {
@@ -211,36 +275,25 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
             records("review-recommendation")?,
             records("review-decision")?,
             records("review-declined")?,
-            v.app_record_ids("dataset-example")?
-                .into_iter()
-                .collect::<HashSet<_>>(),
+            crate::dataset::example_index(v)?,
         ))
     })?;
     for item in &mut all {
+        rules.project(item);
         let key = item["key"].as_str().unwrap().to_owned();
-        if let Some(mut rec) = recommendations.remove(&format!("review-rec:{key}")) {
-            if recommendation_revision(&rec) != Some(revision)
-                || rec["fingerprint"] != fingerprint(item)
-            {
-                rec["state"] = json!("stale");
-            }
-            item["recommendation"] = rec;
-        }
-        if let Some(mut proposal) = model_proposal(item) {
-            proposal["declined"] = json!(
-                declined.remove(&format!("review-declined:{key}")).as_ref()
-                    == Some(&proposal["id"])
-            );
-            item["proposal"] = proposal;
-        }
+        attach_proposal(
+            item,
+            revision,
+            recommendations.remove(&format!("review-rec:{key}")),
+            declined.remove(&format!("review-declined:{key}")),
+        );
         if let Some(decision) = decisions.remove(&format!("review-decision:{key}")) {
             item["decision"] = decision;
         }
-        let dataset_id = crate::dataset::finding_id(item);
-        let in_dataset = dataset.contains(&dataset_id);
-        item["in_dataset"] = json!(in_dataset);
-        if in_dataset {
-            item["dataset_id"] = json!(dataset_id);
+        let dataset_id = dataset.for_finding(item);
+        item["in_dataset"] = json!(dataset_id.is_some());
+        if let Some(id) = dataset_id {
+            item["dataset_id"] = json!(id);
         }
     }
     Ok(all)
@@ -512,7 +565,7 @@ pub(crate) struct Filters {
 fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
     let all = items(st)?;
     let snapshot = if let Some(id) = &q.snapshot {
-        Some(selection_keys(st, id)?)
+        Some(saved_selection(st, id)?.expanded(&HashSet::new()))
     } else {
         None
     };
@@ -548,7 +601,9 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
     let pending = all
         .iter()
         .filter(|i| matches!(i["state"].as_str(), Some("open" | "pending")))
-        .count();
+        .filter_map(|item| item["value"].as_str())
+        .collect::<HashSet<_>>()
+        .len();
     let mut selected: Vec<_> = all
         .into_iter()
         .filter(|item| {
@@ -635,9 +690,95 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
         let order: HashMap<_, _> = keys.into_iter().enumerate().map(|(i, k)| (k, i)).collect();
         selected.sort_by_key(|item| order.get(item["key"].as_str().unwrap()).copied());
     }
+    if !matches!(q.status.as_deref(), Some("all" | "history")) {
+        selected = group_values(selected);
+    }
     Ok((pending, selected))
 }
 
+// Keep a deterministic representative and the exact records matched by the current filters.
+fn group_values(rows: Vec<Value>) -> Vec<Value> {
+    let mut positions = HashMap::<String, usize>::new();
+    let mut groups: Vec<Value> = Vec::new();
+    for row in rows {
+        let value = row["value"].as_str().unwrap_or_default();
+        if let Some(index) = positions.get(value) {
+            let first = &mut groups[*index];
+            let mut keys = match first["occurrence_keys"].take() {
+                Value::Array(keys) => keys,
+                _ => vec![first["key"].clone()],
+            };
+            keys.push(row["key"].clone());
+            let proposed = |i: &Value| i["proposal"]["declined"] == false;
+            let conflict = first["proposal_conflict"] == true
+                || proposed(first)
+                    && proposed(&row)
+                    && ["action", "kind", "scope"]
+                        .iter()
+                        .any(|f| first["proposal"][*f] != row["proposal"][*f]);
+            if row["protected"] == true && first["protected"] != true
+                || row["protected"] == first["protected"] && !proposed(first) && proposed(&row)
+            {
+                *first = row;
+            }
+            if conflict {
+                first["proposal_conflict"] = json!(true);
+                first["proposal"] = Value::Null;
+            }
+            first["occurrence_keys"] = Value::Array(keys);
+        } else {
+            positions.insert(value.to_owned(), groups.len());
+            groups.push(row);
+        }
+    }
+    groups
+}
+
+#[derive(Default, Serialize, Deserialize)]
+struct SavedSelection {
+    keys: Vec<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    occurrences: BTreeMap<String, Vec<String>>,
+}
+
+impl SavedSelection {
+    fn from_items(items: &[Value]) -> Self {
+        let mut saved = Self::default();
+        for item in items {
+            let key = item["key"].as_str().unwrap().to_owned();
+            if let Some(records) = item["occurrence_keys"].as_array() {
+                saved.occurrences.insert(
+                    key.clone(),
+                    records
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect(),
+                );
+            }
+            saved.keys.push(key);
+        }
+        saved
+    }
+
+    fn expanded(&self, excluded: &HashSet<&String>) -> Vec<String> {
+        let mut keys = Vec::new();
+        for key in &self.keys {
+            if !excluded.contains(key) {
+                keys.push(key.clone());
+                if let Some(others) = self.occurrences.get(key) {
+                    keys.extend(
+                        others
+                            .iter()
+                            .filter(|k| *k != key && !excluded.contains(k))
+                            .cloned(),
+                    );
+                }
+            }
+        }
+        keys
+    }
+}
 async fn list(
     State(st): State<Shared>,
     headers: HeaderMap,
@@ -648,18 +789,16 @@ async fn list(
     let total = selected.len();
     let snapshot =
         if q.stable == Some(true) && q.snapshot.is_none() && total > q.limit.unwrap_or(100) {
-            let keys: Vec<_> = selected
-                .iter()
-                .map(|i| i["key"].as_str().unwrap())
-                .collect();
-            let id = blake3::hash(&serde_json::to_vec(&keys).map_err(|e| internal(e.into()))?)
+            let saved = SavedSelection::from_items(&selected);
+            // Include the full membership so a snapshot cannot acquire new duplicates later.
+            let id = blake3::hash(&serde_json::to_vec(&saved).map_err(|e| internal(e.into()))?)
                 .to_hex()
                 .to_string();
             write(
                 &st,
                 &format!("selection:{id}"),
                 "review-selection",
-                &json!({"created":now_ms(),"keys":keys}),
+                &selection_record(&saved),
             )
             .map_err(internal)?;
             Some(id)
@@ -677,10 +816,19 @@ async fn list(
         learning::review_configuration(&st, role, None)
             .unwrap_or(json!({"role":role,"provider":"none","model":""}))
     });
-    let page_keys: HashSet<_> = page
-        .iter()
-        .filter_map(|item| item["key"].as_str())
-        .collect();
+    let mut page_keys = HashMap::new();
+    for row in &page {
+        let key = row["key"].as_str().unwrap();
+        page_keys.insert(key, key);
+        for occurrence in row["occurrence_keys"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+        {
+            page_keys.insert(occurrence, key);
+        }
+    }
     let jobs = st
         .with_vault(|_, v| {
             v.app_records_recent("review-job-running", i64::MAX as usize)?
@@ -688,7 +836,7 @@ async fn list(
                 .chain(v.app_records_recent("review-job-queued", i64::MAX as usize)?)
                 .map(|(_, bytes)| {
                     let mut job: Value = serde_json::from_slice(&bytes)?;
-                    let id = job["id"].as_str().unwrap_or_default();
+                    let id = job["id"].as_str().unwrap_or_default().to_owned();
                     let targets = if job["targets"].is_array() {
                         job["targets"].take()
                     } else if let Some(bytes) = v.app_record(&format!("review-targets:{id}"))? {
@@ -696,15 +844,20 @@ async fn list(
                     } else {
                         Value::Null
                     };
-                    job["page_keys"] = json!(
-                        targets
-                            .as_array()
-                            .into_iter()
-                            .flatten()
-                            .filter_map(|target| target["key"].as_str())
-                            .filter(|key| page_keys.contains(key))
-                            .collect::<Vec<_>>()
-                    );
+                    let mut waiting = BTreeSet::new();
+                    for target in targets.as_array().into_iter().flatten() {
+                        let key = target["key"].as_str().unwrap_or_default();
+                        if let Some(representative) = page_keys.get(key) {
+                            if job["processed"].as_u64().unwrap_or(0) > 0
+                                && let Some(bytes) = v.app_record(&format!("review-rec:{key}"))?
+                                && serde_json::from_slice::<Value>(&bytes)?["job_id"] == id
+                            {
+                                continue;
+                            }
+                            waiting.insert(representative);
+                        }
+                    }
+                    job["page_keys"] = json!(waiting);
                     Ok(job)
                 })
                 .collect::<anyhow::Result<Vec<_>>>()
@@ -720,10 +873,16 @@ pub(crate) fn random_id() -> anyhow::Result<String> {
     Ok(blake3::hash(&bytes).to_hex().to_string())
 }
 
-fn selection_keys(st: &Shared, id: &str) -> anyhow::Result<Vec<String>> {
+fn selection_record(saved: &SavedSelection) -> Value {
+    let mut record = json!(saved);
+    record["created"] = json!(now_ms());
+    record
+}
+
+fn saved_selection(st: &Shared, id: &str) -> anyhow::Result<SavedSelection> {
     let saved = read(st, &format!("selection:{id}"))?
         .ok_or_else(|| anyhow::anyhow!("selection_expired"))?;
-    Ok(serde_json::from_value(saved["keys"].clone())?)
+    Ok(serde_json::from_value(saved)?)
 }
 
 async fn selection(
@@ -733,16 +892,16 @@ async fn selection(
 ) -> ResultJson {
     authorized(&st, &headers, true)?;
     let (_, items) = filtered(&st, &q).map_err(internal)?;
-    let keys: Vec<_> = items.iter().map(|i| &i["key"]).collect();
+    let saved = SavedSelection::from_items(&items);
     let id = random_id().map_err(internal)?;
     write(
         &st,
         &format!("selection:{id}"),
         "review-selection",
-        &json!({"keys":keys,"created":now_ms()}),
+        &selection_record(&saved),
     )
     .map_err(internal)?;
-    Ok(Json(json!({"snapshot":id,"total":keys.len()})))
+    Ok(Json(json!({"snapshot":id,"total":saved.keys.len()})))
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -755,12 +914,23 @@ pub(crate) struct Selection {
 }
 
 impl Selection {
-    pub(crate) fn resolve(&self, st: &Shared) -> anyhow::Result<Vec<Value>> {
+    pub(crate) fn resolve(
+        &self,
+        st: &Shared,
+        include_occurrences: bool,
+    ) -> anyhow::Result<Vec<Value>> {
+        let excluded: HashSet<_> = self.excluded.iter().collect();
         let keys = match self.snapshot.as_deref() {
-            Some(id) => selection_keys(st, id)?,
+            Some(id) => {
+                let saved = saved_selection(st, id)?;
+                if include_occurrences {
+                    saved.expanded(&excluded)
+                } else {
+                    saved.keys
+                }
+            }
             None => self.keys.clone(),
         };
-        let excluded: HashSet<_> = self.excluded.iter().collect();
         let mut all: HashMap<_, _> = items(st)?
             .into_iter()
             .map(|i| (i["key"].as_str().unwrap().to_owned(), i))
@@ -866,7 +1036,7 @@ async fn submit(
         .map_err(|e| bad(&learning::safe_error(&e)))?;
     let selected = req
         .selection
-        .resolve(&st)
+        .resolve(&st, false)
         .map_err(|e| bad(&e.to_string()))?;
     let mut targets = Vec::new();
     let mut skipped = 0;
@@ -1588,10 +1758,8 @@ async fn apply(
     }
     let _guard = st.rule_changes.lock().await;
     let key = format!("{origin}:{id}");
-    let all = items(&st).map_err(internal)?;
-    let item = all
-        .iter()
-        .find(|i| i["key"] == key)
+    let item = action_item(&st, &origin, &id)
+        .map_err(internal)?
         .ok_or_else(|| bad("entry_not_found"))?;
     let mut kind = req
         .kind
@@ -1604,7 +1772,9 @@ async fn apply(
         if req.proposal_id.is_none() || proposal["id"].as_str() != req.proposal_id.as_deref() {
             return Err(bad("review_stale"));
         }
-        if !matches!(item["state"].as_str(), Some("open" | "pending")) {
+        if !matches!(item["state"].as_str(), Some("open" | "pending"))
+            && (action == "decline-proposal" || item["document_rule"].is_null())
+        {
             return Err(bad("entry_not_pending"));
         }
         if action == "decline-proposal" {
@@ -1652,6 +1822,18 @@ async fn apply(
         scope = serde_json::from_value(rec["scope"].clone()).map_err(|_| bad("invalid_scope"))?;
         action = rec["action"].as_str().unwrap().into();
     }
+    if matches!(action.as_str(), "mask" | "keep") && !item["unmatched_rule"].is_null() {
+        return Err(bad("rule_misses_occurrence"));
+    }
+    let active = &item["document_rule"];
+    if matches!(action.as_str(), "mask" | "keep") && !active.is_null() {
+        if active["action"] != action {
+            return Err(bad("rule_action_conflict"));
+        }
+        return Ok(Json(
+            json!({"ok":true,"state":"covered","already_covered":true,"rule":active}),
+        ));
+    }
     if origin == "learning" {
         let mapped = match action.as_str() {
             "mask" => "approve",
@@ -1675,11 +1857,7 @@ async fn apply(
     let ctl = st.control.as_ref().ok_or_else(|| bad("read_only"))?;
     let row_id = id.parse::<i64>().map_err(|_| bad("entry_not_found"))?;
     let row = st
-        .with_vault(|_, v| {
-            Ok(v.journal(None, i64::MAX as usize)?
-                .into_iter()
-                .find(|r| r.id == row_id))
-        })
+        .with_vault(|_, v| Ok(v.journal_row(row_id)?))
         .map_err(internal)?
         .ok_or_else(|| bad("entry_not_found"))?;
     if row.value != item["value"].as_str().unwrap_or_default()
@@ -1708,27 +1886,18 @@ async fn apply(
             {
                 return Err(bad("type_format_conflict"));
             }
-            let rule = if action == "mask" {
+            let mut rule = if action == "mask" {
                 row.mask_rule(Some(&kind))
             } else {
                 row.keep_rule()
             };
-            let sets = ctl.rules().map_err(internal)?;
-            if st
-                .engine()
-                .analyze(&kaponir_core::Input::text(&row.value))
+            if ctl
+                .rules()
+                .map_err(internal)?
                 .iter()
-                .any(|candidate| matches!(candidate.origin, kaponir_core::Origin::Rule { .. }))
+                .any(|s| s.file.rules.iter().any(|r| r.id == rule.id))
             {
-                return Err(bad("existing_rule"));
-            }
-            if sets.iter().any(|set| {
-                set.file
-                    .rules
-                    .iter()
-                    .any(|r| !r.disabled && r.value.as_deref() == Some(&row.value))
-            }) {
-                return Err(bad("existing_rule"));
+                rule.id = format!("review-{row_id}-{}", random_id().map_err(internal)?);
             }
             ctl.add_rule(scope, rule.clone()).map_err(internal)?;
             decision = Some(
@@ -1792,6 +1961,28 @@ async fn apply(
 mod proposal_tests {
     use super::*;
 
+    #[test]
+    fn grouping_preserves_disagreeing_proposals_and_protected_targets() {
+        let item = |key, action, protected| {
+            json!({"key":key, "value":"atlas","protected":protected,
+            "proposal":{"action":action,"kind":"PROJ","scope":"team","declined":false}})
+        };
+        let rows = vec![
+            item("a", "mask", false),
+            item("b", "keep", true),
+            item("c", "keep", false),
+        ];
+        let groups = group_values(rows);
+        assert_eq!(groups.len(), 1);
+        let group = &groups[0];
+        assert_eq!(group["proposal_conflict"], true);
+        assert!(group["proposal"].is_null());
+        assert_eq!(group["key"], "b");
+        let saved = SavedSelection::from_items(&groups);
+        assert_eq!(saved.keys, ["b"]);
+        assert_eq!(saved.expanded(&HashSet::new()), ["b", "a", "c"]);
+        assert!(saved.expanded(&saved.keys.iter().collect()).is_empty());
+    }
     #[test]
     fn only_explicit_current_verdicts_become_proposals() {
         let mut item = json!({"key":"learning:example", "origin":"learning", "value":"atlas",
