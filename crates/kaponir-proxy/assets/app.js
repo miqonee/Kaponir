@@ -224,7 +224,8 @@ async function loadInfo() {
   badge.textContent = pending || '';
   badge.hidden = !pending;
   document.body.classList.toggle('readonly', !info.editable);
-  $('#rule-editor').hidden = !info.editable || (typeof rulesView !== 'undefined' && rulesView === 'audit');
+  $('#rules-new').disabled = !info.editable;
+  $('#rules-export').disabled = !info.editable;
   renderPacks();
   if (typeof setConnected === 'function') setConnected(true);
 }
@@ -239,7 +240,7 @@ function showTab(name, push = true) {
   if (!TABS[name]) name = 'overview';
   const nav = {mask:'lab',restore:'lab',discover:'lab',analysis:'settings',worker:'settings',categorization:'settings',proxy:'connect',metrics:'connect',setup:'rules'}[name] || name;
   const changed = $('#tab-' + name).hidden;
-  if (changed) for (const dialog of document.querySelectorAll('.inspector-dialog[open]')) dialog.close();
+  if (changed) for (const dialog of document.querySelectorAll('.inspector-dialog[open], .rules-dialog[open]')) dialog.close();
   for (const b of document.querySelectorAll('.tabs [data-tab]')) {
     if (b.dataset.tab === nav) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
   }
@@ -1160,19 +1161,37 @@ function syncRuleForm() {
   F.pattern.placeholder = ph;
   $('#rf-hint').textContent = hint;
   const global = F.scope.value === 'global';
+  F.enforced.closest("label").hidden = !global;
   F.enforced.disabled = !global;
   if (!global) F.enforced.checked = false;
   const keep = F.action.value === 'keep';
   // У шаблона тип задают слоты {SVC}.
   F.kind.disabled = keep || F.ptype.value === 'template';
   F.strategy.disabled = keep;
+  F.kind.closest('label').hidden = F.kind.disabled;
+  F.strategy.closest('label').hidden = F.strategy.disabled;
+  F.pattern.setCustomValidity('');
 }
 for (const n of ['ptype', 'scope', 'action']) rf[n].addEventListener('change', syncRuleForm);
 syncRuleForm();
 
-rf.addEventListener('submit', async (e) => {
-  e.preventDefault();
+const ruleEditor = $('#rule-editor');
+$('#rules-new').onclick = () => {
+  rf.reset();
+  F.scope.value = $('#rules-scope').value || 'personal';
+  F.action.value = selectedRuleState().value === 'keep' ? 'keep' : 'mask';
+  $('#rf-error').textContent = '';
+  F.kind.setCustomValidity('');
+  syncRuleForm();
+  ruleEditor.showModal();
+};
+$('#rf-cancel').onclick = () => ruleEditor.close();
+F.kind.addEventListener('input', () => F.kind.setCustomValidity(''));
+F.pattern.addEventListener('input', () => F.pattern.setCustomValidity(''));
+rf.addEventListener('submit', async (event) => {
+  event.preventDefault();
   const keep = F.action.value === 'keep';
+  const scope = F.scope.value;
   const rule = {
     kind: keep ? 'KEEP' : normKind(F.kind.value),
     action: F.action.value,
@@ -1182,45 +1201,181 @@ rf.addEventListener('submit', async (e) => {
     note: F.note.value.trim(),
   };
   if (!keep && F.strategy.value) rule.strategy = F.strategy.value;
-  if (!rule.kind) return toast(tr("Укажите тип токена латиницей, например SVC"), true);
+  if (!rule.kind && F.kind.disabled) rule.kind = 'CUSTOM';
+  F.kind.setCustomValidity(rule.kind ? '' : tr("Укажите тип токена латиницей, например SVC"));
+  F.pattern.setCustomValidity(rule[F.ptype.value].trim() ? '' : tr("Введите значение для поиска"));
+  if (!rf.reportValidity()) return;
+  const submit = rf.querySelector('[type=submit]');
+  if (submit.disabled) return;
+  submit.disabled = true;
+  $('#rf-error').textContent = '';
   try {
-    await addRule(F.scope.value, rule);
-    F.pattern.value = '';
-    F.note.value = '';
-  } catch (err) { fail(err); }
+    await api('/api/v1/rules', {method:'POST', body:{scope, rule}});
+    if ($('#rules-scope').value) $('#rules-scope').value = scope;
+    if (selectedRuleState().value !== 'all') selectRuleState(rule.action);
+    if (!ruleSearchText(rule).includes($('#rules-query').value.trim().toLocaleLowerCase())) $('#rules-query').value = '';
+    ruleEditor.close();
+    toast(tr("Правило добавлено: {{0}}", [SCOPE_TITLES[scope].toLowerCase()]));
+    await afterRulesChanged();
+  } catch (error) {
+    if (ruleEditor.open) $('#rf-error').textContent = error.message;
+    else fail(error);
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 function rulePattern(r) {
   if (r.value != null) return [tr("значение"), r.value];
   if (r.template != null) return [tr("шаблон"), r.template];
-  return ['regex', r.regex];
+  return [tr("Регулярное выражение"), r.regex];
 }
 
-function filterRules() {
-  const query = $('#rules-query').value.trim().toLocaleLowerCase(), scope = $('#rules-scope').value;
-  let count = 0;
-  for (const card of $('#rules-list').querySelectorAll('.scope-card')) {
-    let matches = 0;
-    for (const row of card.querySelectorAll('[data-rule-search]')) {
-      row.hidden = !row.dataset.ruleSearch.includes(query);
-      if (!row.hidden) matches++;
-    }
-    card.hidden = (scope && scope !== card.dataset.scope) || (query && !matches);
-    if (!card.hidden) count += matches;
-  }
-  $('#rules-match-count').textContent = tr("Правил в выборке · {{0}}", [count]);
-  $('#rules-clear').hidden = !query && !scope;
+const selectedRuleState = () => $('#rules-state input:checked');
+function selectRuleState(value) {
+  $('#rules-state input[value="' + value + '"]').checked = true;
 }
-$('#rules-clear').onclick = () => { $('#rules-query').value=''; $('#rules-scope').value=''; filterRules(); $('#rules-query').focus(); };
+function ruleSearchText(rule) {
+  return [rule.id, rulePattern(rule)[1], rule.kind, rule.kind && kindLabel(rule.kind), rule.note]
+    .filter(Boolean).join(' ').toLocaleLowerCase();
+}
+function filterRules() {
+  const query = $('#rules-query').value.trim().toLocaleLowerCase();
+  const scope = $('#rules-scope').value;
+  const state = selectedRuleState().value;
+  const rows = $('#rules-list').querySelectorAll('[data-rule-search]');
+  let count = 0;
+  for (const row of rows) {
+    row.hidden = (state !== 'all' && state !== row.dataset.state) ||
+      (scope !== '' && scope !== row.dataset.scope) || !row.dataset.ruleSearch.includes(query);
+    if (!row.hidden) count++;
+  }
+  $('#rules-match-count').textContent = tr("Показано {{0}} из {{1}}", [number(count), number(rows.length)]);
+  $('#rules-clear').hidden = !query && !scope && state === 'mask';
+  $('#rules-list .table-wrap').hidden = !count;
+  const empty = $('#rules-empty');
+  empty.hidden = count > 0;
+  empty.textContent = tr(rows.length ? "По этим фильтрам правил нет" : "Сохранённых правил пока нет");
+}
+function resetRuleFilters() {
+  $('#rules-query').value = '';
+  $('#rules-scope').value = '';
+  selectRuleState('mask');
+  filterRules();
+  $('#rules-query').focus();
+}
+$('#rules-clear').onclick = resetRuleFilters;
 $('#rules-query').addEventListener('input', filterRules);
 $('#rules-scope').addEventListener('change', filterRules);
+$('#rules-state').addEventListener('change', filterRules);
+
+let ruleSortAscending = true;
+function sortRuleRows(rows) {
+  const collator = new Intl.Collator(I18N.language, {numeric:true, sensitivity:'base'});
+  return rows.sort((a, b) => collator.compare(a.dataset.value, b.dataset.value) * (ruleSortAscending ? 1 : -1));
+}
+$('#rules-sort').onclick = () => {
+  ruleSortAscending = !ruleSortAscending;
+  $('#rules-sort').closest('th').setAttribute('aria-sort', ruleSortAscending ? 'ascending' : 'descending');
+  $('#rules-sort-arrow').textContent = ruleSortAscending ? '↑' : '↓';
+  const body = $('#rules-list tbody');
+  body.replaceChildren(...sortRuleRows(Array.from(body.rows)));
+};
+
+function downloadJson(text, name) {
+  const url = URL.createObjectURL(new Blob([text], {type:'application/json'}));
+  const link = h('a', {href:url, download:name});
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+$('#rules-export').onclick = async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  try {
+    const sets = await api('/api/v1/rules');
+    const rules = Object.fromEntries(sets.map(({scope, file}) => [scope, file]));
+    downloadJson(JSON.stringify({format:'kaponir-rules', version:1, rules}, null, 2) + '\n', 'kaponir-rules.json');
+    toast(tr("Файл со всеми правилами готов"));
+  } catch (error) { fail(error); }
+  finally { button.disabled = !info.editable; }
+};
+
+const ruleDelete = $('#rule-delete');
+let deleteTarget;
+function confirmRuleDelete(set, index, value) {
+  deleteTarget = {scope:set.scope, index, revision:set.revision};
+  $('#rule-delete-scope').textContent = tr("Правило будет удалено из области «{{0}}».", [scopeLabel(set.scope)]);
+  $('#rule-delete-value').textContent = value;
+  $('#rule-delete-error').textContent = '';
+  ruleDelete.showModal();
+}
+ruleDelete.querySelector('form').addEventListener('submit', async (event) => {
+  if (event.submitter?.value !== 'delete') return;
+  event.preventDefault();
+  const button = event.submitter;
+  if (button.disabled) return;
+  const {scope, index, revision} = deleteTarget;
+  button.disabled = true;
+  try {
+    await api('/api/v1/rules/' + scope + '/' + index + '?revision=' + encodeURIComponent(revision), {method:'DELETE'});
+    ruleDelete.close();
+    await afterRulesChanged();
+    $('#rules-query').focus({preventScroll:true});
+    toast(tr("Правило удалено"));
+  } catch (error) {
+    if (error.messageKey === 'rule_list_changed') {
+      ruleDelete.close();
+      await loadRules().catch(fail);
+      $('#rules-query').focus({preventScroll:true});
+      fail(error);
+    } else {
+      $('#rule-delete-error').textContent = error.message;
+    }
+  } finally { button.disabled = false; }
+});
+
+function ruleRow(set, rule, index) {
+  const [type, value] = rulePattern(rule);
+  const action = rule.action || 'mask';
+  const state = rule.disabled ? 'disabled' : action;
+  const flags = [type];
+  if (rule.enforced) flags.push(tr("Запрет переопределения"));
+  if (rule.case_sensitive) flags.push(tr("Учитывать регистр"));
+  if (rule.strategy) flags.push(rule.strategy === 'variable' ? tr("Переменная") : rule.strategy.toUpperCase());
+  const source = /^(learn-|review-|discovery-)/.test(rule.id || '');
+  return h('tr', {id:'rule-'+set.scope+'-'+(rule.id || 'index-'+index), tabindex:-1,
+      dataset:{ruleSearch:ruleSearchText(rule), value, scope:set.scope, state}},
+    h('td', {class:'rule-subject'}, h('strong', {class:'mono', title:rule.id || ''}, value),
+      h('small', {}, flags.join(' · ')), rule.note ? h('span', {class:'rule-note'}, rule.note) : null,
+      source ? workButton('Исходные находки', () => openRuleFindings(rule.id, set.scope), 'text-button') : null),
+    h('td', {}, h('span', {class:'rule-action '+state}, tr(action === 'keep' ? 'Оставлять открытым' : 'Маскировать')),
+      rule.disabled ? h('small', {class:'rule-off'}, tr('Отключено')) : null),
+    h('td', {}, action === 'mask' ? kindBadge(rule.kind) : '—'),
+    h('td', {}, scopeLabel(set.scope)),
+    h('td', {class:'rule-row-actions'}, h('button', {class:'text-button rule-remove', type:'button',
+      'aria-label':tr("Удалить правило «{{0}}»", [value]), onclick:() => confirmRuleDelete(set, index, value)}, tr("Удалить"))));
+}
+let rulesLoad = 0;
 async function loadRules() {
+  const request = ++rulesLoad;
+  $('#rule-filters').hidden = !info.editable;
+  $('#rules-domains').parentElement.hidden = !info.editable;
   if (!info.editable) {
-    $('#rules-list').replaceChildren(h('div', { class: 'card empty', text: tr("Этот сервер не управляет правилами (запущен без каталога правил).") }));
+    $('#rules-list tbody').replaceChildren();
+    $('#rules-domains').replaceChildren();
+    $('#rules-list .table-wrap').hidden = true;
+    $('#rules-empty').hidden = false;
+    $('#rules-empty').textContent = tr("Этот сервер не управляет правилами (запущен без каталога правил).");
     return;
   }
   const sets = await api('/api/v1/rules');
-  $('#rules-list').replaceChildren(...sets.map((set) => {
+  if (request !== rulesLoad) return;
+  const rows = sets.flatMap(set => (set.file.rule || []).map((rule, index) => ruleRow(set, rule, index)));
+  $('#rules-list tbody').replaceChildren(...sortRuleRows(rows));
+  filterRules();
+  $('#rules-domains').replaceChildren(...sets.map(set => {
     const domains = set.file.corp.domains;
     const putDomains = async (list) => {
       try {
@@ -1243,51 +1398,15 @@ async function loadRules() {
     };
     dInput.addEventListener('input', updateDomainPreview);
     updateDomainPreview();
-    const rules = set.file.rule || [];
-    return h('div', { class: `card scope-card ${set.scope}`, 'data-scope':set.scope },
-      h('h3', {title:set.location}, SCOPE_TITLES[set.scope], h('span', {class:'badge'}, rules.length)),
-      h('details', {class:'rule-domains'}, h('summary', {}, tr("Корпоративные домены · {{0}}", [domains.length])),
+    return h('section', {class:'rule-domain-scope'},
+      h('h3', {title:set.location}, scopeLabel(set.scope)),
         h('div', { class: 'domains' },
         domains.length ? domains.map((d) => h('span', { class: 'chip' }, h('span', {}, d),
           h('button', { title: tr("Удалить"), 'aria-label': tr("Удалить ") + d, onclick: () => putDomains(domains.filter((x) => x !== d)) }, '×'))) : h('span', { class: 'hint', text: tr("нет") }),
         h('form', { onsubmit: (e) => { e.preventDefault(); if (dInput.value.trim()) putDomains([...domains, dInput.value.trim()]); } },
           dInput, h('button', { class: 'small', type: 'submit' }, tr("Добавить"))),
-        previewBox)),
-      rules.length
-        ? h('div', { class: 'table-wrap' }, h('table', {},
-          h('thead', {}, h('tr', {}, ...['№', tr("Действие"), tr("Тип"), tr("Что ищем"), '', tr("Заметка"), ''].map((c) => h('th', { text: c })))),
-          h('tbody', {}, rules.map((r, i) => {
-            const [pt, pv] = rulePattern(r);
-            return h('tr', {id:'rule-'+set.scope+'-'+(r.id || 'index-'+i),tabindex:-1,class:r.disabled?'disabled-rule':'',
-              'data-rule-search':[r.id,pv,r.kind,r.kind&&kindLabel(r.kind),r.note].filter(Boolean).join(' ').toLocaleLowerCase()},
-              h('td', { class: 'num', text: r.id || i + 1 }),
-              h('td', {}, h('span', { class: 'tag ' + (r.action || 'mask'), text: r.disabled ? tr('Отключено') : r.action === 'keep' ? tr("не маскировать") : tr("маскировать") })),
-              h('td', {}, r.action === 'keep' ? '' : kindBadge(r.kind)),
-              h('td', {}, h('span', { class: 'hint', text: pt + ' ' }), h('span', { class: 'mono', text: pv })),
-              h('td', {},
-                r.enforced ? h('span', { class: 'tag enf', text: 'enforced' }) : null, ' ',
-                r.case_sensitive ? h('span', { class: 'tag', text: 'Aa' }) : null, ' ',
-                r.strategy ? h('span', { class: 'tag', text: r.strategy }) : null),
-              h('td', { class: 'hint' },r.note || '',
-                /^(learn-|review-|discovery-)/.test(r.id||'')?workButton('Исходные находки',()=>openRuleFindings(r.id,set.scope)):null),
-              h('td', {}, h('button', {
-                class: 'small danger',
-                onclick: async () => {
-                  if (!confirm(tr("Удалить правило «{{0}}»?", [pv]))) return;
-                  try {
-                    await api(`/api/v1/rules/${set.scope}/${i}`, { method: 'DELETE' });
-                    toast(tr("Правило удалено"));
-                    await afterRulesChanged();
-                  } catch (e) { fail(e); }
-                },
-              }, tr("Удалить"))),
-            );
-          })),
-        ))
-        : h('div', { class: 'empty', text: tr("Правил нет") }),
-    );
+        previewBox));
   }));
-  filterRules();
 }
 
 function renderPacks() {

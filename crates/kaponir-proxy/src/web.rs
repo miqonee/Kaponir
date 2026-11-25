@@ -12,7 +12,7 @@ use axum::extract::{Json, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{delete, get, post, put};
-use kaponir_core::rules::{Rule, RuleAction};
+use kaponir_core::rules::{Rule, RuleAction, RuleFile};
 use kaponir_core::{Escape, Format, Input, Known, MaskOptions, Scope, Strategy, TokenForm};
 use kaponir_vault::JournalRow;
 use serde::Deserialize;
@@ -1294,6 +1294,28 @@ async fn template(
 
 // ---------- rules ----------
 
+fn weak_value_reason(kind: &str, value: &str) -> Option<&'static str> {
+    if kaponir_core::discover::weak_business_value(kind, value) {
+        Some("weak_value")
+    } else if kind == "IP"
+        && (value.parse::<std::net::IpAddr>().is_err() || value.replace(':', "").len() < 2)
+    {
+        Some("invalid_ip")
+    } else {
+        None
+    }
+}
+
+fn memory_audit_reason(kind: &str, value: &str) -> Option<&'static str> {
+    if kaponir_core::kinds::type_conflict(kind, value) {
+        Some("type_format_conflict")
+    } else if kind == "DOM" && value.chars().count() <= 3 {
+        Some("short_domain")
+    } else {
+        weak_value_reason(kind, value)
+    }
+}
+
 fn memory_audit_items(st: &Shared) -> anyhow::Result<(Vec<serde_json::Value>, String)> {
     let (values, ignored) = st.with_vault(|_, v| {
         let ignored: Vec<(String, String)> = v
@@ -1305,22 +1327,20 @@ fn memory_audit_items(st: &Shared) -> anyhow::Result<(Vec<serde_json::Value>, St
     })?;
     let mut candidates = std::collections::BTreeMap::new();
     for value in values {
-        if kaponir_core::discover::weak_business_value(&value.kind, &value.text)
-            || kaponir_core::kinds::type_conflict(&value.kind, &value.text)
-            || (value.kind == "DOM" && value.text.chars().count() <= 3)
-            || (value.kind == "IP"
-                && (value.text.parse::<std::net::IpAddr>().is_err()
-                    || value.text.replace(':', "").len() < 2))
-        {
-            candidates.insert((value.kind, value.text.to_lowercase()), (value.text, false));
+        if let Some(reason) = memory_audit_reason(&value.kind, &value.text) {
+            candidates.insert(
+                (value.kind, value.text.to_lowercase()),
+                (value.text, reason, false),
+            );
         }
     }
     for (kind, value) in ignored {
-        candidates.insert((kind, value.to_lowercase()), (value, true));
+        let reason = memory_audit_reason(&kind, &value).unwrap_or("disabled");
+        candidates.insert((kind, value.to_lowercase()), (value, reason, true));
     }
-    let mut items: Vec<serde_json::Value> = candidates.into_iter().map(|((kind,_),(value,disabled))| {
+    let mut items: Vec<serde_json::Value> = candidates.into_iter().map(|((kind,_),(value,reason,disabled))| {
         let id = blake3::hash(format!("{kind}\0{}", value.to_lowercase()).as_bytes()).to_hex().to_string();
-        json!({"scope":"memory","index":id,"rule":{"kind":kind,"value":value,"disabled":disabled,"note":"Память сессии · источник не сохранён"},"reason":"session_memory"})
+        json!({"scope":"memory","index":id,"rule":{"kind":kind,"value":value,"disabled":disabled,"note":"Память сессии · источник не сохранён"},"reason":"session_memory","detail_reason":reason})
     }).collect();
     let revision = blake3::hash(&serde_json::to_vec(&items)?)
         .to_hex()
@@ -1392,15 +1412,10 @@ async fn audit_rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult 
     authorized(&st, &headers, true)?;
     let mut items = Vec::new();
     for set in control(&st)?.rules().map_err(internal)? {
-        let revision =
-            blake3::hash(&serde_json::to_vec(&set.file).map_err(|e| internal(e.into()))?)
-                .to_hex()
-                .to_string();
+        let revision = rules_revision(&set.file)?;
         for (index, rule) in set.file.rules.iter().enumerate() {
             let value = rule.value.as_deref().unwrap_or_default();
-            let reason = if rule.disabled {
-                "disabled"
-            } else if kaponir_core::kinds::type_conflict(&rule.kind, value) {
+            let reason = if kaponir_core::kinds::type_conflict(&rule.kind, value) {
                 "type_format_conflict"
             } else if matches!(rule.kind.as_str(), "FNAME" | "LNAME")
                 && [
@@ -1412,22 +1427,22 @@ async fn audit_rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult 
                 "ambiguous_calendar_name"
             } else if rule.kind == "PROJ" && rule.note.contains("paths") {
                 "unconfirmed_path_project"
-            } else if kaponir_core::discover::weak_business_value(&rule.kind, value)
-                && rule.value.is_some()
+            } else if let Some(reason) = rule
+                .value
+                .as_deref()
+                .and_then(|v| weak_value_reason(&rule.kind, v))
             {
-                "weak_value"
-            } else if rule.kind == "IP"
-                && (value.parse::<std::net::IpAddr>().is_err() || value.replace(':', "").len() < 2)
-                && rule.value.is_some()
-            {
-                "invalid_ip"
+                reason
             } else if rule.note.contains("auto") || rule.note.contains("discover") {
                 "generated_rule"
+            } else if rule.disabled {
+                "disabled"
             } else {
                 ""
             };
             if !reason.is_empty() {
-                items.push(json!({"scope":set.scope,"index":index,"revision":revision,"rule":rule,"reason":reason}));
+                items.push(json!({"scope":set.scope,"index":index,"revision":revision,"rule":rule,
+                    "reason":if rule.disabled { "disabled" } else { reason }, "detail_reason":reason}));
             }
         }
     }
@@ -1466,10 +1481,23 @@ async fn update_audit_rule(
     audit_rules(State(st), headers).await
 }
 
+fn rules_revision(file: &RuleFile) -> Result<String, ApiError> {
+    let bytes = serde_json::to_vec(file).map_err(|e| internal(e.into()))?;
+    Ok(blake3::hash(&bytes).to_hex().to_string())
+}
+
 async fn rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
     let sets = control(&st)?.rules().map_err(internal)?;
-    Ok(Json(sets).into_response())
+    let mut result = Vec::with_capacity(sets.len());
+    for set in sets {
+        result.push(
+            json!({"scope":set.scope,"location":set.location,"file":set.file,
+            "revision":rules_revision(&set.file)?}),
+        );
+    }
+    Ok(Json(result).into_response())
 }
 
 #[derive(Deserialize)]
@@ -1509,14 +1537,33 @@ async fn add_rule(
     Ok(Json(json!({"ok": true})).into_response())
 }
 
+#[derive(Deserialize)]
+struct RemoveRuleQuery {
+    revision: Option<String>,
+}
+
 async fn remove_rule(
     State(st): State<Shared>,
     headers: HeaderMap,
     Path((scope, index)): Path<(Scope, usize)>,
+    Query(query): Query<RemoveRuleQuery>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
     let _rules = st.rule_changes.lock().await;
-    let removed = control(&st)?.remove_rule(scope, index).map_err(bad)?;
+    let ctl = control(&st)?;
+    // Rule indices change on deletion. A stale browser must never remove the next rule.
+    if let Some(expected) = query.revision {
+        let sets = ctl.rules().map_err(internal)?;
+        let current = sets
+            .iter()
+            .find(|s| s.scope == scope)
+            .map(|s| rules_revision(&s.file))
+            .transpose()?;
+        if current.as_ref() != Some(&expected) {
+            return Err(error(StatusCode::CONFLICT, "rule_list_changed"));
+        }
+    }
+    let removed = ctl.remove_rule(scope, index).map_err(bad)?;
     reload(&st)?;
     Ok(Json(json!({"removed": removed})).into_response())
 }

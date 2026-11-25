@@ -998,16 +998,14 @@ async function loadAnalysis() {
 }
 let rulesView = "list";
 function showRulesView(view) {
-  rulesView = view;
-  for (const b of $("#rules-view").querySelectorAll("[data-rules-view]"))
-    b.setAttribute("aria-pressed", String(b.dataset.rulesView === view));
-  for (const el of $("#tab-rules").children)
-    if (el.id !== "rules-view")
-      el.hidden =
-        el.id === "rules-audit"
-          ? view !== "audit"
-          : view === "audit" || (el.id === "rule-editor" && !info.editable);
-  if (view === "audit") loadAudit().catch(fail);
+  rulesView = info.editable ? view : "list";
+  for (const button of $("#rules-view").querySelectorAll("[data-rules-view]")) {
+    button.setAttribute("aria-pressed", String(button.dataset.rulesView === rulesView));
+    button.disabled = button.dataset.rulesView === "audit" && !info.editable;
+  }
+  $("#rules-catalog").hidden = rulesView !== "list";
+  $("#rules-audit").hidden = rulesView !== "audit";
+  if (rulesView === "audit") return loadAudit().catch(fail);
 }
 const auditSelection = new Map();
 let auditBusy = false;
@@ -1016,10 +1014,10 @@ function updateAuditSelection() {
   $("#audit-selected-count").textContent = tr("Выбрано: {{0}}", [
     auditSelection.size,
   ]);
-  $("#audit-disable").disabled =
-    auditBusy || ![...auditSelection.values()].some((i) => !i.rule.disabled);
-  $("#audit-enable").disabled =
-    auditBusy || ![...auditSelection.values()].some((i) => i.rule.disabled);
+  const selected = [...auditSelection.values()];
+  $("#audit-disable").hidden = !selected.some(i => !i.rule.disabled);
+  $("#audit-enable").hidden = !selected.some(i => i.rule.disabled);
+  $("#audit-disable").disabled = $("#audit-enable").disabled = auditBusy;
 }
 async function changeAudit(items, disabled) {
   if (auditBusy) return;
@@ -1057,6 +1055,7 @@ async function changeAudit(items, disabled) {
       );
     await afterRulesChanged();
     await loadAudit();
+    toast(tr(disabled ? "Выбранные записи отключены" : "Выбранные записи снова включены"));
   } catch (e) {
     fail(e);
     await loadAudit().catch(() => {});
@@ -1065,14 +1064,22 @@ async function changeAudit(items, disabled) {
     updateAuditSelection();
   }
 }
+let auditLoad = 0;
 async function loadAudit() {
+  const request = ++auditLoad;
   const data = await api("/api/v1/ui/rules/audit");
+  if (request !== auditLoad) return;
+  const focusedRow = document.activeElement.closest("#audit-list tr");
+  const focusedKey = focusedRow?.dataset.auditEntry;
+  const focusedControl = document.activeElement.matches("input") ? "input" : "button";
+  const wasBulkAction = $("#audit-selection").contains(document.activeElement);
   auditSelection.clear();
   updateAuditSelection();
   const reasons = {
-    disabled: "Отключено",
-    weak_value: "Недостаточно оснований",
+    disabled: "Ранее отключено",
+    weak_value: "Общее слово или публичное обозначение",
     invalid_ip: "Не похоже на полный IP-адрес",
+    short_domain: "Слишком короткое значение для домена",
     generated_rule: "Создано из найденного кандидата",
     type_format_conflict: "Тип правила противоречит формату значения",
     ambiguous_calendar_name: "Возможное имя из календарной даты",
@@ -1097,19 +1104,20 @@ async function loadAudit() {
   const rows = data.items.map((item) => {
     const checkbox = h("input", {
       type: "checkbox",
-      "aria-label": tr("Выбрать ") + (item.rule.value || item.rule.kind),
+      "aria-label": tr("Выбрать ") + rulePattern(item.rule)[1],
       disabled: !info.editable,
       onchange: (e) => {
         const key = item.scope + ":" + item.index;
         if (e.target.checked) auditSelection.set(key, item);
         else auditSelection.delete(key);
         selectAll.checked = auditSelection.size === data.items.length;
+        selectAll.indeterminate = auditSelection.size > 0 && !selectAll.checked;
         updateAuditSelection();
       },
     });
     return h(
       "tr",
-      {},
+      {dataset:{auditEntry:item.scope + ":" + item.index}},
       h("td", {}, checkbox),
       h(
         "td",
@@ -1117,32 +1125,25 @@ async function loadAudit() {
         item.rule.value || item.rule.regex || item.rule.template,
       ),
       h("td", {}, kindBadge(item.rule.kind)),
-      h("td", {}, tr(reasons[item.reason] || item.reason)),
+      h("td", {}, tr(reasons[item.detail_reason || item.reason] || item.reason)),
       h(
         "td",
         {},
-        item.scope === "memory" ? tr("Память сессии") : item.scope,
+        item.scope === "memory" ? tr("Память сессии") : scopeLabel(item.scope),
         h(
           "small",
           { class: "hint" },
           item.rule.note === "Память сессии · источник не сохранён"
-            ? tr(item.rule.note)
+            ? tr("Исходный запрос неизвестен")
             : item.rule.note || tr("Источник не сохранён"),
         ),
       ),
-      h(
-        "td",
-        {},
-        h(
-          "button",
-          {
-            class: "small secondary",
-            disabled: !info.editable,
-            onclick: () => changeAudit([item], !item.rule.disabled),
-          },
-          tr(item.rule.disabled ? "Восстановить" : "Отключить"),
-        ),
-      ),
+      h("td", {}, h("span", {class:"audit-state " + (item.rule.disabled ? "off" : "on")},
+        tr(item.rule.disabled ? "Отключено" : "Включено"))),
+      h("td", {class:"audit-action"}, h("button", {
+        type:"button", class:"small secondary", disabled:!info.editable,
+        onclick:() => changeAudit([item], !item.rule.disabled),
+      }, tr(item.rule.disabled ? "Включить снова" : "Отключить"))),
     );
   });
   $("#audit-list").replaceChildren(
@@ -1157,7 +1158,7 @@ async function loadAudit() {
               "tr",
               {},
               h("th", {}, selectAll),
-              ...["Значение", "Тип", "Причина проверки", "Источник", ""].map(
+              ...["Значение", "Тип", "Причина проверки", "Источник", "Состояние", "Действие"].map(
                 (t) => h("th", {}, tr(t)),
               ),
             ),
@@ -1168,9 +1169,15 @@ async function loadAudit() {
           "div",
           { class: "empty-state" },
           icon("check"),
-          h("strong", {}, tr("Подозрительных правил не найдено")),
+          h("strong", {}, tr("Записей для проверки нет")),
         ),
   );
+  if (focusedKey) {
+    const row = $("#audit-list").querySelector('[data-audit-entry="' + CSS.escape(focusedKey) + '"]');
+    (row?.querySelector(focusedControl) || $("#audit-refresh")).focus({preventScroll:true});
+  } else if (wasBulkAction) {
+    $("#audit-refresh").focus({preventScroll:true});
+  }
 }
 $("#audit-disable").addEventListener("click", () =>
   changeAudit([...auditSelection.values()], true),
@@ -1406,10 +1413,7 @@ Object.assign(TABS, {
   proxy: renderSettings,
   setup: renderWizard,
   analysis: loadAnalysis,
-  rules: async () => {
-    await loadRules();
-    showRulesView(rulesView);
-  },
+  rules: () => Promise.all([loadRules(), showRulesView(rulesView)]),
 });
 for (const input of $("#language-switch").querySelectorAll("input"))
   input.checked = input.value === I18N.language;
@@ -1444,14 +1448,7 @@ $("#config-export").addEventListener("click", async () => {
     });
     const text = JSON.stringify(bundle, null, 2);
     $("#config-json").value = text;
-    const url = URL.createObjectURL(
-      new Blob([text], { type: "application/json" }),
-    );
-    const link = h("a", { href: url, download: "kaponir-settings.json" });
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadJson(text, "kaponir-settings.json");
     $("#config-status").textContent = tr("Настройки экспортированы");
   } catch (e) {
     $("#config-status").textContent = e.message;

@@ -1543,6 +1543,8 @@ async fn legacy_session_memory_can_be_excluded_without_rules_or_deleting_tokens(
         .iter()
         .find(|i| i["scope"] == "memory")
         .unwrap();
+    assert_eq!(memory["reason"], "session_memory");
+    assert_eq!(memory["detail_reason"], "weak_value");
     assert_eq!(
         call(
             "PUT",

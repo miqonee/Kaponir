@@ -213,33 +213,80 @@
 <dialog id="review-confirm" class="review-confirm" aria-labelledby="review-confirm-title"></dialog>
 <dialog id="review-options" class="review-confirm" aria-labelledby="review-options-title"></dialog>
 </section>
-<section class="tab" hidden="" id="tab-rules"><div class="section-tabs" id="rules-view"><button data-go="mask"><svg aria-hidden="true"><use href="#i-flask"></use></svg><span data-i18n="Проверить на примере">Проверить на примере</span></button><button aria-pressed="true" data-i18n="Все правила" data-rules-view="list">Все правила</button><button aria-pressed="false" data-i18n="Аудит правил" data-rules-view="audit">Аудит правил</button><span class="grow"></span><a href="#setup" data-go="setup" data-i18n="Мастер настройки правил">Мастер настройки правил</a></div><article class="panel" hidden="" id="rules-audit"><div class="panel-heading"><div><h2 data-i18n="Проверка накопленных правил">Проверка накопленных правил</h2><p data-i18n="Отключение обратимо. Токены старых ответов сохраняются.">Отключение обратимо. Токены старых ответов сохраняются.</p></div><button class="secondary" data-i18n="Обновить" id="audit-refresh">Обновить</button></div><div class="toolbar" hidden="" id="audit-selection"><span id="audit-selected-count"></span><span class="grow"></span><button class="primary" data-i18n="Отключить выбранное" id="audit-disable">Отключить выбранное</button><button class="secondary" data-i18n="Восстановить выбранное" id="audit-enable">Восстановить выбранное</button></div><div class="table-wrap" id="audit-list"></div></article>
-<search class="rule-filters" id="rule-filters" aria-label="Поиск правил" data-i18n-aria-label="Поиск правил"><label class="field"><span data-i18n="Поиск правил">Поиск правил</span><input type="search" id="rules-query" placeholder="Значение, тип или заметка" data-i18n-placeholder="Значение, тип или заметка"></label><label class="field"><span data-i18n="Область">Область</span><select id="rules-scope"><option value="" data-i18n="Все области">Все области</option><option value="personal" data-i18n="Личные">Личные</option><option value="team" data-i18n="Команда">Команда</option><option value="global" data-i18n="Корпоративные">Корпоративные</option></select></label><button id="rules-clear" class="text-button" type="button" hidden data-i18n="Сбросить фильтры">Сбросить фильтры</button><span class="hint" id="rules-match-count" role="status"></span></search>
-<details class="rule-editor panel" id="rule-editor"><summary data-i18n="Новое правило">Новое правило</summary><form class="rule-form" id="rf">
-<div class="form-grid">
-<label><span data-i18n="Контур">Контур</span><select name="scope"><option data-i18n="личный" value="personal">личный</option><option data-i18n="команда" value="team">команда</option><option data-i18n="корпоративный" value="global">корпоративный</option></select>
-</label>
-<label><span data-i18n="Действие">Действие</span><select name="action"><option data-i18n="маскировать" value="mask">маскировать</option><option data-i18n="никогда не маскировать" value="keep">никогда не маскировать</option></select>
-</label>
-<label><span data-i18n="Тип токена">Тип токена</span><input list="kinds" name="kind" spellcheck="false" value="CUSTOM"/>
-</label>
-<label><span data-i18n="Что искать">Что искать</span><select name="ptype"><option data-i18n="точное значение" value="value">точное значение</option><option data-i18n="шаблон" value="template">шаблон</option><option data-i18n="регулярное выражение" value="regex">регулярное выражение</option></select>
-</label>
-<label class="wide"><span data-i18n="Значение">Значение</span><input class="mono" data-i18n-placeholder="Рога и Копыта" name="pattern" placeholder="Рога и Копыта" required="" spellcheck="false"/>
-</label>
-<label><span data-i18n="Подстановка">Подстановка</span><select name="strategy"><option data-i18n="по умолчанию" value="">по умолчанию</option><option data-i18n="переменная" value="variable">переменная</option><option value="hmac">HMAC</option></select>
-</label>
-<label class="wide"><span data-i18n="Заметка">Заметка</span><input name="note" spellcheck="false"/></label>
-<label class="check"><input name="case_sensitive" type="checkbox"/><span data-i18n="с учётом регистра">с учётом регистра</span></label>
-<label class="check"><input name="enforced" type="checkbox"/><span data-i18n="нельзя перекрыть (только корпоративный)">нельзя перекрыть (только корпоративный)</span></label>
+<section class="tab" hidden id="tab-rules">
+<div class="section-tabs" id="rules-view">
+  <button type="button" aria-pressed="true" data-rules-view="list" data-i18n="Список правил">Список правил</button>
+  <button type="button" aria-pressed="false" data-rules-view="audit" data-i18n="Аудит правил">Аудит правил</button>
+  <span class="grow"></span><a href="#setup" data-go="setup" data-i18n="Мастер настройки правил">Мастер настройки правил</a>
 </div>
-<p class="hint" id="rf-hint"></p>
-<div class="form-actions"><button class="primary" data-i18n="Добавить" type="submit">Добавить</button></div>
-</form>
-</details>
-<div id="rules-list"></div>
-<details class="card rule-packs"><summary data-i18n="Пакеты правил">Пакеты правил</summary><div id="packs"></div></details>
+<div id="rules-catalog">
+  <search class="panel rules-controls" id="rule-filters" aria-label="Поиск правил" data-i18n-aria-label="Поиск правил">
+    <div class="rules-command-row">
+      <label class="field" for="rules-query"><span data-i18n="Поиск правил">Поиск правил</span><input type="search" id="rules-query" name="query" placeholder="Значение, тип или заметка" data-i18n-placeholder="Значение, тип или заметка" spellcheck="false"></label>
+      <label class="field" for="rules-scope"><span data-i18n="Область">Область</span><select name="scope" id="rules-scope"><option value="" data-i18n="Все области">Все области</option><option value="personal" data-i18n="Личные">Личные</option><option value="team" data-i18n="Команда">Команда</option><option value="global" data-i18n="Корпоративные">Корпоративные</option></select></label>
+      <div class="rules-actions">
+        <button type="button" id="rules-export" class="secondary" data-i18n="Скачать все правила">Скачать все правила</button>
+        <button type="button" id="rules-new" class="primary" aria-haspopup="dialog" aria-controls="rule-editor" data-i18n="Новое правило">Новое правило</button>
+      </div>
+    </div>
+    <div class="rules-display-row">
+      <fieldset id="rules-state" class="rule-switch">
+        <legend class="sr-only" data-i18n="Какие правила показывать">Какие правила показывать</legend>
+        <label><input class="sr-only" type="radio" name="rules-state" value="mask" checked><span data-i18n="Маскируют">Маскируют</span></label>
+        <label><input class="sr-only" type="radio" name="rules-state" value="keep"><span data-i18n="Оставляют открытым">Оставляют открытым</span></label>
+        <label><input class="sr-only" type="radio" name="rules-state" value="disabled"><span data-i18n="Отключены">Отключены</span></label>
+        <label><input class="sr-only" type="radio" name="rules-state" value="all"><span data-i18n="Все">Все</span></label>
+      </fieldset>
+      <button type="button" id="rules-clear" class="text-button" hidden data-i18n="Сбросить фильтры">Сбросить фильтры</button>
+      <output id="rules-match-count" class="hint" for="rules-query rules-scope"></output>
+    </div>
+  </search>
+  <div id="rules-list" class="rules-results">
+    <div class="table-wrap rules-table-wrap" hidden><table class="rules-table">
+      <thead><tr>
+        <th scope="col" aria-sort="ascending"><button id="rules-sort" type="button" class="rule-sort"><span data-i18n="Значение">Значение</span> <span aria-hidden="true" id="rules-sort-arrow">↑</span></button></th>
+        <th scope="col" data-i18n="Действие">Действие</th><th scope="col" data-i18n="Тип">Тип</th>
+        <th scope="col" data-i18n="Область">Область</th><th scope="col"><span class="sr-only" data-i18n="Управление правилом">Управление правилом</span></th>
+      </tr></thead><tbody></tbody>
+    </table></div>
+    <p id="rules-empty" class="empty-state" hidden></p>
+  </div>
+  <details class="card rules-secondary"><summary data-i18n="Корпоративные домены">Корпоративные домены</summary><div id="rules-domains"></div></details>
+  <details class="card rules-secondary"><summary data-i18n="Пакеты правил">Пакеты правил</summary><div id="packs"></div></details>
+</div>
+<article class="panel" hidden id="rules-audit">
+  <div class="panel-heading"><div><h2 data-i18n="Записи для проверки">Записи для проверки</h2>
+    <p data-i18n="Аудит отмечает спорные правила и значения из памяти сессий. Причина указана в каждой строке.">Аудит отмечает спорные правила и значения из памяти сессий. Причина указана в каждой строке.</p>
+    <p data-i18n="Отключение и повторное включение действуют на будущие запросы. Старые токены по-прежнему можно раскрыть.">Отключение и повторное включение действуют на будущие запросы. Старые токены по-прежнему можно раскрыть.</p>
+  </div><button class="secondary" type="button" data-i18n="Обновить" id="audit-refresh">Обновить</button></div>
+  <div class="toolbar" hidden id="audit-selection"><span id="audit-selected-count" role="status"></span><span class="grow"></span><button class="secondary" data-i18n="Отключить выбранное" id="audit-disable">Отключить выбранное</button><button class="secondary" data-i18n="Включить выбранное" id="audit-enable">Включить выбранное</button></div>
+  <div class="table-wrap" id="audit-list"></div>
+</article>
 </section>
+<dialog class="review-confirm rules-dialog" id="rule-editor" aria-labelledby="rule-editor-title">
+  <form class="rule-form" id="rf" aria-labelledby="rule-editor-title">
+    <h2 id="rule-editor-title" data-i18n="Новое правило">Новое правило</h2>
+    <div class="rule-form-grid">
+      <label class="field" for="rf-ptype"><span data-i18n="Что искать">Что искать</span><select id="rf-ptype" name="ptype"><option data-i18n="Точное значение" value="value">Точное значение</option><option data-i18n="Шаблон" value="template">Шаблон</option><option data-i18n="Регулярное выражение" value="regex">Регулярное выражение</option></select></label>
+      <label class="field" for="rf-pattern"><span data-i18n="Искомое значение">Искомое значение</span><input class="mono" id="rf-pattern" name="pattern" required autofocus spellcheck="false" aria-describedby="rf-hint"></label>
+      <p class="hint rule-full" id="rf-hint"></p>
+      <label class="field" for="rf-action"><span data-i18n="Действие">Действие</span><select id="rf-action" name="action"><option data-i18n="Маскировать" value="mask">Маскировать</option><option data-i18n="Оставлять открытым" value="keep">Оставлять открытым</option></select></label>
+      <label class="field" for="rf-scope"><span data-i18n="Область">Область</span><select id="rf-scope" name="scope"><option data-i18n="Личные" value="personal">Личные</option><option data-i18n="Команда" value="team">Команда</option><option data-i18n="Корпоративные" value="global">Корпоративные</option></select></label>
+      <label class="field" for="rf-kind"><span data-i18n="Тип токена">Тип токена</span><input id="rf-kind" list="kinds" name="kind" spellcheck="false" value="CUSTOM"></label>
+      <label class="field" for="rf-strategy"><span data-i18n="Подстановка">Подстановка</span><select id="rf-strategy" name="strategy"><option data-i18n="По умолчанию" value="">По умолчанию</option><option data-i18n="Переменная" value="variable">Переменная</option><option value="hmac">HMAC</option></select></label>
+      <label class="field rule-full" for="rf-note"><span data-i18n="Заметка">Заметка</span><input id="rf-note" name="note"></label>
+    </div>
+    <div class="rule-checks"><label for="rf-case"><input id="rf-case" name="case_sensitive" type="checkbox"><span data-i18n="Учитывать регистр">Учитывать регистр</span></label><label for="rf-enforced"><input id="rf-enforced" name="enforced" type="checkbox"><span data-i18n="Запретить переопределение в других областях">Запретить переопределение в других областях</span></label></div>
+    <p class="rule-error" id="rf-error" role="alert"></p>
+    <div class="rule-dialog-actions"><button class="secondary" type="button" id="rf-cancel" data-i18n="Отмена">Отмена</button><button class="primary" type="submit" data-i18n="Создать правило">Создать правило</button></div>
+  </form>
+</dialog>
+<dialog class="review-confirm rules-dialog rule-delete-dialog" id="rule-delete" aria-labelledby="rule-delete-title" aria-describedby="rule-delete-scope rule-delete-value">
+  <form method="dialog"><h2 id="rule-delete-title" data-i18n="Удалить правило?">Удалить правило?</h2>
+    <p id="rule-delete-scope" class="hint"></p><code id="rule-delete-value"></code><p id="rule-delete-error" class="rule-error" role="alert"></p>
+    <div class="rule-dialog-actions"><button class="secondary" value="cancel" autofocus data-i18n="Отмена">Отмена</button><button class="danger" value="delete" data-i18n="Удалить правило">Удалить правило</button></div>
+  </form>
+</dialog>
 <section class="tab" hidden="" id="tab-worker">
 <article class="panel settings-card"><div class="toolbar"><h2 data-i18n="Служба фонового анализа">Служба фонового анализа</h2><span class="grow"></span><button class="secondary" data-i18n="Обновить" id="worker-refresh">Обновить</button></div><div id="worker-state" role="status"></div><div class="form-actions"><button class="primary" data-i18n="Запустить обработку" id="worker-toggle" type="button">Запустить обработку</button></div></article>
 <article class="panel learning-widget" hidden="" id="learning-widget"><div class="panel-heading"><div><h2 data-i18n="Работа фонового анализа">Работа фонового анализа</h2><p aria-live="polite" id="learning-state" role="status"></p></div><div class="form-actions"><button class="secondary" data-i18n="Возобновить анализ" id="learning-toggle" type="button">Возобновить анализ</button><button class="text-button" id="learning-open-history" data-i18n="Журнал обучения">Журнал обучения</button></div></div><div class="queue-overview" id="learning-metrics">

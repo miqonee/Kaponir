@@ -301,7 +301,7 @@ def main():
                 page.locator('[data-tab="rules"]').click()
                 page.locator('[data-rules-view="audit"]').click()
                 page.locator('#audit-list button', has_text='Отключить').first.click()
-                page.locator('#audit-list button', has_text='Восстановить').first.wait_for()
+                page.locator('#audit-list button', has_text='Включить снова').first.wait_for()
                 assert api('/api/v1/anonymize', {'text': 'questions', 'session': 'audit-chat'})['text'] == 'questions'
                 assert api('/api/v1/deanonymize', {'text': original['text'], 'session': 'audit-chat'})['text'] == 'questions'
                 api('/api/v1/rules', {'scope': 'personal', 'rule': {'kind': 'PROJ', 'value': 'character'}})

@@ -107,6 +107,7 @@ def check_navigation(page, output):
 
     sidebar.locator('[data-tab=rules]').click()
     page.locator('[data-rules-view=list]').click()
+    page.locator('#rules-state label').filter(has_text='Отключены').click()
     query = page.locator('#rules-query')
     query.fill('kaponir discover')
     rows = page.locator('#rules-list [data-rule-search]:visible')
