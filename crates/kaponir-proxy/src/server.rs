@@ -27,6 +27,15 @@ enum Api {
     OpenAi,
 }
 
+impl Api {
+    fn protocol(self) -> &'static str {
+        match self {
+            Self::Anthropic => "anthropic",
+            Self::OpenAi => "openai",
+        }
+    }
+}
+
 pub fn router(state: Shared) -> Router {
     crate::learning::start(&state);
     crate::review::start(&state);
@@ -210,14 +219,15 @@ fn session_id(
                 )
             })
         });
+    (inferred_session(api.protocol(), first), "inferred")
+}
+
+pub(crate) fn inferred_session(protocol: &str, first: Option<&Value>) -> String {
     let mut h = blake3::Hasher::new();
-    h.update(if api == Api::Anthropic {
-        b"anthropic\0"
-    } else {
-        b"openai\0"
-    });
+    h.update(protocol.as_bytes());
+    h.update(b"\0");
     h.update(first.map(Value::to_string).unwrap_or_default().as_bytes());
-    (format!("c:{}", &h.finalize().to_hex()[..32]), "inferred")
+    format!("c:{}", &h.finalize().to_hex()[..32])
 }
 
 pub(crate) fn session_tag(session: &str) -> String {
@@ -343,14 +353,7 @@ async fn proxy(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Response, ApiError> {
-    let span = Span::new(
-        st.traffic.clone(),
-        if api == Api::Anthropic {
-            "anthropic"
-        } else {
-            "openai"
-        },
-    );
+    let span = Span::new(st.traffic.clone(), api.protocol());
     let result = proxy_request(st, api, uri, headers, body, span.clone()).await;
     span.status.store(
         match &result {
@@ -397,17 +400,12 @@ async fn proxy_request(
     let original = crate::conversation::Transcript::capture(&json);
     let opencode = crate::opencode::session(&headers);
     let count_tokens = uri.path().ends_with("count_tokens");
-    let title_call = (opencode.is_some() || crate::opencode::user_agent(&headers))
-        && crate::opencode::is_title_call(&json);
+    let naming = crate::opencode::title_request(
+        &json,
+        opencode.is_some() || crate::opencode::user_agent(&headers),
+    );
+    let title_call = naming.is_some();
     let (session, source) = session_id(&headers, opencode, api, &json);
-    let capture_title = title_call && !count_tokens && source != "inferred";
-    // Older clients can omit their ID. Their identical naming prompts must
-    // never collect unrelated chats under one inferred session.
-    let session = if title_call && source == "inferred" {
-        format!("title-request:{}", span.id)
-    } else {
-        session
-    };
     if !title_call
         && !count_tokens
         && st.learning.enabled()
@@ -430,26 +428,40 @@ async fn proxy_request(
                 )
             })
         });
-    let session_tag = session_tag(&session);
+    // A headerless title can name the same inferred question, but its masking
+    // memory stays isolated from the real conversation.
+    let tag = match (source, naming) {
+        ("inferred", Some(crate::opencode::TitleRequest::WrappedFirst(first))) => {
+            Some(session_tag(&inferred_session(api.protocol(), Some(&first))))
+        }
+        ("inferred", Some(crate::opencode::TitleRequest::NeedsId)) => None,
+        ("inferred", None) if !has_start => None,
+        _ => Some(session_tag(&session)),
+    };
+    let capture_title = title_call && !count_tokens && tag.is_some();
+    let session = if title_call && source == "inferred" {
+        format!("title-request:{}", span.id)
+    } else {
+        session
+    };
     // Policies can change while an agent is running. Correlate the original
     // structured question so a newly learned mask cannot start a second turn.
-    if !title_call {
+    if !title_call && let Some(session_tag) = &tag {
         *span
             .turn
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             crate::conversation::Turn::with_client_id(
-                &session_tag,
+                session_tag,
                 &json,
                 headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
             );
     }
-    if source != "inferred" || (has_start && !title_call) {
+    if let Some(tag) = tag {
         *span
             .session
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            Some((session_tag.clone(), source.into()));
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((tag, source.into()));
     }
     *span
         .request_kind
@@ -525,11 +537,7 @@ async fn proxy_request(
         Api::Anthropic => &st.cfg.anthropic_upstream,
         Api::OpenAi => &st.cfg.openai_upstream,
     };
-    let kind = if api == Api::Anthropic {
-        "anthropic"
-    } else {
-        "openai"
-    };
+    let kind = api.protocol();
     crate::providers::refresh(&st, connection_id(&uri), false).await?;
     let model = json.get("model").and_then(Value::as_str).unwrap_or("");
     let mut attempted = Vec::new();

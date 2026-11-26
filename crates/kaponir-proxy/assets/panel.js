@@ -516,8 +516,7 @@ function toggleGroup(key, expanded, requests) {
 }
 function requestRow(event, prefix) {
   const notes = requestNotes(event), outcome = outcomeLabel(event);
-  const format = event.request_kind === "session_title" ? tr("Название сессии OpenCode") :
-    event.request_kind === "count_tokens" ? tr("Подсчёт токенов") : event.streaming ? "SSE" : "";
+  const format = event.request_kind === "count_tokens" ? tr("Подсчёт токенов") : event.streaming ? "SSE" : "";
   const open = () => openInspector(event.id, ["error","restore_error","cancelled"].includes(event.outcome) ? "diagnostics" :
     notes.length ? "review" : "request");
   const state = h("td", {class:"traffic-status"}, h("span", {class:"event-status " + event.outcome}, outcome));
@@ -536,6 +535,7 @@ function requestRow(event, prefix) {
 function sessionsTable(events, compact = false) {
   const groups = new Map();
   for (const e of events) {
+    if (e.request_kind === "session_title") continue;
     const key = e.session_id || "request-" + e.id;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(e);

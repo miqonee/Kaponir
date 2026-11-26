@@ -2072,6 +2072,7 @@
   "Текст ответа не сохранён.": "No reply text was retained.",
   "Журнал запросов · {{0}}": "Request log · {{0}}",
   "Вызовов API · {{0}}": "API calls · {{0}}",
+  "Вызовов в переписке · {{0}}": "Conversation API calls · {{0}}",
   "Модель получила только запрос на подсчёт токенов.": "Only a token count was requested.",
   "Вызов модели": "Model call",
   "Вызов · запрос {{0}}": "Call · request {{0}}",

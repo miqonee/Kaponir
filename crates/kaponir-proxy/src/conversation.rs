@@ -138,6 +138,27 @@ pub(crate) fn append_bounded(dest: &mut String, fragment: &str, remaining: usize
 }
 
 impl Reply {
+    /// The provider's visible text for the first choice, if the captured reply
+    /// is untruncated and contains no tool calls.
+    pub(crate) fn plain_wire(&self, openai: bool) -> Option<String> {
+        if self.truncated || self.parts.iter().any(|p| p.kind == PartKind::Call) {
+            return None;
+        }
+        Some(
+            self.parts
+                .iter()
+                .filter(|p| {
+                    if openai {
+                        p.slot == [0, 0]
+                    } else {
+                        p.slot[0] == 0
+                    }
+                })
+                .map(|p| p.wire.as_str())
+                .collect(),
+        )
+    }
+
     fn push(
         &mut self,
         kind: PartKind,

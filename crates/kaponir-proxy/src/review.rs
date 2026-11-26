@@ -1,6 +1,7 @@
 //! Model review and decisions for saved findings.
 mod automatic;
 pub(crate) mod coverage;
+mod path_prefixes;
 pub(crate) mod paths;
 use crate::{
     Shared, learning,
@@ -542,7 +543,6 @@ pub(crate) fn traffic_summary(st: &Shared) -> Value {
         .events
         .iter()
         .chain(&traffic.active)
-        .filter(|e| matches!(e.session_source.as_deref(), Some("opencode" | "explicit")))
         .filter_map(|e| e.session_id.as_deref())
         .collect();
     let titles = st

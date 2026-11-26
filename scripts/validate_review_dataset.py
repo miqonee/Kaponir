@@ -6,7 +6,9 @@ import re
 import shutil
 import subprocess
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 from urllib.error import HTTPError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -431,6 +433,44 @@ def check_rule_update(page, api, base):
                for r in masked['replacements']), masked
 
 
+def check_concurrent_rule_update(api):
+    rule_id = 'concurrent-pattern-fixture'
+    api('/api/v1/rules', {'scope': 'team', 'rule': {
+        'id': rule_id, 'kind': 'PROJ', 'value': 'originalfixture',
+    }})
+
+    def team_rules():
+        return next(s for s in api('/api/v1/rules') if s['scope'] == 'team')
+
+    team = team_rules()
+    index = next(i for i, rule in enumerate(team['file']['rule']) if rule.get('id') == rule_id)
+    endpoint = f'/api/v1/rules/team/{index}'
+    ready = Barrier(2)
+
+    def edit(value):
+        ready.wait(timeout=10)
+        try:
+            result = api(endpoint, {'revision': team['revision'],
+                                    'pattern': {'type': 'value', 'text': value}}, 'PATCH')
+        except HTTPError as err:
+            with err:
+                assert err.code == 409 and json.load(err)['error']['message'] == 'rule_list_changed'
+            return False
+        assert result == {'ok': True}
+        return True
+
+    values = ['alderfixture', 'birchfixture']
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        accepted = list(pool.map(edit, values))
+    assert sum(accepted) == 1, accepted
+    winner = values[accepted.index(True)]
+    saved = team_rules()['file']['rule'][index]
+    assert saved['id'] == rule_id and saved['value'] == winner, saved
+    masked = api('/api/v1/ui/mask', {'text': ' '.join(values), 'commit': False})
+    matches = [r['original'] for r in masked['replacements'] if r['origin'].get('id') == rule_id]
+    assert matches == [winner], masked
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary', type=Path)
@@ -459,6 +499,7 @@ def main():
                 check_directory_boundary_error(page, api, base)
                 check_directory_rule_conflict(page, api, base)
                 check_rule_update(page, api, base)
+                check_concurrent_rule_update(api)
                 assert not errors, errors
                 browser.close()
         finally:

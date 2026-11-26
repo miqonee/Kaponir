@@ -1,8 +1,12 @@
 //! OpenCode names a chat with a separate model call. Its stable session ID,
 //! rather than the generated text or the provider connection, links the calls.
-use crate::{Shared, conversation::PartKind, sse, traffic::Span};
+use crate::{
+    State, sse,
+    traffic::{Event, Span},
+};
 use axum::http::HeaderMap;
-use serde_json::Value;
+use serde_json::{Value, json};
+use std::borrow::Cow;
 
 pub(crate) fn session(headers: &HeaderMap) -> Option<&str> {
     ["x-opencode-session-id", "x-opencode-session"]
@@ -43,36 +47,139 @@ fn any_text(content: &Value, matches: impl Fn(&str) -> bool) -> bool {
         })
 }
 
-pub(crate) fn is_title_call(body: &Value) -> bool {
-    let Some(messages) = body["messages"].as_array() else {
-        return false;
+const FIRST: &str = "Here is the first message of the conversation:";
+const HISTORY: &str = "Here is the conversation so far:";
+
+pub(crate) enum TitleRequest {
+    /// Reconstruct the user's first message for normal session inference.
+    WrappedFirst(Value),
+    /// The original question was already present before the naming prompt.
+    WithOriginal,
+    /// History summaries and older prompts need a client-supplied session ID.
+    NeedsId,
+}
+
+fn text_content(content: &Value) -> Option<Cow<'_, str>> {
+    if let Some(text) = content.as_str() {
+        return Some(Cow::Borrowed(text));
+    }
+    let parts = content.as_array()?;
+    if let [part] = parts.as_slice() {
+        return (part["type"] == "text")
+            .then(|| part["text"].as_str())
+            .flatten()
+            .map(Cow::Borrowed);
+    }
+    let mut text = String::new();
+    for part in parts {
+        if part["type"] != "text" {
+            return None;
+        }
+        if !text.is_empty() {
+            text.push('\n');
+        }
+        text.push_str(part["text"].as_str()?);
+    }
+    Some(Cow::Owned(text))
+}
+
+fn naming_text(content: &Value) -> Option<Cow<'_, str>> {
+    if any_text(content, |s| {
+        let s = s.trim_start();
+        s.starts_with(FIRST) || s.starts_with(HISTORY)
+    }) {
+        text_content(content)
+    } else {
+        None
+    }
+}
+
+fn envelope(text: &str) -> Option<(&str, bool)> {
+    let (header, rest) = text.trim().split_once('\n')?;
+    let (open, close, first) = match header.trim_end() {
+        FIRST => ("<message>", "</message>", true),
+        HISTORY => ("<conversation>", "</conversation>", false),
+        _ => return None,
     };
-    let title_agent = |s: &str| {
-        s.lines()
-            .any(|line| line.trim_start().starts_with("You are a title generator."))
+    let (body, instruction) = rest.trim().rsplit_once('\n')?;
+    if instruction.trim() != "Reply with only the title." {
+        return None;
+    }
+    let inner = body.trim().strip_prefix(open)?.strip_suffix(close)?;
+    // Remove the delimiters' line breaks, preserving whitespace belonging to
+    // the actual question. Session inference hashes its exact JSON content.
+    let inner = inner
+        .strip_prefix("\r\n")
+        .or_else(|| inner.strip_prefix('\n'))
+        .unwrap_or(inner);
+    let inner = inner
+        .strip_suffix("\r\n")
+        .or_else(|| inner.strip_suffix('\n'))
+        .unwrap_or(inner);
+    (!inner.trim().is_empty()).then_some((inner, first))
+}
+
+fn user_message(text: &str, blocks: bool) -> Value {
+    let content = if blocks {
+        json!([{"type":"text","text":text}])
+    } else {
+        json!(text)
     };
-    let system = any_text(&body["system"], title_agent)
-        || messages.iter().any(|m| {
-            matches!(m["role"].as_str(), Some("system" | "developer"))
-                && any_text(&m["content"], title_agent)
+    json!({"role":"user","content":content})
+}
+
+pub(crate) fn title_request(body: &Value, known_client: bool) -> Option<TitleRequest> {
+    let messages = body["messages"].as_array()?;
+    let mut dialogue = messages
+        .iter()
+        .filter(|m| !matches!(m["role"].as_str(), Some("system" | "developer")));
+    let first = dialogue.next()?;
+    if first["role"] != "user" {
+        return None;
+    }
+    let content = &first["content"];
+    // This complete envelope survives gateways that replace system prompts or
+    // strip client headers. Quoted instructions, follow-up turns and tool
+    // messages must stay in the conversation.
+    let title_agent = || {
+        let agent = |s: &str| {
+            s.lines()
+                .any(|line| line.trim_start().starts_with("You are a title generator."))
+        };
+        known_client
+            && (any_text(&body["system"], agent)
+                || messages.iter().any(|m| {
+                    matches!(m["role"].as_str(), Some("system" | "developer"))
+                        && any_text(&m["content"], agent)
+                }))
+    };
+    let next = dialogue.next();
+    if let Some(next) = next
+        && next["role"] == "user"
+        && dialogue.next().is_none()
+        && let Some(text) = naming_text(&next["content"])
+        && let Some((inner, true)) = envelope(&text)
+        && text_content(content).as_deref() == Some(inner)
+    {
+        return Some(TitleRequest::WithOriginal);
+    }
+    if let Some(text) = naming_text(content)
+        && let Some((inner, first)) = envelope(&text)
+        && (next.is_none() || title_agent())
+    {
+        return Some(if first {
+            TitleRequest::WrappedFirst(user_message(inner, content.is_array()))
+        } else {
+            TitleRequest::NeedsId
         });
-    system
-        && messages
-            .iter()
-            .find(|m| m["role"] == "user")
-            .is_some_and(|m| {
-                any_text(&m["content"], |s| {
-                    let s = s.trim();
-                    s.lines()
-                        .next()
-                        .is_some_and(|s| s.trim() == "Generate a title for this conversation:")
-                        || ((s.starts_with(
-                            "Here is the first message of the conversation:\n\n<message>",
-                        ) || s
-                            .starts_with("Here is the conversation so far:\n\n<conversation>"))
-                            && s.ends_with("Reply with only the title."))
-                })
-            })
+    }
+    let legacy = |s: &str| {
+        s.trim()
+            .lines()
+            .next()
+            .is_some_and(|s| s.trim() == "Generate a title for this conversation:")
+    };
+    (known_client && any_text(content, legacy) && title_agent()).then_some(TitleRequest::NeedsId)
 }
 
 /// EOF alone can mean a truncated response. Some clients close as soon as
@@ -128,47 +235,188 @@ fn title_line(mut wire: &str) -> Option<String> {
     (!text.trim().is_empty()).then(|| text.trim().to_owned())
 }
 
-pub(crate) fn capture_title(st: &Shared, session: &str, span: &Span, openai: bool) {
-    let wire = {
-        let usage = span
-            .usage
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(reply) = &usage.reply else { return };
-        if reply.truncated || reply.parts.iter().any(|p| p.kind == PartKind::Call) {
-            return;
-        }
-        reply
-            .parts
-            .iter()
-            .filter(|p| {
-                if openai {
-                    p.slot == [0, 0]
-                } else {
-                    p.slot[0] == 0
-                }
-            })
-            .map(|p| p.wire.as_str())
-            .collect::<String>()
-    };
-    let Some(line) = title_line(&wire) else {
-        return;
-    };
-    // The inspector also contains restored text. Only the provider's visible
-    // reply is eligible, and new sensitive values in it go through local rules.
-    let result = st
-        .with(session, true, |cx| cx.mask(&line))
-        .and_then(|mut text| {
-            if text.chars().count() > 100 {
-                text = text.chars().take(97).collect();
-                text.push_str("...");
-            }
-            let tag = super::server::session_tag(session);
-            st.with_vault(|_, vault| {
-                Ok(vault.save_session_title(&tag, span.started_at_ms, span.id, &text)?)
-            })
-        });
-    if result.is_err() {
+fn save_title(
+    st: &State,
+    mask_session: &str,
+    tag: &str,
+    started: u64,
+    id: u64,
+    line: &str,
+) -> anyhow::Result<()> {
+    let mut text = st.with(mask_session, true, |cx| cx.mask(line))?;
+    if text.chars().count() > 100 {
+        text = text.chars().take(97).collect();
+        text.push_str("...");
+    }
+    st.with_vault(|_, vault| Ok(vault.save_session_title(tag, started, id, &text)?))
+}
+
+pub(crate) fn capture_title(st: &State, session: &str, span: &Span, openai: bool) {
+    let line = span
+        .plain_reply_wire(openai)
+        .as_deref()
+        .and_then(title_line);
+    let tag = span
+        .session
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
+    if let (Some(line), Some((tag, _))) = (line, tag)
+        && save_title(st, session, &tag, span.started_at_ms, span.id, &line).is_err()
+    {
         eprintln!("kaponir: could not store OpenCode session title");
+    }
+}
+
+/// Repair only retained structured generation requests. Saving the title first
+/// makes a retry after an interrupted event rewrite safe (titles are versioned).
+pub(crate) fn repair_event(st: &State, event: &mut Event) -> anyhow::Result<()> {
+    let orphan = event.request_kind == "session_title" && event.session_id.is_none();
+    let token_count = event.request_kind == "count_tokens";
+    if !(orphan || token_count || matches!(event.request_kind.as_str(), "completion" | "")) {
+        return Ok(());
+    }
+    let Some(insp) = &event.inspector else {
+        return Ok(());
+    };
+    let known = event.session_source.as_deref() == Some("opencode");
+    let payload = &insp.masked_payload_json;
+    if !payload.contains(FIRST)
+        && !payload.contains(HISTORY)
+        && !(known && payload.contains("Generate a title for this conversation:"))
+    {
+        return Ok(());
+    }
+    let Some(title) = serde_json::from_str(payload)
+        .ok()
+        .and_then(|body| title_request(&body, known))
+    else {
+        return Ok(());
+    };
+    if orphan || event.session_source.as_deref() == Some("inferred") {
+        // Inference hashes original input. Masked placeholders would produce
+        // a different session ID, so recover the structured user span first.
+        let original = insp
+            .turn_excerpt
+            .as_ref()
+            .map(|e| e.original.as_str())
+            .or_else(|| {
+                let [a, b] = insp.user_span?;
+                insp.original_request.get(a..b)
+            });
+        event.session_id = match title {
+            TitleRequest::WrappedFirst(msg) => {
+                original.and_then(envelope).and_then(|(text, first)| {
+                    first.then(|| {
+                        let user = user_message(text, msg["content"].is_array());
+                        crate::server::session_tag(&crate::server::inferred_session(
+                            &event.provider,
+                            Some(&user),
+                        ))
+                    })
+                })
+            }
+            TitleRequest::WithOriginal => event.session_id.take(),
+            TitleRequest::NeedsId => None,
+        };
+        if orphan && event.session_id.is_none() {
+            return Ok(());
+        }
+        event.session_source = event.session_id.as_ref().map(|_| "inferred".into());
+    }
+    event.request_kind = "session_title".into();
+    event.turn = None;
+    if !token_count
+        && event.sent
+        && event.outcome == "ok"
+        && (200..300).contains(&event.status)
+        && let Some(tag) = &event.session_id
+    {
+        // Legacy inspectors elided an untruncated plain reply when wire text
+        // matched raw_response. An explicitly empty reply means reasoning only.
+        let line = match &insp.reply {
+            Some(reply) => reply
+                .plain_wire(event.provider == "openai")
+                .as_deref()
+                .and_then(title_line),
+            None if !insp.raw_response.contains("… [truncated]") => {
+                title_line(&insp.raw_response)
+            }
+            None => None,
+        };
+        if let Some(line) = line {
+            save_title(
+                st,
+                &format!("title-request:{}", event.id),
+                tag,
+                event.started_at_ms,
+                event.id,
+                &line,
+            )?;
+        }
+    }
+    let bytes = serde_json::to_vec(event)?;
+    st.with_vault(|_, v| Ok(v.save_traffic_event(event.id, event.time_ms / 1000, &bytes, 0)?))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn templates_require_a_complete_plain_text_service_message() {
+        let body = |content: Value| json!({"messages":[{"role":"system","content":"Gateway preamble"},{"role":"user","content":content}]});
+        let text = format!(
+            "{FIRST}\r\n\r\n<message>\r\nГде отчёт?\r\n</message>\r\n\r\nReply with only the title."
+        );
+        let Some(TitleRequest::WrappedFirst(first)) = title_request(&body(json!(text)), false)
+        else {
+            panic!("missing first question")
+        };
+        assert_eq!(first["content"], "Где отчёт?");
+        let parts = json!([{"type":"text","text":FIRST},{"type":"text","text":"<message>Где отчёт?</message>"},{"type":"text","text":"Reply with only the title."}]);
+        let Some(TitleRequest::WrappedFirst(parsed)) = title_request(&body(parts), false) else {
+            panic!("missing question in text blocks")
+        };
+        assert_eq!(parsed["content"][0]["text"], "Где отчёт?");
+        let history =
+            format!("{HISTORY}\n<conversation>Example</conversation>\nReply with only the title.");
+        assert!(matches!(
+            title_request(&body(json!(history)), false),
+            Some(TitleRequest::NeedsId)
+        ));
+        let mut duplicate = body(json!("Где отчёт?"));
+        duplicate["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"user","content":text}));
+        assert!(matches!(
+            title_request(&duplicate, false),
+            Some(TitleRequest::WithOriginal)
+        ));
+        duplicate["messages"][1]["content"] = json!("Другой вопрос");
+        assert!(title_request(&duplicate, false).is_none());
+        for ordinary in [
+            text.replace("</message>", ""),
+            format!("{text}\nExplain."),
+            format!("Quote: {text}"),
+            text.replace("Где отчёт?", ""),
+            "Reply with only the title.".to_string(),
+        ] {
+            assert!(title_request(&body(json!(ordinary)), true).is_none());
+        }
+        let mut dialogue = body(json!(text));
+        dialogue["messages"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"role":"user","content":"Сравни ответы"}));
+        assert!(title_request(&dialogue, true).is_none());
+        assert!(
+            title_request(
+                &body(json!([{"type":"text","text":text},{"type":"image"}])),
+                true
+            )
+            .is_none()
+        );
     }
 }
