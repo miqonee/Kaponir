@@ -183,20 +183,6 @@ impl State {
             .connect_timeout(Duration::from_secs(30))
             .build()?;
         let traffic = Arc::new(Traffic::default());
-        if let Ok(raw_events) = vault.load_traffic_events(200) {
-            let events: Vec<crate::traffic::Event> = raw_events
-                .into_iter()
-                .filter_map(|b| serde_json::from_slice(&b).ok())
-                .collect();
-            if !events.is_empty() {
-                traffic.restore_events(events);
-            }
-        }
-        if let Some(bytes) = vault.private_setting("traffic:archive:v1")?
-            && let Ok(archive) = serde_json::from_slice(&bytes)
-        {
-            traffic.restore_archive(archive);
-        }
         let learning = crate::learning::Learning::load(&vault)?;
         let inner = Arc::new(Mutex::new(Inner {
             vault,
@@ -257,6 +243,24 @@ impl State {
             inner,
         };
         state.refresh_suppressed();
+        if let Ok(raw) = state.with_vault(|_, v| Ok(v.load_traffic_events(200)?)) {
+            let mut events: Vec<crate::traffic::Event> = raw
+                .into_iter()
+                .filter_map(|bytes| serde_json::from_slice(&bytes).ok())
+                .collect();
+            for event in &mut events {
+                if crate::opencode::repair_event(&state, event).is_err() {
+                    eprintln!("kaponir: could not repair title for request {}", event.id);
+                }
+            }
+            state.traffic.restore_events(events);
+        }
+        if let Some(bytes) =
+            state.with_vault(|_, v| Ok(v.private_setting("traffic:archive:v1")?))?
+            && let Ok(archive) = serde_json::from_slice(&bytes)
+        {
+            state.traffic.restore_archive(archive);
+        }
         Ok(state)
     }
 
