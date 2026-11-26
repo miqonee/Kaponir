@@ -777,7 +777,13 @@ impl Cx<'_> {
             .get("total_tokens")
             .and_then(|x| x.as_u64())
             .unwrap_or(prompt + completion);
-        self.usage.observe_tokens(prompt, completion, total);
+        self.usage.prompt_tokens = self.usage.prompt_tokens.max(prompt);
+        self.usage.completion_tokens = self.usage.completion_tokens.max(completion);
+        self.usage.total_tokens = self
+            .usage
+            .total_tokens
+            .max(total)
+            .max(self.usage.prompt_tokens + self.usage.completion_tokens);
     }
 
     pub(crate) fn streams(&mut self) -> &mut HashMap<String, StreamRestorer> {

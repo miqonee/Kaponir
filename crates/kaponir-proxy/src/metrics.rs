@@ -62,7 +62,6 @@ pub(crate) async fn prometheus(
     authorized(&st, &headers, true)?;
     let s = st.engine().metrics().snapshot();
     let t = st.traffic.summary_snapshot();
-    let (prompt, completion, total) = t.total.usage.token_counts();
     let mut out = String::new();
     operation(&mut out, "http", &st.requests.snapshot());
     operation(&mut out, "mask", &s.mask);
@@ -78,9 +77,9 @@ pub(crate) async fn prometheus(
         ("unknown_tokens_total", s.unknown_tokens),
         ("denied_tokens_total", s.denied_tokens),
         ("s1_candidates_total", s.s1_candidates),
-        ("prompt_tokens_total", prompt),
-        ("completion_tokens_total", completion),
-        ("total_tokens_total", total),
+        ("prompt_tokens_total", t.total.usage.prompt_tokens),
+        ("completion_tokens_total", t.total.usage.completion_tokens),
+        ("total_tokens_total", t.total.usage.total_tokens),
         ("stream_errors_total", st.stream_errors.load(Relaxed)),
     ] {
         counter(&mut out, name, value);

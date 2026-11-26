@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex, Weak};
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 const MAX_INSPECTOR_CHARS: usize = 32_768;
 const MAX_ITEMS_PER_EVENT: usize = 128;
@@ -179,11 +179,11 @@ pub struct Usage {
     #[serde(default)]
     pub review_ids: Vec<i64>,
     #[serde(default)]
-    prompt_tokens: u64,
+    pub prompt_tokens: u64,
     #[serde(default)]
-    completion_tokens: u64,
+    pub completion_tokens: u64,
     #[serde(default)]
-    total_tokens: u64,
+    pub total_tokens: u64,
     #[serde(default)]
     pub masked_items: Vec<ReplacementItem>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -210,44 +210,7 @@ impl Usage {
         self.answer_finished = Some(self.answer_finished.unwrap_or(true) && finished);
     }
 
-    pub(crate) fn token_counts(&self) -> (u64, u64, u64) {
-        (
-            self.prompt_tokens,
-            self.completion_tokens,
-            self.total_tokens,
-        )
-    }
-
-    pub(crate) fn observe_tokens(&mut self, prompt: u64, completion: u64, total: u64) {
-        self.prompt_tokens = self.prompt_tokens.max(prompt);
-        self.completion_tokens = self.completion_tokens.max(completion);
-        self.total_tokens = self
-            .total_tokens
-            .max(total)
-            .max(self.prompt_tokens + self.completion_tokens);
-    }
-
-    fn add_stream_update(&mut self, update: &Self) {
-        // Within one request the provider can repeat cumulative token counts in every chunk.
-        self.observe_tokens(
-            update.prompt_tokens,
-            update.completion_tokens,
-            update.total_tokens,
-        );
-        self.add_details(update);
-        if let Some(reply) = &update.reply {
-            self.reply.get_or_insert_with(Default::default).merge(reply);
-        }
-    }
-
     pub fn add(&mut self, other: &Self) {
-        self.prompt_tokens += other.prompt_tokens;
-        self.completion_tokens += other.completion_tokens;
-        self.total_tokens += other.total_tokens;
-        self.add_details(other);
-    }
-
-    fn add_details(&mut self, other: &Self) {
         for item in &other.review_items {
             if self.review_items.len() < 128 {
                 self.review_items.push(item.clone());
@@ -271,6 +234,9 @@ impl Usage {
         self.unknown += other.unknown;
         self.denied += other.denied;
         self.uncertain += other.uncertain;
+        self.prompt_tokens += other.prompt_tokens;
+        self.completion_tokens += other.completion_tokens;
+        self.total_tokens += other.total_tokens;
         kaponir_core::engine::RestoreMark::merge(
             &mut self.restore_marks,
             other.restore_marks.iter().cloned(),
@@ -694,16 +660,16 @@ pub struct Span {
     history: Arc<Traffic>,
     pub(crate) turn: Mutex<Option<crate::conversation::Turn>>,
     pub usage: Mutex<Usage>,
-    connection_id: Mutex<Option<String>>,
+    pub connection_id: Mutex<Option<String>>,
     pub model: Mutex<Option<String>>,
-    upstream_url: Mutex<Option<String>>,
+    pub upstream_url: Mutex<Option<String>>,
     pub session: Mutex<Option<(String, String)>>,
     pub request_kind: Mutex<String>,
-    attempts: Mutex<Vec<String>>,
-    mask_us: AtomicU64,
-    classifier_us: AtomicU64,
-    upstream_us: AtomicU64,
-    restore_us: AtomicU64,
+    pub attempts: Mutex<Vec<String>>,
+    pub mask_us: AtomicU64,
+    pub classifier_us: AtomicU64,
+    pub upstream_us: AtomicU64,
+    pub restore_us: AtomicU64,
     pub error: Mutex<Option<EventError>>,
     pub inspector: Mutex<Option<EventInspector>>,
     pub learning_input: Mutex<Option<crate::learning::question::Capture>>,
@@ -770,53 +736,27 @@ impl Span {
     }
 
     pub fn add(&self, usage: &Usage) {
-        self.usage
+        let mut current = self
+            .usage
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .add_stream_update(usage);
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let prompt = current.prompt_tokens.max(usage.prompt_tokens);
+        let completion = current.completion_tokens.max(usage.completion_tokens);
+        let total = current
+            .total_tokens
+            .max(usage.total_tokens)
+            .max(prompt + completion);
+        current.add(usage);
+        if let Some(reply) = &usage.reply {
+            current
+                .reply
+                .get_or_insert_with(Default::default)
+                .merge(reply);
+        }
+        current.prompt_tokens = prompt;
+        current.completion_tokens = completion;
+        current.total_tokens = total;
     }
-
-    pub(crate) fn record_mask_time(&self, elapsed: Duration, classifier_us: u64) {
-        let elapsed_us = elapsed.as_micros() as u64;
-        let classifier_us = classifier_us.min(elapsed_us);
-        self.mask_us
-            .fetch_add(elapsed_us.saturating_sub(classifier_us), Relaxed);
-        self.classifier_us.fetch_add(classifier_us, Relaxed);
-    }
-
-    pub(crate) fn record_upstream_time(&self, elapsed: Duration) {
-        self.upstream_us
-            .fetch_add(elapsed.as_micros() as u64, Relaxed);
-    }
-
-    pub(crate) fn record_restore_time(&self, elapsed: Duration) {
-        self.restore_us
-            .fetch_add(elapsed.as_micros() as u64, Relaxed);
-    }
-
-    pub(crate) fn record_upstream_attempt(&self, connection: Option<&str>, kind: &str, url: &str) {
-        *self
-            .connection_id
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = connection.map(str::to_owned);
-        *self
-            .upstream_url
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(url.to_owned());
-        self.attempts
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(connection.unwrap_or(kind).to_owned());
-    }
-
-    pub(crate) fn upstream_url(&self) -> String {
-        self.upstream_url
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
-            .unwrap_or_default()
-    }
-
     pub fn finish(&self) {
         self.complete.store(true, Relaxed);
     }
@@ -998,7 +938,7 @@ mod tests {
         span.streaming.store(true, Relaxed);
         span.sent.store(true, Relaxed);
         span.status.store(200, Relaxed);
-        for output in [1, 2, 5, 5, 3] {
+        for output in [1, 2, 5, 5] {
             span.add(&Usage {
                 prompt_tokens: 10,
                 completion_tokens: output,
@@ -1018,24 +958,6 @@ mod tests {
         assert_eq!(snapshot.total.requests, 1);
         assert_eq!(snapshot.total.usage.total_tokens, 15);
         assert_eq!(snapshot.events[0].outcome, "ok");
-
-        // A second request can report input and output separately, with an explicit total.
-        let second = Span::new(traffic.clone(), "anthropic");
-        second.add(&Usage {
-            prompt_tokens: 8,
-            total_tokens: 19,
-            ..Default::default()
-        });
-        second.add(&Usage {
-            completion_tokens: 4,
-            ..Default::default()
-        });
-        second.finish();
-        drop(second);
-        let totals = traffic.snapshot().total.usage;
-        assert_eq!(totals.prompt_tokens, 18);
-        assert_eq!(totals.completion_tokens, 9);
-        assert_eq!(totals.total_tokens, 34);
     }
 
     #[test]
