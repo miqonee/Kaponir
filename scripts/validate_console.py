@@ -134,11 +134,11 @@ def check_session_conversation(page, api, session_id, output):
     latest = max(api('/api/v1/ui/events')['events'], key=lambda row:row['id'])
     page.locator('#events-refresh').click()
     page.locator('#events-table [data-session-open="'+latest['session_id']+'"]').click()
-    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 6')
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов в переписке · 6')
     expect(dialog.locator('.session-message').first).to_contain_text(question)
     expect(dialog.locator('.conversation-timeline .reply')).to_have_count(6)
     expect(dialog.locator('.conversation-tool summary code')).to_have_text(['read_file'] * 5)
-    steps = dialog.locator('.session-steps')
+    steps = dialog.locator('.session-steps:not(.session-service-log)')
     steps.locator(':scope > summary').focus()
     page.keyboard.press('Enter')
     expect(steps.get_by_text('Результат инструмента', exact=True)).to_have_count(5)
@@ -167,7 +167,7 @@ def check_replayed_question(page, api, output):
     page.locator('#events-refresh').click()
     page.locator('#events-table [data-session-open="'+latest['session_id']+'"]').click()
     dialog = page.locator('#session-dialog')
-    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 3')
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов в переписке · 3')
     expect(dialog.locator('.session-message:not(.reply) .message-content')).to_have_text(question)
     timeline = dialog.locator('.conversation-timeline')
     replies = timeline.locator('.reply .message-content')
@@ -180,7 +180,7 @@ def check_replayed_question(page, api, output):
     page.keyboard.press('Enter')
     expect(tool.locator('pre')).to_have_text(['{"path":"values.yaml"}','resources.limits.memory = 512Mi'])
     send()  # replay a tool callback while its details are open
-    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 4',timeout=15000)
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов в переписке · 4',timeout=15000)
     expect(replies).to_have_text([first['content'],second['content'],'Лимит памяти задан.','Проверка завершена.'])
     expect(tool).to_have_count(1)
     expect(tool.locator('pre').last).to_be_visible()
@@ -189,7 +189,7 @@ def check_replayed_question(page, api, output):
     dialog.screenshot(path=str(output/'conversation-agent-turn.png'))
     history.extend([{'role':'assistant','content':'Проверка завершена.'},{'role':'user','content':question}])
     send()  # a genuine next user turn, even though the words are identical
-    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 2 · Вызовов API · 5',timeout=15000)
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 2 · Вызовов в переписке · 5',timeout=15000)
     dialog.get_by_role('button',name='Следующее сообщение').click()
     expect(replies).to_have_text(['Проверяю конфигурацию ещё раз.'])
     expect(tool).to_have_count(0)
@@ -248,7 +248,7 @@ def check_session_inspector(page, api, base):
     mark.press('Enter')
     expect(decision.locator('summary')).to_be_focused()
     expect(viewer).not_to_be_visible()
-    steps = dialog.locator('.session-steps')
+    steps = dialog.locator('.session-steps:not(.session-service-log)')
     steps.locator(':scope > summary').click()
     log_decision = steps.locator('.log-decision .session-decision')
     expect(log_decision.locator('summary code')).to_have_text('qzworkitem')
@@ -311,7 +311,7 @@ def check_inline_decisions(page, api, output):
     label = 'Замаскировано' if refs[1]['applied']=='mask' else 'Оставлено в тексте'
     expect(decision.locator('.decision-action')).to_have_text(label)
     decision.locator('.decision-source').click()
-    log = dialog.locator('.session-steps')
+    log = dialog.locator('.session-steps:not(.session-service-log)')
     log_card = log.locator(f'[data-decision="log-{ident}"]')
     expect(log_card.locator('summary')).to_be_focused()
     expect(log_card.locator('blockquote mark')).to_have_text(refs[1]['value'])
@@ -330,7 +330,7 @@ def check_inline_decisions(page, api, output):
     log_picker = log_card.get_by_role('combobox')
     log_picker.focus()
     send()
-    expect(dialog.locator('.conversation-totals')).to_contain_text('Вызовов API · 3',timeout=15000)
+    expect(dialog.locator('.conversation-totals')).to_contain_text('Вызовов в переписке · 3',timeout=15000)
     expect(log.locator('tbody')).to_have_count(3)
     expect(log_picker).to_be_focused()
     expect(log_picker).to_have_value('1')
@@ -350,10 +350,11 @@ def check_inline_decisions(page, api, output):
     assert 'Значений: 3' in legacy and 'Фрагмент не сохранён' in legacy
 
 
-def check_opencode_title(page, api):
+def check_opencode_title(page, api, output):
     from playwright.sync_api import expect
-    headers = {'x-opencode-session-id': 'console-private-native-id'}
-    question = {'role': 'user', 'content': 'Объясни лимиты контейнера.'}
+    choose_preference(page, 'theme', 'light')
+    headers = {'x-kaponir-session': 'console-private-gateway-id'}
+    question = {'role': 'user', 'content': 'Если бы я умел летать на какой высоте я бы замерзал'}
     api('/v1/chat/completions', {'model': 'fixture-model', 'messages': [question]}, headers)
     latest = max(api('/api/v1/ui/events')['events'], key=lambda r: r['id'])
     tag = latest['session_id']
@@ -363,23 +364,31 @@ def check_opencode_title(page, api):
     expect(row).to_have_text('Сессия ' + tag[:8])
     page.locator(f'#events-table [data-session-open="{tag}"]').click()
     dialog = page.locator('#session-dialog')
-    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 1')
-    system = {'role': 'system', 'content': 'You are a title generator. You output ONLY a thread title. Nothing else.'}
-    marker = {'role': 'user', 'content': 'Generate a title for this conversation:\n'}
-    api('/v1/chat/completions', {'model': 'fixture-model', 'stream': True, 'messages': [system, marker, question]}, headers)
-    expect(dialog.get_by_role('heading', name='Лимиты контейнера')).to_be_visible(timeout=15000)
-    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 2')
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов в переписке · 1')
+    marker = {'role': 'user', 'content': 'Here is the first message of the conversation:\n\n'
+              + '<message>\n' + question['content'] + '\n</message>\n\nReply with only the title.'}
+    api('/v1/chat/completions', {'model': 'fixture-model', 'stream': True, 'messages': [marker]}, headers)
+    expect(dialog.get_by_role('heading', name='Высота замерзания при полёте')).to_be_visible(timeout=15000)
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов в переписке · 1')
     expect(dialog.locator('input[name="conversation-turn"]')).to_have_count(1)
-    expect(dialog.locator('.session-messages')).not_to_contain_text('Generate a title')
+    expect(dialog.locator('.session-messages')).not_to_contain_text('Reply with only the title.')
+    expect(dialog.locator('.session-message').first).to_contain_text(question['content'])
     service = dialog.locator('.session-service-log')
-    service.locator('summary').click()
+    expect(service.locator('li')).not_to_be_visible()
+    dialog.screenshot(path=str(output / 'opencode-session-title.png'))
+    service.locator('summary').focus()
+    page.keyboard.press('Enter')
     expect(service.get_by_role('button', name=re.compile('Название сессии OpenCode'))).to_be_visible()
     dialog.get_by_role('button', name='Скопировать ID сессии').click()
     assert page.evaluate('navigator.clipboard.readText()') == tag
     dialog.get_by_role('button', name='Закрыть', exact=True).click()
-    page.locator('#events-search').fill('лимиты контейнера')
+    page.locator('#events-search').fill('высота замерзания')
     expect(page.locator('#events-table .session-row')).to_have_count(1)
-    expect(row).to_contain_text('Лимиты контейнера')
+    expect(row).to_contain_text('Высота замерзания при полёте')
+    page.locator('#events-view [data-view=requests]').click()
+    expect(page.locator('#events-table [data-request-id]')).to_have_count(1)
+    expect(page.locator('#events-table')).not_to_contain_text('Название сессии OpenCode')
+    page.locator('#events-view [data-view=sessions]').click()
     page.locator('#events-search').fill('')
     return tag
 
@@ -412,8 +421,10 @@ def main():
             assert not self.headers.get('X-Kaponir-Turn')
             text = payload['messages'][-1]['content']
             extra = {}
-            if any(m.get('content') == 'Generate a title for this conversation:\n' for m in payload['messages']):
-                text = 'Лимиты контейнера'
+            if text.startswith('Here is the first message of the conversation:') and text.endswith('Reply with only the title.'):
+                text = 'Высота замерзания при полёте'
+            elif text == 'Если бы я умел летать на какой высоте я бы замерзал':
+                text = 'Это зависит от температуры у земли, ветра и продолжительности полёта.'
             if any(m.get('role')=='user' and m.get('content')=='Проверь конфигурацию.' for m in payload['messages']):
                 previous = sum(any(m.get('content')=='Проверь конфигурацию.' for m in q['messages']) for q in seen) - 1
                 text = ['Посмотрю настройки контейнера.','Прочитаю лимиты из values.yaml.',
@@ -600,7 +611,7 @@ def main():
                 replayed_session = check_replayed_question(page, api, args.output)
                 check_session_inspector(page, api, base)
                 check_inline_decisions(page, api, args.output)
-                opencode_session = check_opencode_title(page, api)
+                opencode_session = check_opencode_title(page, api, args.output)
                 from validate_navigation import check_navigation
                 check_navigation(page, args.output)
                 assert not errors, errors
@@ -611,7 +622,7 @@ def main():
             wait_for(lambda: api('/api/v1/ui/worker').get('enabled'))
             traffic = api('/api/v1/metrics')['traffic']
             assert traffic['total']['requests'] == 21
-            assert traffic['session_titles'][opencode_session] == 'Лимиты контейнера'
+            assert traffic['session_titles'][opencode_session] == 'Высота замерзания при полёте'
             assert all(not row.get('turn') for row in traffic['events'] if row['request_kind'] == 'session_title')
             restored_rows = sorted((row for row in api('/api/v1/ui/events')['events'] if row['session_id']==replayed_session),key=lambda row:row['id'])
             assert len(restored_rows)==5 and len({r['turn']['id'] for r in restored_rows})==2

@@ -328,7 +328,10 @@ function openSession(event) {
   const content = h("div", {class: "session-messages"});
   const status = h("p", {class: "hint",role:"status"});
   const steps = h("details", {class:"session-steps"});
-  const serviceLog = h("details", {class:"session-steps session-service-log", hidden:true});
+  const serviceCount = h("span",{class:"log-count"});
+  const serviceList = h("ul");
+  const serviceLog = h("details", {class:"session-steps session-service-log", hidden:true},
+    h("summary",{},icon("list"),tr("Служебные запросы OpenCode"),serviceCount,icon("chevron")),serviceList);
   const totals = h("span", {class:"conversation-totals"});
   let turns = [], currentKey = null, generation = 0, signature = "", selection = "";
   const previous = h("button", {class:"secondary", onclick:()=>display(turns[pick.selectedIndex-1])}, tr("Предыдущее сообщение"));
@@ -528,13 +531,13 @@ function openSession(event) {
     const service=rows.filter(r=>r.request_kind==="session_title");
     serviceLog.hidden=!service.length;
     if (service.length) {
-      serviceLog.replaceChildren(h("summary",{},icon("list"),tr("Служебные запросы OpenCode"),h("span",{class:"log-count"},number(service.length)),icon("chevron")),
-        h("ul",{},service.map(r=>h("li",{},h("button",{type:"button",class:"text-button",onclick:()=>openInspector(r.id,"request")},
-          tr("Название сессии OpenCode")," · ",tr("Запрос {{0}}",[r.id])),h("span",{class:"event-status "+r.outcome},outcomeLabel(r))))));
+      serviceCount.textContent=number(service.length);
+      serviceList.replaceChildren(...service.map(r=>h("li",{},h("button",{type:"button",class:"text-button",onclick:()=>openInspector(r.id,"request")},
+          tr("Название сессии OpenCode")," · ",tr("Запрос {{0}}",[r.id])),h("span",{class:"event-status "+r.outcome},outcomeLabel(r)))));
     }
     const linked=turns.filter(g=>g.linked).length;
     totals.textContent=[linked ? tr("Сообщений пользователя · {{0}}",[linked]) : "",
-      tr("Вызовов API · {{0}}",[rows.length])].filter(Boolean).join(" · ");
+      tr("Вызовов в переписке · {{0}}",[rows.length-service.length])].filter(Boolean).join(" · ");
     requestList.replaceChildren(h("legend",{},tr("Сообщения пользователя")), ...turns.map(g=>{
       const pending=g.rows.some(r=>r.outcome==="in_progress"), attention=g.rows.some(r=>requestNotes(r).length);
       const disputed=tr("Спорное решение детектора"), legacy=tr("Спорные решения без сохранённой связи");

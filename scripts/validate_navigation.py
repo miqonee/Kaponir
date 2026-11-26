@@ -17,7 +17,7 @@ def use_sample_traffic(page):
         for index in range(23):
             row = deepcopy(example)
             row.update(id=index + 1, session_id='8b31a6f0902c' if index < 22 else 'fe25abc941',
-                       session_source='inferred', started_at_ms=now - index * 40000 - 1000,
+                       session_source='inferred', request_kind='completion', started_at_ms=now - index * 40000 - 1000,
                        time_ms=now - index * 40000, model='demo-chat', provider='openai',
                        outcome='ok', status=200, review_reasons=[], usage={'replacements': 3})
             if index in (0, 1):

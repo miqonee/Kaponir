@@ -1721,6 +1721,146 @@ async fn opencode_titles_follow_the_native_session_across_protocols_and_ignore_p
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn title_envelope_survives_a_gateway_and_repairs_retained_conversations() {
+    const QUESTION: &str = "Если бы я умел летать на какой высоте я бы замерзал";
+    const TITLE: &str = "Высота замерзания при полёте";
+    async fn provider(Json(body): Json<Value>) -> Json<Value> {
+        let service = body["messages"][1]["content"]
+            .as_str()
+            .is_some_and(|s| s.starts_with("Here is the first message"));
+        Json(
+            json!({"choices":[{"index":0,"message":{"role":"assistant","content":if service { TITLE } else { "Ответ на вопрос" }},"finish_reason":"stop"}]}),
+        )
+    }
+    let upstream = spawn(Router::new().route("/v1/chat/completions", post(provider))).await;
+    let st = state(&upstream, None);
+    let base = spawn(kaponir_proxy::router(st.clone())).await;
+    let url = format!("{base}/v1/chat/completions");
+    let envelope = format!(
+        "Here is the first message of the conversation:\n\n<message>\n{QUESTION}\n</message>\n\nReply with only the title."
+    );
+    let payload = |text: &str| json!({"model":"gateway","messages":[{"role":"developer","content":"Gateway instructions"},{"role":"user","content":text}]});
+    let human = payload(QUESTION);
+    let naming = payload(&envelope);
+    let explicit = [("x-kaponir-session", "gateway-native-id")];
+    for (body, headers) in [
+        (&naming, explicit.as_slice()),
+        (&human, &explicit),
+        (&human, &[][..]),
+        (&naming, &[][..]),
+    ] {
+        let response = post_json(url.clone(), body, headers).await;
+        assert_eq!(response.status(), 200);
+        response.bytes().await.unwrap();
+    }
+    let quoted = payload(&format!("Объясни этот шаблон:\n{envelope}"));
+    post_json(url, &quoted, &explicit)
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    let snapshot = traffic_snapshot(&base, 5).await;
+    let traffic = &snapshot["traffic"];
+    let events = traffic["events"].as_array().unwrap();
+    assert_eq!(events[0]["request_kind"], "completion");
+    assert!(events[0].get("turn").is_some());
+    for (service, chat) in [(4, 3), (1, 2)] {
+        assert_eq!(events[service]["request_kind"], "session_title");
+        assert!(events[service].get("turn").is_none());
+        assert_eq!(events[service]["session_id"], events[chat]["session_id"]);
+        assert_eq!(
+            traffic["session_titles"][events[chat]["session_id"].as_str().unwrap()],
+            TITLE
+        );
+    }
+    assert_ne!(events[3]["session_id"], events[2]["session_id"]);
+
+    // Seed a fresh vault with the actual retained inspector format of a previous
+    // release. It classified both utility calls as turns and inferred the ID
+    // from the outer prompt. No saved title or provider reply is replayed.
+    let old = SqliteVault::open_in_memory(&[1; 32]).unwrap();
+    st.with_vault(|_, v| {
+        for bytes in v.load_traffic_events(200)? {
+            let mut row: Value = serde_json::from_slice(&bytes)?;
+            let id = row["id"].as_u64().unwrap();
+            if row["request_kind"] == "session_title" {
+                row["turn"] = json!({"id":"old-turn","step":"user"});
+                row["request_kind"] = json!("completion");
+                row["inspector"]["restored_response"] = json!("Restored fixture must stay private");
+                if row["session_source"] == "inferred" {
+                    row["session_id"] = json!("old-id-from-outer-prompt");
+                } else {
+                    row["inspector"]["raw_response"] =
+                        json!("Бюджет password: OldTitleFixture_92!Secret");
+                    for (extra_id, outcome) in [(6, "cancelled"), (7, "ok")] {
+                        let mut short = row.clone();
+                        short["id"] = json!(extra_id);
+                        short["outcome"] = json!(outcome);
+                        short["inspector"]["raw_response"] = json!("Only a fragment");
+                        if outcome == "ok" {
+                            short["inspector"]["reply"] = json!({"parts":[], "truncated":true});
+                        }
+                        old.save_traffic_event(
+                            extra_id,
+                            short["time_ms"].as_u64().unwrap() / 1000,
+                            &serde_json::to_vec(&short)?,
+                            0,
+                        )?;
+                    }
+                }
+            }
+            old.save_traffic_event(
+                id,
+                row["time_ms"].as_u64().unwrap() / 1000,
+                &serde_json::to_vec(&row)?,
+                0,
+            )?;
+        }
+        Ok(())
+    })
+    .unwrap();
+    let repaired = Arc::new(State::new(engine(), old, "me", ProxyConfig::default()).unwrap());
+    let server = spawn(kaponir_proxy::router(repaired.clone())).await;
+    let restored = traffic_snapshot(&server, 7).await;
+    let view = &restored["traffic"];
+    let title = view["session_titles"][events[3]["session_id"].as_str().unwrap()]
+        .as_str()
+        .unwrap();
+    assert!(title.contains("Бюджет") && title.contains("ANON_"));
+    assert!(!restored.to_string().contains("OldTitleFixture"));
+    assert_eq!(
+        view["session_titles"][events[2]["session_id"].as_str().unwrap()],
+        TITLE
+    );
+    assert!(!restored.to_string().contains("old-id-from-outer-prompt"));
+    repaired
+        .with_vault(|_, v| {
+            let rows = v
+                .load_traffic_events(200)?
+                .into_iter()
+                .map(|r| serde_json::from_slice::<Value>(&r))
+                .collect::<Result<Vec<_>, _>>()?;
+            assert_eq!(
+                rows.iter()
+                    .filter(|r| r["request_kind"] == "session_title" && r.get("turn").is_none())
+                    .count(),
+                4
+            );
+            Ok(())
+        })
+        .unwrap();
+    let exported: Value = reqwest::get(format!("{server}/api/v1/ui/sessions/export"))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert!(!exported.to_string().contains("Restored fixture"));
+    // The deliberately quoted example is still a real question.
+    assert!(exported.to_string().contains("Объясни этот шаблон"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn conversation_keeps_public_reply_text_and_real_tools_for_json_and_sse() {
     let (proxy, _) = setup(Some("console-token")).await;
     let auth = [("authorization", "Bearer console-token")];

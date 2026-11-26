@@ -695,36 +695,13 @@ impl Span {
         span
     }
 
-    /// The provider's visible text for the first choice, if the captured reply
-    /// is untruncated and contains no tool calls.
     pub(crate) fn plain_reply_wire(&self, openai: bool) -> Option<String> {
-        let usage = self
-            .usage
+        self.usage
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let reply = usage.reply.as_ref()?;
-        if reply.truncated
-            || reply
-                .parts
-                .iter()
-                .any(|p| p.kind == crate::conversation::PartKind::Call)
-        {
-            return None;
-        }
-        Some(
-            reply
-                .parts
-                .iter()
-                .filter(|p| {
-                    if openai {
-                        p.slot == [0, 0]
-                    } else {
-                        p.slot[0] == 0
-                    }
-                })
-                .map(|p| p.wire.as_str())
-                .collect(),
-        )
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .reply
+            .as_ref()?
+            .plain_wire(openai)
     }
 
     pub fn add(&self, usage: &Usage) {
