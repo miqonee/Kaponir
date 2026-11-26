@@ -3,6 +3,14 @@ use kaponir_core::s1::{Calibration, CandidateView, Disclosure, S1Config, S1Error
 use kaponir_core::{AnalyzeCtx, Candidate, Category, Engine, Input, Recognizer};
 use std::sync::{Arc, Mutex};
 
+#[test]
+fn discovery_filter_preserves_kind_specific_decisions() {
+    assert!(discover::weak_business_value("PROJ", " ИЛИ "));
+    assert!(discover::weak_business_value("CLIENT", "GPT-4"));
+    assert!(!discover::weak_business_value("SVC", "GPT-4"));
+    assert!(!discover::weak_business_value("ORG", "Лунная Слива"));
+}
+
 struct Secrets;
 impl Recognizer for Secrets {
     fn id(&self) -> &str {

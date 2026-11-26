@@ -1362,7 +1362,7 @@ async fn template(
 // ---------- rules ----------
 
 fn weak_value_reason(kind: &str, value: &str) -> Option<&'static str> {
-    if kaponir_core::discover::weak_business_value(kind, value) {
+    if kaponir_core::kinds::weak_business_value(kind, value) {
         Some("weak_value")
     } else if kind == "IP"
         && (value.parse::<std::net::IpAddr>().is_err() || value.replace(':', "").len() < 2)
