@@ -17,6 +17,8 @@ from validate_console import free_port, wait_for
 
 
 def check_model_selection(page, base, upstream, api, catalog_reads, slow_started, release_slow):
+    saved_analysis = api('/api/v1/ui/analysis')['settings']
+    api('/api/v1/ui/analysis', {'settings': {**saved_analysis, 'provider': 'none', 'enabled': False}}, 'PUT')
     private = upstream + '/private/v1'
     catalog = lambda **fields: api('/api/v1/ui/model-catalog', {'role':'categorization', 'url':private, **fields})
     settings = api('/api/v1/ui/categorization')['settings']
@@ -37,7 +39,7 @@ def check_model_selection(page, base, upstream, api, catalog_reads, slow_started
     method = page.locator('#categorization-provider')
     expect(method).to_have_value('api')
     expect(page.locator('#categorization-scenario-field')).to_be_hidden()
-    assert method.locator('option').all_text_contents() == ['Выключено','Локальная модель','Модель по API','S1 Choice']
+    assert method.locator('option:not([hidden])').all_text_contents() == ['Выключено','Локальная модель','Модель по API','S1 Choice']
     picker = page.locator('#categorization-api-catalog')
     manual = page.locator('#categorization-api-model')
     url = page.locator('#categorization-url')
@@ -92,10 +94,17 @@ def check_model_selection(page, base, upstream, api, catalog_reads, slow_started
         page.locator('#categorization-save').click()
     choice = response.value.json()['settings']
     assert choice['provider']=='s1' and choice['http']['protocol']=='systemone'
+    method.select_option('none')
+    expect(page.locator('#categorization-result')).to_contain_text('несохранённые изменения')
+    api('/api/v1/ui/analysis', {'settings': saved_analysis}, 'PUT')
+    page.goto(base + '/ui/#analysis')
+    expect(page.locator('#analysis-provider')).to_have_value('api')
+    expect(page.locator('#analysis-share-api')).to_have_count(0)
     page.goto(base+'/ui/#worker')
     if page.locator('#worker-settings').get_attribute('open') is None:
         page.locator('#worker-settings > summary').click()
     mode = page.locator('#worker-mode')
+    mode.select_option('configured')
     expect(page.locator('#worker-assignment')).to_contain_text('S1 Choice · choice-fixture')
     expect(page.locator('#worker-scenario-field')).to_be_hidden()
     expect(page.locator('#worker-job-form .setting-help-button:visible')).to_have_count(0)
@@ -107,16 +116,20 @@ def check_model_selection(page, base, upstream, api, catalog_reads, slow_started
     expect(page.locator('#worker-job-model')).to_have_count(0)
     expect(page.locator('#worker-mode-help')).to_contain_text('без языковой модели')
 
-    page.goto(base + '/ui/#analysis')
-    page.locator('#analysis-share-api').check()
-    with page.expect_response(lambda r: r.url.endswith('/ui/analysis') and r.request.method == 'PUT') as saved:
-        page.locator('#analysis-save').click()
-    assert saved.value.ok and saved.value.request.post_data_json['use_for_categorization']
-    analysis = saved.value.json()['settings']
-    category = api('/api/v1/ui/categorization')['settings']
-    assert category['provider'] == 'api' and category['http']['url'] == analysis['url']
-    assert category['http']['model'] == analysis['model'] and category['inference'] == analysis['inference']
+    page.goto(base + '/ui/#categorization')
+    expect(method).to_have_value('s1')
+    assert method.locator('option:not([hidden])').all_text_contents() == ['Модель обнаружения', 'S1 Choice']
+    assert api('/api/v1/ui/categorization')['settings']['http']['model'] == 'choice-fixture'
+    method.select_option('analysis')
+    expect(page.locator('#categorization-api-fields')).to_be_hidden()
+    with page.expect_response(lambda r: r.url.endswith('/ui/categorization') and r.request.method == 'PUT') as saved:
+        page.locator('#categorization-save').click()
+    assert saved.value.ok and saved.value.json()['uses_analysis_api']
+    category = saved.value.json()['settings']
+    assert category['provider'] == 'api' and category['http']['url'] == saved_analysis['url']
+    assert category['http']['model'] == saved_analysis['model'] and category['inference'] == saved_analysis['inference']
     assert category['scenario'] == 'D'
+    expect(page.locator('#categorization-analysis-note')).to_contain_text(saved_analysis['model'])
     page.goto(base + '/ui/#worker')
     if page.locator('#worker-settings').get_attribute('open') is None:
         page.locator('#worker-settings > summary').click()
@@ -275,7 +288,8 @@ def main():
                 settings.update(model='old',url=endpoint,enabled=True,provider='api',parallelism=1,background=False,auto_apply=False)
                 settings['inference']['batch_size']=1
                 api('/api/v1/ui/analysis',{'settings':settings},'PUT')
-                api('/api/v1/ui/workspace/model',{'use_analysis_api':True},'PUT')
+                category = api('/api/v1/ui/categorization')
+                assert category['uses_analysis_api'] and category['settings']['http']['model'] == 'old'
                 profile = lambda model: api('/api/v1/ui/model-profile',{'role':'analysis','url':endpoint,'model':model})
                 assert profile('new')['inference']['context_tokens']==32768
                 assert profile('missing')['reported_context'] is None and profile('old')['inference']['context_tokens']==8192
@@ -337,6 +351,8 @@ def main():
                     assert documents(['north.txt','south.txt'])==[]
                     saved=api('/api/v1/ui/analysis')['settings']
                     assert 'context-tokens' in saved['api_manual'] and saved['inference']['max_output_tokens']==1024
+                    category = api('/api/v1/ui/categorization')
+                    assert category['uses_analysis_api'] and category['settings']['http']['model'] == 'new'
                     # Act on successive proposals in place, including keyboard focus and the final empty state.
                     page.goto(base+'/ui/#review')
                     page.locator('#review-advice-filter').check()

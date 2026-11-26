@@ -24,6 +24,17 @@ type ResultJson = Result<Json<Value>, ApiError>;
 fn bad(code: &str) -> ApiError {
     error(StatusCode::BAD_REQUEST, code)
 }
+
+fn finding_excerpt(item: &Value) -> Value {
+    json!({"value":item["value"], "context":item["context"], "context_span":item["context_span"]})
+}
+
+fn unmatched_rule_error(item: &Value) -> ApiError {
+    bad("rule_misses_occurrence").with_details(json!({
+        "rule":item["unmatched_rule"], "finding":finding_excerpt(item)
+    }))
+}
+
 fn read(st: &Shared, id: &str) -> anyhow::Result<Option<Value>> {
     st.with_vault(|_, v| {
         v.app_record(id)?
@@ -366,6 +377,7 @@ pub(crate) fn routes() -> Router<Shared> {
     Router::new()
         .route("/api/v1/ui/review", get(list))
         .route("/api/v1/ui/review/selection", post(selection))
+        .route("/api/v1/ui/review/skip", post(skip_selected))
         .route("/api/v1/ui/review/path-prefix", post(paths::apply))
         .route("/api/v1/ui/jobs", get(jobs))
         .route("/api/v1/ui/review/jobs/{id}/retry", post(retry))
@@ -2322,6 +2334,9 @@ async fn apply(
         scope = serde_json::from_value(rec["scope"].clone()).map_err(|_| bad("invalid_scope"))?;
         action = rec["action"].as_str().unwrap().into();
     }
+    if matches!(action.as_str(), "mask" | "keep") && !item["unmatched_rule"].is_null() {
+        return Err(unmatched_rule_error(&item));
+    }
     if action == "mask"
         && kind == "PATH"
         && !manual_whole_path
@@ -2414,6 +2429,56 @@ fn related_occurrences(
     Ok(())
 }
 
+async fn skip_selected(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(selection): Json<Selection>,
+) -> ResultJson {
+    authorized(&st, &headers, true)?;
+    if st.control.is_none() {
+        return Err(bad("read_only"));
+    }
+    let _guard = st.rule_changes.lock().await;
+    let items = selection
+        .resolve(&st, true)
+        .map_err(|error| bad(&learning::safe_error(&error)))?;
+    let mut closed = Vec::new();
+    let mut failures = Vec::new();
+    for item in items.into_iter().filter(needs_decision) {
+        let action = if item["origin"] == "detector" {
+            "dismiss"
+        } else {
+            "reject"
+        };
+        let kind = item["kind"].as_str().unwrap_or_default();
+        match apply_effect(&st, &item, action, kind, paths::scope(&item), false, false) {
+            Ok(_) => closed.push(item),
+            Err(error) => failures.push(json!({"value":item["value"],"error":error.message()})),
+        }
+    }
+    let dataset = st
+        .with_vault(|_, v| {
+            learning::transaction(v, || {
+                let mut drafts = 0;
+                if !closed.is_empty() && crate::dataset::capture_enabled(v)? {
+                    for item in &closed {
+                        if matches!(
+                            crate::dataset::capture_finding(v, item, None, false)?,
+                            crate::dataset::Capture::Draft
+                        ) {
+                            drafts += 1;
+                        }
+                    }
+                }
+                Ok(json!({"drafts":drafts}))
+            })
+        })
+        .unwrap_or_else(|_| json!({"error":"dataset_capture_failed"}));
+    Ok(Json(
+        json!({"skipped":closed.len(),"failures":failures,"dataset":dataset}),
+    ))
+}
+
 fn apply_effect(
     st: &Shared,
     item: &Value,
@@ -2426,9 +2491,6 @@ fn apply_effect(
     let origin = item["origin"].as_str().unwrap_or_default();
     let id = item["id"].as_str().unwrap_or_default();
     let key = item["key"].as_str().unwrap_or_default();
-    if matches!(action, "mask" | "keep") && !item["unmatched_rule"].is_null() {
-        return Err(bad("rule_misses_occurrence"));
-    }
     let active = &item["document_rule"];
     if matches!(action, "mask" | "keep") && !active.is_null() {
         if active["action"] != action {

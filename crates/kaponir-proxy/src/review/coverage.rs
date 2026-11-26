@@ -27,7 +27,7 @@ impl ActiveRules {
                 rules.push(json!({
                     "id": rule.id, "scope": set.scope, "index": index,
                     "action": rule.action, "kind": rule.kind, "literal": rule.value.is_some(),
-                    "path_prefix": rule.directory_prefix(set.scope)
+                    "path_prefix": rule.directory_prefix(set.scope), "value": rule.value
                 }));
                 // IDs in user-managed files can be empty or reused. Keep the exact UI address.
                 rule.id = slot.to_string();
@@ -92,20 +92,22 @@ impl ActiveRules {
         });
         let effective = Engine::resolve_rule_matches(candidates);
         let at = |start: usize, end: usize| {
-            if let Some(mask) = effective
+            let mut masks = effective
                 .iter()
-                .find(|c| c.polarity == Polarity::Mask && c.start < end && start < c.end)
-            {
-                let rule = address(mask)?;
-                let prefix = rule["path_prefix"].as_str();
-                let directory = kind == "PATH"
-                    && mask.start == start
-                    && prefix.is_some_and(|p| {
-                        super::paths::directories(value).contains(&p)
-                            && mask.end == start + p.len() - 1
-                            && mask.end < end
-                    });
-                return (mask.start <= start && end <= mask.end || directory).then_some(rule);
+                .filter(|c| c.polarity == Polarity::Mask && c.start < end && start < c.end)
+                .peekable();
+            if masks.peek().is_some() {
+                return masks.find_map(|mask| {
+                    let rule = address(mask)?;
+                    let directory = kind == "PATH"
+                        && mask.start == start
+                        && rule["path_prefix"].as_str().is_some_and(|p| {
+                            super::paths::directories(value).contains(&p)
+                                && mask.end == start + p.len() - 1
+                                && mask.end < end
+                        });
+                    (mask.start <= start && end <= mask.end || directory).then_some(rule)
+                });
             }
             let keep = effective
                 .iter()
@@ -237,6 +239,30 @@ mod tests {
         old["reason"] = json!("rule_was_edited");
         rules.project(&mut old);
         assert_eq!(old["state"], "conflict");
+    }
+
+    #[test]
+    fn separate_filename_mask_does_not_hide_directory_coverage() {
+        let prefix = "/work/demo/";
+        let value = "/work/demo/notes/private-name.txt";
+        let directory = Rule::for_directory(prefix, Scope::Team).unwrap();
+        let rules = ActiveRules::new(vec![set(
+            Scope::Team,
+            vec![literal("private-name"), directory],
+        )])
+        .unwrap();
+        let text = format!("Read {value}, then verify.");
+        let start = text.find(value).unwrap();
+        let rule = rules
+            .covering_finding(
+                value,
+                &text,
+                Some([start, start + value.len()]),
+                false,
+                "PATH",
+            )
+            .unwrap();
+        assert_eq!(rule["path_prefix"], prefix);
     }
 
     #[test]

@@ -65,6 +65,7 @@ def check_local_presets(page, api, output):
         page.reload()
         page.wait_for_function("() => document.querySelector('#analysis-output-tokens').value === '1400'")
         assert api('/api/v1/ui/analysis')['settings']['inference']['local_generation']['top_k'] == 40
+        categorization = api('/api/v1/ui/categorization')['settings']
         page.evaluate("showTab('categorization')")
         page.locator('#categorization-provider').select_option('local')
         for row in rows:
@@ -243,6 +244,45 @@ def check_manual_mask(page, base, api):
     assert {r['original'] for r in masked['replacements']} == set(names[:2])
     assert names[2] in masked['text'] and not jobs
 
+    api('/api/v1/ui/discover', {
+        'documents': [{'name': 'skip-fixture.txt', 'text': 'Цена: 250 USD'}],
+        'remember': True,
+    })
+    review.locator('#review-query').fill('skip-fixture.txt')
+    review.get_by_role('button', name='250 USD', exact=True).click()
+    rules_before = api('/api/v1/rules')
+    with page.expect_response(lambda r: r.url.endswith('/reject') and r.request.method == 'POST') as skipped:
+        detail.get_by_role('button', name='Пропустить', exact=True).click()
+    assert skipped.value.ok
+    expect(confirm).to_be_hidden()
+    expect(review.locator('#review-result')).to_contain_text('Находка отклонена')
+    skipped_items = api('/api/v1/ui/review?status=history&q=skip-fixture.txt')['items']
+    assert any(item['value'] == '250 USD' and item['state'] == 'rejected' for item in skipped_items)
+    assert api('/api/v1/rules') == rules_before
+
+    detector_value = 'zorgbulkskipdetected'
+    unselected_value = 'zorgbulkskipunselected'
+    for value in (detector_value, unselected_value):
+        api('/api/v1/ui/mask', {'text': f'/srv/{value}/config.toml', 'commit': True})
+    api('/api/v1/ui/discover', {
+        'documents': [{'name': 'zorgbulkskipdocument.txt', 'text': 'Цена 450 USD. Доплата 450 USD.'}],
+        'remember': True,
+    })
+    review.locator('#review-query').fill('zorgbulkskip')
+    for value in (detector_value, '450 USD'):
+        review.get_by_role('checkbox', name='Выбрать значение: ' + value, exact=True).check()
+    toolbar = review.locator('#review-selection')
+    toolbar.get_by_role('button', name='Пропустить', exact=True).click()
+    expect(confirm).to_be_hidden()
+    expect(review.locator('#review-result')).to_contain_text('Пропущено находок · 3')
+    pending = api('/api/v1/ui/review?q=zorgbulkskip')['items']
+    assert [item['value'] for item in pending] == [unselected_value]
+    history = api('/api/v1/ui/review?status=history&q=zorgbulkskip')['items']
+    assert sorted((item['value'], item['state']) for item in history) == [
+        ('450 USD', 'rejected'), ('450 USD', 'rejected'), (detector_value, 'dismissed'),
+    ]
+    assert api('/api/v1/rules') == rules_before
+
     many = ['zorgmanualpage' + chr(97 + i // 26) + chr(97 + i % 26) for i in range(251)]
     for start in range(0, len(many), 100):
         paths = '\n'.join('/srv/' + name + '/config.toml' for name in many[start:start + 100])
@@ -262,6 +302,17 @@ def check_manual_mask(page, base, api):
     expect(confirm.locator('code')).to_have_count(len(many))
     assert set(confirm.locator('code').all_text_contents()) == set(many)
     confirm.get_by_role('button', name='Отмена').click()
+
+    excluded = review.locator('#review-list tbody input[type=checkbox]').first
+    excluded_value = excluded.get_attribute('aria-label').removeprefix('Выбрать значение: ')
+    excluded.uncheck()
+    late_value = 'zorgmanualpagelate'
+    api('/api/v1/ui/mask', {'text': f'/srv/{late_value}/config.toml', 'commit': True})
+    toolbar.get_by_role('button', name='Пропустить', exact=True).click()
+    expect(review.locator('#review-result')).to_contain_text('Пропущено находок · 250')
+    pending = api('/api/v1/ui/review?q=zorgmanualpage')['items']
+    assert {item['value'] for item in pending} == {excluded_value, late_value}
+    assert api('/api/v1/rules') == rules_before
 
     page.goto(base + '/ui/#discover')
     if page.locator('#d-settings').get_attribute('open') is None:
@@ -302,6 +353,8 @@ def check_manual_mask(page, base, api):
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('binary',type=Path);parser.add_argument('--output',type=Path,default=Path('artifacts/review'));args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
     fail=threading.Event();release=threading.Event();release.set();seen=[];seen_formats=[]
+    amount_candidates = {'candidates': [{'value': '40%', 'kind': 'PERSON', 'confidence': .90},
+                                        {'value': '1 320,00 ₽', 'kind': 'SVC', 'confidence': .78}]}
     class Provider(BaseHTTPRequestHandler):
         def log_message(self,*_):pass
         def respond(self,data,status=200):
@@ -316,6 +369,9 @@ def main():
                 if body.get('operation') == 'probe':
                     assert body['input'] == {} and body['timeout_seconds'] == 300
                     self.respond({'ready':True})
+                    return
+                if 'source' in body['input']:
+                    self.respond(amount_candidates)
                     return
                 if 'items' in body['input']:
                     packet = body['input']
@@ -349,7 +405,7 @@ def main():
                                   else 'Confirmed private project in source context.')
                         decisions.append({'id':item['id'],'verdict':verdict,'reason':reason})
                     result = {'decisions':decisions}
-                else:result={'candidates':[{'value':'40%','kind':'PERSON','confidence':.90},{'value':'1 320,00 ₽','kind':'SVC','confidence':.78}]}
+                else:result=amount_candidates
                 self.respond({'choices':[{'finish_reason':'stop','message':{'content':json.dumps(result,ensure_ascii=False)}}]});return
             self.respond({'choices':[{'message':{'role':'assistant','content':'ready'}}]})
     provider=ThreadingHTTPServer(('127.0.0.1',0),Provider);threading.Thread(target=provider.serve_forever,daemon=True).start();upstream=f'http://127.0.0.1:{provider.server_port}'
@@ -403,10 +459,13 @@ def main():
                     expect(page.locator('#review-options #review-scenario-choice')).to_have_count(0)
                     page.locator('#review-options').get_by_role('button', name='Готово').click()
                     assert 'Нет общей оценки' not in page.locator('#review-list').inner_text()
-                    money=next(i for i in rows() if i['value']=='40%');assert money['kind']=='AMOUNT' and money['proposed_kind']=='PERSON' and money['categorization_state']=='disabled'
+                    money = next(i for i in rows() if i['value'] == '40%')
+                    assert money['kind'] == 'AMOUNT' and money['proposed_kind'] == 'PERSON'
+                    assert money['categorization_state'] == 'verdict_only'
+                    assert money['scenario_result']['verdict'] == 'mask'
                     money_card=card_for(money)
                     money_card.get_by_role('tab',name='Происхождение').click()
-                    expect(money_card.locator('.origin-fields')).to_contain_text('тип не проверен')
+                    expect(money_card.locator('.origin-fields')).to_contain_text('Тип остаётся на ручной проверке')
                     target=next(i for i in rows() if i['value']=='zorgreviewalpha');card=card_for(target)
                     rules_before_review=json.dumps(api('/api/v1/rules'))
                     card.get_by_role('button',name='Получить предложение ИИ',exact=True).click()
@@ -455,8 +514,15 @@ def main():
                     route.fulfill(response=response)
                     page.unroute(rollback_url, hold_rollback)
                     expect(page.locator('#finding-detail')).to_have_js_property('inert', False)
-                    before=json.dumps(api('/api/v1/rules'));hidden_card.get_by_role('button',name='Исправить',exact=True).click();page.locator('#review-confirm').get_by_label('Действие',exact=True).select_option('dismiss')
-                    assert 'перейдёт в «Разобранные»' in page.locator('#review-confirm').inner_text();page.locator('#review-confirm-apply').click()
+                    before=json.dumps(api('/api/v1/rules'))
+                    with page.expect_response(lambda r: r.url.endswith('/dismiss') and r.request.method == 'POST') as skipped:
+                        hidden_card.get_by_role('button', name='Пропустить', exact=True).click()
+                    assert skipped.value.ok
+                    expect(page.locator('#review-confirm')).to_be_hidden()
+                    expect(page.locator('#review-result')).to_contain_text('Закрыто без правила')
+                    next_finding = page.locator('#finding-detail .review-value')
+                    expect(next_finding).to_be_visible()
+                    expect(next_finding).not_to_have_text(hidden['value'])
                     wait_for(lambda:not any(i['key']==hidden['key'] for i in rows()));assert json.dumps(api('/api/v1/rules'))==before
                     seed('zorgreviewhidden');assert not any(i['key']==hidden['key'] for i in rows())
                     page.locator('[data-review-view=history]').click();card_for(hidden).get_by_role('button',name='Вернуть на проверку',exact=True).click();wait_for(lambda:any(i['key']==hidden['key'] for i in rows()))
@@ -535,7 +601,8 @@ def main():
                                 page.screenshot(path=str(args.output/f'review-{language}-{theme}-{width}.png'),full_page=True)
                     # A later confident categorizer cannot silently activate a numeric type correction.
                     cat.update(provider='local',model='qwen3-0.6b');api('/api/v1/ui/categorization',{'settings':cat},'PUT')
-                    settings['auto_apply']=True;api('/api/v1/ui/analysis',{'settings':settings},'PUT')
+                    settings.update(provider='local', model='qwen3-0.6b', auto_apply=True)
+                    api('/api/v1/ui/analysis',{'settings':settings},'PUT')
                     api('/api/v1/ui/worker/start',{})
                     rules_before=json.dumps(api('/api/v1/rules'))
                     api('/api/v1/ui/analysis/documents',{'documents':[{'name':'numeric-validation.md','text':'Additional private estimate: Аванс 40%, цена 1 320,00 ₽.'}]})

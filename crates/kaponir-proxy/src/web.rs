@@ -18,8 +18,8 @@ use kaponir_vault::JournalRow;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-use crate::Shared;
 use crate::server::{ApiError, authorized, error, internal};
+use crate::{RulePattern, Shared};
 
 const INDEX: &str = include_str!("../assets/index.html");
 const APP_JS: &str = include_str!("../assets/app.js");
@@ -200,7 +200,10 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/journal/auto-review", post(auto_review))
         .route("/api/v1/journal/template", post(template))
         .route("/api/v1/rules", get(rules).post(add_rule))
-        .route("/api/v1/rules/{scope}/{index}", delete(remove_rule))
+        .route(
+            "/api/v1/rules/{scope}/{index}",
+            delete(remove_rule).patch(update_rule_pattern),
+        )
         .route("/api/v1/rules/{scope}/domains", put(set_domains))
 }
 
@@ -1665,6 +1668,35 @@ async fn remove_rule(
     let removed = ctl.remove_rule(scope, index).map_err(bad)?;
     reload(&st)?;
     Ok(Json(json!({"removed": removed})).into_response())
+}
+
+#[derive(Deserialize)]
+struct UpdateRulePatternReq {
+    revision: String,
+    pattern: RulePattern,
+}
+
+async fn update_rule_pattern(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Path((scope, index)): Path<(Scope, usize)>,
+    Json(req): Json<UpdateRulePatternReq>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let _rules = st.rule_changes.lock().await;
+    let ctl = control(&st)?;
+    check_rule_revision(ctl, scope, Some(&req.revision))?;
+    let engine = ctl
+        .update_rule_pattern(scope, index, &req.revision, req.pattern)
+        .map_err(|err| {
+            if err.to_string() == "rule_list_changed" {
+                error(StatusCode::CONFLICT, "rule_list_changed")
+            } else {
+                bad(err)
+            }
+        })?;
+    st.replace_engine(engine);
+    Ok(Json(json!({"ok": true})).into_response())
 }
 
 #[derive(Deserialize)]

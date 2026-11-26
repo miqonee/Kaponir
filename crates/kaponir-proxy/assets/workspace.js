@@ -1209,10 +1209,6 @@ async function loadWorkspaceModels() {
       !info.editable || !catalog.length,
     ),
   );
-  const shared = cfg.analysis?.model && cfg.analysis.model === cfg.categorization?.model &&
-    cfg.analysis.provider === cfg.categorization.provider && cfg.analysis.connection_id === cfg.categorization.connection_id;
-  const shareApi = cfg.analysis?.provider === "api" && !shared ? workButton("Использовать API-модель поиска для проверки",
-    () => save({use_analysis_api:true}), "secondary", !info.editable) : null;
   const slot = h("input", {
     type: "number",
     min: 1,
@@ -1337,7 +1333,7 @@ async function loadWorkspaceModels() {
   box.replaceChildren(
     h("section", {id: "workspace-model-choice", class:"panel model-setup", "aria-labelledby": "workspace-model-title"},
       h("h2", {id: "workspace-model-title"}, tr("Модель поиска и проверки")),
-      assignments, remote ? h("div",{class:"model-setup-actions"},shareApi,toggleLocal) : null, localSetup,
+      assignments, remote ? h("div",{class:"model-setup-actions"},toggleLocal) : null, localSetup,
       h("div", {class:"model-paths"}, h("a", {href:"#worker"}, tr("Открыть службу моделей"))),
       h("p", {id:"workspace-save-state", role:"status", class:"form-status"})),
     h("section", {class:"panel hardware-panel"}, h("h2", {}, tr("Производительность воркера")),

@@ -155,6 +155,12 @@ function isChatApi(role) {
   return $("#" + role + "-provider").value === "api";
 }
 
+function categorizationProviderAvailable(provider) {
+  if (LearningUI.analysis?.settings.provider === "api")
+    return provider === "analysis" || provider === "s1";
+  return provider !== "analysis";
+}
+
 const apiCatalogs = {analysis: {}, categorization: {}};
 function catalogConnection(role) {
   return {role, url: $("#" + role + "-url").value.trim(), key: $("#" + role + "-key").value.trim() || null,
@@ -349,6 +355,9 @@ function applyLocalPreset(role) {
 function learningFormVisibility() {
   const a = $("#analysis-provider").value,
     c = $("#categorization-provider").value;
+  for (const option of $("#categorization-provider").options) {
+    option.disabled = option.hidden = !categorizationProviderAvailable(option.value);
+  }
   $("#analysis-local-fields").hidden = a !== "local";
   $("#analysis-api-fields").hidden = a !== "api";
   $("#categorization-local-fields").hidden = c !== "local";
@@ -359,7 +368,11 @@ function learningFormVisibility() {
   const endpointHelp = $("#categorization-url-help");
   endpointHelp.textContent = tr(c === "s1" ? "Укажите адрес сервера S1 для выбранного протокола." : "Для OpenAI-совместимого API подойдут адреса /v1, /chat/completions или /models.");
   $("#categorization-none-note").hidden = c !== "none";
-  $("#categorization-timeout-field").hidden = c === "none";
+  const analysisNote = $("#categorization-analysis-note");
+  analysisNote.hidden = c !== "analysis";
+  if (!analysisNote.hidden)
+    analysisNote.textContent = tr("Модель из настроек обнаружения · {{0}}", [LearningUI.analysis.settings.model]);
+  $("#categorization-timeout-field").hidden = c === "none" || c === "analysis";
   $("#categorization-inference-settings").hidden = !["local", "api"].includes(c);
   $("#categorization-scenario-field").hidden = c !== "local";
   $("#analysis-timeout").max = a === "local" ? "1800" : "300";
@@ -378,13 +391,13 @@ function learningFormVisibility() {
     $(`#${role}-clear-key`).disabled =
       busy || !data?.editable || !data?.key_saved;
     const savedUrl = role === "analysis" ? data?.settings.url : data?.settings.http.url;
-    const savedKeyHere = data?.key_saved && savedUrl === $("#"+role+"-url").value.trim();
+    const savedKeyHere = data?.key_saved && !data.uses_analysis_api && savedUrl === $("#"+role+"-url").value.trim();
     const clear = $("#"+role+"-clear-key");
     clear.closest("label").hidden = !savedKeyHere;
     clear.disabled ||= !savedKeyHere;
     if (!savedKeyHere) clear.checked = false;
     $("#"+role+"-key").placeholder = tr(savedKeyHere ? "Сохранённый ключ останется без изменений" : "Введите ключ, если он требуется");
-    $(`#${role}-test`).hidden = (role === "analysis" ? a : c) === "none";
+    $(`#${role}-test`).hidden = ["none", "analysis"].includes(role === "analysis" ? a : c);
     const local = (role === "analysis" ? a : c) === "local",
       button = $(`#${role}-test`);
     button.textContent = tr(local ? "Проверить запуск" : "Проверить подключение");
@@ -401,16 +414,24 @@ function learningFormVisibility() {
 function renderLearningForms() {
   for (const role of ["analysis", "categorization"]) {
     const data = LearningUI[role];
-    if (!data || LearningUI.dirty.has(role)) continue;
+    if (!data) continue;
+    if (LearningUI.dirty.has(role)) {
+      if (role !== "categorization" || categorizationProviderAvailable($("#categorization-provider").value)) continue;
+      LearningUI.dirty.delete(role);
+      const status = $("#categorization-result");
+      status.textContent = "";
+      status.classList.remove("err");
+    }
     const s = data.settings;
+    const provider = data.uses_analysis_api ? "analysis" : s.provider;
     writeInference(role, s.inference);
     const profile=apiProfiles[role];
     ++profile.sequence; profile.profile=null; profile.promise=null;
     profile.manual=new Set(s.api_manual || []);
     profile.identity=JSON.stringify([role==="analysis" ? s.url : s.http.url,role==="analysis" ? s.model : s.http.model]);
-    LearningUI.providerDrafts[role] = {provider:s.provider};
+    LearningUI.providerDrafts[role] = {provider};
     ensureModelChoice(canonicalModel(s.model), role);
-    $(`#${role}-provider`).value = s.provider;
+    $(`#${role}-provider`).value = provider;
     if (role === "analysis") {
       $("#analysis-enabled").checked = s.enabled;
       $("#analysis-local-model").value =
@@ -497,7 +518,6 @@ function readLearningForm(role) {
   if (isChatApi(role)) { settings.api_manual=[...apiProfiles[role].manual]; settings.inference.local_generation=null; }
   return {
     settings,
-    ...(role === "analysis" && settings.provider === "api" && $("#analysis-share-api").checked ? {use_for_categorization:true} : {}),
     ...(remote && key ? { key } : {}),
     clear_key: remote && $(`#${role}-clear-key`).checked,
   };
@@ -639,10 +659,9 @@ async function saveModelSettings(path, body) {
     if (!queue.learning && !queue.review) { change = undefined; continue; }
     const dialog = document.createElement("dialog");
     dialog.className = "queue-change-dialog"; dialog.setAttribute("aria-labelledby","queue-change-title");
-    const model = body.settings?.provider === "local" ? body.settings.model : body.settings?.http?.model || body.settings?.model || body.model ||
-      (body.use_analysis_api ? LearningUI.analysis?.settings.model : "");
-    const url = body.settings?.provider === "api" ? (body.settings.url || body.settings.http?.url) : body.settings?.provider === "s1" ? body.settings.http?.url :
-      body.use_analysis_api ? LearningUI.analysis?.settings.url : null;
+    const modelSettings = body.settings?.provider === "analysis" ? LearningUI.analysis?.settings : body.settings;
+    const model = modelSettings?.provider === "local" ? modelSettings.model : modelSettings?.http?.model || modelSettings?.model || body.model;
+    const url = ["api", "s1"].includes(modelSettings?.provider) ? modelSettings.url || modelSettings.http?.url : null;
     const destination = [model, url && URL.canParse(url) ? new URL(url).origin : null].filter(Boolean).join(" · ");
     const actions = h("form",{method:"dialog",class:"dialog-actions"},
       h("button",{value:"cancel",autofocus:true},tr("Отмена")),
@@ -662,8 +681,11 @@ async function saveModelSettings(path, body) {
   }
 }
 async function saveLearningForm(role, test = false) {
-  if (LearningUI.busy.has(role) || !LearningUI[role]) return;
-  LearningUI.busy.add(role);
+  const updatesCategorization = !test && role === "analysis" &&
+    (isChatApi(role) || LearningUI.analysis?.settings.provider === "api");
+  const affectedRoles = updatesCategorization ? [role, "categorization"] : [role];
+  if (!LearningUI[role] || affectedRoles.some(name => LearningUI.busy.has(name))) return;
+  for (const name of affectedRoles) LearningUI.busy.add(name);
   learningFormVisibility();
   if (isChatApi(role)) await planApiProfile(role);
   const body = readLearningForm(role),
@@ -691,10 +713,8 @@ async function saveLearningForm(role, test = false) {
     if (!test) {
       LearningUI[role] = result;
       saved = true;
-      if (body.use_for_categorization) {
-        $("#analysis-share-api").checked = false;
+      if (updatesCategorization)
         LearningUI.categorization = await api("/api/v1/ui/categorization");
-      }
       LearningUI.dirty.delete(role);
       renderLearningForms();
       if (role === "analysis" && (previous.enabled !== result.settings.enabled || (result.settings.enabled && !WORKER.data?.enabled)))
@@ -702,15 +722,16 @@ async function saveLearningForm(role, test = false) {
       await loadWorkerSummary();
     }
     clearInterval(timer);
+    const inherited = updatesCategorization && LearningUI.categorization?.uses_analysis_api;
     output.textContent = test ? tr(local ? "Модель загружена. Токенизатор ответил." : "Подключение проверено")
-      : tr("Настройки сохранены."); // Live readiness is shown by the widget and model cards.
+      : tr(inherited ? "Настройки сохранены для обнаружения и категоризации." : "Настройки сохранены.");
     await loadLearningHistory();
   } catch (e) {
     output.textContent = saved ? tr("Настройки сохранены, но служба не выполнила действие: {{0}}", [learningError(e.message)]) : (e.name === "TimeoutError" || e.message === "model_timeout") ? tr("Проверка не уложилась в заданное время. Проверьте очередь и тайм-аут модели.") : learningError(e.message);
     output.classList.add("err");
   } finally {
     clearInterval(timer);
-    LearningUI.busy.delete(role);
+    for (const name of affectedRoles) LearningUI.busy.delete(name);
     learningFormVisibility();
   }
 }

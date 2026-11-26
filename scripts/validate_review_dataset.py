@@ -289,6 +289,92 @@ def check_path_group(page, api, base):
     assert any(row.get('path_group') for row in query('pending')['items'])
 
 
+def check_directory_boundary_error(page, api, base):
+    root = '/work/boundary-case/'
+    for filename, lead in [('good.txt', ''), ('nested.txt', '/var/lib')]:
+        value = root + filename
+        text = f'Read {lead}{value}, then verify.'
+        api('/api/v1/ui/discover', {'remember': True, 'documents': [{
+            'name': filename, 'text': text,
+            'model_candidates': [{'value': value, 'kind': 'PATH', 'quote': text}],
+        }]})
+    before = api('/api/v1/rules')
+    page.goto(base+'/ui/#review')
+    page.reload()
+    page.locator('#review-query').fill(root)
+    page.locator('#review-list').get_by_role('button', name=root, exact=True).click()
+    page.locator('#finding-detail').get_by_role('button', name='Скрывать этот каталог').click()
+    result = page.locator('#review-result')
+    expect(result).to_contain_text('Правило каталога пропускает этот фрагмент')
+    expect(result.locator('blockquote mark')).to_have_text(root+'nested.txt')
+    expect(result.get_by_role('button', name='Изменить правило')).to_have_count(0)
+    assert api('/api/v1/rules') == before
+
+
+def check_rule_update(page, api, base):
+    value = '/work/rule-edit/notes/report.txt'
+    text = f'Read cached{value}, then verify.'
+    original = {'id': 'rule-edit-fixture', 'kind': 'PATH', 'value': value,
+                'case_sensitive': True, 'note': 'Keep this rule identity'}
+    api('/api/v1/ui/discover', {'remember': True, 'documents': [{
+        'name': 'rule-edit.txt', 'text': text,
+        'model_candidates': [{'value': value, 'kind': 'PATH', 'quote': text}],
+    }]})
+    api('/api/v1/rules', {'scope': 'team', 'rule': original})
+
+    def saved_rule():
+        team = next(s for s in api('/api/v1/rules') if s['scope'] == 'team')
+        rule, = [r for r in team['file']['rule'] if r.get('id') == original['id']]
+        return rule
+
+    page.goto(base+'/ui/#review')
+    page.reload()
+    page.locator('#review-query').fill(value)
+    row = page.locator('#review-list tr').filter(has=page.get_by_role('button', name=value, exact=True))
+    row.get_by_role('button', name=value, exact=True).click()
+    expect(page.locator('#finding-detail .rule-conflict code')).to_have_text(value)
+    row.get_by_role('checkbox').check()
+    page.locator('#review-selection').get_by_role('button', name=re.compile('^Создать правила маскирования')).click()
+    page.locator('#review-confirm-apply').click()
+    result = page.locator('#review-result')
+    expect(result.locator('.rule-conflict code')).to_have_text(value)
+    expect(result.locator('blockquote mark')).to_have_text(value)
+    edit = result.get_by_role('button', name='Изменить правило', exact=True)
+    editor = page.locator('#rule-editor')
+
+    def edit_pattern():
+        edit.click()
+        expect(editor).to_be_visible()
+        expect(editor.locator('#rf-pattern')).to_have_value(value)
+        expect(editor.locator('#rf-excerpt mark')).to_have_text(value)
+        editor.locator('#rf-ptype').select_option('regex')
+
+    edit_pattern()
+    editor.locator('#rf-pattern').fill('(')
+    editor.get_by_role('button', name='Сохранить изменения').click()
+    expect(editor.locator('#rf-error')).to_contain_text('regex parse error')
+    assert saved_rule()['value'] == value
+
+    pattern = f'cached({re.escape(value)})'
+    api('/api/v1/rules', {'scope': 'team', 'rule': {'value': 'concurrent-fixture-rule'}})
+    editor.locator('#rf-pattern').fill(pattern)
+    editor.get_by_role('button', name='Сохранить изменения').click()
+    expect(editor.locator('#rf-error')).to_contain_text('Список изменился')
+    assert saved_rule()['value'] == value
+
+    editor.get_by_role('button', name='Отмена').click()
+    edit_pattern()
+    editor.locator('#rf-pattern').fill(pattern)
+    editor.get_by_role('button', name='Сохранить изменения').click()
+    expect(editor).not_to_be_visible()
+    expect(result.locator('.rule-conflict')).to_have_count(0)
+    expect(row).to_have_count(0)
+    expected = {k: v for k, v in original.items() if k != 'value'}
+    assert saved_rule() == {**expected, 'action': 'mask', 'regex': pattern}
+    masked = api('/api/v1/ui/mask', {'text': text, 'commit': False})
+    assert any(r['original'] == value and r['origin']['id'] == original['id']
+               for r in masked['replacements']), masked
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -315,12 +401,14 @@ def main():
                 exercise(page, api, base)
                 check_path_group(page, api, base)
                 check_individual_path(page, api, base)
+                check_directory_boundary_error(page, api, base)
+                check_rule_update(page, api, base)
                 assert not errors, errors
                 browser.close()
         finally:
             proc.terminate()
             proc.wait()
-    print('Verified dataset capture and backfill, directory grouping, individual review, scoped masking, replay and undo.')
+    print('Verified dataset capture and backfill, directory grouping, rule updates, individual review, scoped masking, replay and undo.')
 
 
 if __name__ == '__main__':
