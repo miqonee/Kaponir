@@ -836,7 +836,6 @@ td small { display: block; }
 .review-confirm-list { max-height: 55vh; overflow: auto; }
 .review-confirm-list > div { border-top: 1px solid var(--line); padding: 12px 0; overflow-wrap: anywhere; }
 .review-group > summary { padding: 12px 0; font-size: 13px; color: var(--dim); cursor: pointer; }
-#review-result { white-space: pre-wrap; overflow-wrap: anywhere; }
 @media (max-width: 600px) { .review-card { padding: 16px; } .review-card-actions > select { flex: 1; width: 100%; } .review-card-actions > button { width: 100%; } .review-filters .field { min-width: 110px; } .review-value { width: calc(100% - 30px); } }
 .setting-explanation .hint { margin: 6px 0 0 28px; }
 .model-install { min-width: 0; margin-top: 14px; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-subtle); }
@@ -1027,13 +1026,21 @@ td small { display: block; }
 .finding-filters summary,.legacy-notebook summary {cursor:pointer;color:var(--accent);font-weight:600;padding-block:6px}
 
 .finding-model select {max-width:100%}.bulk-actions {background:var(--soft);padding:8px 12px;border-radius:8px}
-#review-result:not(:empty) {border-inline-start:3px solid var(--accent);padding-inline:12px}
-#review-result button {margin-inline-start:10px}
-.review-failure {margin-block:8px}
-.review-failure p,.review-failure blockquote {margin:0}
-.review-failure blockquote {margin-block-start:6px}
+.review-feedback {display:flex;align-items:center;gap:10px;min-block-size:40px}
+#review-result {flex:1;min-inline-size:0;overflow-wrap:anywhere}
+#review-result:not(:has(button)) {white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.review-feedback:has(#review-open-errors:not([hidden])) #review-result {color:var(--dim)}
+#review-result button {margin-inline-start:8px}
+#review-open-errors {flex:none;white-space:nowrap}
+.review-errors-heading {display:flex;align-items:center;justify-content:space-between;gap:12px}
+#review-errors-summary:empty {display:none}
+#review-error-list {overscroll-behavior:contain;padding-inline-end:6px}
+.review-failure {display:grid;gap:8px}
+.review-failure > code {font-weight:600}
+.review-failure > p {margin:0;color:var(--dim)}
+.review-failure summary {cursor:pointer;color:var(--accent);font-size:13px}
+.review-failure blockquote {margin:6px 0 0;padding:8px 10px;background:var(--soft);border-radius:6px}
 .rule-conflict {display:flex;align-items:center;flex-wrap:wrap;gap:8px;overflow-wrap:anywhere}
-#review-result .rule-conflict button {margin-inline-start:0}
 #review-list,#vault-dataset,#jobs-content {min-width:0}
 #vault-dataset textarea {width:100%;resize:vertical}
 .worker-readings {display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}

@@ -310,6 +310,11 @@ pub(super) fn apply_directory(
         }
         prospective.project(&mut row);
         if row["document_rule"]["id"] != rule.id {
+            if let Some(conflict) = prospective.directory_conflict(&row, &rule.id, prefix) {
+                return Err(bad("directory_rule_conflict").with_details(json!({
+                    "finding":finding_excerpt(&row), "conflict":conflict
+                })));
+            }
             return Err(bad("directory_rule_misses_occurrence")
                 .with_details(json!({"finding":finding_excerpt(&row)})));
         }

@@ -704,7 +704,7 @@ async function collectFindings(selection, inDataset = false) {
     desk.collection = receipt.id;
     desk.datasetStatus = "all";
     desk.datasetOffset = 0;
-  }
+  } else setReviewFeedback("");
   status.replaceChildren(h("strong", {}, tr("Добавлено {{0}} · уже были {{1}}", [receipt.added, receipt.existing])));
   if (!inDataset) status.append(workButton("Открыть добавленные примеры", () => {
       desk.collection = receipt.id;

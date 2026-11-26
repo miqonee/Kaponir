@@ -1478,7 +1478,7 @@ function ruleRow(set, rule, index) {
   if (rule.strategy) flags.push(rule.strategy === 'variable' ? tr("Переменная") : rule.strategy.toUpperCase());
   const source = /^(learn-|review-|discovery-)/.test(rule.id || '');
   return h('tr', {id:'rule-'+set.scope+'-'+(rule.id || 'index-'+index), tabindex:-1,
-      dataset:{ruleSearch:ruleSearchText(rule), value, scope:set.scope, state}},
+      dataset:{ruleSearch:ruleSearchText(rule), value, scope:set.scope, state, ruleIndex:index}},
     h('td', {class:'rule-subject'}, h('strong', {class:'mono', title:rule.id || ''}, value),
       h('small', {}, flags.join(' · ')), rule.note ? h('span', {class:'rule-note'}, rule.note) : null,
       source ? workButton('Исходные находки', () => openRuleFindings(rule.id, set.scope), 'text-button') : null),

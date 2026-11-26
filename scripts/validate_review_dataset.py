@@ -303,11 +303,59 @@ def check_directory_boundary_error(page, api, base):
     page.reload()
     page.locator('#review-query').fill(root)
     page.locator('#review-list').get_by_role('button', name=root, exact=True).click()
-    page.locator('#finding-detail').get_by_role('button', name='Скрывать этот каталог').click()
+    detail = page.locator('#finding-detail')
     result = page.locator('#review-result')
-    expect(result).to_contain_text('Правило каталога пропускает этот фрагмент')
-    expect(result.locator('blockquote mark')).to_have_text(root+'nested.txt')
-    expect(result.get_by_role('button', name='Изменить правило')).to_have_count(0)
+    errors = page.locator('#review-errors')
+    viewport = page.viewport_size
+    for width in (1440, 390):
+        page.set_viewport_size({**viewport, 'width': width})
+        document_top = 'element => element.getBoundingClientRect().top + scrollY'
+        before_y = detail.evaluate(document_top)
+        detail.get_by_role('button', name='Скрывать этот каталог').click()
+        expect(result).to_have_text('Ошибок · 1')
+        assert abs(detail.evaluate(document_top) - before_y) <= 1
+        expect(result.locator('blockquote')).to_have_count(0)
+        trigger = page.get_by_role('button', name='Разобрать ошибки', exact=True)
+        trigger.click()
+        expect(errors).to_be_visible()
+        expect(errors).to_contain_text('Правило каталога пропускает этот фрагмент')
+        expect(errors.locator('blockquote')).to_be_hidden()
+        errors.locator('summary').click()
+        expect(errors.locator('blockquote mark')).to_have_text(root+'nested.txt')
+        expect(errors.get_by_role('button', name='Изменить правило')).to_have_count(0)
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth')
+        errors.get_by_role('button', name='Закрыть', exact=True).click()
+        expect(trigger).to_be_focused()
+    page.set_viewport_size(viewport)
+    assert api('/api/v1/rules') == before
+
+
+def check_directory_rule_conflict(page, api, base):
+    account = 'overlap.fixture'
+    root = f'/home/group.demo/{account}/'
+    for filename in ('notes.txt', 'report.txt'):
+        value = root + filename
+        text = f'Read {value}, then verify.'
+        api('/api/v1/ui/discover', {'remember': True, 'documents': [{
+            'name': filename, 'text': text,
+            'model_candidates': [{'value': value, 'kind': 'PATH', 'quote': text}],
+        }]})
+    api('/api/v1/rules', {'scope': 'global', 'rule': {
+        'id': 'fixture-account-mask', 'kind': 'USER', 'value': account,
+    }})
+    before = api('/api/v1/rules')
+    page.goto(base+'/ui/#review')
+    page.reload()
+    page.locator('#review-query').fill(root)
+    page.locator('#review-list').get_by_role('button', name=root, exact=True).click()
+    page.locator('#finding-detail').get_by_role('button', name='Скрывать этот каталог').click()
+    page.get_by_role('button', name='Разобрать ошибки', exact=True).click()
+    errors = page.locator('#review-errors')
+    expect(errors).to_contain_text('Действующее правило перекрывает маску каталога')
+    expect(errors.locator('.rule-conflict')).to_contain_text('Корпоративные')
+    expect(errors.locator('.rule-conflict code')).to_have_text(account)
+    errors.get_by_role('button', name='Открыть правило', exact=True).click()
+    expect(page.locator('#rule-global-fixture-account-mask')).to_be_focused()
     assert api('/api/v1/rules') == before
 
 
@@ -337,9 +385,15 @@ def check_rule_update(page, api, base):
     page.locator('#review-selection').get_by_role('button', name=re.compile('^Создать правила маскирования')).click()
     page.locator('#review-confirm-apply').click()
     result = page.locator('#review-result')
-    expect(result.locator('.rule-conflict code')).to_have_text(value)
-    expect(result.locator('blockquote mark')).to_have_text(value)
-    edit = result.get_by_role('button', name='Изменить правило', exact=True)
+    expect(result).to_have_text('Ошибок · 1')
+    trigger = page.get_by_role('button', name='Разобрать ошибки', exact=True)
+    trigger.click()
+    errors = page.locator('#review-errors')
+    expect(errors.locator('.rule-conflict code')).to_have_text(value)
+    expect(errors.locator('blockquote')).to_be_hidden()
+    errors.locator('summary').click()
+    expect(errors.locator('blockquote mark')).to_have_text(value)
+    edit = errors.get_by_role('button', name='Изменить правило', exact=True)
     editor = page.locator('#rule-editor')
 
     def edit_pattern():
@@ -367,7 +421,8 @@ def check_rule_update(page, api, base):
     editor.locator('#rf-pattern').fill(pattern)
     editor.get_by_role('button', name='Сохранить изменения').click()
     expect(editor).not_to_be_visible()
-    expect(result.locator('.rule-conflict')).to_have_count(0)
+    expect(errors).to_be_hidden()
+    expect(trigger).to_be_hidden()
     expect(row).to_have_count(0)
     expected = {k: v for k, v in original.items() if k != 'value'}
     assert saved_rule() == {**expected, 'action': 'mask', 'regex': pattern}
@@ -402,6 +457,7 @@ def main():
                 check_path_group(page, api, base)
                 check_individual_path(page, api, base)
                 check_directory_boundary_error(page, api, base)
+                check_directory_rule_conflict(page, api, base)
                 check_rule_update(page, api, base)
                 assert not errors, errors
                 browser.close()

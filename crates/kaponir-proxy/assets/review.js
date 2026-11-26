@@ -25,6 +25,7 @@ const reviewReasons = {
   entry_not_found: "Запись больше недоступна. Обновите очередь.",
   rule_misses_occurrence: "Действующее правило пропускает выделение в этом фрагменте.",
   directory_rule_misses_occurrence: "Правило каталога пропускает этот фрагмент. Проверьте границы пути.",
+  directory_rule_conflict: "Действующее правило перекрывает маску каталога.",
   rule_action_conflict: "Действующее правило задаёт другое действие. Откройте его во вкладке «Разобранные».",
   entry_not_pending: "По записи уже принято решение. Обновите очередь.",
   event_not_found: "Подробности события больше не хранятся.",
@@ -62,7 +63,7 @@ function detectorReason(item) {
 }
 function showReview(keys = [], view = "pending", source = "all") {
   clearPicking(); ReviewUI.filterSet=null; ReviewUI.browseSet=null; ReviewUI.jobId=null; ReviewUI.learningJob=null; ReviewUI.detailKey=null;
-  $("#review-result").replaceChildren();
+  setReviewFeedback("");
   for(const [id,value] of [["review-source",source],["review-query",""],["review-action",""],["review-kind",""]]) $("#"+id).value=value;
   ReviewUI.keys = keys.join(","); ReviewUI.offset = 0; ReviewUI.view = view; ReviewUI.selected.clear();
   const url = new URL(location.href);
@@ -445,14 +446,23 @@ async function openFindingRule(item) {
   showRuleSection("rules");
   showRulesView("list");
   await showTab("rules");
-  const row=document.getElementById("rule-"+scope+"-"+id);
-  if(row){row.focus();row.scrollIntoView({block:"center"});}
+  const rowId = "rule-" + scope + "-" + id;
+  const row = rule?.index == null ? document.getElementById(rowId) :
+    [...$("#rules-list").querySelectorAll("[data-rule-index]")].find(row =>
+      row.id === rowId && row.dataset.ruleIndex === String(rule.index));
+  if (!row && rule) throw new Error(tr("rule_list_changed"));
+  row?.focus();
+  row?.scrollIntoView({block:"center"});
+}
+
+function reviewRuleInfo(rule) {
+  return h("span", {class:"hint"}, scopeLabel(rule.scope), " · ",
+    tr(rule.action === "keep" ? "Оставлять открытым" : "Маскировать"));
 }
 
 function ruleConflict(rule, finding, disabled = false) {
   return h("div", {class:"rule-conflict"},
-    h("span", {class:"hint"}, tr("Действующее правило"), " · ", scopeLabel(rule.scope), " · ",
-      tr(rule.action === "keep" ? "Оставлять открытым" : "Маскировать")),
+    reviewRuleInfo(rule),
     h("code", {}, rule.value),
     workButton("Изменить правило", () => editFindingRule(rule, finding), "secondary", disabled));
 }
@@ -467,21 +477,52 @@ async function editFindingRule(target, finding) {
     throw new Error(tr("rule_list_changed"));
   }
   openRuleEditor(target.scope, {rule, finding, index:target.index, revision:set.revision, onSaved:() => {
-    const result = $("#review-result");
-    for (const failure of result.querySelectorAll(".review-failure")) {
-      if (failure.dataset.ruleAddress === `${target.scope}/${target.index}`) failure.remove();
-    }
-    result.classList.toggle("err", Boolean(result.querySelector(".review-failure")));
+    const failures = [...$("#review-error-list").children].filter(failure =>
+      failure.dataset.ruleAddress === `${target.scope}/${target.index}`);
+    failures.forEach(failure => failure.remove());
+    if (failures.length) syncReviewFeedback();
   }});
 }
 
+const reviewErrors = $("#review-errors");
+$("#review-open-errors").onclick = () => reviewErrors.showModal();
+$("#review-close-errors").onclick = () => reviewErrors.close();
+
+function setReviewFeedback(summary, failures = []) {
+  $("#review-error-list").replaceChildren(...failures);
+  $("#review-errors-summary").textContent = summary;
+  syncReviewFeedback();
+}
+
+function syncReviewFeedback() {
+  const count = $("#review-error-list").childElementCount;
+  $("#review-open-errors").hidden = !count;
+  if (!count && reviewErrors.open) {
+    reviewErrors.close();
+    $("#review-query").focus({preventScroll:true});
+  }
+  const summary = $("#review-errors-summary").textContent;
+  const status = $("#review-result");
+  status.textContent = [summary, count ? tr("Ошибок · {{0}}", [number(count)]) : ""].filter(Boolean).join(" · ");
+  status.title = status.textContent;
+  status.classList.remove("err");
+}
+
 function reviewFailure(item, error) {
-  const {finding, rule} = error.details || {};
+  const {finding, rule, conflict} = error.details || {};
   const source = finding || item;
-  return h("div", {class:"review-failure", "data-rule-address":rule ? `${rule.scope}/${rule.index}` : null},
-    h("p", {}, h("code", {}, source.value), " · ", reviewError(error.messageKey || error.message)),
+  const blocker = conflict?.rule;
+  return h("div", {class:"review-failure", role:"listitem", "data-rule-address":rule ? `${rule.scope}/${rule.index}` : null},
+    source.value && h("code", {}, source.value),
+    h("p", {}, reviewError(error.messageKey || error.message)),
     rule && ruleConflict(rule, source),
-    finding && h("blockquote", {class:"candidate-fragment"}, candidateExcerpt(source.context, source.value, source.context_span)));
+    blocker && h("div", {class:"rule-conflict"}, reviewRuleInfo(blocker), h("code", {}, blocker.value ?? conflict.matched),
+      workButton("Открыть правило", () => {
+        reviewErrors.close();
+        return openFindingRule({document_rule:blocker});
+      }, "secondary")),
+    finding && h("details", {}, h("summary", {}, tr("Фрагмент")),
+      h("blockquote", {class:"candidate-fragment"}, candidateExcerpt(source.context, source.value, source.context_span))));
 }
 
 let findingNavigation = 0;
@@ -754,6 +795,7 @@ async function skipSelectedFindings() {
   if (location.hash !== "#review" || version !== ReviewUI.selectionVersion || ReviewUI.busy) return;
 
   const status = $("#review-result");
+  setReviewFeedback("");
   setReviewBusy(true);
   renderReviewSelection();
   try {
@@ -762,15 +804,14 @@ async function skipSelectedFindings() {
       clearPicking();
       ReviewUI.browseSet = null;
     }
-    const failures = result.failures.map(({value, error}) => `${value}: ${reviewError(error)}`);
-    status.textContent = [
+    const failures = result.failures.map(({value, error}) => reviewFailure({value}, {messageKey:error}));
+    const summary = [
       result.skipped || failures.length ? tr("Пропущено находок · {{0}}", [number(result.skipped)])
         : tr("В выборке больше нет находок на проверку."),
       result.dataset?.drafts ? tr("В датасет · проверено {{0}}, черновиков {{1}}", [0, result.dataset.drafts]) : "",
       result.dataset?.error ? tr("Решение сохранено. Добавьте пример из разобранных находок в датасете.") : "",
-      ...failures,
     ].filter(Boolean).join(" · ");
-    status.classList.toggle("err", failures.length > 0);
+    setReviewFeedback(summary, failures);
   } catch (error) {
     status.textContent = reviewError(error.messageKey || error.message);
     status.classList.add("err");
@@ -795,7 +836,7 @@ async function maskSelectedFindings() {
     }
   }
   if (items.length) confirmReview(items, "mask");
-  else $("#review-result").textContent = tr("В выборке больше нет находок на проверку.");
+  else setReviewFeedback(tr("В выборке больше нет находок на проверку."));
 }
 function confirmReview(items, operation, fromCard = false) {
   const seen = fromCard ? displayedExcerpt(items[0]) : null;
@@ -831,6 +872,7 @@ async function applyReview(entries, fromCard = false, seen = fromCard ? displaye
   const advance = fromCard && entries.length === 1 && ReviewUI.detailKey === first.item.key;
   const index = advance ? page.items.findIndex(i=>i.key===first.item.key) : -1;
   const following = index >= 0 ? page.items.slice(index+1).map(i=>i.key) : [];
+  setReviewFeedback("");
   setReviewBusy(true);
   const failures = [], snapshot = ReviewUI.snapshot;
   let checked = 0, drafts = 0, captureError = false;
@@ -870,9 +912,7 @@ async function applyReview(entries, fromCard = false, seen = fromCard ? displaye
   const summary = [message, covered ? tr("Уже учтено правилами · {{0}}", [number(covered)]) : "",
     checked || drafts ? tr("В датасет · проверено {{0}}, черновиков {{1}}", [checked,drafts]) : "",
     captureError ? tr("Решение сохранено. Добавьте пример из разобранных находок в датасете.") : ""].filter(Boolean).join(" · ");
-  const status = $("#review-result");
-  status.replaceChildren(...(summary ? [summary] : []), ...failures);
-  status.classList.toggle("err", !!failures.length);
+  setReviewFeedback(summary, failures);
   const sameCard = advance && !failures.length && ReviewUI.detailKey === first.item.key;
   let [updated] = await Promise.all([loadReview(true), loadInfo()]);
   if (!sameCard || !updated || navigation !== findingNavigation || location.hash !== "#review" || (ReviewUI.detailKey && ReviewUI.detailKey !== first.item.key)) return;
@@ -910,7 +950,7 @@ async function requestReview(items, scenario) {
     if (source?.supports_scenarios) body.scenario = scenario || ReviewUI.scenario || undefined;
     const job=await postOnce("/api/v1/ui/review/jobs",body);
     rememberFindings(job.id);showTab("jobs/review/"+job.id);
-  } catch(e){$("#review-result").textContent=reviewError(e.messageKey||e.message);}
+  } catch(e){setReviewFeedback(reviewError(e.messageKey||e.message));}
   finally{setReviewBusy(false);renderReviewSelection();}
 }
 function lockReviewResults(locked) {

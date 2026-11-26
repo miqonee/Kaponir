@@ -11,6 +11,26 @@ pub(crate) struct ActiveRules {
     rules: Vec<Value>,
 }
 
+fn matching_text<'a>(
+    value: &'a str,
+    context: &'a str,
+    span: Option<[usize; 2]>,
+) -> (&'a str, Option<[usize; 2]>, bool) {
+    let recorded = span.filter(|[start, end]| {
+        context.get(*start..*end).is_some_and(|surface| {
+            surface == value
+                || surface.to_lowercase() == value.to_lowercase()
+                || surface == value.replace(['\r', '\n'], " ")
+        })
+    });
+    let has_excerpt = recorded.is_some() || context.contains(value);
+    (
+        if has_excerpt { context } else { value },
+        recorded,
+        has_excerpt,
+    )
+}
+
 impl ActiveRules {
     pub(crate) fn new(sets: Vec<RuleSet>) -> anyhow::Result<Self> {
         let mut rules = Vec::new();
@@ -53,6 +73,36 @@ impl ActiveRules {
         self.covering_finding(value, context, span, protected, "")
     }
 
+    fn rule_for(&self, candidate: &Candidate) -> Option<&Value> {
+        match &candidate.origin {
+            Origin::Rule { id, .. } => self.rules.get(id.parse::<usize>().ok()?),
+            _ => None,
+        }
+    }
+
+    fn candidates(
+        &self,
+        text: &str,
+        has_excerpt: bool,
+        protected: bool,
+        kind: &str,
+    ) -> Vec<Candidate> {
+        let mut candidates = Vec::new();
+        self.matcher.analyze(
+            &Input::text(text),
+            &AnalyzeCtx::new(&Lexicon::default()),
+            &mut candidates,
+        );
+        candidates.retain(|c| {
+            (has_excerpt
+                || self.rule_for(c).is_some_and(|r| {
+                    r["literal"] == true || (kind == "PATH" && r["path_prefix"].is_string())
+                }))
+                && (c.polarity != Polarity::Keep || !protected || c.origin.is_enforced())
+        });
+        candidates
+    }
+
     pub(crate) fn covering_finding(
         &self,
         value: &str,
@@ -64,33 +114,9 @@ impl ActiveRules {
         if self.rules.is_empty() || value.is_empty() {
             return None;
         }
-        let recorded = span.filter(|[start, end]| {
-            context.get(*start..*end).is_some_and(|surface| {
-                surface == value
-                    || surface.to_lowercase() == value.to_lowercase()
-                    || surface == value.replace(['\r', '\n'], " ")
-            })
-        });
-        let has_excerpt = recorded.is_some() || context.contains(value);
-        let text = if has_excerpt { context } else { value };
-        let mut candidates = Vec::new();
-        self.matcher.analyze(
-            &Input::text(text),
-            &AnalyzeCtx::new(&Lexicon::default()),
-            &mut candidates,
-        );
-        let address = |c: &Candidate| match &c.origin {
-            Origin::Rule { id, .. } => self.rules.get(id.parse::<usize>().ok()?),
-            _ => None,
-        };
-        candidates.retain(|c| {
-            (has_excerpt
-                || address(c).is_some_and(|r| {
-                    r["literal"] == true || (kind == "PATH" && r["path_prefix"].is_string())
-                }))
-                && (c.polarity != Polarity::Keep || !protected || c.origin.is_enforced())
-        });
-        let effective = Engine::resolve_rule_matches(candidates);
+        let (text, recorded, has_excerpt) = matching_text(value, context, span);
+        let effective =
+            Engine::resolve_rule_matches(self.candidates(text, has_excerpt, protected, kind));
         let at = |start: usize, end: usize| {
             let mut masks = effective
                 .iter()
@@ -98,7 +124,7 @@ impl ActiveRules {
                 .peekable();
             if masks.peek().is_some() {
                 return masks.find_map(|mask| {
-                    let rule = address(mask)?;
+                    let rule = self.rule_for(mask)?;
                     let directory = kind == "PATH"
                         && mask.start == start
                         && rule["path_prefix"].as_str().is_some_and(|p| {
@@ -113,7 +139,7 @@ impl ActiveRules {
                 .iter()
                 .filter(|c| c.polarity == Polarity::Keep && c.start <= start && end <= c.end)
                 .max_by_key(|c| (c.origin.rank(), c.len()))?;
-            address(keep)
+            self.rule_for(keep)
         };
         if let Some([start, end]) = recorded {
             return at(start, end);
@@ -124,6 +150,57 @@ impl ActiveRules {
         let rule = at(first, first + value.len())?;
         hits.all(|(pos, _)| at(pos, pos + value.len()) == Some(rule))
             .then_some(rule)
+    }
+
+    // An existing rule is a conflict only if the proposed directory matched before precedence.
+    pub(super) fn directory_conflict(
+        &self,
+        item: &Value,
+        directory_id: &str,
+        prefix: &str,
+    ) -> Option<Value> {
+        let value = item["value"].as_str()?;
+        let (text, recorded, has_excerpt) = matching_text(
+            value,
+            item["context"].as_str().unwrap_or_default(),
+            serde_json::from_value(item["context_span"].clone()).ok(),
+        );
+        let candidates = self.candidates(text, has_excerpt, false, "PATH");
+        let effective = Engine::resolve_rule_matches(candidates.clone());
+        let starts = recorded
+            .map(|[start, _]| vec![start])
+            .unwrap_or_else(|| text.match_indices(value).map(|(start, _)| start).collect());
+        for start in starts {
+            let end = start + prefix.len() - 1;
+            let proposed = candidates.iter().find(|c| {
+                c.start == start
+                    && c.end == end
+                    && self
+                        .rule_for(c)
+                        .is_some_and(|r| r["id"] == directory_id && r["path_prefix"] == prefix)
+            })?;
+            if effective
+                .iter()
+                .any(|c| c.origin == proposed.origin && c.start == start && c.end == end)
+            {
+                continue;
+            }
+            let blocker = effective
+                .iter()
+                .filter(|c| match c.polarity {
+                    Polarity::Keep => {
+                        c.start <= start
+                            && end <= c.end
+                            && c.origin.rank() >= proposed.origin.rank()
+                    }
+                    Polarity::Mask => c.start < end && start < c.end,
+                })
+                .max_by_key(|c| (c.polarity == Polarity::Keep, c.origin.rank(), c.len()))?;
+            return Some(json!({
+                "rule":self.rule_for(blocker)?, "matched":text.get(blocker.start..blocker.end)?
+            }));
+        }
+        None
     }
 
     pub(crate) fn project(&self, item: &mut Value) {
@@ -239,6 +316,41 @@ mod tests {
         old["reason"] = json!("rule_was_edited");
         rules.project(&mut old);
         assert_eq!(old["state"], "conflict");
+    }
+
+    #[test]
+    fn directory_conflict_requires_a_match_before_precedence() {
+        let prefix = "/work/demo/";
+        let value = "/work/demo/notes/report.txt";
+        let directory = Rule::for_directory(prefix, Scope::Team).unwrap();
+        let directory_id = directory.id.clone();
+        for (action, pattern) in [(RuleAction::Mask, "demo"), (RuleAction::Keep, "/work/demo")] {
+            let existing = Rule {
+                id: "existing".into(),
+                action,
+                ..literal(pattern)
+            };
+            let rules = ActiveRules::new(vec![
+                set(Scope::Global, vec![existing]),
+                set(Scope::Team, vec![directory.clone()]),
+            ])
+            .unwrap();
+            let row = json!({"value":value, "context":format!("Read {value}, then verify.")});
+            let conflict = rules
+                .directory_conflict(&row, &directory_id, prefix)
+                .unwrap();
+            assert_eq!(conflict["rule"]["id"], "existing");
+            assert_eq!(conflict["rule"]["scope"], "global");
+            assert_eq!(conflict["rule"]["action"], json!(action));
+            assert_eq!(conflict["matched"], pattern);
+
+            let nested = json!({"value":value, "context":format!("Read /var/lib{value}.")});
+            assert!(
+                rules
+                    .directory_conflict(&nested, &directory_id, prefix)
+                    .is_none()
+            );
+        }
     }
 
     #[test]
