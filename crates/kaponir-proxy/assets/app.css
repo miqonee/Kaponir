@@ -1567,7 +1567,7 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
   .job-activity progress[value]::-webkit-progress-value { background: var(--accent); border-radius: 8px; }
   .job-activity progress[value]::-moz-progress-bar { background: var(--accent); border-radius: 8px; }
 }
-.job-preview-row[data-job-group=queued] .job-phase { color: var(--dim); font-size: 12px; }
+.job-preview-row:is([data-job-group=queued], [data-job-group=collecting]) .job-phase { color: var(--dim); font-size: 12px; }
 #jobs-content { max-width: 1040px; }
 #jobs-content > .job-group { border: 1px solid var(--line); border-radius: 10px; background: var(--panel); margin-bottom: 18px; }
 #jobs-content .job-group-title { padding: 15px 18px 12px; font-size: 16px; border-bottom: 1px solid var(--line); }

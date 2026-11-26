@@ -104,14 +104,14 @@ pub fn restore_response(body: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()>
             };
             if let Some(Value::String(text)) = msg.get_mut("content") {
                 let restored = cx.restore(text, Escape::None)?;
-                cx.reply().text([ci, 0], text, &restored);
+                cx.reply_text([ci, 0], text, &restored);
                 *text = restored;
             }
             for field in REASONING {
                 restore_field(msg, field, cx, Escape::None)?;
             }
             if let Some(reason) = msg["refusal"].as_str() {
-                cx.reply().text([ci, 1], reason, reason);
+                cx.reply_text([ci, 1], reason, reason);
             }
             if let Some(f) = msg.get("function_call") {
                 cx.reply().call(
@@ -162,7 +162,7 @@ impl StreamRewriter {
                 continue;
             }
             if slot == Slot::Field("content") {
-                cx.reply().text([ci, 0], "", &rest);
+                cx.reply_text([ci, 0], "", &rest);
             }
             let ch = choices
                 .entry(ci)
@@ -184,6 +184,7 @@ impl StreamRewriter {
 impl Rewriter for StreamRewriter {
     fn event(&mut self, ev: Event, cx: &mut Cx<'_>) -> anyhow::Result<Vec<String>> {
         if ev.data.trim() == "[DONE]" {
+            cx.finish_stream();
             let mut out = self.flush_all(cx)?;
             out.push(ev.raw);
             return Ok(out);
@@ -207,13 +208,13 @@ impl Rewriter for StreamRewriter {
                             .or_insert_with(|| StreamRestorer::new(Escape::None));
                         let out = cx.push(r, s)?;
                         if f == "content" {
-                            cx.reply().text([ci, 0], s, &out);
+                            cx.reply_text([ci, 0], s, &out);
                         }
                         *s = out;
                     }
                 }
                 if let Some(reason) = delta["refusal"].as_str() {
-                    cx.reply().text([ci, 1], reason, reason);
+                    cx.reply_text([ci, 1], reason, reason);
                 }
                 if let Some(f) = delta.get("function_call") {
                     cx.reply().call(
@@ -250,7 +251,7 @@ impl Rewriter for StreamRewriter {
                     let rest = cx.flush(&mut r)?;
                     if !rest.is_empty() {
                         if k.1 == Slot::Field("content") {
-                            cx.reply().text([ci, 0], "", &rest);
+                            cx.reply_text([ci, 0], "", &rest);
                         }
                         append(ch, k.1, &rest);
                     }

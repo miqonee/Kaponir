@@ -1,6 +1,7 @@
 //! Durable, bounded background learning. No inference runs on the proxy request path.
 mod api_profile;
 mod path_review;
+pub(crate) mod question;
 mod scenario;
 mod telemetry;
 use crate::{
@@ -382,6 +383,8 @@ enum LearningProgress {
 
 #[derive(Clone, Serialize, Deserialize)]
 struct Job {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    question: Option<question::Question>,
     /// Active document fingerprint when a queue transfer kept a previous job URL.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     request_key: Option<String>,
@@ -412,6 +415,8 @@ struct Job {
 }
 #[derive(Clone, Serialize, Deserialize)]
 pub(crate) struct Entry {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    event_id: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     scenario_result: Option<scenario::Judgment>,
     id: String,
@@ -524,6 +529,14 @@ fn list<T: DeserializeOwned>(v: &SqliteVault, kind: &str, limit: usize) -> anyho
         .collect()
 }
 impl Job {
+    fn clear_input(&mut self) {
+        self.source.clear();
+        self.context.clear();
+        if let Some(q) = &mut self.question {
+            q.clear_input();
+        }
+    }
+
     fn requeue(&mut self) {
         self.state = "queued".into();
         self.started = None;
@@ -536,15 +549,18 @@ impl Job {
 
 fn store_job(v: &SqliteVault, j: &Job) -> anyhow::Result<()> {
     put(v, &j.id, &format!("learning-job-{}", j.state), j)?;
-    store_job_meta(v, j)
+    if let Some(q) = &j.question {
+        v.set_question_deadline(&j.id, (j.state == "collecting").then_some(q.deadline))?;
+    }
+    store_job_meta(v, j, j.question.as_ref().map(question::Question::summary))
 }
 
-fn store_job_meta(v: &SqliteVault, j: &Job) -> anyhow::Result<()> {
+fn store_job_meta(v: &SqliteVault, j: &Job, question: Option<Value>) -> anyhow::Result<()> {
     put(
         v,
         &format!("meta:{}", j.id),
         "learning-job-meta",
-        &json!({"id":j.id,"request_key":j.request_key,"name":j.name,"model":j.model,"scenario":j.scenario,"kind":j.kind,"state":j.state,"created":j.created,"updated":j.updated,"started":j.started,"progress":j.progress,"last_call":j.last_call,"extracted":j.extracted,"error":j.error,"inference":j.inference,"retryable":!j.source.is_empty()&&j.state=="failed"}),
+        &json!({"id":j.id,"question":question,"request_key":j.request_key,"name":j.name,"model":j.model,"scenario":j.scenario,"kind":j.kind,"state":j.state,"created":j.created,"updated":j.updated,"started":j.started,"progress":j.progress,"last_call":j.last_call,"extracted":j.extracted,"error":j.error,"inference":j.inference,"retryable":!j.source.is_empty()&&j.state=="failed"}),
     )
 }
 fn forget_alias(v: &SqliteVault, id: &str, key: Option<&str>) -> anyhow::Result<()> {
@@ -768,7 +784,8 @@ impl Learning {
 }
 
 fn queue_bytes(v: &SqliteVault) -> anyhow::Result<usize> {
-    Ok(v.app_record_bytes("learning-job-queued")?
+    Ok(v.app_record_bytes("learning-job-collecting")?
+        + v.app_record_bytes("learning-job-queued")?
         + v.app_record_bytes("learning-job-running")?
         + v.app_record_bytes("learning-job-failed")?)
 }
@@ -786,25 +803,46 @@ fn enqueue(v: &SqliteVault, mut job: Job) -> anyhow::Result<bool> {
     }) {
         return Ok(false);
     }
-    let replaced_bytes = existing
-        .as_ref()
-        .filter(|old| old.state == "failed")
-        .map(|old| serde_json::to_vec(old).map(|bytes| bytes.len() + 28))
-        .transpose()?
-        .unwrap_or(0);
     anyhow::ensure!(
         job.source.len() + job.context.len() <= MAX_SOURCE,
         "source_too_large"
     );
-    let size = serde_json::to_vec(&job)?.len() + 28;
-    while v.app_record_count("learning-job-queued")? + v.app_record_count("learning-job-running")?
-        >= MAX_JOBS
+    if !queue_has_room(v, &job, existing.as_ref().map(|old| old.state.as_str()))? {
+        return Ok(false);
+    }
+    job.requeue();
+    store_job(v, &job)?;
+    Ok(true)
+}
+
+fn queue_has_room(
+    v: &SqliteVault,
+    job: &Job,
+    previous_state: Option<&str>,
+) -> anyhow::Result<bool> {
+    let occupies_slot = |state: &str| matches!(state, "queued" | "running" | "collecting");
+    let replaced_bytes = if previous_state.is_some_and(|s| occupies_slot(s) || s == "failed") {
+        v.app_record_size(&job.id)?
+    } else {
+        0
+    };
+    let size = serde_json::to_vec(job)?.len() + 28;
+    while v.app_record_count("learning-job-collecting")?
+        + v.app_record_count("learning-job-queued")?
+        + v.app_record_count("learning-job-running")?
+        + usize::from(occupies_slot(&job.state))
+        > MAX_JOBS + usize::from(previous_state.is_some_and(occupies_slot))
         || queue_bytes(v)?.saturating_sub(replaced_bytes) + size > MAX_QUEUE_BYTES
     {
         let oldest = list::<Value>(v, "learning-job-meta", 20_000)?
             .into_iter()
             .find(|j| {
-                j["kind"] == "turn" && matches!(j["state"].as_str(), Some("queued" | "failed"))
+                j["id"] != job.id
+                    && j["kind"] == "turn"
+                    && matches!(
+                        j["state"].as_str(),
+                        Some("collecting" | "queued" | "failed")
+                    )
             });
         let oldest = oldest
             .map(|m| record::<Job>(v, m["id"].as_str().unwrap_or_default()))
@@ -815,33 +853,32 @@ fn enqueue(v: &SqliteVault, mut job: Job) -> anyhow::Result<bool> {
             return Ok(false);
         };
         old.state = "evicted".into();
-        old.source.clear();
-        old.context.clear();
+        old.clear_input();
         old.updated = now_ms();
         store_job(v, &old)?;
         counter(v, |c| c.evicted += 1)?;
     }
-    job.requeue();
-    store_job(v, &job)?;
     Ok(true)
 }
-fn message_text(message: &Value) -> Option<String> {
-    fn append(node: &Value, out: &mut String, depth: usize) -> bool {
+fn bounded_message_text(content: &Value, limit: usize) -> (String, bool) {
+    fn append(node: &Value, out: &mut String, limit: usize, depth: usize) -> bool {
         if depth > 32 {
             return false;
         }
         if let Some(text) = node.as_str() {
-            if out.len() + text.len() + usize::from(!out.is_empty()) > MAX_SOURCE {
-                return false;
-            }
             if !out.is_empty() {
+                if out.len() == limit {
+                    return false;
+                }
                 out.push('\n');
             }
-            out.push_str(text);
-        } else if let Some(blocks) = node.as_array() {
+            let remaining = limit - out.len();
+            return !crate::conversation::append_bounded(out, text, remaining);
+        }
+        if let Some(blocks) = node.as_array() {
             for block in blocks {
                 if let Some(text) = block.get("text").or_else(|| block.get("content"))
-                    && !append(text, out, depth + 1)
+                    && !append(text, out, limit, depth + 1)
                 {
                     return false;
                 }
@@ -850,7 +887,13 @@ fn message_text(message: &Value) -> Option<String> {
         true
     }
     let mut text = String::new();
-    append(&message["content"], &mut text, 0).then_some(text)
+    let complete = append(content, &mut text, limit, 0);
+    (text, complete)
+}
+
+fn message_text(message: &Value) -> Option<String> {
+    let (text, complete) = bounded_message_text(&message["content"], MAX_SOURCE);
+    complete.then_some(text)
 }
 
 /// Retain text only; binary attachments never enter the learning queue.
@@ -886,7 +929,8 @@ pub(crate) fn enqueue_event(
     if !settings.analysis.enabled
         || settings.analysis.provider == "none"
         || !settings.analysis.background
-        || event.outcome != "ok"
+        || !(event.outcome == "ok"
+            || event.outcome == "cancelled" && event.sent && event.turn.is_some())
         || matches!(
             event.request_kind.as_str(),
             "count_tokens" | "session_title"
@@ -898,7 +942,11 @@ pub(crate) fn enqueue_event(
         counter(v, |c| c.skipped += 1)?;
         return Ok(());
     }
-    let Some(messages) = messages.and_then(Value::as_array) else {
+    if let (Some(turn), Some(input)) = (&event.turn, messages) {
+        return question::collect(v, &settings, event, turn, input, now_ms());
+    }
+    let Some(messages) = messages.and_then(|value| value.get("parts").unwrap_or(value).as_array())
+    else {
         return Ok(());
     };
     let session = event
@@ -919,7 +967,7 @@ pub(crate) fn enqueue_event(
         if text.is_empty() {
             continue;
         }
-        if role == "user" || role == "tool" {
+        if matches!(role, "user" | "tool" | "function") {
             let id = digest(&format!("{index}:{role}:{text}"));
             if !cursor.seen.contains(&id) {
                 source.push(text.clone());
@@ -949,6 +997,7 @@ pub(crate) fn enqueue_event(
         return Ok(());
     }
     let job = Job {
+        question: None,
         request_key: None,
         last_call: None,
         progress: None,
@@ -1276,7 +1325,9 @@ struct QueueChange {
 
 fn queue_counts(v: &SqliteVault) -> anyhow::Result<(usize, usize)> {
     Ok((
-        v.app_record_count("learning-job-queued")? + v.app_record_count("learning-job-running")?,
+        v.app_record_count("learning-job-collecting")?
+            + v.app_record_count("learning-job-queued")?
+            + v.app_record_count("learning-job-running")?,
         v.app_record_count("review-job-queued")?
             + v.app_record_count("review-job-running")?
             + usize::from(!v.pending_finding_reviews(1)?.is_empty()),
@@ -1310,7 +1361,7 @@ fn switch_queue(
         automatic_review_source(settings)
             .map_err(|_| anyhow::anyhow!("transfer_model_required"))?;
     }
-    for state in ["queued", "running"] {
+    for state in ["collecting", "queued", "running"] {
         for mut job in list::<Job>(v, &format!("learning-job-{state}"), MAX_JOBS)? {
             if job.revision == settings.revision {
                 continue;
@@ -1321,6 +1372,9 @@ fn switch_queue(
                     "transfer_model_required"
                 );
                 job.requeue();
+                if state == "collecting" {
+                    job.state = "collecting".into();
+                }
                 if matches!(job.kind.as_str(), "session" | "document") {
                     let key = document_key(
                         &job.kind,
@@ -1339,8 +1393,7 @@ fn switch_queue(
             } else {
                 job.state = "cancelled".into();
                 job.updated = now_ms();
-                job.source.clear();
-                job.context.clear();
+                job.clear_input();
                 job.progress = None;
                 job.extracted = job_entry_count(v, &job.id)?;
             }
@@ -2275,6 +2328,7 @@ async fn queue_documents(
                         }
                     }
                     let mut job = Job {
+                        question: None,
                         request_key: None,
                         last_call: None,
                         progress: None,
@@ -2345,6 +2399,7 @@ fn new_entry(
         digest(&format!("{job_id}:{}", value.to_lowercase()))
     );
     Entry {
+        event_id: None,
         scenario_result: None,
         id: id.clone(),
         job_id: job_id.into(),
@@ -3086,7 +3141,13 @@ fn report_progress(st: &Shared, job: &mut Job, progress: LearningProgress) -> an
             *st.learning.revision_signal.borrow() == job.revision,
             "configuration_changed"
         );
-        store_job_meta(v, job)
+        let question = if job.question.is_some() {
+            record::<Value>(v, &format!("meta:{}", job.id))?
+                .and_then(|m| m.get("question").cloned())
+        } else {
+            None
+        };
+        store_job_meta(v, job, question)
     })
 }
 
@@ -3263,6 +3324,12 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
                 c.confidence,
                 &s.analysis.model,
             );
+            if let Some(q) = &job.question {
+                entry.event_id = q.origin(&job.source, &entry.value);
+                if let Some(id) = entry.event_id {
+                    entry.source = format!("{} · {id}", job.name);
+                }
+            }
             if kaponir_core::kinds::financial_value(&entry.value)
                 && kaponir_core::kinds::type_conflict(&entry.kind, &entry.value)
             {
@@ -3768,20 +3835,24 @@ pub(crate) fn change_entry(
     automatic: bool,
 ) -> Result<Json<Value>, ApiError> {
     if action == "retry" {
-        let mut job = st
-            .with_vault(|_, v| record::<Job>(v, id))
-            .map_err(internal)?
-            .ok_or_else(|| bad(anyhow::anyhow!("job_not_found")))?;
-        if job.state == "running" || job.source.is_empty() {
-            return Err(bad(anyhow::anyhow!("job_not_retryable")));
-        }
-        job.requeue();
-        job.error.clear();
-        job.attempts = 0;
-        let settings = st.learning.snapshot();
-        job.revision = settings.revision;
-        job.model = settings.analysis.model;
-        st.with_vault(|_, v| store_job(v, &job)).map_err(internal)?;
+        st.with_vault(|_, v| {
+            transaction(v, || {
+                let mut job =
+                    record::<Job>(v, id)?.ok_or_else(|| anyhow::anyhow!("job_not_found"))?;
+                anyhow::ensure!(
+                    job.state != "running" && !job.source.is_empty(),
+                    "job_not_retryable"
+                );
+                job.requeue();
+                job.error.clear();
+                job.attempts = 0;
+                let settings = st.learning.snapshot();
+                job.revision = settings.revision;
+                job.model = settings.analysis.model;
+                store_job(v, &job)
+            })
+        })
+        .map_err(bad)?;
         return Ok(Json(json!({"ok":true})));
     }
     let entries = if action == "rollback-job" {
@@ -3905,7 +3976,8 @@ async fn history(AxumState(st): AxumState<Shared>, h: HeaderMap) -> Result<Json<
                 .into_iter()
                 .map(|(_, b)| decode::<Value>(&b))
                 .collect::<anyhow::Result<Vec<_>>>()?;
-            let queued = v.app_record_count("learning-job-queued")?;
+            let collecting = v.app_record_count("learning-job-collecting")?;
+            let queued = v.app_record_count("learning-job-queued")? + collecting;
             let running = v.app_record_count("learning-job-running")?;
             jobs.sort_by_key(|j| std::cmp::Reverse(j["created"].as_u64().unwrap_or(0)));
             jobs.truncate(100);
@@ -3928,6 +4000,7 @@ async fn history(AxumState(st): AxumState<Shared>, h: HeaderMap) -> Result<Json<
                 "entries": open,
                 "summary": {
                     "queued": queued,
+                    "collecting": collecting,
                     "running": running,
                     "queue_bytes": queue_bytes(v)?,
                     "queue_limit_bytes": MAX_QUEUE_BYTES,
@@ -3946,23 +4019,30 @@ fn cleanup(v: &SqliteVault) -> anyhow::Result<()> {
     let now = now_ms();
     for meta in list::<Value>(v, "learning-job-meta", 20_000)? {
         let id = meta["id"].as_str().unwrap_or_default();
-        let age = now.saturating_sub(meta["created"].as_u64().unwrap_or(0));
+        let retained_since = if meta["question"].is_object() {
+            &meta["updated"]
+        } else {
+            &meta["created"]
+        };
+        let age = now.saturating_sub(retained_since.as_u64().unwrap_or(0));
         if age > MONTH {
             forget_alias(v, id, meta["request_key"].as_str())?;
+            if !meta["question"].is_null() {
+                v.set_question_deadline(id, None)?;
+            }
             v.delete_app_record(id)?;
             v.delete_app_record(&format!("meta:{id}"))?;
             v.delete_app_record(&format!("learning:index:{id}"))?;
         } else if age > WEEK
             && matches!(
                 meta["state"].as_str(),
-                Some("queued" | "running" | "failed")
+                Some("collecting" | "queued" | "running" | "failed")
             )
             && let Some(mut j) = record::<Job>(v, id)?
-            && !j.source.is_empty()
+            && (!j.source.is_empty() || j.question.is_some())
         {
             j.state = "expired".into();
-            j.source.clear();
-            j.context.clear();
+            j.clear_input();
             j.updated = now;
             store_job(v, &j)?;
             counter(v, |c| c.expired += 1)?;
@@ -4063,6 +4143,15 @@ pub(crate) fn start(st: &Shared) {
                     }
                 }
             }
+            if ticks.is_multiple_of(4) {
+                let active = st.traffic.active_turn_ids();
+                if st
+                    .with_vault(|_, v| question::release_due(v, now_ms(), &active))
+                    .is_err()
+                {
+                    eprintln!("kaponir: question deadlines could not be checked");
+                }
+            }
             ticks += 1;
             let settings = st.learning.snapshot();
             if !settings.analysis.enabled || settings.analysis.provider == "none" {
@@ -4122,6 +4211,7 @@ pub(crate) fn start(st: &Shared) {
                         if st.learning.snapshot().revision != settings.revision {
                             return Ok(None);
                         }
+                        question::claim(&mut j);
                         j.state = "running".into();
                         j.updated = now_ms();
                         j.started = Some(j.updated);
@@ -4186,16 +4276,19 @@ async fn run_job(st: Shared, mut job: Job, settings: Settings) {
                 }) {
                     return Ok(());
                 }
+                let previous = previous.expect("checked running job");
+                let (completion_time, newly_extracted) =
+                    question::finish(&mut job, previous.question, succeeded, processing_time);
                 store_job(v, &job)?;
-                if succeeded {
-                    record_completion(v, job.updated, processing_time)?;
+                if let Some(elapsed) = completion_time {
+                    record_completion(v, job.updated, elapsed)?;
                 }
                 counter(v, |c| {
                     if succeeded {
-                        c.processed += 1;
-                        c.extracted += job.extracted as u64;
+                        c.processed += u64::from(completion_time.is_some());
+                        c.extracted += newly_extracted as u64;
                         if job.kind == "turn" {
-                            c.turns += 1;
+                            c.turns += u64::from(completion_time.is_some());
                         } else {
                             c.documents += 1;
                         }
@@ -4433,6 +4526,7 @@ mod tests {
     }
     fn job(id: usize, kind: &str) -> Job {
         Job {
+            question: None,
             request_key: None,
             last_call: None,
             progress: None,

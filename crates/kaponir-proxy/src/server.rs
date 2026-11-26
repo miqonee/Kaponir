@@ -417,7 +417,7 @@ async fn proxy_request(
             .learning_input
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            Some(crate::learning::capture_messages(messages));
+            Some(crate::learning::question::capture(messages));
     }
     let has_start = json
         .get("messages")
@@ -431,6 +431,19 @@ async fn proxy_request(
             })
         });
     let session_tag = session_tag(&session);
+    // Policies can change while an agent is running. Correlate the original
+    // structured question so a newly learned mask cannot start a second turn.
+    if !title_call {
+        *span
+            .turn
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            crate::conversation::Turn::with_client_id(
+                &session_tag,
+                &json,
+                headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
+            );
+    }
     if source != "inferred" || (has_start && !title_call) {
         *span
             .session
@@ -477,17 +490,6 @@ async fn proxy_request(
     span.classifier_us.fetch_add(classifier_us, Relaxed);
     {
         let masked = crate::conversation::Transcript::capture(&json);
-        if !title_call {
-            *span
-                .turn
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                crate::conversation::Turn::with_client_id(
-                    &session_tag,
-                    &json,
-                    headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
-                );
-        }
         let masked_payload_json = serde_json::to_string_pretty(&json).unwrap_or_default();
         let mut insp = span
             .inspector
@@ -702,7 +704,7 @@ async fn proxy_request(
         return Ok(respond(status, out_headers, Body::from(bytes)));
     };
     let restore_started = std::time::Instant::now();
-    let restored = st.with_usage(&session, false, |cx| match api {
+    let restored = st.with_reply_usage(&session, &span, |cx| match api {
         Api::Anthropic => anthropic::restore_response(&mut v, cx),
         Api::OpenAi => openai::restore_response(&mut v, cx),
     });
@@ -750,7 +752,7 @@ impl StreamState {
         let st = self.st.clone();
         let rw = &mut self.rw;
         let restore_started = std::time::Instant::now();
-        let r = st.with_usage(&self.session, false, |cx| {
+        let r = st.with_reply_usage(&self.session, &self.span, |cx| {
             let mut out = String::new();
             for ev in events {
                 for s in rw.event(ev, cx)? {

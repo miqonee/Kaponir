@@ -17,13 +17,13 @@ pub(crate) struct Turn {
     pub step: Step,
 }
 
-fn tool_result(block: &Value) -> bool {
+pub(crate) fn tool_result(block: &Value) -> bool {
     block["type"]
         .as_str()
         .is_some_and(|t| t == "tool_result" || t.ends_with("_tool_result"))
 }
 
-fn human_block(block: &Value) -> bool {
+pub(crate) fn human_block(block: &Value) -> bool {
     match block["type"].as_str() {
         Some("file" | "document" | "image" | "image_url" | "input_audio") => true,
         Some("text") | None => block["text"].as_str().is_some_and(|s| !s.trim().is_empty()),
@@ -128,7 +128,7 @@ pub(crate) struct Reply {
     pub truncated: bool,
 }
 
-fn append_bounded(dest: &mut String, fragment: &str, remaining: usize) -> bool {
+pub(crate) fn append_bounded(dest: &mut String, fragment: &str, remaining: usize) -> bool {
     let mut end = remaining.min(fragment.len());
     while !fragment.is_char_boundary(end) {
         end -= 1;

@@ -390,6 +390,29 @@ impl State {
         tx: bool,
         f: impl FnOnce(&mut Cx<'_>) -> anyhow::Result<T>,
     ) -> anyhow::Result<(T, Usage)> {
+        self.with_capture(session, tx, None, f)
+    }
+
+    pub(crate) fn with_reply_usage<T>(
+        &self,
+        session: &str,
+        span: &crate::traffic::Span,
+        f: impl FnOnce(&mut Cx<'_>) -> anyhow::Result<T>,
+    ) -> anyhow::Result<(T, Usage)> {
+        let mut input = span
+            .learning_input
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.with_capture(session, false, input.as_mut().map(|i| &mut i.answer), f)
+    }
+
+    fn with_capture<T>(
+        &self,
+        session: &str,
+        tx: bool,
+        answer: Option<&mut crate::learning::question::Answer>,
+        f: impl FnOnce(&mut Cx<'_>) -> anyhow::Result<T>,
+    ) -> anyhow::Result<(T, Usage)> {
         let mut usage = Usage::default();
         let mut guard = self
             .inner
@@ -422,6 +445,7 @@ impl State {
         };
         let engine = self.engine();
         let result = f(&mut Cx {
+            answer,
             usage: &mut usage,
             engine: &engine,
             occurrences: &self.occurrences,
@@ -458,6 +482,7 @@ impl State {
 
 /// Доступ к движку, vault и сессии на время одной операции.
 pub struct Cx<'a> {
+    answer: Option<&'a mut crate::learning::question::Answer>,
     usage: &'a mut Usage,
     engine: &'a Engine,
     occurrences: &'a crate::occurrences::OccurrencePolicy,
@@ -468,6 +493,13 @@ pub struct Cx<'a> {
 }
 
 impl Cx<'_> {
+    pub(crate) fn reply_text(&mut self, slot: [u64; 2], wire: &str, restored: &str) {
+        if let Some(answer) = &mut self.answer {
+            answer.append(slot, wire);
+        }
+        self.reply().text(slot, wire, restored);
+    }
+
     pub(crate) fn reply(&mut self) -> &mut crate::conversation::Reply {
         self.usage.reply.get_or_insert_with(Default::default)
     }
@@ -578,9 +610,16 @@ impl Cx<'_> {
         Ok(out)
     }
 
+    pub(crate) fn finish_stream(&mut self) {
+        self.usage.record_finish(true);
+    }
+
     /// Извлекает счётчики токенов LLM (`prompt_tokens`/`input_tokens`, `completion_tokens`/`output_tokens`)
     /// из JSON-ответа или SSE-чанка OpenAI / Anthropic.
     pub fn record_token_usage(&mut self, v: &serde_json::Value) {
+        if let Some(finished) = crate::opencode::completion_status(v) {
+            self.usage.record_finish(finished);
+        }
         let usage_obj = v.get("usage").or_else(|| v.pointer("/message/usage"));
         let Some(u) = usage_obj else {
             return;

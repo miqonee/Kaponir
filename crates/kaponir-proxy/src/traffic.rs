@@ -1,7 +1,7 @@
 //! Телеметрия прокси-трафика, поэтапные тайминги (Latency Waterfall), диагностика ошибок
 //! и снимки Request Inspector (хранятся в зашифрованном Vault + кольцевом буфере RAM).
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -192,12 +192,19 @@ pub struct Usage {
     #[serde(skip)]
     pub(crate) reply: Option<crate::conversation::Reply>,
     #[serde(skip)]
+    pub(crate) answer_finished: Option<bool>,
+    #[serde(skip)]
     pub classifier_us: u64,
     #[serde(skip)]
     pub restored_response_buf: String,
 }
 
 impl Usage {
+    // A transport terminator can follow a tool call or a truncated completion.
+    pub(crate) fn record_finish(&mut self, finished: bool) {
+        self.answer_finished = Some(self.answer_finished.unwrap_or(true) && finished);
+    }
+
     pub fn add(&mut self, other: &Self) {
         for item in &other.review_items {
             if self.review_items.len() < 128 {
@@ -208,6 +215,9 @@ impl Usage {
             if !self.review_ids.contains(id) && self.review_ids.len() < 128 {
                 self.review_ids.push(*id);
             }
+        }
+        if let Some(finished) = other.answer_finished {
+            self.record_finish(finished);
         }
         self.classifier_us += other.classifier_us;
         self.replacements += other.replacements;
@@ -524,6 +534,37 @@ impl Traffic {
         }
     }
 
+    pub(crate) fn active_turn_ids(&self) -> BTreeSet<String> {
+        let spans: Vec<_> = self
+            .history
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .active
+            .values()
+            .cloned()
+            .collect();
+        spans
+            .into_iter()
+            .filter_map(|span| {
+                let span = span.upgrade()?;
+                if span
+                    .request_kind
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .as_str()
+                    != "completion"
+                {
+                    return None;
+                }
+                let turn = span
+                    .turn
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                turn.as_ref().map(|t| t.id.clone())
+            })
+            .collect()
+    }
+
     pub fn snapshot(&self) -> Snapshot {
         let (mut snap, active) = {
             let h = self
@@ -600,7 +641,7 @@ pub struct Span {
     pub restore_us: AtomicU64,
     pub error: Mutex<Option<EventError>>,
     pub inspector: Mutex<Option<EventInspector>>,
-    pub learning_input: Mutex<Option<serde_json::Value>>,
+    pub learning_input: Mutex<Option<crate::learning::question::Capture>>,
     pub status: AtomicU16,
     pub sent: AtomicBool,
     pub streaming: AtomicBool,
@@ -804,7 +845,8 @@ impl Drop for Span {
             self.learning_input
                 .get_mut()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .take(),
+                .take()
+                .map(crate::learning::question::Capture::into_input),
         );
         self.history.in_flight.fetch_sub(1, Relaxed);
     }

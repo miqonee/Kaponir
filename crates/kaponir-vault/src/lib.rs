@@ -72,6 +72,11 @@ CREATE TABLE IF NOT EXISTS app_records (
     ct BLOB NOT NULL
 );
 CREATE INDEX IF NOT EXISTS app_records_kind ON app_records(kind);
+CREATE TABLE IF NOT EXISTS learning_question_deadlines (
+    job_id TEXT PRIMARY KEY,
+    deadline INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS learning_questions_due ON learning_question_deadlines(deadline);
 CREATE TABLE IF NOT EXISTS finding_review_queue (finding_key TEXT PRIMARY KEY NOT NULL);
 CREATE TRIGGER IF NOT EXISTS queue_new_journal_finding AFTER INSERT ON journal
 WHEN NEW.category != 'credential'
@@ -362,6 +367,48 @@ impl SqliteVault {
                 |r| r.get::<_, i64>(0),
             )
             .map(|n| n as usize)
+            .map_err(db)
+    }
+
+    /// The scheduler polls this small index without decrypting buffered conversation text.
+    pub fn set_question_deadline(
+        &self,
+        job: &str,
+        deadline: Option<u64>,
+    ) -> Result<(), VaultError> {
+        if let Some(time) = deadline {
+            self.conn.execute("INSERT INTO learning_question_deadlines(job_id,deadline) VALUES(?1,?2) ON CONFLICT(job_id) DO UPDATE SET deadline=excluded.deadline", params![job, i64::try_from(time).unwrap_or(i64::MAX)]).map_err(db)?;
+        } else {
+            self.conn
+                .execute(
+                    "DELETE FROM learning_question_deadlines WHERE job_id=?1",
+                    [job],
+                )
+                .map_err(db)?;
+        }
+        Ok(())
+    }
+
+    pub fn due_questions(&self, now: u64, limit: usize) -> Result<Vec<String>, VaultError> {
+        let mut stmt = self.conn.prepare_cached("SELECT job_id FROM learning_question_deadlines WHERE deadline<=?1 ORDER BY deadline,job_id LIMIT ?2").map_err(db)?;
+        stmt.query_map(
+            params![i64::try_from(now).unwrap_or(i64::MAX), limit as i64],
+            |row| row.get(0),
+        )
+        .map_err(db)?
+        .collect::<Result<_, _>>()
+        .map_err(db)
+    }
+
+    pub fn app_record_size(&self, id: &str) -> Result<usize, VaultError> {
+        self.conn
+            .query_row(
+                "SELECT length(ct)+length(nonce) FROM app_records WHERE id=?1",
+                [id],
+                |row| row.get::<_, i64>(0),
+            )
+            .optional()
+            .map(|n| n.unwrap_or(0) as usize)
             .map_err(db)
     }
 

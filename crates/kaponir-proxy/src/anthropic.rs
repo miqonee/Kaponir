@@ -99,7 +99,7 @@ pub fn restore_response(body: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()>
                 "text" => {
                     if let Some(Value::String(text)) = b.get_mut("text") {
                         let restored = cx.restore(text, Escape::None)?;
-                        cx.reply().text(slot, text, &restored);
+                        cx.reply_text(slot, text, &restored);
                         *text = restored;
                     }
                 }
@@ -181,7 +181,7 @@ impl Rewriter for StreamRewriter {
                 match header["type"].as_str() {
                     Some("text") => {
                         if let Some(s) = header["text"].as_str() {
-                            cx.reply().text([0, i], s, s);
+                            cx.reply_text([0, i], s, s);
                         }
                     }
                     Some("tool_use" | "server_tool_use") => record_tool(header, [0, i], cx),
@@ -215,7 +215,7 @@ impl Rewriter for StreamRewriter {
                 };
                 let out = cx.push(r, &chunk)?;
                 if matches!(block, Block::Text) {
-                    cx.reply().text([0, i], &chunk, &out);
+                    cx.reply_text([0, i], &chunk, &out);
                 }
                 if out.is_empty() {
                     return Ok(Vec::new());
@@ -229,7 +229,7 @@ impl Rewriter for StreamRewriter {
                     let rest = cx.flush(&mut r)?;
                     if !rest.is_empty() {
                         if matches!(b, Block::Text) {
-                            cx.reply().text([0, i], "", &rest);
+                            cx.reply_text([0, i], "", &rest);
                         }
                         out.push(delta(i, b, &rest));
                     }
@@ -247,7 +247,7 @@ impl Rewriter for StreamRewriter {
             let rest = cx.flush(&mut r)?;
             if !rest.is_empty() {
                 if matches!(b, Block::Text) {
-                    cx.reply().text([0, i], "", &rest);
+                    cx.reply_text([0, i], "", &rest);
                 }
                 out.push(delta(i, b, &rest));
             }

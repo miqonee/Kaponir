@@ -180,6 +180,17 @@ def main():
                 }
                 self.reply({'answers': answers});return
             upstream.append(body)
+            if any(tool.get('function', {}).get('name') == 'read_sample' for tool in body.get('tools', [])):
+                tool_count = sum(m['role'] == 'tool' for m in body['messages'])
+                if tool_count < 2:
+                    self.reply({'choices':[{'finish_reason':'tool_calls','message':{
+                        'role':'assistant','content':'Intermediate commentary','tool_calls':[{
+                            'id':f'call_{tool_count}', 'type':'function','function':{'name':'read_sample','arguments':'{}'}
+                        }]}}]})
+                else:
+                    self.reply({'choices':[{'finish_reason':'stop','message':{'role':'assistant',
+                        'reasoning_content':'Private reasoning marker','content':'Both samples reviewed.'}}]})
+                return
             text=body['messages'][-1]['content']
             if body.get('stream'):
                 self.send_response(200);self.send_header('Content-Type','text/event-stream');self.end_headers()
@@ -193,8 +204,8 @@ def main():
     with tempfile.TemporaryDirectory(prefix='kaponir-learning-') as directory:
         home=Path(directory);subprocess.run([binary,'--home',home,'init'],env=env,capture_output=True,check=True)
         base=f'http://127.0.0.1:{free_port()}';log=(args.output/'server.log').open('w');process=None
-        def api(path,body=None,method=None):
-            req=urllib.request.Request(base+path,data=None if body is None else json.dumps(body).encode(),headers={'Content-Type':'application/json'},method=method)
+        def api(path,body=None,method=None,headers=None):
+            req=urllib.request.Request(base+path,data=None if body is None else json.dumps(body).encode(),headers={'Content-Type':'application/json', **(headers or {})},method=method)
             with urllib.request.urlopen(req,timeout=30) as response:
                 return response.read().decode() if 'text/event-stream' in response.headers.get('Content-Type','') else json.load(response)
         def start():
@@ -404,10 +415,73 @@ def main():
                 {'name':'advice-only.txt','text':'Internal project CedarAutoAdviceOnly.'}]})
             advice=wait_for(lambda: finding('CedarAutoAdviceOnly','pending').get('recommendation'))
             assert advice['action']=='mask' and advice['confidence']>.85
-            report={'passed':True,'nonblocking_request_seconds':round(elapsed,3),'model_peak_concurrency':peak,'summary':result['summary'],'checks':['SSE completion','no LLM wait','history deduplication','strict 85%','grounding','manual approval','rollback','revocation','parallelism','pause','encrypted queue','restart','source deletion','automatic finding review']}
+            configure('analysis',auto_review=False)
+            check_question_jobs(base, api, model_calls, completed, args.output)
+            report={'passed':True,'nonblocking_request_seconds':round(elapsed,3),'model_peak_concurrency':peak,'summary':result['summary'],'checks':['SSE completion','no LLM wait','history deduplication','strict 85%','grounding','manual approval','rollback','revocation','parallelism','pause','encrypted queue','restart','source deletion','automatic finding review','agent tool chain in one question job','open the original question from Jobs']}
             (args.output/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(json.dumps(report,ensure_ascii=False))
         finally:
             allow.set();stop();log.close();fixture.shutdown();fixture.server_close()
+
+
+def check_question_jobs(base, api, model_calls, completed, output):
+    import shutil
+    from playwright.sync_api import expect, sync_playwright
+
+    headers = {'X-Kaponir-Session': 'fixture-question-chain'}
+    messages = [{'role': 'user', 'content': 'Review both samples.'}]
+    tools = [{'type': 'function', 'function': {'name': 'read_sample', 'parameters': {'type': 'object'}}}]
+
+    def chat():
+        return api('/v1/chat/completions', {'model': 'fixture-model', 'messages': messages, 'tools': tools},
+                   headers=headers)['choices'][0]['message']
+
+    before = len(model_calls)
+    messages.append(chat())
+    queue = wait_for(lambda: (q if (q := api('/api/v1/ui/jobs'))['collecting'] else None))
+    job = next(j for j in queue['jobs'] if j['state'] == 'collecting')
+    route = '/api/v1/ui/jobs?family=learning&id=' + job['id']
+    assert job['question']['requests'] == 1 and job['progress'] is None
+    messages.append({'role': 'tool', 'tool_call_id': 'call_0', 'content': 'first sample material CedarQuestionSample'})
+    messages.append(chat())
+    assert api(route)['jobs'][0]['question']['requests'] == 2 and len(model_calls) == before
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(executable_path=shutil.which('chromium') or shutil.which('google-chrome'),
+                                             headless=True, args=['--no-sandbox'])
+        page = browser.new_page(locale='ru-RU', viewport={'width': 1440, 'height': 900})
+        page.goto(base + '/ui/#jobs/learning/' + job['id'])
+        detail = page.locator('#jobs-content')
+        expect(detail.locator('.job-state')).to_have_text('Ждём ответа агента')
+        expect(detail).to_contain_text('Запросов агента к API · 2')
+        expect(detail.locator('progress')).to_have_count(0)
+        page.screenshot(path=str(output/'question-awaiting-agent.png'))
+        messages.append({'role': 'tool', 'tool_call_id': 'call_1', 'content': 'second sample material'})
+        messages.append(chat())
+        wait_for(completed)
+        submitted = model_calls[before:]
+        assert len(submitted) == 1, submitted
+        for text in ('Review both samples.', 'first sample material', 'second sample material', 'Both samples reviewed.'):
+            assert submitted[0].count(text) == 1, submitted
+        assert 'Intermediate commentary' not in submitted[0] and 'Private reasoning marker' not in submitted[0]
+        finished = api(route)['jobs'][0]
+        assert finished['state'] == 'succeeded' and finished['question']['requests'] == 3
+        assert finished['question']['passes'] == 1 and finished['question']['release'] == 'answer'
+        finding = next(e for e in api('/api/v1/ui/learning')['entries'] if e['value'] == 'CedarQuestionSample')
+        assert finding['job_id'] == job['id'] and finding['event_id'] != finished['event_id']
+        assert finished['extracted'] == 1
+        messages.append({'role': 'user', 'content': 'Another question in the same session.'})
+        api('/v1/chat/completions', {'model':'fixture-model', 'messages':messages}, headers=headers)
+        wait_for(completed)
+        session_jobs = [j for j in api('/api/v1/ui/jobs')['jobs'] if j.get('session_id') == job['session_id']]
+        assert {j['question']['number'] for j in session_jobs} == {1, 2} and len(session_jobs) == 2
+        expect(detail.locator('.job-state')).to_have_text('Завершено')
+        page.screenshot(path=str(output/'question-analyzed.png'))
+        detail.get_by_role('button', name='Открыть вопрос в переписке').click()
+        dialog = page.locator('#session-dialog')
+        expect(dialog).to_be_visible()
+        expect(dialog.locator('.conversation-requests input:checked')).to_have_value('turn-' + job['question']['turn_id'])
+        expect(dialog.locator('.session-messages')).to_contain_text('Review both samples.')
+        browser.close()
 
 
 def check_automatic_review_browser(base, job):

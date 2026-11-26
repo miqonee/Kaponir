@@ -556,7 +556,7 @@ function openSession(event) {
       generation++;selection="";currentKey=null;status.textContent="";steps.hidden=true;inspect.hidden=true;
       content.textContent=tr(service.length ? "Пока получен только запрос на название сессии." : "В истории больше нет запросов этой сессии.");return;
     }
-    const selected=turns.find(g=>g.key===currentKey) || turns.find(g=>g.rows.some(r=>r.id===event.id)) || turns.at(-1);
+    const selected=turns.find(g=>g.key===currentKey) || turns.find(g=>g.key==="turn-"+event.turn_id) || turns.find(g=>g.rows.some(r=>r.id===event.id)) || turns.at(-1);
     display(selected);
     previewQuestions(turns);
   };

@@ -192,7 +192,8 @@ fn learning_item(mut entry: Value) -> Value {
     ));
     entry["origin"] = json!("learning");
     let job_id = entry["job_id"].as_str().unwrap_or_default();
-    let session = job_id.starts_with("learning:job:turn:")
+    let session = job_id.starts_with("learning:job:question:")
+        || job_id.starts_with("learning:job:turn:")
         || job_id.starts_with("learning:job:session:")
         || (job_id.starts_with("document/")
             && entry["source"]
@@ -1426,6 +1427,11 @@ fn learning_job_source(job: &mut Value, queue_wait: Option<crate::learning::Queu
     if job["state"] == "queued" {
         job["queue_wait"] = json!(queue_wait);
     }
+    if job["question"].is_object() {
+        job["event_id"] = job["question"]["event_id"].clone();
+        job["session_id"] = job["question"]["session_id"].clone();
+        return;
+    }
     if job["kind"] == "session" {
         let name = job["name"].as_str().unwrap_or_default().to_owned();
         if let Some(id) = name.strip_prefix("session-") {
@@ -1483,7 +1489,7 @@ async fn jobs(
                 let learning = kind == "learning-job-meta";
                 let mut row = json!({
                     "family": if learning { "learning" } else { "review" }, "id":j["id"],"kind":j["kind"],
-                    "name":j["name"],"state":j["state"],"created":j["created"],"updated":j["updated"],
+                    "name":j["name"],"question":j["question"],"state":j["state"],"created":j["created"],"updated":j["updated"],
                     "started":j["started"],"progress":j["progress"],"last_call":j["last_call"],"source":j["source"],"model":j["model"],"scenario":j["scenario"],
                     "total":j["total"].as_u64().or_else(||j["targets"].as_array().map(|x|x.len() as u64)),
                     "completed":j.get("processed").unwrap_or(&j["completed"]),"extracted":j["extracted"],
@@ -1533,13 +1539,13 @@ async fn jobs(
     let running = |s: &Value| {
         matches!(
             s["state"].as_str(),
-            Some("running" | "processing" | "queued" | "scanning" | "downloading")
+            Some("running" | "processing" | "queued" | "collecting" | "scanning" | "downloading")
         )
     };
     rows.sort_by_key(|r| {
         let created = r["created"].as_u64().unwrap_or_default();
         // Active work first, then queued work oldest first, then recent history.
-        let rank = if r["state"] == "queued" {
+        let rank = if matches!(r["state"].as_str(), Some("queued" | "collecting")) {
             1
         } else if running(r) {
             0
@@ -1556,7 +1562,8 @@ async fn jobs(
         (rank, order)
     });
     let active = rows.iter().filter(|r| running(r)).count();
-    let queued = rows.iter().filter(|r| r["state"] == "queued").count();
+    let collecting = rows.iter().filter(|r| r["state"] == "collecting").count();
+    let queued = rows.iter().filter(|r| r["state"] == "queued").count() + collecting;
     let in_progress = active - queued;
     let preview: Vec<_> = if active == 0 {
         rows.iter().take(3).cloned().collect()
@@ -1582,7 +1589,7 @@ async fn jobs(
         .take(q.limit.unwrap_or(100).clamp(1, 250))
         .collect();
     Ok(Json(
-        json!({"jobs":rows,"total":total,"active":active,"queued":queued,"preview":preview,"model_activity":activity,"review_activity":review_activity,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
+        json!({"jobs":rows,"total":total,"active":active,"queued":queued,"collecting":collecting,"preview":preview,"model_activity":activity,"review_activity":review_activity,"api_active":st.api_slots.active(),"updated":now_ms(),"worker_online":worker.as_ref().and_then(|w|w["online"].as_bool())}),
     ))
 }
 

@@ -106,6 +106,7 @@ function jobRoute(job) {
   return "jobs/" + job.family + "/" + encodeURIComponent(job.id);
 }
 const stageNames = {
+  collecting: "Ждём ответа агента",
   queued: "В очереди",
   running: "В работе", processing: "В работе", scanning: "В работе", downloading: "В работе", interrupted: "Прервано",
   succeeded: "Завершено",
@@ -122,12 +123,13 @@ function stage(job) {
 const workingStates = new Set(["running", "processing", "scanning", "downloading"]);
 function jobGroup(job) {
   if (workingStates.has(job.state)) return "running";
-  return ["queued", "paused"].includes(job.state) ? job.state : "history";
+  return ["queued", "collecting", "paused"].includes(job.state) ? job.state : "history";
 }
 function jobTitle(job) {
   if (job.family === "review" && job.automatic)
     return tr("Автопроверка находок · {{0}}", [number(job.total)]);
   if (job.family === "review") return job.total != null ? tr("Проверка находок · {{0}}", [number(job.total)]) : tr("Проверка находок");
+  if (job.question) return job.question.number ? tr("Анализ вопроса №{{0}}", [number(job.question.number)]) : tr("Анализ вопроса");
   if (job.family === "learning" && job.kind === "turn")
     return job.event_id != null ? tr("Анализ новых сообщений · запрос №{{0}}", [job.event_id]) : tr("Анализ новых сообщений");
   if (job.kind === "session") return tr("Анализ переписки · {{0}}",[sessionTitle(job.session_id) || job.session_id?.slice(0,8) || job.event_id || job.name]);
@@ -143,6 +145,7 @@ function jobContext(job) {
   const parts = [];
   if (job.kind !== "session" && job.session_id && job.session_id !== "request-" + job.event_id)
     parts.push(sessionTitle(job.session_id) || tr("Сессия {{0}}", [job.session_id.slice(0, 8)]));
+  if (job.question) parts.push(tr("Запросов агента к API · {{0}}", [number(job.question.requests)]));
   if (job.family === "learning" && job.kind === "document") parts.push(tr("Документ"));
   if (job.kind === "scan" && job.name && job.name !== "@sessions") parts.push(job.name);
   const model = jobModel(job);
@@ -161,6 +164,7 @@ function jobActivity(job) {
   const count = (label, unit, done, total) => ({
     label: tr(label), text: tr(unit, [number(done),number(total)]), done, total,
   });
+  if (group === "collecting") return {label:tr("Собираем результаты инструментов")};
   if (group === "queued") {
     const wait = job.queue_wait;
     if (wait?.reason === "capacity") return {label:tr("Ждёт свободного обработчика. Лимит параллельных заданий — {{0}}.", [number(wait.limit)])};
@@ -249,11 +253,11 @@ function jobRow(job, preview = false, sharedWait = false) {
     sharedWait ? null : activityBlock(job));
   return preview ? link : h("article",{class:"job-history-row"},link);
 }
-const jobGroups = [["running","В работе"],["queued","В очереди"],["paused","На паузе"],["history","История"]];
+const jobGroups = [["running","В работе"],["queued","В очереди"],["collecting","Ждём ответа агента"],["paused","На паузе"],["history","История"]];
 function groupedJobs(rows, data, preview = false) {
   return jobGroups.flatMap(([group, title]) => {
     const part = rows.filter(job => jobGroup(job) === group);
-    const total = group === "queued" ? data.queued : group === "running" ? data.active - data.queued : null;
+    const total = {queued:data.queued - (data.collecting || 0), running:data.active - data.queued, collecting:data.collecting || 0}[group];
     if (!part.length && !(preview && total)) return [];
     const sharedWait = group === "queued" && part.length > 1 && part.every(j => j.queue_wait?.reason === part[0].queue_wait?.reason);
     return [h("section", {class:"job-group", "data-group":group},
@@ -268,7 +272,9 @@ function renderJobIndicator(data) {
   const rows = data.preview || data.jobs.slice(0, 4);
   const running = data.active - data.queued, counts = [];
   if (running) counts.push(tr("В работе · {{0}}", [number(running)]));
-  if (data.queued) counts.push(tr("В очереди · {{0}}", [number(data.queued)]));
+  const collecting = data.collecting || 0, queued = data.queued - collecting;
+  if (queued) counts.push(tr("В очереди · {{0}}", [number(queued)]));
+  if (collecting) counts.push(tr("Ждём ответа · {{0}}", [number(collecting)]));
   const label = [tr("Задания"), ...counts].join(" · ");
   trigger.title = trigger.querySelector("span").textContent = label;
   trigger.dataset.compact = [tr("Задания"), data.active || null].filter(Boolean).join(" · ");
@@ -315,8 +321,18 @@ function renderJob(job, family) {
     h("header", {class:"job-detail-head"}, h("h2", {}, jobTitle(job)), jobBadge(job)),
     context || source.some(Boolean) ? h("p", {class:"job-meta"}, [context, ...source].filter(Boolean).join(" · ")) : null,
     activityBlock(job));
-  if (family === "learning" && job.kind === "turn")
+  if (job.question && job.state === "collecting") {
+    card.append(h("p", {class:"hint"}, tr("Проверка начнётся после ответа агента или минуты без новых шагов.")));
+  } else if (job.question && job.question.passes > 0 && ["queued", "running"].includes(job.state)) {
+    card.append(h("p", {class:"hint"}, tr("Проверяются новые фрагменты этого вопроса. Предыдущие результаты уже сохранены.")));
+  } else if (job.question && ["queued", "running", "succeeded"].includes(job.state)) {
+    const reason = job.question.release === "inactivity" ? "После минуты без новых шагов в проверку поступила собранная часть вопроса." :
+      "В проверку входят вопрос, новые результаты инструментов и видимый ответ агента.";
+    card.append(h("p", {class:"hint"}, tr(reason)));
+  } else if (!job.question && family === "learning" && job.kind === "turn")
     card.append(h("p", {class:"hint"}, tr("Модель ищет находки в новых сообщениях пользователя и результатах инструментов. Для контекста добавляется короткий фрагмент переписки.")));
+  if (job.question?.partial)
+    card.append(h("p", {class:"hint"}, tr("Часть текста превысила лимит. Для вопроса, результатов одного шага и ответа сохраняется до 2 МиБ текста по отдельности.")));
   if (family === "review") {
     if (["running", "queued"].includes(job.state))
       card.append(h("p", {}, tr("Принято {{0}} · ждут {{1}} · в работе {{2}}", [
@@ -383,7 +399,12 @@ function renderJob(job, family) {
       if (job.state === "running" && job.progress?.stage === "detecting")
         card.append(h("p", {class:"hint"}, tr("Найдено кандидатов · {{0}}", [number(job.progress.found)])));
       const actions = h("div", {class:"form-actions"});
-      if (job.event_id != null)
+      if (job.question && job.session_id)
+        actions.append(workButton("Открыть вопрос в переписке", async () => {
+          await loadDashboard();
+          openSession({session_id:job.session_id,turn_id:job.question.turn_id,id:job.event_id});
+        }, "secondary"));
+      else if (job.event_id != null)
         actions.append(workButton(tr("Открыть запрос №{{0}}", [job.event_id]), () => openInspector(job.event_id), "secondary"));
       else if (job.kind === "session" && job.session_id)
         actions.append(workButton("Открыть переписку",async()=>{await loadDashboard();openSession({session_id:job.session_id});},"secondary"));
@@ -406,7 +427,7 @@ function renderJob(job, family) {
     nodes.push(card);
   }
   if (error && jobGroup(job) !== "history") card.append(h("p", {class:"err"}, reviewError(error)));
-  const stamps = [["Поставлено в очередь",job.created],["Начало работы",job.started],["Последнее изменение",job.updated]]
+  const stamps = [[job.question ? "Начало сбора" : "Поставлено в очередь",job.created],["Начало работы",job.started],["Последнее изменение",job.updated]]
     .filter(([,value]) => value > 0);
   if (stamps.length) card.append(h("dl", {class:"job-times"}, stamps.map(([key,value]) => h("div", {},
     h("dt", {}, tr(key)), h("dd", {}, h("time", {datetime:new Date(value).toISOString()}, time(value,{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})))))));
@@ -543,14 +564,14 @@ async function refreshJobs() {
     const sync = $("#jobs-sync");
     sync.hidden = false;
     sync.textContent = tr("Очередь обновлена в {{0}}", [time(data.updated)]);
-    const state = selected ? [selected.state, selected.state === "running" ? selected.progress?.stage : null] : [data.active - data.queued, data.queued];
+    const state = selected ? [selected.state, selected.state === "running" ? selected.progress?.stage : null] : [data.active - data.queued, data.queued - (data.collecting || 0), data.collecting || 0];
     const stateKey = JSON.stringify(state);
     if (route === desk.jobRoute && desk.lastJobState !== stateKey) {
       $("#jobs-announcement").textContent = selected ? [jobTitle(selected),stage(selected),jobActivity(selected).label].filter(Boolean).join(" · ") :
-        tr("В работе {{0}}, в очереди {{1}}", state);
+        tr(state[2] ? "В работе {{0}}, в очереди {{1}}, ждут ответа агента {{2}}" : "В работе {{0}}, в очереди {{1}}", state);
     } else if (route !== desk.jobRoute) $("#jobs-announcement").textContent = "";
     desk.lastJobState = stateKey;
-    const signature = JSON.stringify([route, family ? selected : data.jobs, family ? null : [data.total,data.active,data.queued,desk.offset],
+    const signature = JSON.stringify([route, family ? selected : data.jobs, family ? null : [data.total,data.active,data.queued,data.collecting,desk.offset],
       data.worker_online, family === "review" && selected?.state === "running" ? [data.api_active,desk.workerReadings?.resources] : null, I18N.language]);
     if (desk.jobSignature !== signature || !host.children.length) {
       const same = route === desk.jobRoute, focus = same && host.contains(document.activeElement) ? document.activeElement : null;
