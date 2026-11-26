@@ -16,7 +16,7 @@ COPY target/release/kaponir /out/kaponir
 FROM ${KAPONIR_BUILD} AS selected
 
 FROM debian:trixie-slim AS proxy
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus && rm -rf /var/lib/apt/lists/*
 COPY --from=selected /out/kaponir /usr/local/bin/kaponir
 COPY deploy/entrypoint.sh /usr/local/bin/kaponir-entrypoint
 ENV KAPONIR_HOME=/data

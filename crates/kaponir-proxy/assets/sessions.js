@@ -133,6 +133,9 @@ function sessionQuestion(event, openReview=null) {
     request=event.turn ? sessionMessage("Сообщение клиента","",[]) :
       sessionMessage("Исходный запрос клиента",text,visibleRanges,0,false,openReview);
   }
+  const attachments = ocrAttachmentCards(question.images,event, attachment =>
+    attachment.role === "user" && attachment.latest);
+  if (attachments) request.append(attachments);
   const legend=dialogueLegend(visibleRanges);
   return [request,legend,history].filter(Boolean);
 }
@@ -172,7 +175,9 @@ function conversationActivity(rows, details) {
   const activity=[], results=new Set();
   for (const item of events) {
     if (item.kind==="result") {
-      const resultKey=JSON.stringify([item.part.id,item.part.result,item.part.failed]);
+      const images=details.get(item.row.id)?.images?.attachments
+        .filter(attachment=>attachment.tool_id===item.part.id).map(attachment=>attachment.id);
+      const resultKey=JSON.stringify([item.part.id,item.part.result,item.part.failed,images]);
       if (results.has(resultKey)) continue;
       results.add(resultKey);
       const last=activity.at(-1);
@@ -203,11 +208,15 @@ function activityTimeline(rows, details) {
       const result=kind==="result" ? part : item.result;
       const label=kind==="call" ? "Вызов инструмента" : "Результат инструмента";
       const name=part.name || result?.name;
+      const resultRow = item.resultRow || row;
+      const attachments = result && ocrAttachmentCards(details.get(resultRow.id)?.images,resultRow,
+        attachment => attachment.tool_id === result.id);
       node=h("details",{class:"conversation-tool","data-activity":key},
         h("summary",{},icon("chevron"),h("span",{},tr(label)),name ? h("code",{},name) : null,
           result?.failed ? h("small",{},tr("Ошибка инструмента")) : null),
         kind==="call" && part.text ? h("div",{},h("strong",{},tr("Аргументы")),h("pre",{},part.text)) : null,
         result ? h("div",{},h("strong",{},tr("Результат инструмента")),h("pre",{},result.result || tr("Текст не сохранён."))) : null,
+        attachments,
         h("div",{class:"tool-sources"},h("button",{type:"button",class:"text-button",onclick:()=>openInspector(row.id,kind==="call" ? "response" : "request")},
           tr(kind==="call" ? "Вызов · запрос {{0}}" : "Результат · запрос {{0}}",[row.id])),
           item.resultRow ? h("button",{type:"button",class:"text-button",onclick:()=>openInspector(item.resultRow.id,"request")},
@@ -364,7 +373,7 @@ function openSession(event) {
   }).catch(()=>{ modelRun.hidden=true; });
 
   const stepCache=new Map(), previewCache=new Map(), decisionMemory=new Map();
-  let questionCache;
+  let questionCache, imageLocation=event.imageLocation;
   function sourceOf(group) {
     return group.rows.find(r=>r.turn?.step==="user" && r.request_kind!=="count_tokens") ||
       group.rows.find(r=>r.request_kind!=="count_tokens") || group.rows[0];
@@ -431,7 +440,11 @@ function openSession(event) {
       const body=h("tbody",{"data-log-request":row.id},h("tr",{},
         h("th",{scope:"row"},h("strong",{},conversationStep(row)),
           h("button",{type:"button",class:"text-button log-request","data-session-focus":"raw-"+row.id,onclick:()=>openInspector(row.id,"request")},
-            tr("Запрос {{0}}",[row.id]),icon("arrow"))),
+            tr("Запрос {{0}}",[row.id]),icon("arrow")),
+          (question?.id === row.id ? question.inspector?.images : details.get(row.id)?.images)
+            ? h("button",{type:"button",class:"text-button log-request",
+                "data-session-focus":"images-"+row.id,onclick:()=>openInspector(row.id,"images")},
+                tr("Изображения")) : null),
         h("td",{class:"log-time"},stamp ? h("time",{datetime:new Date(stamp).toISOString(),title:sessionTime(stamp)},fullDates ? sessionTime(stamp) : time(stamp)) : "—"),
         h("td",{},h("span",{class:"event-status "+row.outcome},outcome),
           notes.length ? h("button",{type:"button",class:"text-button log-note","data-session-focus":"note-"+row.id,
@@ -451,6 +464,14 @@ function openSession(event) {
     steps.hidden=false;
     return decisions;
   }
+  function updateConversationStatus(rows) {
+    const pending=rows.filter(row=>row.outcome==="in_progress");
+    const active=pending.find(row=>row.image_progress);
+    const text=active ? ocrStageLabel(active.image_progress) + " · " +
+      tr("{{0}} с",[Math.max(0,Math.floor((Date.now()-active.started_at_ms)/1000))]) :
+      pending.length ? tr("Ожидаем ответ поставщика…") : "";
+    if (status.textContent !== text) status.textContent=text;
+  }
   async function display(group, issueRow=null) {
     if (!group) return;
     const row=sourceOf(group);
@@ -465,11 +486,11 @@ function openSession(event) {
     const radio=requestList.querySelector('input[value="'+group.key+'"]');
     if (radio) radio.checked=true;
     if (changed) { steps.open=false; steps.hidden=true; }
-    const detailKey=JSON.stringify([group.key,row.id,group.rows.map(r=>[r.id,r.outcome,r.review_reasons,r.usage?.replacements,r.usage?.cached_replacements,r.usage?.completion_tokens])]);
+    const detailKey=JSON.stringify([group.key,row.id,group.rows.map(r=>[r.id,r.outcome,r.review_reasons,r.usage?.replacements,r.usage?.cached_replacements,r.usage?.completion_tokens,r.image_progress])]);
     if (selection===detailKey && !issueRow) return;
     selection=detailKey;
     const version=++generation;
-    status.textContent=group.rows.some(r=>r.outcome==="in_progress") ? tr("Ожидаем ответ поставщика…") : "";
+    updateConversationStatus(group.rows);
     if (changed) content.textContent=tr("Загрузка…");
     try {
       const [question,details]=await Promise.all([loadQuestion(row),loadSteps(group.rows)]);
@@ -495,6 +516,10 @@ function openSession(event) {
           "data-session-focus":"origin-"+readingRow.id,onclick:()=>logDecisions.get(readingRow.id).reveal()},
           tr("Запрос {{0}}",[readingRow.id])," · ",conversationStep(readingRow)));
       }
+      if (!question.inspector?.images && !row.turn && details.get(row.id)?.images) {
+        const attachments=ocrAttachmentCards(details.get(row.id).images,row);
+        if (attachments) questionBox.append(attachments);
+      }
       if (decision) for (const mark of questionBox.querySelectorAll(".inline-decision")) mark.setAttribute("aria-details",decision.panel.id);
       content.replaceChildren(h("div",{class:"question-reading"},questionBox,decision?.panel,activityTimeline(group.rows,details)));
       if (historyOpen && questionBox.querySelector(".session-history")) questionBox.querySelector(".session-history").open=true;
@@ -505,6 +530,20 @@ function openSession(event) {
       if (focusKey) dialog.querySelector('[data-session-focus="'+focusKey+'"]')?.focus({preventScroll:true});
       if (issueRow) {
         (issueRow.id===readingRow.id ? decision : logDecisions.get(issueRow.id))?.reveal();
+      }
+      if (imageLocation) {
+        const location = imageLocation;
+        const source = group.rows.find(row=>row.id===location.event_id);
+        const audit = source && details.get(source.id)?.images;
+        const attachment = audit?.attachments.find(item=>item.id===location.attachment_id &&
+          item.message_id===location.message_id);
+        if (attachment) {
+          imageLocation = null;
+          const trigger = [...content.querySelectorAll(".ocr-attachment")]
+            .find(button=>button.dataset.sessionFocus==="image-"+attachment.id);
+          focusInConversation(trigger);
+          await openImageAttachment(source,audit,attachment,location.area_id);
+        }
       }
     } catch(error) {
       if (dialog.open && version===generation) {
@@ -520,8 +559,12 @@ function openSession(event) {
       .filter(r=>target.session ? r.session_id===target.session : r.id===target.request)
       .sort((a,b)=>(a.started_at_ms || a.time_ms)-(b.started_at_ms || b.time_ms) || a.id-b.id);
     heading.textContent=sessionTitle(event.session_id) || tr("Переписка");
-    const key=JSON.stringify(rows.map(r=>[r.id,r.request_kind,r.turn,r.outcome,r.status,r.review_reasons,r.usage?.replacements,r.usage?.cached_replacements,r.usage?.completion_tokens]));
-    if (signature===key) return;
+    const key=JSON.stringify(rows.map(r=>[r.id,r.request_kind,r.turn,r.outcome,r.status,r.review_reasons,r.usage?.replacements,r.usage?.cached_replacements,r.usage?.completion_tokens,r.image_progress]));
+    if (signature===key) {
+      const selected=turns.find(group=>group.key===currentKey);
+      if (selected) updateConversationStatus(selected.rows);
+      return;
+    }
     signature=key;
     const focus=requestList.contains(document.activeElement) ? document.activeElement.value : null;
     const focusIssue=document.activeElement.dataset.turnIssue;

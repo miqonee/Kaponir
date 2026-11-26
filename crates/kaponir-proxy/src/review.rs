@@ -562,7 +562,8 @@ pub(crate) fn traffic_summary(st: &Shared) -> Value {
     }
     snapshot
 }
-pub(crate) fn event_detail(st: &Shared, event: crate::traffic::Event) -> Value {
+pub(crate) fn event_detail(st: &Shared, mut event: crate::traffic::Event) -> Value {
+    event.mark_legacy_images();
     let mut value = json!(event);
     let states = st
         .with_vault(|_, v| Ok(v.journal_states()?))
@@ -1531,6 +1532,9 @@ async fn jobs(
                 "completed": if download { &j["progress"] } else { &j["completed"] }
             }));
         }
+    }
+    if q.family.as_deref().is_none_or(|f| f == "ocr") {
+        rows.extend(crate::image_protection::job_rows(&st));
     }
     rows.retain(|row| {
         q.family.as_ref().is_none_or(|f| row["family"] == *f)

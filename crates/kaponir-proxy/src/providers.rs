@@ -687,7 +687,7 @@ async fn refresh_connection(
     refresh(&st, Some(&id), true).await?;
     Ok(Json(summary(&by_id(&st, &id)?)))
 }
-async fn fetch_models(st: &Shared, p: &Provider) -> Result<Vec<String>, &'static str> {
+pub(crate) async fn fetch_models(st: &Shared, p: &Provider) -> Result<Vec<String>, &'static str> {
     tokio::time::timeout(std::time::Duration::from_secs(15), async {
         let mut models = std::collections::BTreeSet::new();
         let mut after = None::<String>;

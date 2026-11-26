@@ -313,7 +313,17 @@ function reviewCard(item) {
     sourceLinks.append(workButton("Открыть задание", () => showTab("jobs/learning/"+encodeURIComponent(item.job_id))));
   if (rec?.job_id) sourceLinks.append(workButton("Задание пересмотра", () => showTab("jobs/review/"+encodeURIComponent(rec.job_id))));
   if (hasProposal && canAsk) sourceLinks.append(workButton("Запросить повторную проверку", () => requestReview([item]), "text-button", ro));
-  if (sourceLinks.childElementCount) origin.append(sourceLinks);
+  if (sourceLinks.childElementCount || item.origin === "detector") origin.append(sourceLinks);
+  if (item.origin === "detector" && /^\d+$/.test(item.id)) {
+    api("/api/v1/ui/ocr/review-links/" + item.id).then(links=>{
+      if (!sourceLinks.isConnected) return;
+      for (const link of links) sourceLinks.append(workButton(tr("Открыть область изображения · запрос {{0}}",[link.event_id]),
+        async()=>{
+          await loadDashboard();
+          openSession({id:link.event_id,session_id:link.session_id,turn_id:link.turn_id,imageLocation:link});
+        }));
+    }).catch(()=>{});
+  }
   if (item.occurrence_keys?.length) heading.append(workButton(tr("Показать вхождения · {{0}}", [number(item.occurrence_keys.length)]),
     async () => {
       const snap = await api("/api/v1/ui/review/selection", {method:"POST", body:{keys:item.occurrence_keys.join(","), status:"all"}});

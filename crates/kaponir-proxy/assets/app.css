@@ -1812,3 +1812,157 @@ button.inline-decision { display:inline; border:0; border-radius:0; min-height:0
 
 .path-preview-heading { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; }
 .path-group-card .decision-actions { margin:0; }
+
+/* OCR settings and image inspection */
+.ocr-settings, .ocr-lab, .ocr-preview { padding: 22px 24px; }
+.ocr-settings-head, .ocr-lab-head, .ocr-settings-actions, .ocr-dialog-controls, .ocr-image-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+.ocr-settings-head, .ocr-lab-head { justify-content: space-between; }
+.ocr-settings-head h2, .ocr-lab-head h2 { margin: 0; }
+.ocr-settings-head p, .ocr-engine p { margin: 4px 0 0; }
+.ocr-settings-head { padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+.ocr-switch { flex-shrink: 0; }
+.ocr-notice {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--warning-bg);
+  color: var(--warning);
+}
+.ocr-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 30px;
+  margin-block: 18px;
+}
+.ocr-mode { border: 0; padding: 0; margin: 0; min-inline-size: 0; }
+.ocr-mode legend { font-weight: 650; margin-bottom: 9px; }
+.ocr-mode .choice-switch { display: inline-flex; flex-wrap: wrap; }
+.ocr-mode .choice-switch label span {
+  width: auto;
+  height: 34px;
+  padding-inline: 12px;
+  font-size: 13px;
+  letter-spacing: normal;
+  white-space: nowrap;
+}
+.ocr-engine { overflow-wrap: anywhere; }
+.ocr-engine [data-state="ready"] { color: var(--success); }
+.ocr-engine [data-state="needs_setup"] { color: var(--warning); }
+.ocr-engine [data-state="unavailable"] { color: var(--danger); }
+.ocr-consent { margin: 14px 0; overflow-wrap: anywhere; }
+.ocr-options { border-top: 1px solid var(--line); padding-block: 13px; }
+.ocr-options summary { cursor: pointer; width: fit-content; font-weight: 650; }
+.ocr-options > .check { margin-top: 14px; }
+.ocr-option-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 16px;
+  margin-top: 16px;
+}
+.ocr-settings-actions { border-top: 1px solid var(--line); padding-top: 16px; }
+.ocr-settings-actions button { margin-inline-start: auto; }
+.ocr-settings-actions > a, .ocr-preview .ocr-lab-head > a {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 7px 12px;
+  text-decoration: none;
+  font-weight: 650;
+}
+.ocr-settings-actions > a { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.ocr-settings-actions > a:hover { background: var(--accent-hover); }
+.ocr-preview .ocr-lab-head > a { color: var(--text); }
+.ocr-limits { margin-top: 14px; }
+.ocr-drop { margin-top: 16px; padding: 14px 16px; border: 1px dashed var(--line-strong); border-radius: 8px; }
+.ocr-drop.dragging { border-color: var(--accent); background: var(--success-bg); }
+.ocr-drop .hint, .ocr-lab .form-status, .ocr-settings .form-status { margin-bottom: 0; }
+.ocr-lab .form-status:empty, .ocr-settings .form-status:empty { display: none; }
+.ocr-preview { margin-block-start: 16px; }
+.ocr-image-tools { gap: 6px; margin-block: 9px; }
+.ocr-image-panes { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 12px; }
+.ocr-image-panes h3 { margin: 0 0 7px; }
+.ocr-viewport {
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: block;
+  min-height: 104px;
+  max-height: min(43vh, 420px);
+  background: var(--panel-subtle);
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  cursor: grab;
+  user-select: none;
+}
+.ocr-viewport:active { cursor: grabbing; }
+.ocr-surface { position: relative; width: 100%; }
+.ocr-surface img { display: block; width: 100%; height: auto; max-width: none; }
+.ocr-marker {
+  position: absolute;
+  display: grid;
+  place-items: start;
+  justify-content: start;
+  border-radius: 2px;
+  border: 2px solid #058258;
+  padding: 0;
+  min-height: 0;
+  min-width: 0;
+  color: white;
+  background: transparent;
+  line-height: 1;
+}
+.ocr-marker:hover, .ocr-marker[aria-pressed="true"] { background: rgb(24 162 110 / 15%); border-color: #005338; }
+.ocr-marker span { background: #006345; padding: 2px 4px; font-size: 11px; translate: -2px -2px; }
+.ocr-regions { display: grid; gap: 5px; margin: 12px 0 0; padding: 0; list-style: none; }
+.ocr-region {
+  display: flex;
+  align-items: start;
+  gap: 10px;
+  justify-content: start;
+  width: 100%;
+  text-align: start;
+  background: var(--panel-subtle);
+  border-color: var(--line);
+  font-weight: 600;
+}
+.ocr-region[aria-pressed="true"] { border-color: var(--accent); background: var(--success-bg); }
+.ocr-region small { display: block; color: var(--dim); font-weight: 400; }
+.ocr-region-number { color: var(--success); font-family: var(--mono); }
+.ocr-attachments { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 8px 0 1px; }
+.ocr-attachment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+  text-align: start;
+  background: var(--panel);
+}
+.ocr-attachment-label { display: grid; gap: 2px; }
+.ocr-attachment-label small { color: var(--dim); }
+.ocr-thumbnail {
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 44px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--panel-subtle);
+}
+.ocr-thumbnail svg { width: 20px; height: 20px; color: var(--dim); }
+.ocr-thumbnail img { width: 100%; height: 100%; object-fit: contain; }
+.ocr-attachment-group .event-error-banner { margin-top: 8px; }
+.ocr-image-dialog .inspector-header { align-items: center; justify-content: space-between; }
+.ocr-image-dialog .inspector-header h2 { margin: 0; }
+.ocr-dialog-controls, .ocr-image-dialog .form-status { padding-inline: 20px; }
+.ocr-dialog-controls { padding-top: 12px; }
+.ocr-dialog-controls button[aria-pressed="true"] { border-color: var(--accent); background: var(--success-bg); }
+@media (max-width: 720px) {
+  .ocr-settings, .ocr-lab, .ocr-preview { padding: 16px; }
+  .ocr-settings-grid, .ocr-image-panes { grid-template-columns: 1fr; grid-auto-flow: row; }
+  .ocr-settings-actions button { margin-inline-start: 0; }
+}

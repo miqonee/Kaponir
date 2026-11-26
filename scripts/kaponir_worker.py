@@ -14,6 +14,7 @@ import importlib.util
 import json
 import os
 import re
+import select
 from pathlib import Path
 import platform
 import shutil
@@ -45,6 +46,52 @@ try:
 except NameError:
     from benchmark_resources import hardware_snapshot, cgroup_snapshot, read_process
 
+
+
+def tesseract_languages():
+    binary = shutil.which('tesseract')
+    if not binary:
+        raise OSError('tesseract_unavailable')
+    result = subprocess.run([binary, '--list-langs'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                            timeout=3, check=False)
+    if result.returncode:
+        raise OSError('tesseract_unavailable')
+    return result.stdout.decode('utf-8').splitlines()[1:]
+
+
+def tesseract_command(binary, source, languages, structured=False):
+    args = [binary, source, 'stdout', '-l', languages]
+    if structured:
+        args.extend(['--psm', '11', '-c', 'tessedit_create_tsv=1'])
+    return args
+
+
+def request_tsv(png, languages, timeout, connection):
+    """Foreground OCR uses pipes and has its own slots, separate from file scanning."""
+    command = tesseract_command(shutil.which('tesseract'), 'stdin', languages, structured=True)
+    deadline = time.monotonic() + timeout
+    with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                          stderr=subprocess.DEVNULL, env={**os.environ, 'OMP_THREAD_LIMIT': '1'}) as child:
+        initial = png
+        try:
+            while True:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise TimeoutError('ocr_timeout')
+                try:
+                    stdout, _ = child.communicate(initial, timeout=min(remaining, 0.25))
+                    break
+                except subprocess.TimeoutExpired:
+                    initial = None
+                    if select.select([connection], [], [], 0)[0] and not connection.recv(1, socket.MSG_PEEK):
+                        raise ConnectionError('ocr_cancelled')
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.communicate()
+        if child.returncode or len(stdout) > 2 * 1024 * 1024:
+            raise OSError('ocr_failed')
+        return stdout
 
 def inference_settings(value):
     defaults={'context_tokens':4096,'max_output_tokens':1600,'reserve_tokens':64,'batch_size':2,'response_format':'auto'}
@@ -1081,7 +1128,7 @@ class Worker:
                 lang = os.getenv('KAPONIR_OCR_LANG', 'rus+eng')
                 with self.lock:
                     self.check(ident)
-                    process = subprocess.Popen([tesseract_bin, str(img_path), 'stdout', '-l', lang], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    process = subprocess.Popen(tesseract_command(tesseract_bin, str(img_path), lang), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     self.ocr_process = process
                 try:
                     stdout, _ = process.communicate(timeout=self.cfg['ocr_timeout_seconds'])
@@ -1656,11 +1703,69 @@ class Worker:
 
 
 def handler(worker, token):
+    ocr_slots = threading.BoundedSemaphore(4)
+
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self,*args): pass
         def respond(self,status,value):
             raw=json.dumps(value,ensure_ascii=False).encode();self.send_response(status)
             self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
+        def dispatch_ocr(self, path):
+            if path == '/ocr/status' and self.command == 'GET':
+                try:
+                    self.respond(200, tesseract_languages())
+                except (OSError, subprocess.TimeoutExpired):
+                    self.respond(503, {'error': 'tesseract_unavailable'})
+                return
+            if path != '/ocr/tsv' or self.command != 'POST':
+                self.respond(404, {'error': 'unknown_ocr_route'})
+                return
+            if self.headers.get_content_type() != 'image/png':
+                self.respond(415, {'error': 'image_png_required'})
+                return
+            size = int(self.headers.get('Content-Length', '0'))
+            languages = self.headers.get('x-ocr-languages', 'rus+eng')
+            timeout_ms = int(self.headers.get('x-ocr-timeout-ms', '20000'))
+            if not 0 < size <= 32 * 1024 * 1024 or not 250 <= timeout_ms <= 60000:
+                self.respond(413, {'error': 'ocr_limits'})
+                return
+            if len(languages) > 80 or not re.fullmatch(r'[A-Za-z0-9_]+(?:[+][A-Za-z0-9_]+)*', languages):
+                self.respond(422, {'error': 'ocr_languages'})
+                return
+            if not ocr_slots.acquire(blocking=False):
+                self.respond(429, {'error': 'ocr_queue_full'})
+                return
+            try:
+                if not set(languages.split('+')).issubset(tesseract_languages()):
+                    self.respond(422, {'error': 'ocr_languages'})
+                    return
+                self.connection.settimeout(timeout_ms / 1000)
+                png = self.rfile.read(size)
+                if (len(png) != size or len(png) < 33 or not png.startswith(bytes.fromhex('89504e470d0a1a0a'))
+                        or png[12:16] != b'IHDR' or b'acTL' in png):
+                    self.respond(422, {'error': 'invalid_ocr_image'})
+                    return
+                width = int.from_bytes(png[16:20], 'big')
+                height = int.from_bytes(png[20:24], 'big')
+                if not 0 < width <= 8192 or not 0 < height <= 8192 or width * height > 32_000_000:
+                    self.respond(413, {'error': 'ocr_limits'})
+                    return
+                tsv = request_tsv(png, languages, timeout_ms / 1000, self.connection)
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/tab-separated-values; charset=utf-8')
+                self.send_header('Cache-Control', 'private, no-store')
+                self.send_header('Content-Length', str(len(tsv)))
+                self.end_headers()
+                self.wfile.write(tsv)
+            except ConnectionError:
+                return
+            except (TimeoutError, subprocess.TimeoutExpired):
+                self.respond(504, {'error': 'ocr_timeout'})
+            except OSError:
+                self.respond(503, {'error': 'tesseract_unavailable'})
+            finally:
+                ocr_slots.release()
+
         def dispatch(self):
             if token and not hmac.compare_digest(self.headers.get('Authorization',''),'Bearer '+token):
                 self.respond(401,{'error':'worker authorization required'});return
@@ -1670,6 +1775,9 @@ def handler(worker, token):
                 if self.headers.get('Origin') and self.headers['Origin']!='http://'+self.headers.get('Host',''):
                     raise ValueError('cross-origin worker request rejected')
                 path=urllib.parse.urlsplit(self.path).path
+                if path.startswith('/ocr/'):
+                    self.dispatch_ocr(path)
+                    return
                 if self.command=='GET' and path=='/workspace/jobs':
                     self.respond(200,{'online': True, 'jobs': worker.workspace_jobs(), 'measurements': worker.model_measurements()})
                     return

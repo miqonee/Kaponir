@@ -359,6 +359,11 @@ openai_upstream = "https://api.openai.com"
 system_hint = false
 # Обязателен, если listen не loopback. Можно задать через KAPONIR_API_TOKEN.
 # api_token = "..."
+
+[serve.ocr]
+enabled = true
+mode = "local"
+languages = "rus+eng"
 "#;
 
 pub fn rules_template(scope: Scope) -> String {

@@ -69,13 +69,17 @@ pub struct TurnExcerpt {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EventInspector {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) images: Option<crate::image_protection::Audit>,
     pub model: String,
+    #[serde(deserialize_with = "crate::image_protection::wire::legacy_snapshot")]
     pub original_request: String,
     /// UTF-8 byte offset of the final user message header in the retained transcript.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_user_offset: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub user_span: Option<[usize; 2]>,
+    #[serde(deserialize_with = "crate::image_protection::wire::legacy_snapshot")]
     pub masked_request: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub masked_last_user_offset: Option<usize>,
@@ -86,6 +90,7 @@ pub struct EventInspector {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub turn_excerpt: Option<TurnExcerpt>,
     #[serde(default)]
+    #[serde(deserialize_with = "crate::image_protection::wire::legacy_snapshot")]
     pub masked_payload_json: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub(crate) tool_results: Vec<crate::conversation::ToolResult>,
@@ -376,6 +381,32 @@ pub struct Event {
     pub error: Option<EventError>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inspector: Option<EventInspector>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) image_progress: Option<crate::image_protection::Progress>,
+}
+
+impl Event {
+    pub(crate) fn mark_legacy_images(&mut self) -> bool {
+        let Some(insp) = &mut self.inspector else {
+            return false;
+        };
+        if insp.images.is_none()
+            && [
+                &insp.masked_payload_json,
+                &insp.original_request,
+                &insp.masked_request,
+            ]
+            .iter()
+            .any(|snapshot| snapshot.contains("\"kaponir_image\""))
+        {
+            insp.images = Some(crate::image_protection::Audit {
+                stage: crate::image_protection::Stage::Legacy,
+                ..Default::default()
+            });
+            return true;
+        }
+        false
+    }
 }
 
 #[derive(Default, Clone, Debug, Serialize, Deserialize)]
@@ -771,6 +802,18 @@ impl Span {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         if let Some(insp) = &mut inspector {
+            use crate::image_protection::Stage;
+            if final_event && let Some(audit) = &mut insp.images {
+                if outcome == "cancelled" && !matches!(audit.stage, Stage::Sent | Stage::Disabled) {
+                    audit.stage = Stage::Cancelled;
+                } else if outcome == "error" && audit.stage != Stage::Disabled {
+                    audit.stage = if self.sent.load(Relaxed) {
+                        Stage::ProviderError
+                    } else {
+                        Stage::Blocked
+                    };
+                }
+            }
             if insp.raw_response.is_empty() {
                 insp.raw_response = usage.raw_response_buf.clone();
             }
@@ -791,6 +834,10 @@ impl Span {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         Event {
+            image_progress: inspector
+                .as_ref()
+                .and_then(|i| i.images.as_ref())
+                .map(Into::into),
             id: self.id,
             time_ms: now_ms(),
             started_at_ms: self.started_at_ms,

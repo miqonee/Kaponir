@@ -248,7 +248,7 @@ function showTab(name, push = true) {
   if (name === 's1') name = 'analysis';
   if (name === 'lab') name = 'mask';
   if (!TABS[name]) name = 'overview';
-  const nav = {mask:'lab',restore:'lab',discover:'lab',analysis:'settings',worker:'settings',categorization:'settings',proxy:'connect',metrics:'connect',setup:'rules'}[name] || name;
+  const nav = {mask:'lab',restore:'lab',discover:'lab','image-lab':'lab',analysis:'settings',worker:'settings',ocr:'settings',categorization:'settings',proxy:'connect',metrics:'connect',setup:'rules'}[name] || name;
   const changed = $('#tab-' + name).hidden;
   if (changed) for (const dialog of document.querySelectorAll('.inspector-dialog[open], .rules-dialog[open]')) dialog.close();
   for (const b of document.querySelectorAll('.tabs [data-tab]')) {

@@ -2,7 +2,7 @@
 //! Значение под чувствительным ключом маскируется целиком, даже если похоже на обычное слово.
 //! Возвращаются только позиции — форматирование, кавычки и комментарии не трогаются.
 
-use kaponir_core::{AnalyzeCtx, Candidate, Format, Input, Lexicon, Recognizer};
+use kaponir_core::{AnalyzeCtx, Candidate, Category, Format, Input, Lexicon, Recognizer};
 use regex::Regex;
 use std::iter::Peekable;
 use std::ops::Range;
@@ -101,6 +101,24 @@ pub fn credential_field(lex: &Lexicon, key: &str, value: &str) -> Option<Candida
 
 fn credential_placeholder(raw: &str) -> bool {
     let value = raw.trim();
+    if ["${", "{{", "$(", "%(", "#{"]
+        .iter()
+        .any(|prefix| value.starts_with(prefix))
+    {
+        return credential_reference(value);
+    }
+    if value.len() < 3 {
+        return value.is_empty()
+            || value
+                .chars()
+                .all(|c| matches!(c, '*' | '•' | '.' | '…' | 'x' | 'X'));
+    }
+    is_placeholder(value)
+}
+
+/// Strict reference syntax. The raster caller additionally checks whether
+/// the recognition boxes account for the complete visible scalar.
+pub fn credential_reference(value: &str) -> bool {
     if let Some(rest) = value.strip_prefix("${") {
         // A shell default or a suffix can itself contain a literal password.
         return rest.strip_suffix('}').is_some_and(|name| {
@@ -114,13 +132,64 @@ fn credential_placeholder(raw: &str) -> bool {
             });
         }
     }
-    if value.len() < 3 {
-        return value.is_empty()
-            || value
-                .chars()
-                .all(|c| matches!(c, '*' | '•' | '.' | '…' | 'x' | 'X'));
+    false
+}
+
+/// An assignment visible in OCR text. Even an empty transcription may have
+/// visible glyphs after the separator, so the caller must inspect the raster.
+pub struct FieldAssignment<'a> {
+    pub key: &'a str,
+    pub separator: usize,
+    pub value: Range<usize>,
+    pub kind: &'a str,
+    pub category: Category,
+    pub mandatory: bool,
+}
+
+impl KeyValue {
+    pub fn field_assignments<'a>(
+        &self,
+        lex: &'a Lexicon,
+        text: &'a str,
+    ) -> Vec<FieldAssignment<'a>> {
+        let mut assignments = Vec::new();
+        let mut push = |key: regex::Match<'a>, value: regex::Match<'a>| {
+            let Some(kind) = kind_for_key(lex, key.as_str()) else {
+                return;
+            };
+            let Some(separator) = text[key.end()..value.start()].find([':', '=']) else {
+                return;
+            };
+            let separator = key.end() + separator;
+            if assignments
+                .iter()
+                .any(|item: &FieldAssignment<'_>| item.separator == separator)
+            {
+                return;
+            }
+            let (category, mandatory, _) = key_kind_class(kind);
+            assignments.push(FieldAssignment {
+                key: key.as_str(),
+                separator,
+                value: value.range(),
+                kind,
+                category,
+                mandatory,
+            });
+        };
+        for capture in self.line.captures_iter(text) {
+            if let (Some(key), Some(value)) = (capture.get(3), capture.get(4)) {
+                push(key, value);
+            }
+        }
+        for capture in self.inline.captures_iter(text) {
+            if let (Some(key), Some(value)) = (capture.get(1), capture.get(2)) {
+                push(key, value);
+            }
+        }
+        assignments.sort_by_key(|item| item.separator);
+        assignments
     }
-    is_placeholder(value)
 }
 
 /// Значение строки `key: value`: кавычки снимаются, комментарий в конце отрезается.
@@ -218,7 +287,7 @@ fn flow_value_span(
     value_span(&raw[..end], start)
 }
 
-fn block_indicator(t: &str) -> bool {
+pub fn yaml_block_indicator(t: &str) -> bool {
     let (marker, rest) = t.split_once(char::is_whitespace).unwrap_or((t, ""));
     (rest.is_empty() || rest.trim_start().starts_with('#'))
         && marker.len() <= 3
@@ -292,7 +361,7 @@ impl Recognizer for KeyValue {
             if t.starts_with('{') || t.starts_with('[') {
                 continue; // вложенная структура: значения найдут JSON-проход и детекторы
             }
-            let span = if block_indicator(t) {
+            let span = if yaml_block_indicator(t) {
                 let indent = cap.get(1).map_or(0, |m| m.as_str().len());
                 let line_end = text[val.end()..]
                     .find('\n')
@@ -358,7 +427,7 @@ impl Recognizer for KeyValue {
                 }
                 continue;
             }
-            if block_indicator(val.as_str()) && text[key.end()..val.start()].contains(':') {
+            if yaml_block_indicator(val.as_str()) && text[key.end()..val.start()].contains(':') {
                 continue;
             }
             let span = flow_value_span(text, &mut mappings, key, val)
