@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import threading
 import time
+import urllib.parse
 import urllib.request
 import urllib.error
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -111,7 +112,7 @@ def main():
     parser.add_argument('--output',type=Path,default=Path('artifacts/learning'))
     args=parser.parse_args();binary=args.binary.resolve();args.output.mkdir(parents=True,exist_ok=True)
     enabled=True; allow=threading.Event();started=threading.Event();lock=threading.Lock()
-    model_calls=[];upstream=[];active=0;peak=0
+    model_calls=[];review_calls=[];upstream=[];active=0;peak=0
     classify_allowed=threading.Event()
     class Fixture(BaseHTTPRequestHandler):
         def log_message(self,*_):pass
@@ -126,7 +127,21 @@ def main():
             if self.path in ['/enable','/disable']:
                 enabled=self.path=='/enable';self.reply({'enabled':enabled});return
             if self.path=='/analysis':
-                source=json.loads(body['messages'][1]['content'])['source']
+                payload=json.loads(body['messages'][1]['content'])
+                if 'items' in payload:
+                    decisions=[]
+                    for item in payload['items']:
+                        value=item['value']
+                        review_calls.append(value)
+                        decisions.append({
+                            'id':item['id'],'kind':'AMOUNT' if value=='250 USD' else 'PROJ','scope':'team',
+                            'action':'keep' if value=='CedarAutoPublic' else 'mask',
+                            'confidence':.85 if value=='CedarAutoReviewEdge' else .99,
+                            'reason':'Fixture decision based on the excerpt',
+                        })
+                    self.reply({'choices':[{'finish_reason':'stop','message':{'content':json.dumps({'decisions':decisions})}}]})
+                    return
+                source=payload['source']
                 with lock: model_calls.append(source);active+=1;peak=max(peak,active)
                 started.set();allow.wait(timeout=15);time.sleep(.15)
                 if ('CedarBudgetA' in source and 'CedarBudgetB' in source) or ('CedarPartialGood' in source and 'MODEL_FAIL_MARKER' in source):
@@ -333,10 +348,76 @@ def main():
             assert next(j for j in result['jobs'] if j['id']==queued['ids'][0])['scenario']=='D'
             api_finding=next(e for e in result['entries'] if e['value']=='CedarApiReview')
             assert api_finding['scenario_result']['verdict']=='mask' and api_finding['state']=='pending',api_finding
-            report={'passed':True,'nonblocking_request_seconds':round(elapsed,3),'model_peak_concurrency':peak,'summary':result['summary'],'checks':['SSE completion','no LLM wait','history deduplication','strict 85%','grounding','manual approval','rollback','revocation','parallelism','pause','encrypted queue','restart','source deletion']}
+
+            # The automatic review setting adds new detector and document findings, including
+            # detections from a different pipeline than the selected, score-producing API model.
+            def finding(value, status='all'):
+                query=urllib.parse.urlencode({'status':status,'q':value})
+                rows=api('/api/v1/ui/review?'+query)['items']
+                return next((row for row in rows if row['value']==value), {})
+
+            assert not api('/api/v1/ui/analysis')['settings']['auto_review']
+            api('/api/v1/ui/mask',{'text':'deploy to /srv/zorgbilling/releases','commit':True})
+            assert finding('zorgbilling')['state']=='open'
+            assert configure('analysis',auto_review=True)['auto_review']
+            stop();start()
+            assert api('/api/v1/ui/analysis')['settings']['auto_review']
+            api('/api/v1/ui/mask',{'text':'cd /srv/quuxledger/bin','commit':True})
+            fast_scan=api('/api/v1/ui/discover',{'documents':[
+                {'name':'detectors.txt','text':'Цена: 250 USD'}],'remember':True})
+            assert fast_scan['finding_keys'],fast_scan
+            api('/api/v1/ui/analysis/documents',{'documents':[{'name':'automatic-review.txt','text':
+                'Internal project CedarAutoHigh. Internal project CedarAutoReviewEdge. '
+                'Internal project CedarAutoLow84. Public project CedarAutoPublic.'}]})
+            for value in ['quuxledger','250 USD','CedarAutoHigh','CedarAutoReviewEdge','CedarAutoLow84','CedarAutoPublic']:
+                try:
+                    wait_for(lambda: finding(value).get('recommendation'))
+                except AssertionError as error:
+                    raise AssertionError(f'Missing automatic review for {value}: {finding(value)}') from error
+                assert review_calls.count(value)==1,review_calls
+            for value in ['quuxledger','250 USD','CedarAutoHigh']:
+                assert finding(value,'history')['state'] in ('active','masked')
+                assert not finding(value,'pending')
+                assert value not in api('/api/v1/anonymize',{'text':value,'session':'automatic'})['text']
+            for value in ['CedarAutoReviewEdge','CedarAutoLow84','CedarAutoPublic']:
+                assert finding(value,'pending')['state']=='pending'
+            assert finding('CedarApiReview','pending') and finding('zorgbilling','pending')
+            assert 'CedarApiReview' not in review_calls and 'zorgbilling' not in review_calls
+            def completed_automatic_jobs():
+                jobs=[job for job in api('/api/v1/ui/jobs')['jobs'] if job.get('automatic')]
+                return jobs if jobs and all(job['state'] not in ('queued','running') for job in jobs) else None
+
+            automatic_jobs=wait_for(completed_automatic_jobs)
+            assert all(job['state']=='succeeded' for job in automatic_jobs),automatic_jobs
+            assert sum(job['applied'] for job in automatic_jobs)==3,automatic_jobs
+            check_automatic_review_browser(base,next(job for job in automatic_jobs if job['applied']))
+
+            configure('analysis',auto_apply=False)
+            api('/api/v1/ui/analysis/documents',{'documents':[
+                {'name':'advice-only.txt','text':'Internal project CedarAutoAdviceOnly.'}]})
+            advice=wait_for(lambda: finding('CedarAutoAdviceOnly','pending').get('recommendation'))
+            assert advice['action']=='mask' and advice['confidence']>.85
+            report={'passed':True,'nonblocking_request_seconds':round(elapsed,3),'model_peak_concurrency':peak,'summary':result['summary'],'checks':['SSE completion','no LLM wait','history deduplication','strict 85%','grounding','manual approval','rollback','revocation','parallelism','pause','encrypted queue','restart','source deletion','automatic finding review']}
             (args.output/'result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n');print(json.dumps(report,ensure_ascii=False))
         finally:
             allow.set();stop();log.close();fixture.shutdown();fixture.server_close()
+
+
+def check_automatic_review_browser(base, job):
+    import shutil
+    from playwright.sync_api import expect, sync_playwright
+
+    with sync_playwright() as playwright:
+        browser = playwright.chromium.launch(
+            executable_path=shutil.which('chromium') or shutil.which('google-chrome'),
+            headless=True, args=['--no-sandbox'],
+        )
+        page = browser.new_page(locale='ru-RU')
+        page.goto(base + '/ui/#jobs/review/' + job['id'])
+        expect(page.locator('#jobs-content')).to_contain_text(f"Создано правил · {job['applied']}")
+        page.goto(base + '/ui/#analysis')
+        expect(page.locator('#analysis-auto-review')).to_be_checked()
+        browser.close()
 
 
 if __name__=='__main__':main()

@@ -64,6 +64,13 @@ CREATE TABLE IF NOT EXISTS app_records (
     ct BLOB NOT NULL
 );
 CREATE INDEX IF NOT EXISTS app_records_kind ON app_records(kind);
+CREATE TABLE IF NOT EXISTS finding_review_queue (finding_key TEXT PRIMARY KEY NOT NULL);
+CREATE TRIGGER IF NOT EXISTS queue_new_journal_finding AFTER INSERT ON journal
+WHEN NEW.category != 'credential'
+    AND EXISTS (SELECT 1 FROM meta WHERE key = 'private:review:automatic')
+BEGIN
+    INSERT OR IGNORE INTO finding_review_queue (finding_key) VALUES ('detector:' || NEW.id);
+END;
 "#;
 
 fn now() -> i64 {
@@ -462,6 +469,57 @@ impl SqliteVault {
     /// Fetch one finding for review without decrypting the entire journal.
     pub fn journal_row(&self, id: i64) -> Result<Option<JournalRow>, VaultError> {
         Ok(self.journal_rows("WHERE id = ?1", [id])?.pop())
+    }
+
+    /// Called in the same transaction as the analysis settings update.
+    pub fn set_automatic_finding_review(&self, enabled: bool) -> Result<(), VaultError> {
+        if enabled {
+            self.set_private_setting("review:automatic", b"1")?;
+        } else {
+            self.delete_private_setting("review:automatic")?;
+            self.clear_finding_reviews()?;
+        }
+        Ok(())
+    }
+
+    pub fn clear_finding_reviews(&self) -> Result<(), VaultError> {
+        self.conn
+            .execute("DELETE FROM finding_review_queue", [])
+            .map_err(db)?;
+        Ok(())
+    }
+
+    pub fn queue_finding_review(&self, key: &str) -> Result<(), VaultError> {
+        self.conn
+            .execute(
+                "INSERT OR IGNORE INTO finding_review_queue (finding_key)
+                 SELECT ?1 WHERE EXISTS (SELECT 1 FROM meta WHERE key = 'private:review:automatic')",
+                [key],
+            )
+            .map_err(db)?;
+        Ok(())
+    }
+
+    pub fn pending_finding_reviews(&self, limit: usize) -> Result<Vec<String>, VaultError> {
+        let mut stmt = self
+            .conn
+            .prepare_cached("SELECT finding_key FROM finding_review_queue ORDER BY rowid LIMIT ?1")
+            .map_err(db)?;
+        stmt.query_map([limit as i64], |row| row.get(0))
+            .map_err(db)?
+            .collect::<Result<_, _>>()
+            .map_err(db)
+    }
+
+    pub fn dequeue_finding_reviews(&self, keys: &[String]) -> Result<(), VaultError> {
+        let mut stmt = self
+            .conn
+            .prepare_cached("DELETE FROM finding_review_queue WHERE finding_key = ?1")
+            .map_err(db)?;
+        for key in keys {
+            stmt.execute([key]).map_err(db)?;
+        }
+        Ok(())
     }
 
     fn journal_rows(

@@ -700,7 +700,7 @@ fn discovery_result(
         st.with_vault(|_, v| {
             crate::discovery::update(v, |profile| {
                 profile.merge(&report).map_err(anyhow::Error::msg)?;
-                crate::learning::retain_findings(v, &report)
+                crate::learning::retain_findings(v, &report, true)
             })
         })
         .map_err(bad)?

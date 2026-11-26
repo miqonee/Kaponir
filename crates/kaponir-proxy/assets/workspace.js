@@ -125,6 +125,8 @@ function jobGroup(job) {
   return ["queued", "paused"].includes(job.state) ? job.state : "history";
 }
 function jobTitle(job) {
+  if (job.family === "review" && job.automatic)
+    return tr("Автопроверка находок · {{0}}", [number(job.total)]);
   if (job.family === "review") return job.total != null ? tr("Проверка находок · {{0}}", [number(job.total)]) : tr("Проверка находок");
   if (job.family === "learning" && job.kind === "turn")
     return job.event_id != null ? tr("Анализ запроса №{{0}}", [job.event_id]) : tr("Анализ запроса");
@@ -179,7 +181,9 @@ function jobActivity(job) {
       result = tr(job.name === "@sessions" ? "Обработано документов · {{0}} из {{1}}" : "Обработано файлов · {{0}} из {{1}}",
         [number(job.completed ?? 0), number(job.total)]);
     const error = job.error_code ? installationErrorMessage({code:job.error_code}) : job.error ? reviewError(job.error) : null;
-    return error ? {label:error, text:result} : {label:result};
+    const applied = job.applied > 0 ? tr("Создано правил · {{0}}", [number(job.applied)]) : null;
+    return error ? {label:error, text:[result, applied].filter(Boolean).join(" · ")}
+      : {label:result, text:applied};
   }
   if (job.family === "review") {
     if (job.total > 0) return count("Проверка моделью", "Обработано {{0}} из {{1}}", job.processed ?? job.completed ?? 0, job.total);

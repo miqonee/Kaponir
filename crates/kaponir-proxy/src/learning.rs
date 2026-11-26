@@ -181,6 +181,7 @@ pub struct AnalysisSettings {
     pub model: String,
     pub url: String,
     pub background: bool,
+    pub auto_review: bool,
     pub auto_apply: bool,
     pub threshold: f64,
     pub timeout_seconds: u64,
@@ -197,6 +198,7 @@ impl Default for AnalysisSettings {
             model: "qwen3-0.6b".into(),
             url: String::new(),
             background: true,
+            auto_review: false,
             auto_apply: true,
             threshold: 0.85,
             timeout_seconds: 180,
@@ -452,6 +454,7 @@ pub struct Learning {
     pub(crate) activity: telemetry::Activity,
     queue_wait: RwLock<Option<QueueWait>>,
     pub(crate) revision_signal: tokio::sync::watch::Sender<u64>,
+    pub(crate) automatic_review_signal: tokio::sync::watch::Sender<bool>,
 }
 fn decode<T: DeserializeOwned>(bytes: &[u8]) -> anyhow::Result<T> {
     Ok(serde_json::from_slice(bytes)?)
@@ -587,11 +590,17 @@ fn counter(v: &SqliteVault, f: impl FnOnce(&mut Counters)) -> anyhow::Result<()>
     v.set_private_setting("learning:counters", &serde_json::to_vec(&c)?)?;
     Ok(())
 }
+pub(crate) fn count_applied_rule(v: &SqliteVault) -> anyhow::Result<()> {
+    counter(v, |c| c.applied += 1)
+}
 fn digest(text: &str) -> String {
     blake3::hash(text.as_bytes()).to_hex().to_string()
 }
 fn block_id(value: &str) -> String {
     format!("learning:block:{}", digest(&value.trim().to_lowercase()))
+}
+pub(crate) fn rejected_value(v: &SqliteVault, value: &str) -> anyhow::Result<bool> {
+    Ok(v.app_record(&block_id(value))?.is_some())
 }
 pub(crate) fn safe_error(e: &anyhow::Error) -> String {
     // Never copy remote response bodies, credentials, or source text into diagnostics.
@@ -644,9 +653,11 @@ impl Learning {
             job.requeue();
             store_job(v, &job)?;
         }
+        let automatic_review = settings.analysis.enabled && settings.analysis.auto_review;
         Ok(Arc::new(Self {
             activity_since_ms,
             revision_signal: tokio::sync::watch::channel(settings.revision).0,
+            automatic_review_signal: tokio::sync::watch::channel(automatic_review).0,
             settings: RwLock::new(settings),
             activity: Default::default(),
             queue_wait: RwLock::new(None),
@@ -1233,7 +1244,9 @@ struct QueueChange {
 fn queue_counts(v: &SqliteVault) -> anyhow::Result<(usize, usize)> {
     Ok((
         v.app_record_count("learning-job-queued")? + v.app_record_count("learning-job-running")?,
-        v.app_record_count("review-job-queued")? + v.app_record_count("review-job-running")?,
+        v.app_record_count("review-job-queued")?
+            + v.app_record_count("review-job-running")?
+            + usize::from(!v.pending_finding_reviews(1)?.is_empty()),
     ))
 }
 async fn model_queue(
@@ -1258,6 +1271,12 @@ fn switch_queue(
     review_role: Option<&str>,
     engine: &kaponir_core::Engine,
 ) -> anyhow::Result<()> {
+    if action == QueueAction::Discard {
+        v.clear_finding_reviews()?;
+    } else if settings.analysis.auto_review && !v.pending_finding_reviews(1)?.is_empty() {
+        automatic_review_source(settings)
+            .map_err(|_| anyhow::anyhow!("transfer_model_required"))?;
+    }
     for state in ["queued", "running"] {
         for mut job in list::<Job>(v, &format!("learning-job-{state}"), MAX_JOBS)? {
             if job.revision == settings.revision {
@@ -1304,9 +1323,12 @@ fn switch_queue(
                 let role = review_role
                     .or_else(|| j["source"]["role"].as_str())
                     .unwrap_or("auto");
-                let source = source_for(settings, role)
-                    .or_else(|_| source_for(settings, "auto"))
-                    .map_err(|_| anyhow::anyhow!("transfer_model_required"))?;
+                let source = if j["automatic"] == true {
+                    automatic_review_source(settings)
+                } else {
+                    source_for(settings, role).or_else(|_| source_for(settings, "auto"))
+                }
+                .map_err(|_| anyhow::anyhow!("transfer_model_required"))?;
                 j["source"] = source;
                 j["revision"] = json!(settings.revision);
                 j["started"] = Value::Null;
@@ -1432,9 +1454,13 @@ fn save_settings(
                     &serde_json::to_vec(&previous.analysis.parallelism)?,
                 )?;
             }
+            if settings.analysis.auto_review != previous.analysis.auto_review {
+                v.set_automatic_finding_review(settings.analysis.auto_review)?;
+            }
             v.set_private_setting(SETTINGS, &serde_json::to_vec(&settings)?)?;
             v.commit()?;
             let revision = settings.revision;
+            let automatic_review = settings.analysis.enabled && settings.analysis.auto_review;
             *st.learning
                 .settings
                 .write()
@@ -1442,6 +1468,13 @@ fn save_settings(
             if previous.revision != revision {
                 st.learning.revision_signal.send_replace(revision);
             }
+            st.learning
+                .automatic_review_signal
+                .send_if_modified(|enabled| {
+                    let changed = *enabled != automatic_review;
+                    *enabled = automatic_review;
+                    changed
+                });
             Ok(())
         })();
         if result.is_err() {
@@ -2352,6 +2385,16 @@ fn weak(c: &Candidate) -> bool {
                 || c.value.contains(':')
                     && c.value.chars().filter(|c| c.is_ascii_hexdigit()).count() < 4))
 }
+
+pub(crate) fn verified_mask_candidate(context: &str, value: &str, kind: &str) -> bool {
+    let candidate = Candidate {
+        path: None,
+        value: value.into(),
+        kind: kind.into(),
+        confidence: None,
+    };
+    grounded(context, &candidate) && !weak(&candidate)
+}
 #[derive(Clone, Deserialize)]
 struct Fragment {
     source: String,
@@ -2697,13 +2740,18 @@ pub(crate) fn document_keys(report: &kaponir_core::discover::Report) -> Vec<Stri
 pub(crate) fn retain_findings(
     v: &SqliteVault,
     report: &kaponir_core::discover::Report,
+    enqueue_review: bool,
 ) -> anyhow::Result<Vec<String>> {
     document_findings(report)
         .map(|entry| {
+            let key = format!("learning:{}", entry.id);
             if v.app_record(&entry.id)?.is_none() {
                 store_entry(v, &entry)?;
+                if enqueue_review && entry.kind != "SECRET" {
+                    v.queue_finding_review(&key)?;
+                }
             }
-            Ok(format!("learning:{}", entry.id))
+            Ok(key)
         })
         .collect()
 }
@@ -2750,6 +2798,13 @@ pub(crate) fn review_entries(st: &State) -> anyhow::Result<Vec<Value>> {
 pub(crate) fn review_source(st: &State, source: &str) -> anyhow::Result<Value> {
     source_for(&st.learning.snapshot(), source)
 }
+
+pub(crate) fn automatic_review_source(settings: &Settings) -> anyhow::Result<Value> {
+    let mut source = source_for(settings, "analysis")?;
+    source["scenario"] = json!(Scenario::Standard);
+    Ok(source)
+}
+
 fn source_for(settings: &Settings, source: &str) -> anyhow::Result<Value> {
     let role = match source {
         "auto" if settings.categorization.provider != "none" => "categorization",
@@ -3008,7 +3063,11 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
         .scenario
         .unwrap_or(categorization.scenario)
         .for_provider(&categorization.provider);
-    if categorization.provider == "api" {
+    let scored_review =
+        s.analysis.auto_review && categorization.scenario == s.categorization.scenario;
+    if scored_review {
+        job.scenario = None;
+    } else if categorization.provider == "api" {
         job.scenario = Some(categorization.scenario);
     }
     validate_categorization(&categorization)?;
@@ -3222,7 +3281,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
     let total = entries.len();
     let inference = &s.categorization.inference;
     let mut position = 0;
-    while position < total {
+    while !scored_review && position < total {
         let start = position;
         let budget = inference
             .context_tokens
@@ -3397,6 +3456,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
             "configuration_changed"
         );
         let existing = st.with_vault(|_, v| record::<Entry>(v, &e.id))?;
+        let is_new = existing.is_none();
         if let Some(mut existing) = existing {
             if existing.state == "applying" {
                 reconcile_entry(st, &mut existing)?;
@@ -3405,7 +3465,7 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
                 continue;
             }
         }
-        let blocked = st.with_vault(|_, v| Ok(v.app_record(&block_id(&e.value))?.is_some()))?;
+        let blocked = st.with_vault(|_, v| rejected_value(v, &e.value))?;
         if blocked {
             e.state = "rejected".into();
             e.reason = "previously_rejected".into();
@@ -3430,7 +3490,22 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
             && !weak(&c)
             && e.confidence.is_some_and(|p| p > policy.threshold)
             && policy.auto_apply;
-        st.with_vault(|_, v| store_entry(v, &e))?;
+        st.with_vault(|_, v| {
+            if policy.auto_review
+                && is_new
+                && !eligible
+                && e.state == "pending"
+                && e.kind != "SECRET"
+            {
+                transaction(v, || {
+                    store_entry(v, &e)?;
+                    v.queue_finding_review(&format!("learning:{}", e.id))?;
+                    Ok(())
+                })
+            } else {
+                store_entry(v, &e)
+            }
+        })?;
         if eligible || e.state == "applying" {
             apply_entry(st, &mut e, true)?;
         }
@@ -3537,7 +3612,7 @@ fn apply_entry(st: &State, e: &mut Entry, automatic: bool) -> anyhow::Result<()>
         transaction(v, || {
             store_entry(v, e)?;
             if newly_applied {
-                counter(v, |c| c.applied += 1)?;
+                count_applied_rule(v)?;
             }
             Ok(())
         })
@@ -3643,7 +3718,7 @@ pub(crate) async fn action(
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
     let _guard = st.rule_changes.lock().await;
-    change_entry(&st, &id, &action, req)
+    change_entry(&st, &id, &action, req, false)
 }
 
 // Rule and entry mutations share the caller's rule_changes guard.
@@ -3652,6 +3727,7 @@ pub(crate) fn change_entry(
     id: &str,
     action: &str,
     req: Action,
+    automatic: bool,
 ) -> Result<Json<Value>, ApiError> {
     if action == "retry" {
         let mut job = st
@@ -3724,7 +3800,7 @@ pub(crate) fn change_entry(
                 if let Some(scope) = req.scope {
                     entry.scope = scope;
                 }
-                apply_entry(st, &mut entry, false).map_err(bad)?;
+                apply_entry(st, &mut entry, automatic).map_err(bad)?;
             }
             "reject" | "keep" | "rollback" | "rollback-job" => {
                 if action == "keep" {
@@ -3974,6 +4050,8 @@ pub(crate) fn start(st: &Shared) {
                 continue;
             }
             let worker = crate::worker::forward(&st, "/status", None).await.ok();
+            let categorization_needs_worker =
+                !settings.analysis.auto_review && settings.categorization.provider == "local";
             let wait = match worker {
                 Some(ref w) if w["online"] == true => {
                     if w["enabled"] != true {
@@ -3983,7 +4061,7 @@ pub(crate) fn start(st: &Shared) {
                             || w["models"][&settings.analysis.model]["downloaded"] != true)
                     {
                         Some(QueueWait::DetectionModel)
-                    } else if settings.categorization.provider == "local"
+                    } else if categorization_needs_worker
                         && (w["runtime_ready"] != true
                             || w["models"][&settings.categorization.model]["downloaded"] != true)
                     {
@@ -3992,11 +4070,7 @@ pub(crate) fn start(st: &Shared) {
                         None
                     }
                 }
-                _ if settings.analysis.provider == "api"
-                    && settings.categorization.provider != "local" =>
-                {
-                    None
-                }
+                _ if settings.analysis.provider == "api" && !categorization_needs_worker => None,
                 _ => Some(QueueWait::WorkerOffline),
             };
             st.learning.set_queue_wait(wait);

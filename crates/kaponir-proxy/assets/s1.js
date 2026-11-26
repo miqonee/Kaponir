@@ -418,6 +418,7 @@ function renderLearningForms() {
       $("#analysis-api-model").value = s.provider === "api" ? s.model : "";
       $("#analysis-url").value = s.url;
       $("#analysis-background").checked = s.background;
+      $("#analysis-auto-review").checked = s.auto_review;
       $("#analysis-auto").checked = s.auto_apply;
       $("#analysis-threshold").value = Math.round(s.threshold * 100);
       $("#analysis-timeout").value = s.timeout_seconds;
@@ -458,6 +459,7 @@ function readLearningForm(role) {
           : $("#analysis-local-model").value,
       url: $("#analysis-url").value.trim(),
       background: $("#analysis-background").checked,
+      auto_review: $("#analysis-auto-review").checked,
       auto_apply: $("#analysis-auto").checked,
       threshold: Number($("#analysis-threshold").value) / 100,
       timeout_seconds: Number($("#analysis-timeout").value),

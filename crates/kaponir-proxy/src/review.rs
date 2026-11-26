@@ -1,4 +1,5 @@
-//! Explicit, durable model review. Recommendations never mutate rules until the user applies them.
+//! Model review and decisions for saved findings.
+mod automatic;
 pub(crate) mod coverage;
 pub(crate) mod paths;
 use crate::{
@@ -577,7 +578,7 @@ pub(crate) fn start(st: &Shared) {
     let _ = st.with_vault(|_, v| {
         learning::transaction(v, || {
             if v.private_setting("workspace:discovery-migrated")?.is_none() {
-                learning::retain_findings(v, &crate::discovery::load(v)?.report())?;
+                learning::retain_findings(v, &crate::discovery::load(v)?.report(), false)?;
                 v.set_private_setting("workspace:discovery-migrated", b"1")?;
             }
             Ok(())
@@ -605,6 +606,7 @@ pub(crate) fn start(st: &Shared) {
             cleanup(&state);
         }
     });
+    automatic::start(st);
 }
 #[derive(Default, Deserialize, Serialize)]
 pub(crate) struct Filters {
@@ -1163,6 +1165,25 @@ struct Target {
     key: String,
     fingerprint: String,
 }
+fn store_queued_job(
+    v: &kaponir_vault::SqliteVault,
+    job: &Value,
+    targets: &[Target],
+) -> anyhow::Result<()> {
+    let id = job["id"].as_str().unwrap();
+    v.put_app_record(
+        &format!("review-targets:{id}"),
+        "review-targets",
+        &serde_json::to_vec(targets)?,
+    )?;
+    v.put_app_record(
+        &format!("review-job:{id}"),
+        "review-job-queued",
+        &serde_json::to_vec(job)?,
+    )?;
+    Ok(())
+}
+
 fn model_id(target: &Target) -> String {
     blake3::hash(format!("{}\0{}", target.key, target.fingerprint).as_bytes()).to_hex()[..24]
         .to_owned()
@@ -1284,12 +1305,7 @@ async fn submit(
                 if v.app_record(&record_id)?.is_some() {
                     return Ok(false);
                 }
-                v.put_app_record(
-                    &format!("review-targets:{id}"),
-                    "review-targets",
-                    &serde_json::to_vec(&targets)?,
-                )?;
-                v.put_app_record(&record_id, "review-job-queued", &serde_json::to_vec(&job)?)?;
+                store_queued_job(v, &job, &targets)?;
                 Ok(true)
             })
         })
@@ -1447,7 +1463,8 @@ async fn jobs(
                     "started":j["started"],"progress":j["progress"],"last_call":j["last_call"],"source":j["source"],"model":j["model"],"scenario":j["scenario"],
                     "total":j["total"].as_u64().or_else(||j["targets"].as_array().map(|x|x.len() as u64)),
                     "completed":j.get("processed").unwrap_or(&j["completed"]),"extracted":j["extracted"],
-                    "active":j["active"],"failed":j["failed"],"manual":j["manual"],"retryable":j["retryable"],"error":j["error"]
+                    "active":j["active"],"failed":j["failed"],"manual":j["manual"],"retryable":j["retryable"],"error":j["error"],
+                    "automatic":j["automatic"],"applied":j["applied"]
                 });
                 if learning { learning_job_source(&mut row, queue_wait); }
                 rows.push(row);
@@ -1597,6 +1614,7 @@ fn validate_decision(decision: &Value, value: &str, research: bool) -> Result<()
 async fn run(st: Shared, submitted: Value, targets: Vec<Target>) {
     let _queue = st.review_queue.lock().await;
     let id = submitted["id"].as_str().unwrap();
+    let automatic = submitted["automatic"] == true;
     loop {
         let mut changed = st.learning.revision_signal.subscribe();
         let Ok(Some(mut job)) = read(&st, &format!("review-job:{id}")) else {
@@ -1628,7 +1646,7 @@ async fn run(st: Shared, submitted: Value, targets: Vec<Target>) {
         }
         let processed = job["processed"].as_u64().unwrap_or(0);
         // A partially processed job retains the scenario used for its saved packets.
-        if processed == 0 && job["source"]["provider"] == "api" {
+        if processed == 0 && !automatic && job["source"]["provider"] == "api" {
             job["source"]["scenario"] = json!(learning::Scenario::D);
         }
         let remaining;
@@ -1647,7 +1665,26 @@ async fn run(st: Shared, submitted: Value, targets: Vec<Target>) {
         };
         job["started"] = json!(now_ms());
         job["state"] = json!("running");
-        let execution = tokio::select! {biased; _=changed.changed()=>continue, (result,last)=st.learning.activity.track(id,run_packets(&st,&mut job,work))=>{job["last_call"]=json!(last);result}};
+        let mut enabled = st.learning.automatic_review_signal.subscribe();
+        let paused = automatic && !*enabled.borrow_and_update();
+        let execution = if paused {
+            Err(anyhow::anyhow!("automatic_review_stopped"))
+        } else {
+            tokio::select! {
+                biased;
+                _ = changed.changed() => continue,
+                _ = enabled.changed(), if automatic => {
+                    if let Ok(Some(saved)) = read(&st, &format!("review-job:{id}")) {
+                        job = saved;
+                    }
+                    Err(anyhow::anyhow!("automatic_review_stopped"))
+                },
+                (result, last) = st.learning.activity.track(id, run_packets(&st, &mut job, work)) => {
+                    job["last_call"] = json!(last);
+                    result
+                }
+            }
+        };
         let _guard = st.rule_changes.lock().await;
         if *st.learning.revision_signal.borrow() != revision {
             continue;
@@ -1683,10 +1720,41 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
         &settings.categorization.inference
     };
     let slots = settings.analysis.parallelism.max(1);
-    let map: HashMap<String, Value> = items(st)?
-        .into_iter()
-        .map(|i| (i["key"].as_str().unwrap().to_owned(), i))
-        .collect();
+    let is_automatic = job["automatic"] == true;
+    let map: HashMap<String, Value> = if is_automatic {
+        let rules = active_rules(st)?;
+        st.with_vault(|_, v| {
+            let mut selected = HashMap::new();
+            for target in targets {
+                if let Some(mut item) = automatic::finding(v, &target.key)? {
+                    rules.project(&mut item);
+                    if needs_decision(&item) && item["protected"] != true {
+                        selected.insert(target.key.clone(), item);
+                    }
+                }
+            }
+            Ok(selected)
+        })?
+    } else {
+        items(st)?
+            .into_iter()
+            .map(|i| (i["key"].as_str().unwrap().to_owned(), i))
+            .collect()
+    };
+    let pending_targets;
+    let targets = if is_automatic {
+        pending_targets = targets
+            .iter()
+            .filter(|target| map.contains_key(&target.key))
+            .cloned()
+            .collect::<Vec<_>>();
+        let skipped = (targets.len() - pending_targets.len()) as u64;
+        job["skipped"] = json!(job["skipped"].as_u64().unwrap_or(0) + skipped);
+        job["total"] = json!(job["total"].as_u64().unwrap_or(0).saturating_sub(skipped));
+        pending_targets.as_slice()
+    } else {
+        targets
+    };
     let source = job["source"].clone();
     let id = job["id"].as_str().unwrap().to_owned();
     let batches = review_batches(targets, &map, inference, &source);
@@ -1759,6 +1827,30 @@ async fn run_packets(st: &Shared, job: &mut Value, targets: &[Target]) -> anyhow
         job["active"] = json!(active);
         job["updated"] = json!(now_ms());
         let _guard = st.rule_changes.lock().await;
+        anyhow::ensure!(
+            job["revision"] == *st.learning.revision_signal.borrow(),
+            "configuration_changed"
+        );
+        if is_automatic {
+            let policy = st.learning.snapshot().analysis;
+            anyhow::ensure!(
+                policy.enabled && policy.auto_review,
+                "automatic_review_stopped"
+            );
+            if policy.auto_apply {
+                let mut applied = job["applied"].as_u64().unwrap_or(0);
+                for (key, rec) in &records {
+                    match automatic::apply_mask(st, key, rec, policy.threshold) {
+                        Ok(true) => applied += 1,
+                        Ok(false) => {}
+                        Err(_) => {
+                            first_error.get_or_insert_with(|| "automatic_rule_failed".into());
+                        }
+                    }
+                }
+                job["applied"] = json!(applied);
+            }
+        }
         st.with_vault(|_, v| {
             learning::transaction(v, || {
                 anyhow::ensure!(
@@ -2251,7 +2343,15 @@ async fn apply(
         .map_err(internal)?;
         return paths::apply_directory(&st, sources, prefix, scope, seen.then_some(key.as_str()));
     }
-    let mut result = apply_effect(&st, &item, &action, &kind, scope, req.use_recommendation)?;
+    let mut result = apply_effect(
+        &st,
+        &item,
+        &action,
+        &kind,
+        scope,
+        req.use_recommendation,
+        false,
+    )?;
     if result["state"] != "conflict"
         && matches!(action.as_str(), "mask" | "keep" | "dismiss" | "reject")
     {
@@ -2321,6 +2421,7 @@ fn apply_effect(
     kind: &str,
     scope: Scope,
     use_recommendation: bool,
+    automatic: bool,
 ) -> ResultJson {
     let origin = item["origin"].as_str().unwrap_or_default();
     let id = item["id"].as_str().unwrap_or_default();
@@ -2366,6 +2467,7 @@ fn apply_effect(
                 kind: Some(kind.to_owned()),
                 scope: Some(scope),
             },
+            automatic,
         );
     }
     let ctl = st.control.as_ref().ok_or_else(|| bad("read_only"))?;
@@ -2459,6 +2561,9 @@ fn apply_effect(
                     "review-decision",
                     &serde_json::to_vec(&decision)?,
                 )?;
+                if automatic {
+                    learning::count_applied_rule(v)?;
+                }
             }
             v.delete_app_record(&format!("review-deferred:{key}"))?;
             Ok(())
