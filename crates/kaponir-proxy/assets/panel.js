@@ -554,6 +554,7 @@ function sessionsTable(events, compact = false) {
     ["Сессия / запрос","Последняя активность","Модель","Запросы","Замены","Состояние","Действия"].map(title => h("th", {scope:"col"}, tr(title))))),
     entries.map(({key,rows,issues}) => {
       const latest = rows[0], active = rows.filter(e=>e.outcome === "in_progress").length;
+      const messages = conversationTurns([...rows].sort((a,b)=>a.id-b.id)).filter(g=>g.linked).length;
       const expanded = requests ? !collapsedRequestGroups.has(key) : expandedSessions.has(key);
       const issueOnly = onlyIssues || issueGroups.has(key);
       const name = latest.session_id ? tr("Сессия {{0}}", [key.slice(0,8)]) : tr("Запрос {{0}}", [latest.id]);
@@ -579,7 +580,8 @@ function sessionsTable(events, compact = false) {
         h("th", {scope:"row", title:latest.session_source==="inferred" ? tr("Сгруппировано автоматически по началу переписки") : name},trigger),
         h("td", {class:"traffic-time"}, sessionTime(latest.time_ms)),
         h("td", {class:"traffic-model"}, [...new Set(rows.map(e=>e.model||e.provider))].join(", ")),
-        h("td", {class:"num traffic-count"}, number(rows.length)), h("td", {class:"num traffic-masks"},
+        h("td", {class:"num traffic-count"}, number(rows.length),
+          messages ? h("small",{class:"request-format"},tr("Сообщений пользователя · {{0}}",[messages])) : null), h("td", {class:"num traffic-masks"},
           number(rows.reduce((n,e)=>n+(e.usage?.replacements||0),0))), summary, h("td", {class:"traffic-action"}, open)),
         expanded ? (issueOnly ? issues : rows).map(e=>requestRow(e,prefix)) : []);
     }));
@@ -607,7 +609,7 @@ function renderEventViews() {
   }
 }
 function inspectorComparison(insp,usage,response) {
-  const pairs=response ? sessionReplyRanges(insp,usage) : sessionMaskRanges(insp.original_request || "",insp.masked_request || "",usage.masked_items);
+  const pairs=response ? sessionReplyRanges(insp,usage) : sessionRequestRanges(insp,usage.masked_items);
   const original=pairs.map(r=>({...r,label:response ? "Восстановлено для клиента" : "Скрыто при передаче"}));
   const tokens=pairs.map(r=>({start:r.otherStart,end:r.otherEnd,masked:true,label:"Токен поставщика"}));
   function pane(title,value,ranges) {

@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 
 use crate::sse::{Event, Rewriter, encode};
 use crate::state::Cx;
-use crate::walk::{mask_field, mask_leaves, restore_field, restore_leaves, ty};
+use crate::walk::{mask_field, mask_leaves, restore_leaves, ty};
 
 /// Маскирует system, текстовые блоки, `tool_use.input`, `tool_result` и текстовые документы
 /// в истории. Схемы инструментов не трогаются.
@@ -58,6 +58,7 @@ fn mask_block(b: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> {
             }
         }
         "document" => {
+            crate::inline_file::mask(b, cx)?;
             if let Some(src) = b.get_mut("source")
                 && ty(src) == "text"
             {
@@ -91,11 +92,22 @@ fn add_hint(body: &mut Value, hint: &str) {
 pub fn restore_response(body: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> {
     cx.record_token_usage(body);
     if let Some(Value::Array(blocks)) = body.get_mut("content") {
-        for b in blocks {
+        cx.reply();
+        for (index, b) in blocks.iter_mut().enumerate() {
+            let slot = [0, index as u64];
             match ty(b).as_str() {
-                "text" => restore_field(b, "text", cx, Escape::None)?,
-                "tool_use" => {
-                    if let Some(input) = b.get_mut("input") {
+                "text" => {
+                    if let Some(Value::String(text)) = b.get_mut("text") {
+                        let restored = cx.restore(text, Escape::None)?;
+                        cx.reply().text(slot, text, &restored);
+                        *text = restored;
+                    }
+                }
+                "tool_use" | "server_tool_use" => {
+                    record_tool(b, slot, cx);
+                    if b["type"] == "tool_use"
+                        && let Some(input) = b.get_mut("input")
+                    {
                         restore_leaves(input, cx)?;
                     }
                 }
@@ -104,6 +116,18 @@ pub fn restore_response(body: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()>
         }
     }
     Ok(())
+}
+
+fn record_tool(block: &Value, slot: [u64; 2], cx: &mut Cx<'_>) {
+    let args = block
+        .get("input")
+        .filter(|v| !v.as_object().is_some_and(|o| o.is_empty()));
+    cx.reply().call(
+        slot,
+        &block["id"],
+        &block["name"],
+        &args.map(Value::to_string).unwrap_or_default(),
+    );
 }
 
 #[derive(Clone, Copy)]
@@ -149,9 +173,20 @@ impl Rewriter for StreamRewriter {
             return Ok(vec![ev.raw]);
         };
         cx.record_token_usage(&v);
+        cx.reply();
         let index = v.get("index").and_then(Value::as_u64);
         match (ty(&v).as_str(), index) {
             ("content_block_start", Some(i)) => {
+                let header = &v["content_block"];
+                match header["type"].as_str() {
+                    Some("text") => {
+                        if let Some(s) = header["text"].as_str() {
+                            cx.reply().text([0, i], s, s);
+                        }
+                    }
+                    Some("tool_use" | "server_tool_use") => record_tool(header, [0, i], cx),
+                    _ => {}
+                }
                 let block = match v.pointer("/content_block/type").and_then(Value::as_str) {
                     Some("text") => Some(Block::Text),
                     Some("tool_use") => Some(Block::Json),
@@ -163,6 +198,9 @@ impl Rewriter for StreamRewriter {
                 Ok(vec![ev.raw])
             }
             ("content_block_delta", Some(i)) => {
+                if let Some(args) = v.pointer("/delta/partial_json").and_then(Value::as_str) {
+                    cx.reply().call([0, i], &Value::Null, &Value::Null, args);
+                }
                 let Some((block, r)) = self.blocks.get_mut(&i) else {
                     return Ok(vec![ev.raw]);
                 };
@@ -176,6 +214,9 @@ impl Rewriter for StreamRewriter {
                     return Ok(vec![ev.raw]);
                 };
                 let out = cx.push(r, &chunk)?;
+                if matches!(block, Block::Text) {
+                    cx.reply().text([0, i], &chunk, &out);
+                }
                 if out.is_empty() {
                     return Ok(Vec::new());
                 }
@@ -187,6 +228,9 @@ impl Rewriter for StreamRewriter {
                 if let Some((b, mut r)) = self.blocks.remove(&i) {
                     let rest = cx.flush(&mut r)?;
                     if !rest.is_empty() {
+                        if matches!(b, Block::Text) {
+                            cx.reply().text([0, i], "", &rest);
+                        }
                         out.push(delta(i, b, &rest));
                     }
                 }
@@ -202,6 +246,9 @@ impl Rewriter for StreamRewriter {
         for (i, (b, mut r)) in std::mem::take(&mut self.blocks) {
             let rest = cx.flush(&mut r)?;
             if !rest.is_empty() {
+                if matches!(b, Block::Text) {
+                    cx.reply().text([0, i], "", &rest);
+                }
                 out.push(delta(i, b, &rest));
             }
         }

@@ -2,8 +2,10 @@
 //! Значение под чувствительным ключом маскируется целиком, даже если похоже на обычное слово.
 //! Возвращаются только позиции — форматирование, кавычки и комментарии не трогаются.
 
-use kaponir_core::{AnalyzeCtx, Candidate, Input, Lexicon, Recognizer};
+use kaponir_core::{AnalyzeCtx, Candidate, Format, Input, Lexicon, Recognizer};
 use regex::Regex;
+use std::iter::Peekable;
+use std::ops::Range;
 
 use crate::{is_placeholder, key_kind_class, kind_for_key};
 
@@ -47,7 +49,7 @@ impl KeyValue {
             )
             .expect("valid regex"),
             inline: Regex::new(
-                r#"(?:^|[^\p{L}\p{N}_.\-])([\p{L}_][\p{L}\p{N}_.\-]*)[ \t]*[:=][ \t]*("(?:[^"\\\r\n]|\\.)*"|'[^'\r\n]*'|[^\s,;"']+)"#,
+                r#"(?:^|[^\p{L}\p{N}_.\-])["']?([\p{L}_][\p{L}\p{N}_.\-]*)["']?[ \t]*[:=][ \t]*("(?:[^"\\\r\n]|\\.)*"|'(?:[^'\r\n]|'')*'|[^\s,;"'{\[][^\s,;"']*)"#,
             ).expect("valid regex"),
         }
     }
@@ -64,17 +66,61 @@ impl KeyValue {
         let Some(kind) = kind_for_key(lex, key) else {
             return;
         };
-        if start >= end || is_placeholder(&text[start..end]) {
+        if start >= end {
             return;
         }
-        let (category, hard, prior) = key_kind_class(kind);
-        let mut c = Candidate::new(start, end, kind, category, ID, prior)
-            .with_evidence(format!("key:{key}"), 1.0);
-        if hard {
-            c = c.hard();
+        let hard = key_kind_class(kind).1;
+        let quoted = start > 0 && matches!(text.as_bytes()[start - 1], b'\'' | b'"');
+        let value = &text[start..end];
+        let placeholder = if hard && (quoted || value.len() < 3) {
+            credential_placeholder(value)
+        } else {
+            is_placeholder(value)
+        };
+        if placeholder {
+            return;
         }
-        out.push(c);
+        out.push(key_candidate(key, kind, start, end));
     }
+}
+
+fn key_candidate(key: &str, kind: &str, start: usize, end: usize) -> Candidate {
+    let (category, hard, prior) = key_kind_class(kind);
+    let candidate = Candidate::new(start, end, kind, category, ID, prior)
+        .with_evidence(format!("key:{key}"), 1.0);
+    if hard { candidate.hard() } else { candidate }
+}
+
+/// Tool arguments have already been parsed as JSON. Keep the field context
+/// while reporting byte offsets into its decoded string, so restoration is exact.
+pub fn credential_field(lex: &Lexicon, key: &str, value: &str) -> Option<Candidate> {
+    let kind = kind_for_key(lex, key)?;
+    (key_kind_class(kind).1 && !credential_placeholder(value))
+        .then(|| key_candidate(key, kind, 0, value.len()))
+}
+
+fn credential_placeholder(raw: &str) -> bool {
+    let value = raw.trim();
+    if let Some(rest) = value.strip_prefix("${") {
+        // A shell default or a suffix can itself contain a literal password.
+        return rest.strip_suffix('}').is_some_and(|name| {
+            !name.is_empty() && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')
+        });
+    }
+    for (open, close) in [("{{", "}}"), ("$(", ")"), ("%(", ")s"), ("#{", "}")] {
+        if let Some(rest) = value.strip_prefix(open) {
+            return rest.split_once(close).is_some_and(|(expression, tail)| {
+                tail.is_empty() && !expression.contains(['\'', '"'])
+            });
+        }
+    }
+    if value.len() < 3 {
+        return value.is_empty()
+            || value
+                .chars()
+                .all(|c| matches!(c, '*' | '•' | '.' | '…' | 'x' | 'X'));
+    }
+    is_placeholder(value)
 }
 
 /// Значение строки `key: value`: кавычки снимаются, комментарий в конце отрезается.
@@ -88,6 +134,10 @@ fn value_span(raw: &str, base: usize) -> Option<(usize, usize)> {
         let mut i = 1;
         while i < bytes.len() {
             if bytes[i] == b'\\' && first == '"' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'\'' && first == '\'' && bytes.get(i + 1) == Some(&b'\'') {
                 i += 2;
                 continue;
             }
@@ -107,6 +157,97 @@ fn value_span(raw: &str, base: usize) -> Option<(usize, usize)> {
     let trimmed = v[..end].trim_end();
     let trimmed = trimmed.strip_suffix(',').unwrap_or(trimmed);
     (!trimmed.is_empty()).then_some((b, b + trimmed.len()))
+}
+
+/// Locate brace-delimited mappings even in pasted snippets. Braces inside a
+/// quoted YAML scalar or comment do not close the surrounding mapping.
+fn flow_mappings(text: &str) -> impl Iterator<Item = Range<usize>> + '_ {
+    let mut pos = 0;
+    std::iter::from_fn(move || {
+        let open = pos + text[pos..].find('{')?;
+        pos = open + 1;
+        let mut depth = 1;
+        while depth > 0 {
+            let Some(offset) = text[pos..].find(['{', '}', '\'', '"', '#']) else {
+                pos = text.len();
+                break;
+            };
+            let at = pos + offset;
+            pos = at + 1;
+            match text.as_bytes()[at] {
+                b'{' => depth += 1,
+                b'}' => depth -= 1,
+                b'\'' | b'"' if text[..at].trim_end().ends_with(['{', '[', ',', ':']) => {
+                    pos = value_span(&text[at..], at).map_or(text.len(), |(_, end)| end + 1);
+                }
+                b'#' if text.as_bytes()[at - 1].is_ascii_whitespace() => {
+                    pos = text[pos..].find('\n').map_or(text.len(), |n| pos + n);
+                }
+                _ => {}
+            }
+        }
+        Some(open..pos)
+    })
+}
+
+/// A plain flow scalar may contain spaces. Stop before the collection delimiter.
+fn flow_value_span(
+    text: &str,
+    mappings: &mut Peekable<impl Iterator<Item = Range<usize>>>,
+    key: regex::Match<'_>,
+    val: regex::Match<'_>,
+) -> Option<(usize, usize)> {
+    if !text[key.end()..val.start()].contains(':')
+        || !text[..key.start()]
+            .trim_end_matches(['"', '\''])
+            .trim_end()
+            .ends_with(['{', ','])
+    {
+        return None;
+    }
+    while mappings.next_if(|r| r.end <= key.start()).is_some() {}
+    if !mappings.peek()?.contains(&key.start()) {
+        return None;
+    }
+    let raw = text[val.start()..].trim_start_matches([' ', '\t']);
+    let start = text.len() - raw.len();
+    if raw.starts_with(['"', '\'']) {
+        return value_span(raw, start);
+    }
+    let end = raw.find([',', '}', ']', '\r', '\n']).unwrap_or(raw.len());
+    value_span(&raw[..end], start)
+}
+
+fn block_indicator(t: &str) -> bool {
+    let (marker, rest) = t.split_once(char::is_whitespace).unwrap_or((t, ""));
+    (rest.is_empty() || rest.trim_start().starts_with('#'))
+        && marker.len() <= 3
+        && marker.starts_with(['|', '>'])
+        && marker.as_bytes()[1..]
+            .iter()
+            .all(|c| matches!(c, b'+' | b'-' | b'1'..=b'9'))
+}
+
+/// YAML permits a quoted scalar to continue on more-indented lines. A clipped
+/// file still contains sensitive bytes up to the end of the available scalar.
+fn line_value_span(text: &str, value: regex::Match<'_>) -> Option<(usize, usize)> {
+    let raw = value.as_str();
+    if let Some(span) = value_span(raw, value.start()) {
+        return Some(span);
+    }
+    let trimmed = raw.trim_start();
+    if !trimmed.starts_with(['\'', '"']) {
+        return None;
+    }
+    let line_start = text[..value.start()].rfind('\n').map_or(0, |p| p + 1);
+    let prefix = &text[line_start..value.start()];
+    let indent = prefix.len() - prefix.trim_start().len();
+    let next_line = text[value.end()..].find('\n').map(|p| value.end() + p + 1);
+    let end = next_line
+        .and_then(|pos| block_span(text, pos, indent))
+        .map_or(value.end(), |(_, end)| end);
+    let start = value.start() + raw.len() - trimmed.len();
+    value_span(&text[start..end], start).or(Some((start + 1, end)))
 }
 
 /// Блочный скаляр YAML (`key: |`): строки с отступом больше, чем у ключа.
@@ -139,6 +280,10 @@ impl Recognizer for KeyValue {
     fn analyze(&self, input: &Input<'_>, ctx: &AnalyzeCtx<'_>, out: &mut Vec<Candidate>) {
         let text = input.text;
         let lex = ctx.lexicon;
+        let json_document = input.format == Format::Json
+            || (matches!(input.format, Format::Auto | Format::Text)
+                && text.trim_start().starts_with(['{', '[']));
+        let mut mappings = flow_mappings(text).peekable();
         for cap in self.line.captures_iter(text) {
             let key = cap.get(3).expect("key");
             let val = cap.get(4).expect("value");
@@ -147,15 +292,15 @@ impl Recognizer for KeyValue {
             if t.starts_with('{') || t.starts_with('[') {
                 continue; // вложенная структура: значения найдут JSON-проход и детекторы
             }
-            let is_block = t.len() <= 3 && (t.starts_with('|') || t.starts_with('>'));
-            let span = if is_block {
+            let span = if block_indicator(t) {
                 let indent = cap.get(1).map_or(0, |m| m.as_str().len());
                 let line_end = text[val.end()..]
                     .find('\n')
                     .map_or(text.len(), |i| val.end() + i + 1);
                 block_span(text, line_end.min(text.len()), indent)
             } else {
-                value_span(raw, val.start())
+                flow_value_span(text, &mut mappings, key, val)
+                    .or_else(|| line_value_span(text, val))
             };
             if let Some((s, e)) = span {
                 self.emit(lex, key.as_str(), s, e, text, out);
@@ -190,7 +335,7 @@ impl Recognizer for KeyValue {
         for cap in self.yaml_pair.captures_iter(text) {
             let key = cap.get(1).expect("name");
             let val = cap.get(2).expect("value");
-            if let Some((s, e)) = value_span(val.as_str(), val.start()) {
+            if let Some((s, e)) = line_value_span(text, val) {
                 self.emit(lex, key.as_str(), s, e, text, out);
             }
         }
@@ -199,14 +344,35 @@ impl Recognizer for KeyValue {
             let val = cap.get(2).expect("value");
             self.emit(lex, key.as_str(), val.start(), val.end(), text, out);
         }
-        for cap in self.inline.captures_iter(text) {
+        let mut mappings = flow_mappings(text).peekable();
+        let mut from = 0;
+        while let Some(cap) = self.inline.captures_at(text, from) {
             let key = cap.get(1).expect("key");
+            let val = cap.get(2).expect("value");
+            from = val.end();
             // В прозе этот проход касается только учётных данных, а не произвольных меток.
             if !kind_for_key(lex, key.as_str()).is_some_and(|kind| key_kind_class(kind).1) {
+                // An enclosing message/log field can contain a configuration snippet.
+                if matches!(text.as_bytes().get(key.end()), Some(b'"' | b'\'')) {
+                    from = key.end();
+                }
                 continue;
             }
-            let val = cap.get(2).expect("value");
-            if let Some((s, e)) = value_span(val.as_str(), val.start()) {
+            if block_indicator(val.as_str()) && text[key.end()..val.start()].contains(':') {
+                continue;
+            }
+            let span = flow_value_span(text, &mut mappings, key, val)
+                .or_else(|| value_span(val.as_str(), val.start()));
+            if let Some((s, e)) = span {
+                // The JSON path handles string fields. A bare number cannot be
+                // replaced with an unquoted string token in a JSON document.
+                if json_document
+                    && text.as_bytes().get(key.end()) == Some(&b'"')
+                    && !val.as_str().starts_with(['"', '\''])
+                    && text[s..e].parse::<f64>().is_ok()
+                {
+                    continue;
+                }
                 // Полный проход конфигов уже мог скрыть значение вместе с пробелами.
                 if !out.iter().any(|c| c.hard && c.start <= s && c.end >= e) {
                     self.emit(lex, key.as_str(), s, e, text, out);
@@ -225,6 +391,8 @@ mod tests {
         for (k, v) in [
             ("password", "SECRET"),
             ("token", "SECRET"),
+            ("secretkey", "SECRET"),
+            ("accesskey", "SECRET"),
             ("secretaccesskey", "SECRET"),
             ("dsn", "DSN"),
             ("bucket", "BUCKET"),
@@ -322,6 +490,110 @@ mod tests {
         assert_eq!(
             found("password: two words\n"),
             [("SECRET".into(), "two words".into())]
+        );
+    }
+
+    #[test]
+    fn helm_storage_keys_mask_only_the_literal_scalars() {
+        for (source, values) in [
+            (
+                "storage: {secretKey: 'one, }''two', accessKey: some value}",
+                vec!["one, }''two", "some value"],
+            ),
+            (
+                "{storage: {accessKey: alpha, secretKey: beta}, region: west}",
+                vec!["alpha", "beta"],
+            ),
+            (
+                "storage: {\n  secretKey: alpha, accessKey: beta}",
+                vec!["alpha", "beta"],
+            ),
+            ("secretKey: q\naccessKey: 7x", vec!["q", "7x"]),
+            (
+                "secretKey: |- # note\n  first\n  second\naccessKey: winter",
+                vec!["first\n  second", "winter"],
+            ),
+            (
+                r#"{"accessKey":"1234","secretKey":"spring"}"#,
+                vec!["1234", "spring"],
+            ),
+            (
+                r#"{"message":"config accessKey=winter; done"}"#,
+                vec!["winter"],
+            ),
+            (
+                "storage: {\"secretKey\": 'spring', \"accessKey\": summer breeze}",
+                vec!["spring", "summer breeze"],
+            ),
+            (
+                "storage: {'secretKey': 'spring', \"accessKey\": \"winter\"}",
+                vec!["spring", "winter"],
+            ),
+            (
+                "map: {}\nstatus, secretKey: leading}tail; done",
+                vec!["leading}tail"],
+            ),
+            (
+                "S3_ACCESS_KEY=autumn\nsecret_key=summer",
+                vec!["autumn", "summer"],
+            ),
+            (
+                "storage: {secretKey: \"${SECRET_KEY}\", accessKey: '{{ .Values.existing }}'}\nsecretKeyRef:\n  key: accessKey",
+                vec![],
+            ),
+        ] {
+            let mut actual: Vec<_> = found(source)
+                .into_iter()
+                .map(|(kind, value)| {
+                    assert_eq!(kind, "SECRET");
+                    value
+                })
+                .collect();
+            actual.sort();
+            let mut expected = values;
+            expected.sort();
+            assert_eq!(actual, expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn helm_quoted_passwords_cover_the_entire_yaml_scalar() {
+        for (source, value) in [
+            (
+                "postgresPassword: 'little''synthetic / #; tail' # note",
+                "little''synthetic / #; tail",
+            ),
+            ("42:  db.password: 'left''right' # note", "left''right"),
+            (
+                "env:\r\n  - name: DB_PASSWORD\r\n    value: \"one\\\"line\r\n      and another\" # note",
+                "one\\\"line\r\n      and another",
+            ),
+            (
+                "password: '<starts-with-symbol/and-space !'",
+                "<starts-with-symbol/and-space !",
+            ),
+            ("password: '***suffix-is-private'", "***suffix-is-private"),
+        ] {
+            let matches = found(source);
+            assert!(
+                matches.contains(&("SECRET".to_owned(), value.to_owned())),
+                "{matches:?}"
+            );
+        }
+        for literal in [
+            "${TOKEN}-suffix",
+            "${TOKEN:-not-a-placeholder}",
+            "{{ .Values.token }}-tail",
+            "AA",
+        ] {
+            assert_eq!(
+                found(&format!("password: '{literal}'")),
+                [("SECRET".into(), literal.into())]
+            );
+        }
+        assert!(
+            found("password: '<PASSWORD>'\npassword: '***'\nimageTag: 'ordinary-public-string'")
+                .is_empty()
         );
     }
 }

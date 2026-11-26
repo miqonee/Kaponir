@@ -118,14 +118,17 @@ pub(crate) fn is_placeholder(v: &str) -> bool {
         "$(",
         "%(",
         "#{",
-        "<",
-        "***",
         "!vault",
         "secretkeyref",
         "valuefrom",
     ]
     .iter()
     .any(|p| l.starts_with(p))
+        || (t.starts_with('<')
+            && t.ends_with('>')
+            && t[1..t.len() - 1]
+                .chars()
+                .all(|c| c.is_alphanumeric() || matches!(c, '_' | '-' | ' ')))
         || (t.starts_with('$')
             && t[1..]
                 .chars()

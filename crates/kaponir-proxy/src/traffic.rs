@@ -62,19 +62,89 @@ pub struct StageTimings {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct TurnExcerpt {
+    pub original: String,
+    pub masked: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EventInspector {
     pub model: String,
     pub original_request: String,
     /// UTF-8 byte offset of the final user message header in the retained transcript.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_user_offset: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_span: Option<[usize; 2]>,
     pub masked_request: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub masked_last_user_offset: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub masked_user_span: Option<[usize; 2]>,
+    /// Retain the question separately when a long system prompt or tool history
+    /// pushes it outside the bounded inspector snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_excerpt: Option<TurnExcerpt>,
     #[serde(default)]
     pub masked_payload_json: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) tool_results: Vec<crate::conversation::ToolResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) reply: Option<crate::conversation::Reply>,
     pub raw_response: String,
     pub restored_response: String,
+}
+
+impl EventInspector {
+    fn masked_question_span(&self) -> Option<[usize; 2]> {
+        self.masked_user_span.or_else(|| {
+            let offset = self.masked_last_user_offset?;
+            let prefix = "[user]\n";
+            self.masked_request
+                .get(offset..)?
+                .starts_with(prefix)
+                .then_some([offset + prefix.len(), self.masked_request.len()])
+        })
+    }
+
+    pub(crate) fn question_preview(&self) -> Option<String> {
+        let question = if let Some(excerpt) = &self.turn_excerpt {
+            &excerpt.masked
+        } else {
+            let [start, end] = self.masked_question_span()?;
+            self.masked_request.get(start..end)?
+        };
+        let mut chars = question.trim().chars();
+        let preview: String = chars.by_ref().take(90).collect();
+        let mut preview = preview.split_whitespace().collect::<Vec<_>>().join(" ");
+        if chars.next().is_some() {
+            preview.push('…');
+        }
+        (!preview.is_empty()).then_some(preview)
+    }
+
+    /// Records without a parseable wire payload can still have a trusted
+    /// question boundary. Link identical retained prefixes only, within the session.
+    fn retained_turn(&self, session: &str) -> Option<crate::conversation::Turn> {
+        let [start, end] = self.masked_question_span()?;
+        let prefix = self.masked_request.get(..end)?;
+        let question = self.masked_request.get(start..end)?;
+        if question.is_empty() || prefix.ends_with("… [truncated]") {
+            return None;
+        }
+        let mut hash = blake3::Hasher::new_derive_key("Kaponir retained conversation prefix v1");
+        hash.update(session.as_bytes());
+        hash.update(&(start as u64).to_be_bytes());
+        hash.update(prefix.as_bytes());
+        Some(crate::conversation::Turn {
+            id: hash.finalize().to_hex()[..24].into(),
+            step: if self.masked_last_user_offset.is_some() {
+                crate::conversation::Step::User
+            } else {
+                crate::conversation::Step::Continuation
+            },
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -119,6 +189,8 @@ pub struct Usage {
     pub denied_tokens: Vec<String>,
     #[serde(skip)]
     pub raw_response_buf: String,
+    #[serde(skip)]
+    pub(crate) reply: Option<crate::conversation::Reply>,
     #[serde(skip)]
     pub classifier_us: u64,
     #[serde(skip)]
@@ -269,6 +341,8 @@ pub struct Event {
     pub session_id: Option<String>,
     #[serde(default)]
     pub session_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) turn: Option<crate::conversation::Turn>,
     #[serde(default)]
     pub streaming: bool,
     #[serde(default)]
@@ -385,7 +459,25 @@ impl Traffic {
             .history
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for event in events {
+        for mut event in events {
+            if let Some(insp) = &mut event.inspector
+                && (event.turn.is_none() || (insp.reply.is_none() && insp.tool_results.is_empty()))
+                && let Ok(payload) = serde_json::from_str(&insp.masked_payload_json)
+            {
+                if event.turn.is_none()
+                    && let Some(session) = &event.session_id
+                {
+                    event.turn = crate::conversation::Turn::from_payload(session, &payload);
+                }
+                if insp.tool_results.is_empty() {
+                    insp.tool_results = crate::conversation::incoming_tools(&payload);
+                }
+            }
+            if event.turn.is_none()
+                && let (Some(insp), Some(session)) = (&event.inspector, &event.session_id)
+            {
+                event.turn = insp.retained_turn(session);
+            }
             accumulate(&mut h.archive, &event);
             if h.events.len() == 200 {
                 h.events.pop_front();
@@ -476,16 +568,23 @@ impl Traffic {
     }
 
     pub fn event_by_id(&self, id: u64) -> Option<Event> {
-        let snap = self.snapshot();
-        snap.events
-            .into_iter()
-            .chain(snap.active)
-            .find(|e| e.id == id)
+        let active = {
+            let h = self
+                .history
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(e) = h.events.iter().rev().find(|e| e.id == id) {
+                return Some(e.clone());
+            }
+            h.active.get(&id)?.upgrade()?
+        };
+        Some(active.event(false))
     }
 }
 
 pub struct Span {
     history: Arc<Traffic>,
+    pub(crate) turn: Mutex<Option<crate::conversation::Turn>>,
     pub usage: Mutex<Usage>,
     pub connection_id: Mutex<Option<String>>,
     pub model: Mutex<Option<String>>,
@@ -527,6 +626,7 @@ impl Span {
             model: Default::default(),
             upstream_url: Default::default(),
             session: Default::default(),
+            turn: Default::default(),
             request_kind: Default::default(),
             attempts: Default::default(),
             mask_us: AtomicU64::new(0),
@@ -563,6 +663,12 @@ impl Span {
             .max(usage.total_tokens)
             .max(prompt + completion);
         current.add(usage);
+        if let Some(reply) = &usage.reply {
+            current
+                .reply
+                .get_or_insert_with(Default::default)
+                .merge(reply);
+        }
         current.prompt_tokens = prompt;
         current.completion_tokens = completion;
         current.total_tokens = total;
@@ -601,7 +707,7 @@ impl Span {
         } else {
             "ok"
         };
-        let usage = self
+        let mut usage = self
             .usage
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -618,6 +724,13 @@ impl Span {
             if insp.restored_response.is_empty() {
                 insp.restored_response = usage.restored_response_buf.clone();
             }
+            // A plain answer is already saved byte-for-byte in the inspector.
+            // Keep an explicit empty reply for reasoning-only responses.
+            insp.reply = usage.reply.take().filter(|reply| {
+                !matches!(reply.parts.as_slice(), [p] if !reply.truncated &&
+                    p.kind == crate::conversation::PartKind::Text &&
+                    p.text == insp.restored_response && p.wire == insp.raw_response)
+            });
         }
         let session = self
             .session
@@ -630,6 +743,11 @@ impl Span {
             started_at_ms: self.started_at_ms,
             session_id: session.as_ref().map(|s| s.0.clone()),
             session_source: session.map(|s| s.1),
+            turn: self
+                .turn
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
             streaming: self.streaming.load(Relaxed),
             request_kind: self
                 .request_kind
@@ -693,6 +811,24 @@ impl Drop for Span {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_turns_require_a_retained_structural_boundary() {
+        let mut insp = EventInspector {
+            masked_request: "[user]\nliteral [user]\nvalue".into(),
+            ..Default::default()
+        };
+        assert!(insp.retained_turn("session").is_none());
+        insp.masked_last_user_offset = Some(0);
+        let id = insp.retained_turn("session").unwrap().id;
+        assert_eq!(
+            insp.question_preview().as_deref(),
+            Some("literal [user] value")
+        );
+        assert_ne!(id, insp.retained_turn("elsewhere").unwrap().id);
+        insp.masked_request.push_str("… [truncated]");
+        assert!(insp.retained_turn("session").is_none());
+    }
 
     #[test]
     fn stream_has_one_record_and_cumulative_usage_is_not_added_twice() {
@@ -759,6 +895,34 @@ mod tests {
                 .unwrap()
                 .original_request
                 .contains("private-value")
+        );
+    }
+
+    #[test]
+    fn legacy_turns_use_only_complete_structured_snapshots() {
+        let history = Arc::new(Traffic::default());
+        let span = Span::new(history, "openai");
+        let mut old = span.event(true);
+        old.session_id = Some("session".into());
+        let payload = serde_json::json!({"messages":[{"role":"user","content":"a private-looking question"},
+            {"role":"tool","content":"output"}]});
+        let expected = crate::conversation::Turn::from_payload("session", &payload).unwrap();
+        old.inspector = Some(EventInspector {
+            masked_payload_json: payload.to_string(),
+            ..Default::default()
+        });
+        let mut clipped = old.clone();
+        clipped.id += 1;
+        clipped.inspector.as_mut().unwrap().masked_payload_json = "{… [truncated]".into();
+        let restored = Traffic::default();
+        restored.restore_events(vec![old, clipped]);
+        let summary = restored.summary_snapshot();
+        assert!(summary.events[0].turn.is_none());
+        assert_eq!(summary.events[1].turn.as_ref().unwrap().id, expected.id);
+        assert!(
+            !serde_json::to_string(&summary)
+                .unwrap()
+                .contains("private-looking")
         );
     }
 

@@ -35,6 +35,8 @@ pub fn mask_request(body: &mut Value, cx: &mut Cx<'_>, hint: Option<&str>) -> an
                 for p in parts {
                     if ty(p) == "text" {
                         mask_field(p, "text", cx)?;
+                    } else if ty(p) == "file" {
+                        crate::inline_file::mask(p, cx)?;
                     }
                 }
             }
@@ -94,15 +96,34 @@ fn add_hint(messages: &mut Vec<Value>, hint: &str) {
 pub fn restore_response(body: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> {
     cx.record_token_usage(body);
     if let Some(Value::Array(choices)) = body.get_mut("choices") {
-        for ch in choices {
+        cx.reply();
+        for (index, ch) in choices.iter_mut().enumerate() {
+            let ci = ch["index"].as_u64().unwrap_or(index as u64);
             let Some(msg) = ch.get_mut("message") else {
                 continue;
             };
-            for f in std::iter::once(&"content").chain(REASONING) {
-                restore_field(msg, f, cx, Escape::None)?;
+            if let Some(Value::String(text)) = msg.get_mut("content") {
+                let restored = cx.restore(text, Escape::None)?;
+                cx.reply().text([ci, 0], text, &restored);
+                *text = restored;
+            }
+            for field in REASONING {
+                restore_field(msg, field, cx, Escape::None)?;
+            }
+            if let Some(reason) = msg["refusal"].as_str() {
+                cx.reply().text([ci, 1], reason, reason);
+            }
+            if let Some(f) = msg.get("function_call") {
+                cx.reply().call(
+                    [ci, 0],
+                    &Value::Null,
+                    &f["name"],
+                    f["arguments"].as_str().unwrap_or_default(),
+                );
             }
             if let Some(Value::Array(calls)) = msg.get_mut("tool_calls") {
-                for c in calls {
+                for (j, c) in calls.iter_mut().enumerate() {
+                    record_call(c, [ci, j as u64], cx);
                     if let Some(f) = c.get_mut("function") {
                         restore_field(f, "arguments", cx, Escape::Json)?;
                     }
@@ -111,6 +132,16 @@ pub fn restore_response(body: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()>
         }
     }
     Ok(())
+}
+
+fn record_call(call: &Value, slot: [u64; 2], cx: &mut Cx<'_>) {
+    let f = &call["function"];
+    cx.reply().call(
+        slot,
+        &call["id"],
+        &f["name"],
+        f["arguments"].as_str().unwrap_or_default(),
+    );
 }
 
 /// Восстановители по (choice, слот). Хвост дописывается в дельту
@@ -129,6 +160,9 @@ impl StreamRewriter {
             let rest = cx.flush(&mut r)?;
             if rest.is_empty() {
                 continue;
+            }
+            if slot == Slot::Field("content") {
+                cx.reply().text([ci, 0], "", &rest);
             }
             let ch = choices
                 .entry(ci)
@@ -161,6 +195,7 @@ impl Rewriter for StreamRewriter {
         let Some(choices) = v.get_mut("choices").and_then(Value::as_array_mut) else {
             return Ok(vec![ev.raw]);
         };
+        cx.reply();
         for ch in choices.iter_mut() {
             let ci = ch.get("index").and_then(Value::as_u64).unwrap_or(0);
             if let Some(delta) = ch.get_mut("delta") {
@@ -171,12 +206,27 @@ impl Rewriter for StreamRewriter {
                             .entry((ci, Slot::Field(f)))
                             .or_insert_with(|| StreamRestorer::new(Escape::None));
                         let out = cx.push(r, s)?;
+                        if f == "content" {
+                            cx.reply().text([ci, 0], s, &out);
+                        }
                         *s = out;
                     }
+                }
+                if let Some(reason) = delta["refusal"].as_str() {
+                    cx.reply().text([ci, 1], reason, reason);
+                }
+                if let Some(f) = delta.get("function_call") {
+                    cx.reply().call(
+                        [ci, 0],
+                        &Value::Null,
+                        &f["name"],
+                        f["arguments"].as_str().unwrap_or_default(),
+                    );
                 }
                 if let Some(Value::Array(calls)) = delta.get_mut("tool_calls") {
                     for call in calls {
                         let ti = call.get("index").and_then(Value::as_u64).unwrap_or(0);
+                        record_call(call, [ci, ti], cx);
                         if let Some(Value::String(a)) = call.pointer_mut("/function/arguments") {
                             let r = self
                                 .restorers
@@ -199,6 +249,9 @@ impl Rewriter for StreamRewriter {
                     let mut r = self.restorers.remove(&k).expect("key from map");
                     let rest = cx.flush(&mut r)?;
                     if !rest.is_empty() {
+                        if k.1 == Slot::Field("content") {
+                            cx.reply().text([ci, 0], "", &rest);
+                        }
                         append(ch, k.1, &rest);
                     }
                 }

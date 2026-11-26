@@ -74,11 +74,11 @@ def check_session_conversation(page, api, session_id, output):
     page.keyboard.press('ArrowDown')
     expect(requests.last).to_be_checked()
     expect(dialog.locator('.session-messages')).to_contain_text('125 000 ₽')
-    dialog.get_by_role('button', name='Предыдущий запрос').click()
+    dialog.get_by_role('button', name='Предыдущее сообщение').click()
     expect(dialog.locator('.session-messages')).to_contain_text('ConsoleFixture_47')
     expect(dialog.locator('.session-messages')).not_to_contain_text('125 000 ₽')
-    expect(dialog.get_by_role('button', name='Предыдущий запрос')).to_be_disabled()
-    dialog.get_by_role('button', name='Следующий запрос').click()
+    expect(dialog.get_by_role('button', name='Предыдущее сообщение')).to_be_disabled()
+    dialog.get_by_role('button', name='Следующее сообщение').click()
     expect(dialog.locator('.session-message').first).to_contain_text('Проверь смету. Бюджет 125 000 ₽.')
     expect(dialog.locator('.session-message').nth(1)).to_contain_text('Смета принята. Бюджет 125 000 ₽.')
     history = dialog.locator('.session-history')
@@ -90,7 +90,7 @@ def check_session_conversation(page, api, session_id, output):
     # Distinguish two identical literals by their transmitted position and the recorded UTF-8 context.
     marks = page.evaluate("""() => {
         const root=document.createElement('div');
-        root.append(...sessionMessages({inspector:{original_request:'[user]\\nёж Atlas и Atlas',masked_request:'[user]\\nёж ANON_1 и Atlas',last_user_offset:0},
+        root.append(...sessionQuestion({inspector:{original_request:'[user]\\nёж Atlas и Atlas',masked_request:'[user]\\nёж ANON_1 и Atlas',last_user_offset:0},
           usage:{masked_items:[{original:'Atlas',token:'ANON_1'}],review_items:[{value:'Atlas',context:'и Atlas',context_span:[3,8]}]}}));
         return [...root.querySelectorAll('mark')].map(m=>[m.textContent,m.classList.contains('masked'),m.classList.contains('uncertain'),m.getAttribute('aria-description')]);
     }""")
@@ -119,6 +119,93 @@ def check_session_conversation(page, api, session_id, output):
     expect(page.locator('#d-list')).to_contain_text('98 500 ₽')
     page.get_by_role('button', name='К списку сессий').click()
     expect(page.locator('#page-title')).to_have_text('Сессии')
+
+    question = 'Проверь параметры Helm.'
+    chain = [{'role':'user', 'content':question}]
+    def send_step():
+        api('/v1/chat/completions', {'model':'fixture-model', 'messages':chain}, {'X-Kaponir-Session':'agent-steps'})
+    send_step()
+    for index in range(5):
+        call_id = f'read-{index}'
+        chain.extend([{'role':'assistant', 'content':None, 'tool_calls':[{'id':call_id, 'type':'function',
+                       'function':{'name':'read_file','arguments':'{}'}}]},
+                      {'role':'tool','tool_call_id':call_id,'content':"dbPassword: 'test''fixture'"}])
+        send_step()
+    latest = max(api('/api/v1/ui/events')['events'], key=lambda row:row['id'])
+    page.locator('#events-refresh').click()
+    page.locator('#events-table [data-session-open="'+latest['session_id']+'"]').click()
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 6')
+    expect(dialog.locator('.session-message').first).to_contain_text(question)
+    expect(dialog.locator('.conversation-timeline .reply')).to_have_count(6)
+    expect(dialog.locator('.conversation-tool summary code')).to_have_text(['read_file'] * 5)
+    steps = dialog.locator('.session-steps')
+    steps.locator('summary').focus()
+    page.keyboard.press('Enter')
+    expect(steps.get_by_text('Результат инструмента', exact=True)).to_have_count(5)
+    steps.locator('li').last.get_by_role('button', name=f'Запрос {latest["id"]}', exact=True).click()
+    wire = page.locator('#inspector-dialog .inspector-pane').last.locator('pre')
+    expect(wire.locator('mark').filter(has_text='ANON_SECRET_').first).to_be_visible()
+    expect(wire).not_to_contain_text("test''fixture")
+    page.keyboard.press('Escape')
+    expect(steps.locator('li').first).to_be_visible()
+    page.keyboard.press('Escape')
+
+
+def check_replayed_question(page, api, output):
+    from playwright.sync_api import expect
+    question = 'Проверь конфигурацию.'
+    history = [{'role':'user','content':question}]
+    session = {'X-Kaponir-Session':'replayed-question'}
+    def send():
+        return api('/v1/chat/completions', {'model':'fixture-model','messages':history}, session)
+    first = send()['choices'][0]['message']
+    second = send()['choices'][0]['message']  # the very same human submission on the wire
+    history.extend([second, {'role':'tool','tool_call_id':'read-settings','content':'resources.limits.memory = 512Mi'}])
+    send()
+    latest = max(api('/api/v1/ui/events')['events'], key=lambda r:r['id'])
+    page.locator('#events-refresh').click()
+    page.locator('#events-table [data-session-open="'+latest['session_id']+'"]').click()
+    dialog = page.locator('#session-dialog')
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 3')
+    expect(dialog.locator('.session-message:not(.reply) .message-content')).to_have_text(question)
+    timeline = dialog.locator('.conversation-timeline')
+    replies = timeline.locator('.reply .message-content')
+    expect(replies).to_have_text([first['content'],second['content'],'Лимит памяти задан.'])
+    expect(timeline).not_to_contain_text('private reasoning fixture')
+    tool = timeline.locator('.conversation-tool')
+    expect(tool).to_have_count(1)
+    expect(tool.locator('summary')).to_contain_text('read_file')
+    tool.locator('summary').focus()
+    page.keyboard.press('Enter')
+    expect(tool.locator('pre')).to_have_text(['{"path":"values.yaml"}','resources.limits.memory = 512Mi'])
+    send()  # replay a tool callback while its details are open
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 4',timeout=15000)
+    expect(replies).to_have_text([first['content'],second['content'],'Лимит памяти задан.','Проверка завершена.'])
+    expect(tool).to_have_count(1)
+    expect(tool.locator('pre').last).to_be_visible()
+    expect(tool.locator('summary')).to_be_focused()
+    expect(dialog.locator('.session-message:not(.reply)')).to_have_count(1)
+    dialog.screenshot(path=str(output/'conversation-agent-turn.png'))
+    history.extend([{'role':'assistant','content':'Проверка завершена.'},{'role':'user','content':question}])
+    send()  # a genuine next user turn, even though the words are identical
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 2 · Вызовов API · 5',timeout=15000)
+    dialog.get_by_role('button',name='Следующее сообщение').click()
+    expect(replies).to_have_text(['Проверяю конфигурацию ещё раз.'])
+    expect(tool).to_have_count(0)
+    expect(dialog.locator('.conversation-requests label strong')).to_have_text([question,question])
+    page.keyboard.press('Escape')
+    # Service calls, parallel replies and a failed call have distinct timeline semantics.
+    activity = page.evaluate('''() => {
+        const makeRow=(id,start,end,outcome="ok")=>({id,started_at_ms:start,time_ms:end,outcome});
+        const rows=[makeRow(1,10,40),makeRow(2,20,30),makeRow(3,50,60,"error"),{...makeRow(4,10,11),request_kind:"count_tokens"}];
+        const details=new Map(rows.slice(0,2).map(r=>[r.id,{reply:{parts:[{kind:"text",text:String(r.id)}]}}]));
+        const result={id:"r",name:"read",result:"original"};
+        details.get(1).tools=[result];
+        details.get(2).tools=[result,{...result,result:"changed"}];
+        return conversationActivity(rows,details).map(a=>[a.row.id,a.kind]);
+    }''')
+    assert activity == [[1,'result'],[2,'result'],[2,'text'],[1,'text'],[3,'status']], activity
+    return latest['session_id']
 
 
 def check_session_inspector(page, api, base):
@@ -200,7 +287,16 @@ def main():
         def do_POST(self):
             payload = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
             seen.append(payload)
+            assert not self.headers.get('X-Kaponir-Turn')
             text = payload['messages'][-1]['content']
+            extra = {}
+            if any(m.get('role')=='user' and m.get('content')=='Проверь конфигурацию.' for m in payload['messages']):
+                previous = sum(any(m.get('content')=='Проверь конфигурацию.' for m in q['messages']) for q in seen) - 1
+                text = ['Посмотрю настройки контейнера.','Прочитаю лимиты из values.yaml.',
+                        'Лимит памяти задан.','Проверка завершена.','Проверяю конфигурацию ещё раз.'][previous]
+                if previous == 1:
+                    extra = {'reasoning_content':'private reasoning fixture','tool_calls':[{'id':'read-settings','type':'function',
+                        'function':{'name':'read_file','arguments':'{"path":"values.yaml"}'}}]}
             if text == 'Верни первое значение сравнения.':
                 text = re.search(r'ANON_PROJ_\d+',seen[-2]['messages'][-1]['content'])[0]
             if text.startswith('Проверь смету. '):
@@ -218,7 +314,7 @@ def main():
                 usage = {'choices': [], 'usage': {'prompt_tokens': 10, 'completion_tokens': 2, 'total_tokens': 12}}
                 self.wfile.write(('data: ' + json.dumps(usage) + '\n\ndata: ' + json.dumps(usage) + '\n\ndata: [DONE]\n\n').encode())
             else:
-                self.wfile.write(json.dumps({'choices': [{'message': {'role': 'assistant', 'content': text}}], 'usage': {'prompt_tokens': 10, 'completion_tokens': 2, 'total_tokens': 12}}).encode())
+                self.wfile.write(json.dumps({'choices': [{'message': {'role': 'assistant', 'content': text, **extra}}], 'usage': {'prompt_tokens': 10, 'completion_tokens': 2, 'total_tokens': 12}}).encode())
 
     provider = ThreadingHTTPServer(('127.0.0.1', 0), Provider)
     threading.Thread(target=provider.serve_forever, daemon=True).start()
@@ -375,6 +471,7 @@ def main():
                 page.go_back()
                 page.wait_for_function("() => location.hash==='#analysis' && !document.querySelector('#tab-analysis').hidden")
                 check_session_conversation(page, api, traffic['events'][0]['session_id'], args.output)
+                replayed_session = check_replayed_question(page, api, args.output)
                 check_session_inspector(page, api, base)
                 from validate_navigation import check_navigation
                 check_navigation(page, args.output)
@@ -384,11 +481,16 @@ def main():
             stop()
             start()
             wait_for(lambda: api('/api/v1/ui/worker').get('enabled'))
-            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 5
+            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 16
+            restored_rows = sorted((row for row in api('/api/v1/ui/events')['events'] if row['session_id']==replayed_session),key=lambda row:row['id'])
+            assert len(restored_rows)==5 and len({r['turn']['id'] for r in restored_rows})==2
+            restored = api('/api/v1/ui/events/conversation',{'ids':[r['id'] for r in restored_rows]})
+            assert restored[1]['reply']['parts'][1]['name']=='read_file'
+            assert restored[2]['tools'][0]['result']=='resources.limits.memory = 512Mi'
             assert api('/api/v1/anonymize', {'text':'character','session':'legacy-chat'})['text'] == 'character'
             assert api('/api/v1/deanonymize', {'text':legacy['text'],'session':'legacy-chat'})['text'] == 'character'
             api('/api/v1/ui/worker/stop', {})
-            print('Console checks passed: sessions, SSE, privacy, rule audit, worker, restart, documents, RU/EN, 56 screenshots, including English dashboard captures.')
+            print('Console checks passed: sessions, SSE, privacy, rule audit, worker, restart, documents, RU/EN, agent turns and English dashboard captures.')
         finally:
             stop()
             log.close()

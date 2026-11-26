@@ -468,6 +468,10 @@ pub struct Cx<'a> {
 }
 
 impl Cx<'_> {
+    pub(crate) fn reply(&mut self) -> &mut crate::conversation::Reply {
+        self.usage.reply.get_or_insert_with(Default::default)
+    }
+
     /// Маскирует блок текста с кэшем сессии.
     pub fn mask(&mut self, text: &str) -> anyhow::Result<String> {
         if text.trim().is_empty() {
@@ -500,8 +504,28 @@ impl Cx<'_> {
     /// Маскирование с полным отчётом, без кэша. Значения из памяти сессии маскируются
     /// теми же токенами.
     pub fn mask_full(&mut self, input: &Input<'_>) -> anyhow::Result<Masked> {
+        let edits = self.occurrences.edits(input.text);
+        self.mask_with_edits(input, edits)
+    }
+
+    pub(crate) fn mask_tool_field(&mut self, key: &str, text: &str) -> anyhow::Result<String> {
+        let Some(credential) =
+            kaponir_recognizers::kv::credential_field(self.engine.lexicon(), key, text)
+        else {
+            return self.mask(text);
+        };
+        let mut edits = self.occurrences.edits(text).unwrap_or_default();
+        edits.additional_masks.push(credential);
+        Ok(self.mask_with_edits(&Input::text(text), Some(edits))?.text)
+    }
+
+    fn mask_with_edits(
+        &mut self,
+        input: &Input<'_>,
+        edits: Option<kaponir_core::engine::PositionEdits>,
+    ) -> anyhow::Result<Masked> {
         self.opts.known = std::mem::take(&mut self.session.known);
-        let r = match self.occurrences.edits(input.text) {
+        let r = match edits {
             Some(edits) => {
                 self.engine
                     .mask_without_s1_positioned(input, &self.opts, &mut *self.vault, &edits)

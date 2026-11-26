@@ -9,8 +9,10 @@
 //! ```
 
 pub mod anthropic;
+mod conversation;
 mod dataset;
 pub mod discovery;
+mod inline_file;
 mod learning;
 mod metrics;
 mod model_json;

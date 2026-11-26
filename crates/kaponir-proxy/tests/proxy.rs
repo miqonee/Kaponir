@@ -1604,3 +1604,232 @@ async fn session_metadata_groups_requests_and_sse_chunks_without_revealing_clien
         .unwrap();
     assert_eq!(exported["documents"].as_array().unwrap().len(), 2);
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn conversation_keeps_public_reply_text_and_real_tools_for_json_and_sse() {
+    let (proxy, _) = setup(Some("console-token")).await;
+    let auth = [("authorization", "Bearer console-token")];
+    let mut expected_calls = Vec::new();
+    for (route, call_id) in [("messages", "t1"), ("chat/completions", "c1")] {
+        for stream in [false, true] {
+            let body = json!({"model":"m","stream":stream,"messages":[{"role":"user","content":ORIGINAL}]});
+            let response = post_json(format!("{proxy}/v1/{route}"), &body, &auth).await;
+            assert_eq!(response.status(), 200);
+            response.bytes().await.unwrap();
+            expected_calls.push(call_id);
+        }
+    }
+    let batch = json!({"ids":[1,2,3,4]});
+    let url = format!("{proxy}/api/v1/ui/events/conversation");
+    assert_eq!(post_json(url.clone(), &batch, &[]).await.status(), 401);
+    let steps: Value = post_json(url.clone(), &batch, &auth)
+        .await
+        .json_or_panic()
+        .await;
+    assert_eq!(steps.as_array().unwrap().len(), 4);
+    for (step, expected_id) in steps.as_array().unwrap().iter().zip(expected_calls) {
+        assert_eq!(step["outcome"], "ok");
+        let parts = step["reply"]["parts"].as_array().unwrap();
+        assert_eq!(
+            parts.len(),
+            2,
+            "reasoning and arguments do not become model replies"
+        );
+        assert_eq!(parts[0]["kind"], "text");
+        assert_eq!(parts[0]["text"], ORIGINAL);
+        assert_no_leaks(&parts[0]["wire"]);
+        assert_eq!(parts[1]["kind"], "call");
+        assert_eq!(parts[1]["name"], "bash");
+        assert_eq!(parts[1]["id"], expected_id);
+        let args: Value = serde_json::from_str(parts[1]["text"].as_str().unwrap()).unwrap();
+        assert_eq!(args["cmd"], parts[0]["wire"]);
+        assert!(!step["restore_marks"].as_array().unwrap().is_empty());
+        assert!(step.get("inspector").is_none());
+    }
+    assert_eq!(
+        post_json(url, &json!({"ids":vec![1;33]}), &auth)
+            .await
+            .status(),
+        400
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn helm_files_and_tool_steps_are_masked_at_the_provider_and_visible_in_the_inspector() {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    let seen: Seen = Default::default();
+    async fn capture(Axs(seen): Axs<Seen>, Json(body): Json<Value>) -> Json<Value> {
+        seen.lock().unwrap().push(body);
+        Json(
+            json!({"choices":[{"message":{"content":"OK"}}],"content":[{"type":"text","text":"OK"}]}),
+        )
+    }
+    let up = spawn(
+        Router::new()
+            .route("/v1/chat/completions", post(capture))
+            .route("/v1/messages", post(capture))
+            .with_state(seen.clone()),
+    )
+    .await;
+    let proxy = spawn(kaponir_proxy::router(state(&up, None))).await;
+    let chart = "dbPassword: 'demo''tail # keep this private' # comment\nstorage: {secretKey: 'violet, frost', accessKey: autumn breeze}\nreplicas: 3";
+    let prefix = "data:application/yaml;base64,";
+    let file = json!({"type":"file","file":{"filename":"values.yaml","file_data":format!("{prefix}{}",STANDARD.encode(chart))}});
+    let root = json!({"role":"user","content":"Проверь мой чарт"});
+    let post = |path: &str, messages: Vec<Value>| {
+        let url = format!("{proxy}{path}");
+        async move {
+            post_json(
+                url,
+                &json!({"model":"m","max_tokens":20,"messages":messages}),
+                &[("x-kaponir-session", "helm")],
+            )
+            .await
+        }
+    };
+    assert_eq!(
+        post(
+            "/v1/chat/completions",
+            vec![json!({"role":"user","content":[file]})]
+        )
+        .await
+        .status(),
+        200
+    );
+    let wire = seen.lock().unwrap()[0]["messages"][0]["content"][0]["file"]["file_data"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let masked =
+        String::from_utf8(STANDARD.decode(wire.strip_prefix(prefix).unwrap()).unwrap()).unwrap();
+    assert!(
+        masked.contains("dbPassword: 'ANON_SECRET_")
+            && masked.contains("' # comment\nstorage: {secretKey: 'ANON_SECRET_")
+            && masked.contains("', accessKey: ANON_SECRET_")
+            && masked.ends_with("}\nreplicas: 3"),
+        "{masked}"
+    );
+    for fragment in ["demo", "tail", "violet", "frost", "autumn", "breeze"] {
+        assert!(!masked.contains(fragment));
+    }
+    let restored: Value = post_json(
+        format!("{proxy}/api/v1/deanonymize"),
+        &json!({"text": masked, "session": "helm"}),
+        &[],
+    )
+    .await
+    .json_or_panic()
+    .await;
+    assert_eq!(restored["text"], chart);
+    let mut history = vec![root];
+    assert_eq!(post("/v1/messages", history.clone()).await.status(), 200);
+    for n in 0..5 {
+        history.push(json!({"role":"assistant","content":[{"type":"tool_use","id":format!("c{n}"),"name":"read","input":{}}]}));
+        history.push(json!({"role":"user","content":[{"type":"tool_result","tool_use_id":format!("c{n}"),"content":[{"type":"text","text":chart}]}]}));
+        assert_eq!(post("/v1/messages", history.clone()).await.status(), 200);
+    }
+    let snapshot = traffic_snapshot(&proxy, 7).await;
+    let events = snapshot["traffic"]["events"].as_array().unwrap();
+    let calls = &events[..6];
+    assert!(
+        calls
+            .iter()
+            .all(|e| e["turn"]["id"].is_string() && e["turn"]["id"] == calls[0]["turn"]["id"])
+    );
+    assert_eq!(calls[0]["turn"]["step"], "tool");
+    assert_eq!(calls[5]["turn"]["step"], "user");
+    assert!(!snapshot.to_string().contains("Проверь мой чарт"));
+    let event_id = calls[0]["id"].as_u64().unwrap();
+    let detail: Value = reqwest::get(format!("{proxy}/api/v1/ui/events/{event_id}"))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let insp = &detail["inspector"];
+    assert!(insp["original_request"].as_str().unwrap().contains(chart));
+    assert!(insp["masked_request"].as_str().unwrap().contains(&masked));
+    let last = seen.lock().unwrap().last().unwrap().clone();
+    assert_eq!(
+        last["messages"].as_array().unwrap().last().unwrap()["content"][0]["content"][0]["text"],
+        masked
+    );
+    // Structured tool arguments carry password keys separately from the scalar.
+    let opaque = "test; ASCII and \"quotes\"!";
+    let args = json!({"helm":{"dbPassword":opaque,"secretKey":"spring","accessKey":"winter"},
+        "env":[{"name":"DB_PASSWORD","value":opaque}]});
+    let calls = vec![
+        json!({"role":"user","content":"install"}),
+        json!({"role":"assistant","tool_calls":[{"id":"c","type":"function","function":{"name":"configure","arguments":args.to_string()}}]}),
+        json!({"role":"tool","tool_call_id":"c","content":"ok"}),
+    ];
+    assert_eq!(post("/v1/chat/completions", calls).await.status(), 200);
+    let sent=seen.lock().unwrap().last().unwrap()["messages"][1]["tool_calls"][0]["function"]["arguments"].as_str().unwrap().to_owned();
+    let inner: Value = serde_json::from_str(&sent).unwrap();
+    assert!(
+        !sent.contains("ASCII")
+            && inner["helm"]["dbPassword"]
+                .as_str()
+                .unwrap()
+                .starts_with("ANON_SECRET_")
+    );
+    assert_eq!(inner["helm"]["dbPassword"], inner["env"][0]["value"]);
+    for (key, original) in [("secretKey", "spring"), ("accessKey", "winter")] {
+        assert!(
+            inner["helm"][key]
+                .as_str()
+                .unwrap()
+                .starts_with("ANON_SECRET_")
+        );
+        assert!(!sent.contains(original));
+    }
+    let wrapped_key = "outside-ghp_1234567890abcdefghijklmnopqrstuvwx123456-tail";
+    let extra = json!({"role":"user","content":format!("password: '{wrapped_key}'")});
+    assert_eq!(
+        post("/v1/chat/completions", vec![extra]).await.status(),
+        200
+    );
+    let masked = seen.lock().unwrap().last().unwrap()["messages"][0]["content"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(
+        masked.starts_with("password: 'ANON_SECRET_")
+            && !masked.contains("tail")
+            && !masked.contains("outside")
+    );
+    let long_context = vec![
+        json!({"role":"system","content":"context ".repeat(4400)}),
+        json!({"role":"user","content":"password: 'short test value'"}),
+        json!({"role":"tool","content":"finished"}),
+    ];
+    assert_eq!(
+        post("/v1/chat/completions", long_context).await.status(),
+        200
+    );
+    let recent = traffic_snapshot(&proxy, 10).await;
+    let id = recent["traffic"]["events"][0]["id"].as_u64().unwrap();
+    let event: Value = reqwest::get(format!("{proxy}/api/v1/ui/events/{id}"))
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let excerpt = &event["inspector"]["turn_excerpt"];
+    assert_eq!(excerpt["original"], "password: 'short test value'");
+    assert!(excerpt["masked"].as_str().unwrap().contains("ANON_SECRET_"));
+    assert!(!recent.to_string().contains("short test value"));
+    for file in [
+        json!({"filename":"values.yaml","file_data":"**invalid**"}),
+        json!({"filename":"values.yaml","file_id":"file-id"}),
+        json!({"filename":"chart.tgz","file_data":"binary"}),
+    ] {
+        let res = post(
+            "/v1/chat/completions",
+            vec![json!({"role":"user","content":[{"type":"file","file":file}]})],
+        )
+        .await;
+        assert_eq!(res.status(), 422);
+    }
+    assert_eq!(seen.lock().unwrap().len(), 10);
+}

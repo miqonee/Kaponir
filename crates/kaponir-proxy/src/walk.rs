@@ -41,8 +41,18 @@ pub(crate) fn mask_leaves(v: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> 
             }
         }
         Value::Object(o) => {
-            for (_, x) in o.iter_mut() {
-                mask_leaves(x, cx)?;
+            let name = o.get("name").and_then(Value::as_str).map(str::to_owned);
+            for (key, x) in o.iter_mut() {
+                if let Value::String(value) = x {
+                    let field = if key == "value" {
+                        name.as_deref().unwrap_or(key)
+                    } else {
+                        key
+                    };
+                    *value = cx.mask_tool_field(field, value)?;
+                } else {
+                    mask_leaves(x, cx)?;
+                }
             }
         }
         _ => {}
