@@ -511,11 +511,7 @@ async fn proxy_request(
                 format!("masking failed, request was not sent: {e:#}"),
             )
         })?;
-    let mask_total_us = mask_started.elapsed().as_micros() as u64;
-    let classifier_us = usage.classifier_us.min(mask_total_us);
-    let mask_us = mask_total_us.saturating_sub(classifier_us);
-    span.mask_us.fetch_add(mask_us, Relaxed);
-    span.classifier_us.fetch_add(classifier_us, Relaxed);
+    span.record_mask_time(mask_started.elapsed(), usage.classifier_us);
     {
         let masked = crate::conversation::Transcript::capture(&json);
         let masked_payload_json = if has_images {
@@ -584,23 +580,7 @@ async fn proxy_request(
             outgoing = crate::providers::headers(outgoing, kind, p);
             attempted.push(p.id.clone());
         }
-        *span
-            .connection_id
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            provider.as_ref().map(|p| p.id.clone());
-        *span
-            .upstream_url
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(target_url.clone());
-        span.attempts
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(
-                provider
-                    .as_ref()
-                    .map_or_else(|| kind.to_string(), |p| p.id.clone()),
-            );
+        span.record_upstream_attempt(provider.as_ref().map(|p| p.id.as_str()), kind, &target_url);
         crate::image_protection::upstream_stage(&span, crate::image_protection::Stage::Sending);
         span.sent.store(true, Relaxed);
         let up_started = std::time::Instant::now();
@@ -612,8 +592,7 @@ async fn proxy_request(
             .body(body.clone())
             .send()
             .await;
-        span.upstream_us
-            .fetch_add(up_started.elapsed().as_micros() as u64, Relaxed);
+        span.record_upstream_time(up_started.elapsed());
         let resp = send_res.map_err(|e| {
             let err_kind = if e.is_timeout() {
                 "timeout"
@@ -686,24 +665,13 @@ async fn proxy_request(
 
     let up_body_started = std::time::Instant::now();
     let bytes = resp.bytes().await.map_err(|e| {
-        let target_url = span
-            .upstream_url
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
-            .unwrap_or_default();
-        span.set_error(target_url.clone(), None, "body_read_error", e.to_string());
+        let target_url = span.upstream_url();
+        span.set_error(target_url, None, "body_read_error", e.to_string());
         error(StatusCode::BAD_GATEWAY, format!("upstream: {e}"))
     })?;
-    span.upstream_us
-        .fetch_add(up_body_started.elapsed().as_micros() as u64, Relaxed);
+    span.record_upstream_time(up_body_started.elapsed());
     if !status.is_success() {
-        let target_url = span
-            .upstream_url
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
-            .unwrap_or_default();
+        let target_url = span.upstream_url();
         let detail = serde_json::from_slice::<Value>(&bytes)
             .ok()
             .and_then(|v| {
@@ -746,8 +714,7 @@ async fn proxy_request(
         Api::Anthropic => anthropic::restore_response(&mut v, cx),
         Api::OpenAi => openai::restore_response(&mut v, cx),
     });
-    span.restore_us
-        .fetch_add(restore_started.elapsed().as_micros() as u64, Relaxed);
+    span.record_restore_time(restore_started.elapsed());
     let body = match restored.and_then(|((), usage)| {
         span.add(&usage);
         if capture_title && crate::opencode::completion_status(&v) != Some(false) {
@@ -804,9 +771,7 @@ impl StreamState {
             }
             Ok(out)
         });
-        self.span
-            .restore_us
-            .fetch_add(restore_started.elapsed().as_micros() as u64, Relaxed);
+        self.span.record_restore_time(restore_started.elapsed());
         let r = r.map(|(out, usage)| {
             self.span.add(&usage);
             if let Some(success) = title_end
@@ -857,19 +822,11 @@ fn restore_stream(
             }
             let up_wait = std::time::Instant::now();
             let next_chunk = s.up.next().await;
-            s.span
-                .upstream_us
-                .fetch_add(up_wait.elapsed().as_micros() as u64, Relaxed);
+            s.span.record_upstream_time(up_wait.elapsed());
             let (events, end) = match next_chunk {
                 Some(Ok(b)) => (s.parser.push(&b), false),
                 Some(Err(e)) => {
-                    let target_url = s
-                        .span
-                        .upstream_url
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .clone()
-                        .unwrap_or_default();
+                    let target_url = s.span.upstream_url();
                     s.span
                         .set_error(target_url, None, "stream_error", e.to_string());
                     s.st.stream_errors
