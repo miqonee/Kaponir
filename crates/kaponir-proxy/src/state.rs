@@ -3,7 +3,8 @@
 //! целиком, а операции, начатые со старым движком, его же и дорабатывают.
 
 use kaponir_core::{
-    Engine, Escape, Input, Known, MaskOptions, Masked, Principal, Restored, StreamRestorer,
+    Engine, Escape, Input, Known, MaskOptions, Masked, Principal, Restored, Scope, StreamRestorer,
+    rules::Rule,
 };
 use kaponir_vault::SqliteVault;
 use std::collections::hash_map::Entry;
@@ -16,27 +17,29 @@ use crate::{Control, ProxyConfig, RulePattern, RuleSet};
 
 pub(crate) enum RuleEditError {
     ReadOnly,
-    RevisionChanged,
-    Read(anyhow::Error),
+    Conflict(anyhow::Error),
+    Internal(anyhow::Error),
     Edit(anyhow::Error),
 }
 
-pub(crate) fn check_rule_revision(
+fn check_rule_revision(
     ctl: &dyn Control,
-    scope: kaponir_core::Scope,
+    scope: Scope,
     expected: Option<&str>,
 ) -> Result<(), RuleEditError> {
     if let Some(expected) = expected {
         let current = ctl
             .rules()
-            .map_err(RuleEditError::Read)?
+            .map_err(RuleEditError::Internal)?
             .iter()
             .find(|set| set.scope == scope)
             .map(RuleSet::revision)
             .transpose()
-            .map_err(RuleEditError::Read)?;
+            .map_err(RuleEditError::Internal)?;
         if current.as_deref() != Some(expected) {
-            return Err(RuleEditError::RevisionChanged);
+            return Err(RuleEditError::Conflict(anyhow::anyhow!(
+                "rule_list_changed"
+            )));
         }
     }
     Ok(())
@@ -393,9 +396,72 @@ impl State {
         &self.owner
     }
 
+    pub(crate) fn reload_rules(&self, ctl: &dyn Control) -> anyhow::Result<()> {
+        self.replace_engine(ctl.build_engine()?);
+        Ok(())
+    }
+
+    async fn edit_rules<T>(
+        &self,
+        change: impl FnOnce(&dyn Control) -> Result<T, RuleEditError>,
+    ) -> Result<T, RuleEditError> {
+        let _rules = self.rule_changes.lock().await;
+        let ctl = self.control.as_deref().ok_or(RuleEditError::ReadOnly)?;
+        let result = change(ctl)?;
+        self.reload_rules(ctl).map_err(RuleEditError::Internal)?;
+        Ok(result)
+    }
+
+    pub(crate) async fn add_rule(&self, scope: Scope, rule: Rule) -> Result<(), RuleEditError> {
+        self.edit_rules(|ctl| ctl.add_rule(scope, rule).map_err(RuleEditError::Edit))
+            .await
+    }
+
+    pub(crate) async fn remove_rule(
+        &self,
+        scope: Scope,
+        index: usize,
+        revision: Option<&str>,
+    ) -> Result<Rule, RuleEditError> {
+        self.edit_rules(|ctl| {
+            // Deletion shifts indices. Check the caller's snapshot before touching the file.
+            check_rule_revision(ctl, scope, revision)?;
+            ctl.remove_rule(scope, index).map_err(RuleEditError::Edit)
+        })
+        .await
+    }
+
+    pub(crate) async fn set_corp_domains(
+        &self,
+        scope: Scope,
+        domains: &[String],
+        revision: Option<&str>,
+    ) -> Result<(), RuleEditError> {
+        self.edit_rules(|ctl| {
+            check_rule_revision(ctl, scope, revision)?;
+            ctl.set_corp_domains(scope, domains)
+                .map_err(RuleEditError::Edit)
+        })
+        .await
+    }
+
+    pub(crate) async fn set_rules_disabled(
+        &self,
+        scope: Scope,
+        indices: &[usize],
+        revision: &str,
+        disabled: bool,
+    ) -> Result<(), RuleEditError> {
+        self.edit_rules(|ctl| {
+            ctl.set_rules_disabled(scope, indices, revision, disabled)
+                .map_err(RuleEditError::Conflict)
+        })
+        .await
+    }
+
     pub(crate) async fn update_rule_pattern(
         &self,
-        scope: kaponir_core::Scope,
+        scope: Scope,
         index: usize,
         revision: &str,
         pattern: RulePattern,
@@ -407,7 +473,7 @@ impl State {
             .update_rule_pattern(scope, index, revision, pattern)
             .map_err(|err| {
                 if err.to_string() == "rule_list_changed" {
-                    RuleEditError::RevisionChanged
+                    RuleEditError::Conflict(err)
                 } else {
                     RuleEditError::Edit(err)
                 }

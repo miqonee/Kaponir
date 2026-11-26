@@ -274,10 +274,7 @@ async fn collect(
         return Ok(summary(&saved));
     }
     let items = if let Some(source) = req.from {
-        if !req.selection.keys.is_empty()
-            || req.selection.snapshot.is_some()
-            || !req.selection.excluded.is_empty()
-        {
+        if req.selection.has_explicit_selection() {
             return Err(bad(anyhow::anyhow!("invalid_selection")));
         }
         crate::review::items(&st)

@@ -1115,15 +1115,19 @@ async fn selection(
 #[derive(Default, Serialize, Deserialize)]
 pub(crate) struct Selection {
     #[serde(default)]
-    pub keys: Vec<String>,
-    pub snapshot: Option<String>,
+    keys: Vec<String>,
+    snapshot: Option<String>,
     #[serde(default)]
-    pub excluded: Vec<String>,
+    excluded: Vec<String>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub prefixes: BTreeMap<String, String>,
+    prefixes: BTreeMap<String, String>,
 }
 
 impl Selection {
+    pub(crate) fn has_explicit_selection(&self) -> bool {
+        !self.keys.is_empty() || self.snapshot.is_some() || !self.excluded.is_empty()
+    }
+
     pub(crate) fn resolve(
         &self,
         st: &Shared,

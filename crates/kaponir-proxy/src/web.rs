@@ -19,7 +19,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::server::{ApiError, authorized, error, internal};
-use crate::state::{RuleEditError, check_rule_revision};
+use crate::state::RuleEditError;
 use crate::{RulePattern, Shared};
 
 const INDEX: &str = include_str!("../assets/index.html");
@@ -254,17 +254,15 @@ fn rule_edit_error(err: RuleEditError) -> ApiError {
             StatusCode::NOT_IMPLEMENTED,
             "rules are read-only on this server",
         ),
-        RuleEditError::RevisionChanged => error(StatusCode::CONFLICT, "rule_list_changed"),
-        RuleEditError::Read(err) => internal(err),
+        RuleEditError::Conflict(err) => error(StatusCode::CONFLICT, err.to_string()),
+        RuleEditError::Internal(err) => internal(err),
         RuleEditError::Edit(err) => bad(err),
     }
 }
 
 /// Пересобирает движок после изменения правил.
 fn reload(st: &Shared) -> Result<(), ApiError> {
-    let engine = control(st)?.build_engine().map_err(internal)?;
-    st.replace_engine(engine);
-    Ok(())
+    st.reload_rules(control(st)?).map_err(internal)
 }
 
 fn bad(e: impl std::fmt::Display) -> ApiError {
@@ -1576,7 +1574,6 @@ async fn update_audit_rule(
     Json(req): Json<AuditRuleReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
-    let _rules = st.rule_changes.lock().await;
     let indices = if req.indices.is_empty() {
         vec![req.index.ok_or_else(|| bad("select at least one rule"))?]
     } else {
@@ -1585,11 +1582,9 @@ async fn update_audit_rule(
     if indices.len() > 10_000 {
         return Err(bad("too many selected rules"));
     }
-    control(&st)?
-        .set_rules_disabled(req.scope, &indices, &req.revision, req.disabled)
-        .map_err(|e| error(StatusCode::CONFLICT, e.to_string()))?;
-    reload(&st)?;
-    drop(_rules);
+    st.set_rules_disabled(req.scope, &indices, &req.revision, req.disabled)
+        .await
+        .map_err(rule_edit_error)?;
     audit_rules(State(st), headers).await
 }
 
@@ -1619,7 +1614,6 @@ async fn add_rule(
     Json(req): Json<AddRuleReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
-    let _rules = st.rule_changes.lock().await;
     let mut rule = req.rule;
     let patterns = [&rule.value, &rule.template, &rule.regex]
         .iter()
@@ -1639,8 +1633,9 @@ async fn add_rule(
     if rule.kind.is_empty() || !rule.kind.chars().all(|c| c.is_ascii_alphanumeric()) {
         return Err(bad("kind must be latin letters and digits, e.g. SVC"));
     }
-    control(&st)?.add_rule(req.scope, rule).map_err(bad)?;
-    reload(&st)?;
+    st.add_rule(req.scope, rule)
+        .await
+        .map_err(rule_edit_error)?;
     Ok(Json(json!({"ok": true})).into_response())
 }
 
@@ -1656,12 +1651,10 @@ async fn remove_rule(
     Query(query): Query<RuleRevisionQuery>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
-    let _rules = st.rule_changes.lock().await;
-    let ctl = control(&st)?;
-    // Rule indices change on deletion. A stale browser must never remove the next rule.
-    check_rule_revision(ctl, scope, query.revision.as_deref()).map_err(rule_edit_error)?;
-    let removed = ctl.remove_rule(scope, index).map_err(bad)?;
-    reload(&st)?;
+    let removed = st
+        .remove_rule(scope, index, query.revision.as_deref())
+        .await
+        .map_err(rule_edit_error)?;
     Ok(Json(json!({"removed": removed})).into_response())
 }
 
@@ -1697,11 +1690,9 @@ async fn set_domains(
     Json(req): Json<DomainsReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
-    let _rules = st.rule_changes.lock().await;
-    let ctl = control(&st)?;
-    check_rule_revision(ctl, scope, query.revision.as_deref()).map_err(rule_edit_error)?;
-    ctl.set_corp_domains(scope, &req.domains).map_err(bad)?;
-    reload(&st)?;
+    st.set_corp_domains(scope, &req.domains, query.revision.as_deref())
+        .await
+        .map_err(rule_edit_error)?;
     Ok(Json(json!({"ok": true})).into_response())
 }
 

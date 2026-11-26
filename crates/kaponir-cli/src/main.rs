@@ -1600,11 +1600,7 @@ fn setup_wizard(home: &Home, language: &str) -> Result<()> {
 
 fn models_cmd(home: &Home, action: ModelsCmd) -> Result<ExitCode> {
     let cfg = home.load_config()?;
-    let model_dir = if cfg.worker.model_dir.is_absolute() {
-        cfg.worker.model_dir.clone()
-    } else {
-        home.dir.join(&cfg.worker.model_dir)
-    };
+    let model_dir = cfg.worker.model_dir(&home.dir);
     let s1_ngram_path = home.s1_dir().join(kaponir_s1::ngram::MODEL_FILE);
     let runtime_path = cfg.worker.runtime.clone().unwrap_or_else(|| {
         model_dir

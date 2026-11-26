@@ -938,7 +938,7 @@ mod tests {
         span.streaming.store(true, Relaxed);
         span.sent.store(true, Relaxed);
         span.status.store(200, Relaxed);
-        for output in [1, 2, 5, 5] {
+        for output in [1, 2, 5, 5, 3] {
             span.add(&Usage {
                 prompt_tokens: 10,
                 completion_tokens: output,
@@ -958,6 +958,24 @@ mod tests {
         assert_eq!(snapshot.total.requests, 1);
         assert_eq!(snapshot.total.usage.total_tokens, 15);
         assert_eq!(snapshot.events[0].outcome, "ok");
+
+        // A second request can report input and output separately, with an explicit total.
+        let second = Span::new(traffic.clone(), "anthropic");
+        second.add(&Usage {
+            prompt_tokens: 8,
+            total_tokens: 19,
+            ..Default::default()
+        });
+        second.add(&Usage {
+            completion_tokens: 4,
+            ..Default::default()
+        });
+        second.finish();
+        drop(second);
+        let totals = traffic.snapshot().total.usage;
+        assert_eq!(totals.prompt_tokens, 18);
+        assert_eq!(totals.completion_tokens, 9);
+        assert_eq!(totals.total_tokens, 34);
     }
 
     #[test]
