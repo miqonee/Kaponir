@@ -1672,7 +1672,7 @@ async fn helm_files_and_tool_steps_are_masked_at_the_provider_and_visible_in_the
     )
     .await;
     let proxy = spawn(kaponir_proxy::router(state(&up, None))).await;
-    let chart = "dbPassword: 'demo''tail # keep this private' # comment\nreplicas: 3";
+    let chart = "dbPassword: 'demo''tail # keep this private' # comment\nstorage: {secretKey: 'violet, frost', accessKey: autumn breeze}\nreplicas: 3";
     let prefix = "data:application/yaml;base64,";
     let file = json!({"type":"file","file":{"filename":"values.yaml","file_data":format!("{prefix}{}",STANDARD.encode(chart))}});
     let root = json!({"role":"user","content":"Проверь мой чарт"});
@@ -1704,10 +1704,23 @@ async fn helm_files_and_tool_steps_are_masked_at_the_provider_and_visible_in_the
         String::from_utf8(STANDARD.decode(wire.strip_prefix(prefix).unwrap()).unwrap()).unwrap();
     assert!(
         masked.contains("dbPassword: 'ANON_SECRET_")
-            && masked.ends_with("' # comment\nreplicas: 3"),
+            && masked.contains("' # comment\nstorage: {secretKey: 'ANON_SECRET_")
+            && masked.contains("', accessKey: ANON_SECRET_")
+            && masked.ends_with("}\nreplicas: 3"),
         "{masked}"
     );
-    assert!(!masked.contains("demo") && !masked.contains("tail"));
+    for fragment in ["demo", "tail", "violet", "frost", "autumn", "breeze"] {
+        assert!(!masked.contains(fragment));
+    }
+    let restored: Value = post_json(
+        format!("{proxy}/api/v1/deanonymize"),
+        &json!({"text": masked, "session": "helm"}),
+        &[],
+    )
+    .await
+    .json_or_panic()
+    .await;
+    assert_eq!(restored["text"], chart);
     let mut history = vec![root];
     assert_eq!(post("/v1/messages", history.clone()).await.status(), 200);
     for n in 0..5 {
@@ -1743,7 +1756,8 @@ async fn helm_files_and_tool_steps_are_masked_at_the_provider_and_visible_in_the
     );
     // Structured tool arguments carry password keys separately from the scalar.
     let opaque = "test; ASCII and \"quotes\"!";
-    let args = json!({"helm":{"dbPassword":opaque},"env":[{"name":"DB_PASSWORD","value":opaque}]});
+    let args = json!({"helm":{"dbPassword":opaque,"secretKey":"spring","accessKey":"winter"},
+        "env":[{"name":"DB_PASSWORD","value":opaque}]});
     let calls = vec![
         json!({"role":"user","content":"install"}),
         json!({"role":"assistant","tool_calls":[{"id":"c","type":"function","function":{"name":"configure","arguments":args.to_string()}}]}),
@@ -1760,6 +1774,15 @@ async fn helm_files_and_tool_steps_are_masked_at_the_provider_and_visible_in_the
                 .starts_with("ANON_SECRET_")
     );
     assert_eq!(inner["helm"]["dbPassword"], inner["env"][0]["value"]);
+    for (key, original) in [("secretKey", "spring"), ("accessKey", "winter")] {
+        assert!(
+            inner["helm"][key]
+                .as_str()
+                .unwrap()
+                .starts_with("ANON_SECRET_")
+        );
+        assert!(!sent.contains(original));
+    }
     let wrapped_key = "outside-ghp_1234567890abcdefghijklmnopqrstuvwx123456-tail";
     let extra = json!({"role":"user","content":format!("password: '{wrapped_key}'")});
     assert_eq!(

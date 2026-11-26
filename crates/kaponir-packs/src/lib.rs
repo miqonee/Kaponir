@@ -316,6 +316,10 @@ mod tests {
         let en = builtin("lang-en").unwrap();
         assert!(en.lexicon().is_word("payments"));
         assert_eq!(en.lexicon().key_kind("secretaccesskey"), Some("SECRET"));
+        let tech = builtin("domain-tech").unwrap();
+        for key in ["secretKey", "accessKey"] {
+            assert_eq!(tech.lexicon().key_kind(key), Some("SECRET"));
+        }
         let web = builtin("domain-web").unwrap();
         assert!(web.lexicon().tlds.contains("ru"));
         assert!(web.lexicon().public_domains.contains("github.com"));
