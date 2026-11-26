@@ -1101,13 +1101,26 @@ impl Engine {
         let mut accepted = std::collections::BTreeMap::<usize, usize>::new();
         for i in first.into_iter().chain(deferred) {
             let c = &scored[i].c;
-            let overlaps = accepted
+            let mut overlaps = accepted
                 .range(..c.end)
-                .next_back()
-                .is_some_and(|(_, &j)| scored[j].c.end > c.start);
-            if !overlaps {
-                accepted.insert(c.start, i);
+                .rev()
+                .take_while(|(_, j)| scored[**j].c.end > c.start);
+            if c.directory_domain.is_some() {
+                let overlaps: Vec<_> = overlaps.map(|(&start, &j)| (start, j)).collect();
+                if overlaps
+                    .iter()
+                    .any(|&(_, j)| !c.covers_directory_domain(&scored[j].c))
+                {
+                    continue;
+                }
+                // Replace nested domain masks only after every overlap can be covered.
+                for (start, _) in overlaps {
+                    accepted.remove(&start);
+                }
+            } else if overlaps.next().is_some() {
+                continue;
             }
+            accepted.insert(c.start, i);
         }
         accepted.into_values().collect()
     }

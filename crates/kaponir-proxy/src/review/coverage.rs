@@ -36,29 +36,26 @@ impl ActiveRules {
         let mut rules = Vec::new();
         let mut scoped = Vec::with_capacity(sets.len());
         for set in sets {
-            let mut file = set.file;
-            for (index, rule) in file
+            for (index, rule) in set
+                .file
                 .rules
-                .iter_mut()
+                .iter()
                 .enumerate()
                 .filter(|(_, r)| !r.disabled)
             {
-                let slot = rules.len();
                 rules.push(json!({
                     "id": rule.id, "scope": set.scope, "index": index,
                     "action": rule.action, "kind": rule.kind, "literal": rule.value.is_some(),
                     "path_prefix": rule.directory_prefix(set.scope), "value": rule.value
                 }));
-                // IDs in user-managed files can be empty or reused. Keep the exact UI address.
-                rule.id = slot.to_string();
             }
             scoped.push(ScopedRules {
                 scope: set.scope,
-                file,
+                file: set.file,
             });
         }
         Ok(Self {
-            matcher: RulesRecognizer::new(&scoped)?,
+            matcher: RulesRecognizer::with_rule_indices(&scoped)?,
             rules,
         })
     }
@@ -193,7 +190,9 @@ impl ActiveRules {
                             && end <= c.end
                             && c.origin.rank() >= proposed.origin.rank()
                     }
-                    Polarity::Mask => c.start < end && start < c.end,
+                    Polarity::Mask => {
+                        c.start < end && start < c.end && !proposed.covers_directory_domain(c)
+                    }
                 })
                 .max_by_key(|c| (c.polarity == Polarity::Keep, c.origin.rank(), c.len()))?;
             return Some(json!({
@@ -351,6 +350,37 @@ mod tests {
                     .is_none()
             );
         }
+    }
+
+    #[test]
+    fn enforced_domain_rule_still_blocks_a_home_directory() {
+        let prefix = "/home/group.demo/alice/";
+        let value = "/home/group.demo/alice/notes/report.txt";
+        let directory = Rule::for_directory(prefix, Scope::Team).unwrap();
+        let directory_id = directory.id.clone();
+        let domain = Rule {
+            id: "required-domain".into(),
+            kind: "DOM".into(),
+            enforced: true,
+            ..literal("group.demo")
+        };
+        let rules = ActiveRules::new(vec![
+            set(Scope::Global, vec![domain]),
+            set(Scope::Team, vec![directory]),
+        ])
+        .unwrap();
+        let context = format!("Read {value}, then verify.");
+        assert!(
+            rules
+                .covering_finding(value, &context, None, false, "PATH")
+                .is_none()
+        );
+        let row = json!({"value":value, "context":context});
+        let conflict = rules
+            .directory_conflict(&row, &directory_id, prefix)
+            .unwrap();
+        assert_eq!(conflict["rule"]["id"], "required-domain");
+        assert_eq!(conflict["matched"], "group.demo");
     }
 
     #[test]

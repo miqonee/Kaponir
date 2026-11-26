@@ -19,6 +19,7 @@ struct Meta {
     category: Category,
     strategy: Option<kaponir_core::Strategy>,
     form: Option<TokenForm>,
+    directory_domain: Option<[usize; 2]>,
 }
 
 struct Pattern {
@@ -101,6 +102,15 @@ pub fn compile_template(t: &str) -> Result<(String, Vec<(usize, String)>), Strin
 
 impl RulesRecognizer {
     pub fn new(sets: &[ScopedRules]) -> Result<Self, RuleError> {
+        Self::compile(sets, false)
+    }
+
+    /// Match rules by their position among enabled rules even when stored IDs are reused.
+    pub fn with_rule_indices(sets: &[ScopedRules]) -> Result<Self, RuleError> {
+        Self::compile(sets, true)
+    }
+
+    fn compile(sets: &[ScopedRules], indexed: bool) -> Result<Self, RuleError> {
         let mut metas = Vec::new();
         let mut by_literal: HashMap<String, Vec<usize>> = HashMap::new();
         let (mut ci, mut cs) = (Vec::new(), Vec::new());
@@ -126,12 +136,17 @@ impl RulesRecognizer {
                     origin: Origin::Rule {
                         scope: set.scope,
                         enforced: r.enforced && set.scope == kaponir_core::Scope::Global,
-                        id: id.clone(),
+                        id: if indexed {
+                            meta.to_string()
+                        } else {
+                            id.clone()
+                        },
                     },
                     action: r.action,
                     category: r.category.unwrap_or(Category::Custom),
                     strategy: r.strategy,
                     form: r.form,
+                    directory_domain: r.directory_domain(set.scope),
                 });
                 let kinds = usize::from(r.value.is_some())
                     + usize::from(r.template.is_some())
@@ -231,6 +246,7 @@ impl RulesRecognizer {
         if let Some(s) = m.strategy {
             c = c.strategy(s);
         }
+        c.directory_domain = m.directory_domain.map(|[a, b]| [start + a, start + b]);
         let dns_like = text[start..end]
             .chars()
             .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')

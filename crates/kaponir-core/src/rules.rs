@@ -92,6 +92,18 @@ impl Rule {
         let expected = Self::for_directory(&self.note, scope)?;
         (self.id == expected.id && self.regex == expected.regex).then_some(&self.note)
     }
+
+    /// Offsets of the first folder when the approved prefix includes its account folder.
+    pub fn directory_domain(&self, scope: Scope) -> Option<[usize; 2]> {
+        let home = "/home/";
+        let (domain, tail) = self
+            .directory_prefix(scope)?
+            .strip_prefix(home)?
+            .split_once('/')?;
+        let (account, _) = tail.split_once('/')?;
+        (!domain.is_empty() && !account.is_empty())
+            .then_some([home.len(), home.len() + domain.len()])
+    }
 }
 
 fn default_kind() -> String {

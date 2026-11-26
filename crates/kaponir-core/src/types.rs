@@ -224,6 +224,9 @@ pub struct Candidate {
     /// `ANON_LNAME_1у`), в vault пишется начальная форма.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub inflection: Option<Inflection>,
+    /// Byte range of the domain folder inside an approved home-directory mask.
+    #[serde(skip)]
+    pub directory_domain: Option<[usize; 2]>,
 }
 
 /// Окончание, которое остаётся в тексте после токена, и начальная форма для vault.
@@ -264,6 +267,7 @@ impl Candidate {
             strategy: None,
             scope: None,
             inflection: None,
+            directory_domain: None,
         }
     }
 
@@ -295,6 +299,16 @@ impl Candidate {
         }
         self.origin = origin;
         self
+    }
+
+    pub fn covers_directory_domain(&self, domain: &Self) -> bool {
+        domain.kind == "DOM"
+            && domain.polarity == Polarity::Mask
+            && !domain.hard
+            && !domain.origin.is_enforced()
+            && self.directory_domain.is_some_and(|[start, end]| {
+                self.start <= start && start <= domain.start && domain.end <= end && end <= self.end
+            })
     }
 
     pub fn with_evidence(mut self, source: impl Into<String>, logit: f32) -> Self {

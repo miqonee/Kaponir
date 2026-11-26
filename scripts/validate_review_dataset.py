@@ -224,6 +224,9 @@ def check_individual_path(page, api, base):
 
 def check_path_group(page, api, base):
     root, suffixes = seed_path_group(api)
+    domain = 'group.demo'
+    domain_rule = {'id': 'fixture-home-domain', 'kind': 'DOM', 'value': domain}
+    api('/api/v1/rules', {'scope': 'global', 'rule': domain_rule})
     review = '/api/v1/ui/review'
     def query(status):
         return api(review+'?'+urlencode({'status':status,'q':root,'kind':'PATH'}))
@@ -275,6 +278,14 @@ def check_path_group(page, api, base):
     replay = api(review+'/path-prefix', {'prefix':root,'keys':group['occurrence_keys'],'scope':group['scope']})
     assert replay['already_covered']
     future = root+'notes/tomorrow.txt'
+    preview = api('/api/v1/ui/mask', {
+        'text': f'{future}\nhttps://{domain}/status\nDomain {domain}',
+        'commit': False,
+    })
+    applied = [(m['original'], m['kind'], m['origin']['id'])
+               for m in preview['replacements'] if m['origin']['type'] == 'rule']
+    assert applied == [(root[:-1], 'PATH', history[0]['document_rule']['id']),
+                       (domain, 'DOM', domain_rule['id']), (domain, 'DOM', domain_rule['id'])], preview
     masked = api('/api/v1/anonymize', {'text':future,'session':'directory-check'})['text']
     assert masked.endswith('/notes/tomorrow.txt') and root[:-1] not in masked, masked
     assert api('/api/v1/deanonymize', {'text':masked,'session':'directory-check'})['text'] == future
@@ -331,7 +342,7 @@ def check_directory_boundary_error(page, api, base):
 
 
 def check_directory_rule_conflict(page, api, base):
-    account = 'overlap.fixture'
+    account = 'acct'
     root = f'/home/group.demo/{account}/'
     for filename in ('notes.txt', 'report.txt'):
         value = root + filename
@@ -357,6 +368,9 @@ def check_directory_rule_conflict(page, api, base):
     errors.get_by_role('button', name='Открыть правило', exact=True).click()
     expect(page.locator('#rule-global-fixture-account-mask')).to_be_focused()
     assert api('/api/v1/rules') == before
+    preview = api('/api/v1/ui/mask', {'text': root+'report.txt', 'commit': False})
+    matched_rules = {m['origin'].get('id') for m in preview['replacements']}
+    assert {'fixture-home-domain', 'fixture-account-mask'} <= matched_rules, preview
 
 
 def check_rule_update(page, api, base):
