@@ -163,7 +163,13 @@ pub struct PositionEdits {
     pub additional_masks: Vec<Candidate>,
     /// Ranges authorized by a trusted local source.
     pub public_ranges: Vec<Range<usize>>,
+    /// Exact user-directed text in this request. Corporate mandates and credentials take precedence.
+    pub chat_open: Vec<Range<usize>>,
+    pub chat_hide: Vec<Range<usize>>,
 }
+
+const CHAT_MASK: &str = "chat-command";
+const CHAT_KEY: &str = "\0kaponir:chat-mask\0";
 
 /// Короче — слишком часто совпадает с обычными словами и частями чисел.
 const MIN_KNOWN_LEN: usize = 3;
@@ -502,6 +508,23 @@ impl Engine {
             minimum_known_length,
         ));
         cands.retain(|c| !protected.iter().any(|&(a, b)| c.start < b && a < c.end));
+        if let Some(edits) = positions
+            && !(edits.chat_open.is_empty() && edits.chat_hide.is_empty())
+        {
+            cands.retain(|c| {
+                if c.polarity != Polarity::Mask || c.requires_chat_mask() {
+                    return true;
+                }
+                let range = c.start..c.end;
+                let contains = |r: &Range<usize>| {
+                    text.get(r.clone()).is_some() && r.start <= c.start && c.end <= r.end
+                };
+                // An exact existing mask keeps its type and vault token. A phrase can
+                // replace ordinary smaller matches with one reversible substitution.
+                !edits.chat_open.iter().any(contains)
+                    && !edits.chat_hide.iter().any(|r| *r != range && contains(r))
+            });
+        }
         let mut own_surrogates = Vec::new();
         for (i, c) in cands.iter().enumerate() {
             if let Ok(ip) = c.surface(text).parse::<Ipv4Addr>()
@@ -658,7 +681,9 @@ impl Engine {
             };
             // Регистр нельзя восстановить из «токен + окончание»: у строчной и заглавной
             // словоформы должны быть разные записи. Словоформы одного регистра делят токен.
-            let canonical = if crate::pack::is_name_kind(&c.kind)
+            let canonical = if c.recognizer == CHAT_MASK {
+                format!("{CHAT_KEY}{original}")
+            } else if crate::pack::is_name_kind(&c.kind)
                 && original.chars().next().is_some_and(char::is_lowercase)
                 && !canonical.starts_with("lower:")
             {
@@ -679,7 +704,7 @@ impl Engine {
             } else {
                 token
             };
-            if !opts.irreversible {
+            if !opts.irreversible && c.recognizer != CHAT_MASK {
                 result.known.push(Known {
                     text: original.to_string(),
                     kind: c.kind.clone(),
@@ -724,9 +749,32 @@ impl Engine {
         emission: &mut Vec<(Cow<'a, Scored>, usize)>,
     ) {
         let valid = |r: &Range<usize>| r.start < r.end && text.get(r.clone()).is_some();
+        let mut chat_masks = Vec::new();
+        if !edits.chat_hide.is_empty() {
+            let mut enforced_keeps: Vec<_> = scored
+                .iter()
+                .filter(|s| s.c.polarity == Polarity::Keep && s.c.origin.is_enforced())
+                .map(|s| s.c.start..s.c.end)
+                .collect();
+            enforced_keeps.sort_unstable_by_key(|r| r.start);
+            for range in edits.chat_hide.iter().filter(|r| valid(r)) {
+                for part in subtract_ranges(range.clone(), &enforced_keeps) {
+                    chat_masks.push(Candidate::new(
+                        part.start,
+                        part.end,
+                        "CUSTOM",
+                        Category::Custom,
+                        CHAT_MASK,
+                        1.0,
+                    ));
+                }
+            }
+        }
+        chat_masks.sort_unstable_by_key(|c| std::cmp::Reverse(c.len()));
         let additions: Vec<_> = edits
             .additional_masks
             .iter()
+            .chain(&chat_masks)
             .filter(|c| valid(&(c.start..c.end)))
             .collect();
         let mut public: Vec<_> = edits
@@ -1282,6 +1330,10 @@ impl Engine {
                     } else {
                         TokenForm::Dns
                     };
+                    if m.kind == "CUSTOM" && res.canonical.starts_with(CHAT_KEY) {
+                        // Restoring a one-question token must not teach the ordinary session cache.
+                        continue;
+                    }
                     r.known.push(Known {
                         text: res.original.clone(),
                         kind: m.kind.clone(),

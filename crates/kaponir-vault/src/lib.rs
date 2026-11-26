@@ -52,6 +52,12 @@ CREATE TABLE IF NOT EXISTS sessions (
     nonce BLOB NOT NULL,
     ct BLOB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS chat_commands (
+    blind BLOB PRIMARY KEY,
+    updated INTEGER NOT NULL,
+    nonce BLOB NOT NULL,
+    ct BLOB NOT NULL
+);
 CREATE TABLE IF NOT EXISTS traffic_events (
     id INTEGER PRIMARY KEY,
     created INTEGER NOT NULL,
@@ -770,9 +776,47 @@ impl SqliteVault {
         Ok(())
     }
 
+    /// Command receipts use a different encryption context from ordinary session memory.
+    pub fn chat_commands(&self, id: &str) -> Result<Option<Vec<u8>>, VaultError> {
+        let blind = self.blind(&["chat-commands", id]);
+        let row = self
+            .conn
+            .query_row(
+                "SELECT nonce, ct FROM chat_commands WHERE blind = ?1",
+                [&blind],
+                |r| Ok((r.get::<_, Vec<u8>>(0)?, r.get::<_, Vec<u8>>(1)?)),
+            )
+            .optional()
+            .map_err(db)?;
+        let Some((nonce, ct)) = row else {
+            return Ok(None);
+        };
+        self.conn
+            .execute(
+                "UPDATE chat_commands SET updated = ?2 WHERE blind = ?1 AND updated < ?2 - 60",
+                params![blind, now()],
+            )
+            .map_err(db)?;
+        Ok(Some(self.unseal(&nonce, &ct, &blind)?))
+    }
+
+    pub fn save_chat_commands(&self, id: &str, data: &[u8]) -> Result<(), VaultError> {
+        let blind = self.blind(&["chat-commands", id]);
+        let (nonce, ct) = self.seal(data, &blind)?;
+        self.conn.execute(
+            "INSERT INTO chat_commands (blind, updated, nonce, ct) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT(blind) DO UPDATE SET updated = excluded.updated, nonce = excluded.nonce, ct = excluded.ct",
+            params![blind, now(), nonce, ct],
+        ).map_err(db)?;
+        Ok(())
+    }
+
     /// Удаляет память сессий, не обновлявшихся `max_age_secs`.
     pub fn purge_sessions(&self, max_age_secs: i64) -> Result<usize, VaultError> {
         let cutoff = now() - max_age_secs;
+        self.conn
+            .execute("DELETE FROM chat_commands WHERE updated < ?1", [cutoff])
+            .map_err(db)?;
         self.conn
             .execute(
                 "DELETE FROM session_titles WHERE started_ms < ?1",

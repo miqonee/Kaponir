@@ -574,6 +574,8 @@ impl State {
         };
         sess.prune(suppressed);
         sess.last_used = Instant::now();
+        let known_before = sess.known.len();
+        let dirty_before = sess.dirty;
         if tx {
             vault.begin()?;
         }
@@ -584,6 +586,9 @@ impl State {
         };
         let engine = self.engine();
         let result = f(&mut Cx {
+            commands: Default::default(),
+            disclosed: false,
+            screening: false,
             answer,
             usage: &mut usage,
             engine: &engine,
@@ -599,19 +604,20 @@ impl State {
                 vault.save_session(session, &sess.known)?;
                 sess.dirty = false;
             }
+            if tx {
+                vault.commit()?;
+            }
             Ok(v)
         });
         match result {
-            Ok(v) => {
-                if tx {
-                    vault.commit()?;
-                }
-                Ok((v, usage))
-            }
+            Ok(v) => Ok((v, usage)),
             Err(e) => {
                 if tx {
                     let _ = vault.rollback();
                     sess.cache.clear();
+                    sess.known.truncate(known_before);
+                    sess.seen = sess.known.iter().cloned().collect();
+                    sess.dirty = dirty_before;
                 }
                 Err(e)
             }
@@ -621,6 +627,9 @@ impl State {
 
 /// Доступ к движку, vault и сессии на время одной операции.
 pub struct Cx<'a> {
+    pub(crate) commands: crate::chat_commands::Active,
+    pub(crate) disclosed: bool,
+    pub(crate) screening: bool,
     answer: Option<&'a mut crate::learning::question::Answer>,
     usage: &'a mut Usage,
     engine: &'a Engine,
@@ -632,6 +641,87 @@ pub struct Cx<'a> {
 }
 
 impl Cx<'_> {
+    /// Check the whole outgoing request before releasing any named value. A
+    /// credential may first occur in prose and only later in a tool's password field.
+    fn screen(&mut self, text: &str, field: Option<&str>) -> bool {
+        if !self.screening {
+            return false;
+        }
+        if self.commands.open_in(text) {
+            let mut protected: Vec<_> = self
+                .engine
+                .analyze(&Input::text(text))
+                .iter()
+                .filter(|c| c.requires_chat_mask())
+                .map(|c| c.start..c.end)
+                .collect();
+            if let Some(c) = field.and_then(|name| {
+                kaponir_recognizers::kv::credential_field(self.engine.lexicon(), name, text)
+            }) {
+                protected.push(c.start..c.end);
+            }
+            if let Some(edits) = self.occurrences.edits(text) {
+                protected.extend(edits.additional_masks.into_iter().map(|c| c.start..c.end));
+            }
+            for known in &self.session.known {
+                if kaponir_core::kinds::category(&known.kind) == kaponir_core::Category::Credential
+                    && !known.text.is_empty()
+                {
+                    protected.extend(text.match_indices(&known.text).map(|(i, s)| i..i + s.len()));
+                }
+            }
+            self.commands.protect_overlaps(text, &protected);
+        }
+        true
+    }
+
+    pub(crate) fn check_signed_text(&mut self, text: &str) -> anyhow::Result<()> {
+        if self.screen(text, None) {
+            return Ok(());
+        }
+        let mentions = self.commands.signed_mentions(text);
+        if mentions.is_empty() {
+            return Ok(());
+        }
+        // The signature covers the original bytes. Check only whether a named
+        // part would need rewriting, without learning or allocating real tokens.
+        let mut edits = self.occurrences.edits(text);
+        self.commands.edits(text, &mut edits);
+        let opts = MaskOptions {
+            irreversible: true,
+            journal: false,
+            known: self.session.known.clone(),
+            ..self.opts.clone()
+        };
+        let checked = self.engine.mask_without_s1_positioned(
+            &Input::text(text),
+            &opts,
+            self.vault,
+            &edits.unwrap_or_default(),
+        )?;
+        if checked
+            .replacements
+            .iter()
+            .any(|m| mentions.iter().any(|r| r.start < m.end && m.start < r.end))
+        {
+            return Err(crate::chat_commands::Invalid("История содержит подписанный блок рассуждений, требующий маскирования. Отправьте вопрос без этого блока").into());
+        }
+        self.disclosed |= self.commands.open_in(text);
+        Ok(())
+    }
+
+    pub(crate) fn configure_commands(
+        &mut self,
+        request: &crate::chat_commands::Request,
+        chat: &str,
+        recipient: &str,
+        inferred: bool,
+        auxiliary: bool,
+    ) -> anyhow::Result<()> {
+        self.commands = request.resolve(self.vault, chat, recipient, inferred, auxiliary)?;
+        Ok(())
+    }
+
     pub(crate) fn reply_text(&mut self, slot: [u64; 2], wire: &str, restored: &str) {
         if let Some(answer) = &mut self.answer {
             answer.append(slot, wire);
@@ -645,12 +735,12 @@ impl Cx<'_> {
 
     /// Маскирует блок текста с кэшем сессии.
     pub fn mask(&mut self, text: &str) -> anyhow::Result<String> {
-        if text.trim().is_empty() {
+        if self.screen(text, None) || text.trim().is_empty() {
             return Ok(text.to_string());
         }
         // Permissions can expire within a chat. Never reuse a mask decision
         // for a matched document from an earlier request.
-        if self.occurrences.may_have_grants(text) {
+        if self.commands.may_match(text) || self.occurrences.may_have_grants(text) {
             return Ok(self.mask_full(&Input::text(text))?.text);
         }
         let key = *blake3::hash(text.as_bytes()).as_bytes();
@@ -680,6 +770,9 @@ impl Cx<'_> {
     }
 
     pub(crate) fn mask_tool_field(&mut self, key: &str, text: &str) -> anyhow::Result<String> {
+        if self.screen(text, Some(key)) {
+            return Ok(text.to_owned());
+        }
         let Some(credential) =
             kaponir_recognizers::kv::credential_field(self.engine.lexicon(), key, text)
         else {
@@ -693,8 +786,10 @@ impl Cx<'_> {
     fn mask_with_edits(
         &mut self,
         input: &Input<'_>,
-        edits: Option<kaponir_core::engine::PositionEdits>,
+        mut edits: Option<kaponir_core::engine::PositionEdits>,
     ) -> anyhow::Result<Masked> {
+        self.commands.edits(input.text, &mut edits);
+        let may_disclose = edits.as_ref().is_some_and(|e| !e.chat_open.is_empty());
         self.opts.known = std::mem::take(&mut self.session.known);
         let r = match edits {
             Some(edits) => {
@@ -707,6 +802,9 @@ impl Cx<'_> {
         };
         self.session.known = std::mem::take(&mut self.opts.known);
         let mut m = r?;
+        if may_disclose && !self.disclosed {
+            self.disclosed = self.commands.open_in(&m.text);
+        }
         self.usage.add(&Usage::masked(&m));
         self.session.learn(std::mem::take(&mut m.known));
         Ok(m)

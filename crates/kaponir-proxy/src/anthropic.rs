@@ -47,6 +47,11 @@ fn mask_content(c: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> {
 fn mask_block(b: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> {
     match ty(b).as_str() {
         "text" => mask_field(b, "text", cx)?,
+        "thinking" => {
+            if let Some(s) = b["thinking"].as_str() {
+                cx.check_signed_text(s)?;
+            }
+        }
         "tool_use" | "server_tool_use" => {
             if let Some(input) = b.get_mut("input") {
                 mask_leaves(input, cx)?;

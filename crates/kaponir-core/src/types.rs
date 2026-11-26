@@ -239,6 +239,15 @@ pub struct Inflection {
 }
 
 impl Candidate {
+    /// A temporary chat disclosure may override ordinary masking decisions only.
+    pub fn requires_chat_mask(&self) -> bool {
+        self.polarity == Polarity::Mask
+            && (self.origin.is_enforced()
+                || (self.hard && self.origin == Origin::Builtin && self.recognizer != "session")
+                || self.category == Category::Credential
+                || crate::kinds::category(&self.kind) == Category::Credential)
+    }
+
     /// `prior` — априорная вероятность того, что фрагмент чувствителен.
     pub fn new(
         start: usize,

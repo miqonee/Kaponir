@@ -408,17 +408,6 @@ async fn proxy_request(
     );
     let title_call = naming.is_some();
     let (session, source) = session_id(&headers, opencode, api, &json);
-    if !title_call
-        && !count_tokens
-        && st.learning.enabled()
-        && let Some(messages) = json.get("messages")
-    {
-        *span
-            .learning_input
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            Some(crate::learning::question::capture(messages));
-    }
     let has_start = json
         .get("messages")
         .and_then(Value::as_array)
@@ -448,16 +437,22 @@ async fn proxy_request(
     };
     // Policies can change while an agent is running. Correlate the original
     // structured question so a newly learned mask cannot start a second turn.
-    if !title_call && let Some(session_tag) = &tag {
+    let invalid_command = |e: &crate::chat_commands::Invalid| {
+        span.set_error("", Some(400), "invalid_chat_command", e.0);
+        error(StatusCode::BAD_REQUEST, e.0)
+    };
+    let commands = crate::chat_commands::Request::read(
+        tag.as_deref().unwrap_or(&session),
+        &mut json,
+        headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
+        title_call,
+    )
+    .map_err(|e| invalid_command(&e))?;
+    if !title_call && tag.is_some() {
         *span
             .turn
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            crate::conversation::Turn::with_client_id(
-                session_tag,
-                &json,
-                headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
-            );
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = commands.turn.clone();
     }
     let image_session = tag
         .clone()
@@ -494,13 +489,61 @@ async fn proxy_request(
         .cfg
         .system_hint
         .then(|| crate::system_hint(st.engine().codec().prefix()));
+    let base = match api {
+        Api::Anthropic => &st.cfg.anthropic_upstream,
+        Api::OpenAi => &st.cfg.openai_upstream,
+    };
+    let kind = api.protocol();
+    crate::providers::refresh(&st, connection_id(&uri), false).await?;
+    let model = json
+        .get("model")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .to_owned();
+    let mut attempted = Vec::new();
+    let mut provider = crate::providers::select_for_session(
+        &st,
+        kind,
+        connection_id(&uri),
+        &model,
+        &session,
+        &attempted,
+        None,
+    )?;
+    let recipient = crate::chat_commands::recipient(kind, base, provider.as_ref());
+    let chat = crate::chat_commands::namespace(&session, st.owner(), &headers);
+    let mut learning = (!title_call && !count_tokens && st.learning.enabled())
+        .then(|| json.get("messages").map(crate::learning::question::capture))
+        .flatten();
     let mask_started = std::time::Instant::now();
-    let (_, usage) = st
-        .with_usage(&session, true, |cx| match api {
-            Api::Anthropic => anthropic::mask_request(&mut json, cx, hint.as_deref()),
-            Api::OpenAi => openai::mask_request(&mut json, cx, hint.as_deref()),
+    let (disclosed, usage) = st
+        .with_usage(&session, true, |cx| {
+            cx.configure_commands(
+                &commands,
+                &chat,
+                &recipient,
+                source == "inferred",
+                title_call || count_tokens,
+            )?;
+            if let Some(capture) = &mut learning {
+                capture.commands = cx.commands.clone();
+            }
+            let mut mask = |cx: &mut crate::state::Cx<'_>, hint: Option<&str>| match api {
+                Api::Anthropic => anthropic::mask_request(&mut json, cx, hint),
+                Api::OpenAi => openai::mask_request(&mut json, cx, hint),
+            };
+            if cx.commands.has_open() {
+                cx.screening = true;
+                mask(cx, None)?;
+                cx.screening = false;
+            }
+            mask(cx, hint.as_deref())?;
+            Ok(cx.disclosed)
         })
         .map_err(|e| {
+            if let Some(e) = e.downcast_ref::<crate::chat_commands::Invalid>() {
+                return invalid_command(e);
+            }
             if e.is::<crate::inline_file::Unreadable>() {
                 span.set_error("", Some(422), "unreadable_attachment", e.to_string());
                 return error(StatusCode::UNPROCESSABLE_ENTITY, e.to_string());
@@ -511,6 +554,10 @@ async fn proxy_request(
                 format!("masking failed, request was not sent: {e:#}"),
             )
         })?;
+    *span
+        .learning_input
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = learning;
     let mask_total_us = mask_started.elapsed().as_micros() as u64;
     let classifier_us = usage.classifier_us.min(mask_total_us);
     let mask_us = mask_total_us.saturating_sub(classifier_us);
@@ -554,23 +601,6 @@ async fn proxy_request(
     span.add(&usage);
     let body = Bytes::from(serde_json::to_vec(&json).map_err(|e| internal(e.into()))?);
 
-    let base = match api {
-        Api::Anthropic => &st.cfg.anthropic_upstream,
-        Api::OpenAi => &st.cfg.openai_upstream,
-    };
-    let kind = api.protocol();
-    crate::providers::refresh(&st, connection_id(&uri), false).await?;
-    let model = json.get("model").and_then(Value::as_str).unwrap_or("");
-    let mut attempted = Vec::new();
-    let mut provider = crate::providers::select_for_session(
-        &st,
-        kind,
-        connection_id(&uri),
-        model,
-        &session,
-        &attempted,
-        None,
-    )?;
     // Reuse exactly the same masked bytes. Never retry after forwarding response data,
     // on transport errors, or on ambiguous upstream failures (e.g. HTTP 5xx).
     let resp = loop {
@@ -629,6 +659,7 @@ async fn proxy_request(
             )
         })?;
         if resp.status() != StatusCode::TOO_MANY_REQUESTS
+            || disclosed
             || connection_id(&uri).is_some()
             || provider.as_ref().is_none_or(|p| !p.retry_on_429)
             || attempted.len() >= 64
@@ -639,7 +670,7 @@ async fn proxy_request(
             &st,
             kind,
             None,
-            model,
+            &model,
             &session,
             &attempted,
             provider.as_ref(),

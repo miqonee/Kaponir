@@ -40,6 +40,15 @@ impl Turn {
     }
 
     pub fn with_client_id(session: &str, payload: &Value, client_id: Option<&str>) -> Option<Self> {
+        Self::scan(session, payload, client_id, |_, _| {})
+    }
+
+    pub(crate) fn scan(
+        session: &str,
+        payload: &Value,
+        client_id: Option<&str>,
+        mut visit_user: impl FnMut(&Value, &blake3::Hasher),
+    ) -> Option<Self> {
         let messages = payload["messages"].as_array()?;
         let mut hash = blake3::Hasher::new();
         hash.update(session.as_bytes());
@@ -72,6 +81,7 @@ impl Turn {
                         }
                     }
                     if human {
+                        visit_user(msg, &hash);
                         found = true;
                         step = Step::User;
                     }

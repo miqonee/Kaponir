@@ -136,6 +136,7 @@ impl OccurrencePolicy {
         (!additional_masks.is_empty() || !public_ranges.is_empty()).then_some(PositionEdits {
             additional_masks,
             public_ranges,
+            ..Default::default()
         })
     }
 }

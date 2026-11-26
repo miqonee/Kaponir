@@ -2,6 +2,8 @@
 //! получил, нарезанным на мелкие чанки — так проверяется, что секреты до него не доходят,
 //! а клиент получает оригиналы, в том числе в аргументах инструментов.
 
+#[path = "proxy/chat_commands.rs"]
+mod chat_commands;
 #[path = "proxy/mock_provider.rs"]
 mod mock_provider;
 

@@ -14,11 +14,20 @@ use std::{collections::BTreeSet, time::Duration};
 pub(crate) struct Capture {
     messages: Value,
     pub answer: Answer,
+    pub(crate) commands: crate::chat_commands::Active,
 }
 
 impl Capture {
     pub(crate) fn into_input(mut self) -> Value {
         if self.messages.is_object() {
+            if let Some(parts) = self.messages["parts"].as_array_mut() {
+                for part in parts {
+                    if let Some(Value::String(s)) = part.get_mut("content") {
+                        self.commands.redact_for_learning(s);
+                    }
+                }
+            }
+            self.commands.redact_for_learning(&mut self.answer.text);
             self.messages["answer"] = Value::String(self.answer.text);
             self.messages["answer_truncated"] = Value::Bool(self.answer.truncated);
         }
@@ -68,6 +77,7 @@ pub(crate) fn capture(messages: &Value) -> Capture {
     Capture {
         messages: capture_parts(messages),
         answer: Answer::default(),
+        commands: Default::default(),
     }
 }
 

@@ -187,6 +187,10 @@ Start `kaponir serve`, configure a provider, and point the SDK or agent to the K
 The proxy processes supported text fields, while session memory masks values again when they
 reappear in conversation history. Tool schemas and signed `thinking` blocks are not modified.
 
+Use `kpn unmask North Wind` on the first line to share a name for one question. Use
+`kpn mask -s North Wind; Blue Finch` to hide both names for the session. Write the question on
+the next line. [Chat masking commands](docs/COMMANDS.md#команды-маскирования-в-чате)
+
 ### 3. Create rules from corporate documents
 
 ```bash

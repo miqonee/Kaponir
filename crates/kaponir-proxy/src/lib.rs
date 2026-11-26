@@ -9,6 +9,7 @@
 //! ```
 
 pub mod anthropic;
+mod chat_commands;
 mod conversation;
 mod dataset;
 pub mod discovery;
