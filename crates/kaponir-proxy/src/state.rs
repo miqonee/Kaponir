@@ -12,7 +12,35 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 use crate::traffic::{Traffic, Usage};
-use crate::{Control, ProxyConfig};
+use crate::{Control, ProxyConfig, RulePattern, RuleSet};
+
+pub(crate) enum RuleEditError {
+    ReadOnly,
+    RevisionChanged,
+    Read(anyhow::Error),
+    Edit(anyhow::Error),
+}
+
+pub(crate) fn check_rule_revision(
+    ctl: &dyn Control,
+    scope: kaponir_core::Scope,
+    expected: Option<&str>,
+) -> Result<(), RuleEditError> {
+    if let Some(expected) = expected {
+        let current = ctl
+            .rules()
+            .map_err(RuleEditError::Read)?
+            .iter()
+            .find(|set| set.scope == scope)
+            .map(RuleSet::revision)
+            .transpose()
+            .map_err(RuleEditError::Read)?;
+        if current.as_deref() != Some(expected) {
+            return Err(RuleEditError::RevisionChanged);
+        }
+    }
+    Ok(())
+}
 
 struct CachedMask {
     text: String,
@@ -341,6 +369,29 @@ impl State {
 
     pub fn owner(&self) -> &str {
         &self.owner
+    }
+
+    pub(crate) async fn update_rule_pattern(
+        &self,
+        scope: kaponir_core::Scope,
+        index: usize,
+        revision: &str,
+        pattern: RulePattern,
+    ) -> Result<(), RuleEditError> {
+        let _rules = self.rule_changes.lock().await;
+        let ctl = self.control.as_deref().ok_or(RuleEditError::ReadOnly)?;
+        check_rule_revision(ctl, scope, Some(revision))?;
+        let engine = ctl
+            .update_rule_pattern(scope, index, revision, pattern)
+            .map_err(|err| {
+                if err.to_string() == "rule_list_changed" {
+                    RuleEditError::RevisionChanged
+                } else {
+                    RuleEditError::Edit(err)
+                }
+            })?;
+        self.replace_engine(engine);
+        Ok(())
     }
 
     /// Новый движок (правила изменились). Кэши замаскированных блоков сбрасываются: история

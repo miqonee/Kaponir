@@ -1,6 +1,7 @@
 //! Model review and decisions for saved findings.
 mod automatic;
 pub(crate) mod coverage;
+mod path_prefixes;
 pub(crate) mod paths;
 use crate::{
     Shared, learning,

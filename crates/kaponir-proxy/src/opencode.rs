@@ -1,6 +1,6 @@
 //! OpenCode names a chat with a separate model call. Its stable session ID,
 //! rather than the generated text or the provider connection, links the calls.
-use crate::{Shared, conversation::PartKind, sse, traffic::Span};
+use crate::{Shared, sse, traffic::Span};
 use axum::http::HeaderMap;
 use serde_json::Value;
 
@@ -129,27 +129,8 @@ fn title_line(mut wire: &str) -> Option<String> {
 }
 
 pub(crate) fn capture_title(st: &Shared, session: &str, span: &Span, openai: bool) {
-    let wire = {
-        let usage = span
-            .usage
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(reply) = &usage.reply else { return };
-        if reply.truncated || reply.parts.iter().any(|p| p.kind == PartKind::Call) {
-            return;
-        }
-        reply
-            .parts
-            .iter()
-            .filter(|p| {
-                if openai {
-                    p.slot == [0, 0]
-                } else {
-                    p.slot[0] == 0
-                }
-            })
-            .map(|p| p.wire.as_str())
-            .collect::<String>()
+    let Some(wire) = span.plain_reply_wire(openai) else {
+        return;
     };
     let Some(line) = title_line(&wire) else {
         return;

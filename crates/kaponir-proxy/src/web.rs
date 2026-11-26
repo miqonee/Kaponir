@@ -12,13 +12,14 @@ use axum::extract::{Json, Path, Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{delete, get, post, put};
-use kaponir_core::rules::{Rule, RuleAction, RuleFile};
+use kaponir_core::rules::{Rule, RuleAction};
 use kaponir_core::{Escape, Format, Input, Known, MaskOptions, Scope, Strategy, TokenForm};
 use kaponir_vault::JournalRow;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::server::{ApiError, authorized, error, internal};
+use crate::state::{RuleEditError, check_rule_revision};
 use crate::{RulePattern, Shared};
 
 const INDEX: &str = include_str!("../assets/index.html");
@@ -233,12 +234,21 @@ fn asset(body: &'static str, content_type: &'static str) -> Response {
 type ApiResult = Result<Response, ApiError>;
 
 fn control(st: &Shared) -> Result<&dyn crate::Control, ApiError> {
-    st.control.as_deref().ok_or_else(|| {
-        error(
+    st.control
+        .as_deref()
+        .ok_or_else(|| rule_edit_error(RuleEditError::ReadOnly))
+}
+
+fn rule_edit_error(err: RuleEditError) -> ApiError {
+    match err {
+        RuleEditError::ReadOnly => error(
             StatusCode::NOT_IMPLEMENTED,
             "rules are read-only on this server",
-        )
-    })
+        ),
+        RuleEditError::RevisionChanged => error(StatusCode::CONFLICT, "rule_list_changed"),
+        RuleEditError::Read(err) => internal(err),
+        RuleEditError::Edit(err) => bad(err),
+    }
 }
 
 /// Пересобирает движок после изменения правил.
@@ -1505,7 +1515,7 @@ async fn audit_rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult 
     authorized(&st, &headers, true)?;
     let mut items = Vec::new();
     for set in control(&st)?.rules().map_err(internal)? {
-        let revision = rules_revision(&set.file)?;
+        let revision = set.revision().map_err(internal)?;
         for (index, rule) in set.file.rules.iter().enumerate() {
             let value = rule.value.as_deref().unwrap_or_default();
             let reason = if kaponir_core::kinds::type_conflict(&rule.kind, value) {
@@ -1574,11 +1584,6 @@ async fn update_audit_rule(
     audit_rules(State(st), headers).await
 }
 
-fn rules_revision(file: &RuleFile) -> Result<String, ApiError> {
-    let bytes = serde_json::to_vec(file).map_err(|e| internal(e.into()))?;
-    Ok(blake3::hash(&bytes).to_hex().to_string())
-}
-
 async fn rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     authorized(&st, &headers, true)?;
     let _rules = st.rule_changes.lock().await;
@@ -1587,7 +1592,7 @@ async fn rules(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     for set in sets {
         result.push(
             json!({"scope":set.scope,"location":set.location,"file":set.file,
-            "revision":rules_revision(&set.file)?}),
+            "revision":set.revision().map_err(internal)?}),
         );
     }
     Ok(Json(result).into_response())
@@ -1635,25 +1640,6 @@ struct RuleRevisionQuery {
     revision: Option<String>,
 }
 
-fn check_rule_revision(
-    ctl: &dyn crate::Control,
-    scope: Scope,
-    expected: Option<&str>,
-) -> Result<(), ApiError> {
-    if let Some(expected) = expected {
-        let sets = ctl.rules().map_err(internal)?;
-        let current = sets
-            .iter()
-            .find(|s| s.scope == scope)
-            .map(|s| rules_revision(&s.file))
-            .transpose()?;
-        if current.as_deref() != Some(expected) {
-            return Err(error(StatusCode::CONFLICT, "rule_list_changed"));
-        }
-    }
-    Ok(())
-}
-
 async fn remove_rule(
     State(st): State<Shared>,
     headers: HeaderMap,
@@ -1664,7 +1650,7 @@ async fn remove_rule(
     let _rules = st.rule_changes.lock().await;
     let ctl = control(&st)?;
     // Rule indices change on deletion. A stale browser must never remove the next rule.
-    check_rule_revision(ctl, scope, query.revision.as_deref())?;
+    check_rule_revision(ctl, scope, query.revision.as_deref()).map_err(rule_edit_error)?;
     let removed = ctl.remove_rule(scope, index).map_err(bad)?;
     reload(&st)?;
     Ok(Json(json!({"removed": removed})).into_response())
@@ -1683,19 +1669,9 @@ async fn update_rule_pattern(
     Json(req): Json<UpdateRulePatternReq>,
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
-    let _rules = st.rule_changes.lock().await;
-    let ctl = control(&st)?;
-    check_rule_revision(ctl, scope, Some(&req.revision))?;
-    let engine = ctl
-        .update_rule_pattern(scope, index, &req.revision, req.pattern)
-        .map_err(|err| {
-            if err.to_string() == "rule_list_changed" {
-                error(StatusCode::CONFLICT, "rule_list_changed")
-            } else {
-                bad(err)
-            }
-        })?;
-    st.replace_engine(engine);
+    st.update_rule_pattern(scope, index, &req.revision, req.pattern)
+        .await
+        .map_err(rule_edit_error)?;
     Ok(Json(json!({"ok": true})).into_response())
 }
 
@@ -1714,7 +1690,7 @@ async fn set_domains(
     authorized(&st, &headers, true)?;
     let _rules = st.rule_changes.lock().await;
     let ctl = control(&st)?;
-    check_rule_revision(ctl, scope, query.revision.as_deref())?;
+    check_rule_revision(ctl, scope, query.revision.as_deref()).map_err(rule_edit_error)?;
     ctl.set_corp_domains(scope, &req.domains).map_err(bad)?;
     reload(&st)?;
     Ok(Json(json!({"ok": true})).into_response())

@@ -56,6 +56,14 @@ pub struct RuleSet {
     pub file: RuleFile,
 }
 
+impl RuleSet {
+    pub(crate) fn revision(&self) -> anyhow::Result<String> {
+        Ok(blake3::hash(&serde_json::to_vec(&self.file)?)
+            .to_hex()
+            .to_string())
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "type", content = "text", rename_all = "snake_case")]
 pub enum RulePattern {
