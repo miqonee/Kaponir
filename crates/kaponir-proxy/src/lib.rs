@@ -37,7 +37,7 @@ use std::sync::Arc;
 
 pub use image_protection::Settings as ImageProtectionSettings;
 pub use server::router;
-pub use state::{Cx, State};
+pub use state::{Cx, RuleEditError, State};
 
 pub type Shared = Arc<State>;
 
@@ -92,6 +92,20 @@ pub trait Control: Send + Sync {
     fn add_rule(&self, scope: Scope, rule: Rule) -> anyhow::Result<()>;
     /// Удаляет правило по номеру в контуре (как в `rules()`), возвращает удалённое.
     fn remove_rule(&self, scope: Scope, index: usize) -> anyhow::Result<Rule>;
+    /// Returns the engine to publish after deletion. Persistent stores can validate the
+    /// candidate before committing it. The default preserves the existing Control behavior.
+    fn remove_rule_and_build(
+        &self,
+        scope: Scope,
+        index: usize,
+        _revision: Option<&str>,
+    ) -> Result<(Rule, Engine), RuleEditError> {
+        let removed = self
+            .remove_rule(scope, index)
+            .map_err(RuleEditError::Edit)?;
+        let engine = self.build_engine().map_err(RuleEditError::Internal)?;
+        Ok((removed, engine))
+    }
     fn update_rule_pattern(
         &self,
         _scope: Scope,

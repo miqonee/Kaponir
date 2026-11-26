@@ -485,7 +485,7 @@ def check_concurrent_rule_update(api):
     assert matches == [winner], masked
 
 
-def check_rule_removal_recovery(api, home):
+def check_rule_removal_recovery(api, home, restart):
     values = ['alderremoval', 'birchsurvivor']
     for value in values:
         api('/api/v1/rules', {'scope': 'team', 'rule': {
@@ -501,39 +501,81 @@ def check_rule_removal_recovery(api, home):
     index = next(i for i, rule in enumerate(team['file']['rule']) if rule.get('id') == values[0])
     endpoint = f"/api/v1/rules/team/{index}?revision={team['revision']}"
 
-    # Only the engine rebuild reads config.toml. The rule file can still be updated.
-    config = home / 'config.toml'
-    original = config.read_bytes()
-    try:
-        config.write_text('[invalid')
+    rule_path = home / 'rules' / 'team.toml'
+    shared_dir = home / 'shared'
+    shared_dir.mkdir()
+    shared_rules = shared_dir / 'team.toml'
+    rule_path.rename(shared_rules)
+    rule_path.symlink_to(Path('..') / 'shared' / 'team.toml')
+    shared_rules.chmod(0o640)
+    with shared_rules.open('ab') as rules:
+        rules.write(b'\n# keep this team note\n')
+    original_rules = shared_rules.read_bytes()
+
+    def assert_masked(expected):
+        masked = api('/api/v1/ui/mask', {'text': text, 'commit': False})
+        assert [r['original'] for r in masked['replacements']] == expected, masked
+
+    def rejected_delete(status):
         try:
             api(endpoint, method='DELETE')
         except HTTPError as err:
             with err:
-                assert err.code == 500 and 'config.toml' in json.load(err)['error']['message']
-        else:
-            raise AssertionError('rule removal did not report the failed engine rebuild')
+                message = json.load(err)['error']['message']
+                assert err.code == status, (err.code, message)
+                return message
+        raise AssertionError(f'DELETE succeeded, expected HTTP {status}')
+
+    config = home / 'config.toml'
+    original = config.read_bytes()
+    try:
+        config.write_text('[invalid')
+        assert 'config.toml' in rejected_delete(500)
     finally:
         config.write_bytes(original)
 
+    def assert_unchanged():
+        assert shared_rules.read_bytes() == original_rules, 'failed DELETE changed the rule file'
+        assert team_rules() == team
+        assert_masked(values)
+
+    assert_unchanged()
+    restart()
+    assert_unchanged()
+
+    alias = shared_dir / 'linked-team.toml'
+    os.link(shared_rules, alias)
+    try:
+        assert 'multiple hard links' in rejected_delete(400)
+        assert_unchanged()
+        assert alias.samefile(shared_rules)
+    finally:
+        alias.unlink()
+
+    # Exercise both permission failures when running as an unprivileged user.
+    for path, mode in [(shared_rules, 0o440), (shared_dir, 0o500)]:
+        previous_mode = path.stat().st_mode & 0o777
+        path.chmod(mode)
+        try:
+            if not os.access(path, os.W_OK):
+                rejected_delete(400)
+                assert_unchanged()
+        finally:
+            path.chmod(previous_mode)
+
+    deleted = api(endpoint, method='DELETE')
+    assert deleted['removed'] == team['file']['rule'][index], deleted
     saved = team_rules()
     assert saved['revision'] != team['revision']
+    assert saved['file']['rule'] == team['file']['rule'][:index] + team['file']['rule'][index + 1:]
     assert saved['file']['rule'][index]['id'] == values[1], saved
-    still_active = api('/api/v1/ui/mask', {'text': text, 'commit': False})
-    assert [r['original'] for r in still_active['replacements']] == values, still_active
-    try:
-        api(endpoint, method='DELETE')
-    except HTTPError as err:
-        with err:
-            assert err.code == 409 and json.load(err)['error']['message'] == 'rule_list_changed'
-    else:
-        raise AssertionError('a stale deletion was accepted for the shifted rule')
+    assert rule_path.is_symlink() and shared_rules.stat().st_mode & 0o777 == 0o640
+    assert shared_rules.read_bytes().endswith(b'# keep this team note\n')
+    assert_masked(values[1:])
+    assert rejected_delete(409) == 'rule_list_changed'
+    restart()
     assert team_rules() == saved
-
-    api(f"/api/v1/rules/team/domains?revision={saved['revision']}",
-        {'domains': saved['file']['corp']['domains']}, 'PUT')
-    after = api('/api/v1/ui/mask', {'text': text, 'commit': False})
-    assert [r['original'] for r in after['replacements']] == values[1:], after
+    assert_masked(values[1:])
     assert api('/api/v1/ui/restore', {'text': before['text']})['text'] == text
 
 
@@ -550,8 +592,20 @@ def main():
     with tempfile.TemporaryDirectory() as home:
         cli = [str(args.binary.resolve()), '--home', home]
         subprocess.run(cli + ['init'], env=env, capture_output=True, check=True)
-        proc = subprocess.Popen(cli + ['serve', '--listen', base.split('//')[1]], env=env,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        def start():
+            return subprocess.Popen(cli + ['serve', '--listen', base.split('//')[1]], env=env,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+        proc = start()
+
+        def restart():
+            nonlocal proc
+            proc.terminate()
+            proc.wait(timeout=20)
+            proc = start()
+            wait_for(lambda: api('/api/v1/ui/info'))
+
         try:
             wait_for(lambda: api('/api/v1/ui/info'))
             with sync_playwright() as pw:
@@ -566,13 +620,13 @@ def main():
                 check_directory_rule_conflict(page, api, base)
                 check_rule_update(page, api, base)
                 check_concurrent_rule_update(api)
-                check_rule_removal_recovery(api, Path(home))
                 assert not errors, errors
                 browser.close()
+            check_rule_removal_recovery(api, Path(home), restart)
         finally:
             proc.terminate()
             proc.wait()
-    print('Verified dataset capture and backfill, directory grouping, rule updates, individual review, scoped masking, replay and undo.')
+    print('Verified dataset capture and backfill, directory grouping, rule updates and removal across restarts, individual review, scoped masking, replay and undo.')
 
 
 if __name__ == '__main__':
