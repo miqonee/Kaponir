@@ -1029,6 +1029,11 @@ td small { display: block; }
 .finding-model select {max-width:100%}.bulk-actions {background:var(--soft);padding:8px 12px;border-radius:8px}
 #review-result:not(:empty) {border-inline-start:3px solid var(--accent);padding-inline:12px}
 #review-result button {margin-inline-start:10px}
+.review-failure {margin-block:8px}
+.review-failure p,.review-failure blockquote {margin:0}
+.review-failure blockquote {margin-block-start:6px}
+.rule-conflict {display:flex;align-items:center;flex-wrap:wrap;gap:8px;overflow-wrap:anywhere}
+#review-result .rule-conflict button {margin-inline-start:0}
 #review-list,#vault-dataset,#jobs-content {min-width:0}
 #vault-dataset textarea {width:100%;resize:vertical}
 .worker-readings {display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}

@@ -300,15 +300,18 @@ pub(super) fn apply_directory(
     let mut projected = Vec::new();
     for mut row in sources {
         current.project(&mut row);
-        if !row["unmatched_rule"].is_null()
-            || !(needs_decision(&row)
-                || (row["state"] == "covered" && row["document_rule"]["id"] == rule.id))
+        if !row["unmatched_rule"].is_null() {
+            return Err(unmatched_rule_error(&row));
+        }
+        if !(needs_decision(&row)
+            || (row["state"] == "covered" && row["document_rule"]["id"] == rule.id))
         {
             return Err(bad("path_group_changed"));
         }
         prospective.project(&mut row);
         if row["document_rule"]["id"] != rule.id {
-            return Err(bad("rule_misses_occurrence"));
+            return Err(bad("directory_rule_misses_occurrence")
+                .with_details(json!({"finding":finding_excerpt(&row)})));
         }
         projected.push(row);
     }

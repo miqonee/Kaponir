@@ -111,22 +111,28 @@ fn loopback_host(host: &str) -> bool {
 pub(crate) struct ApiError {
     status: StatusCode,
     message: String,
+    details: Option<Value>,
 }
 impl ApiError {
     pub(crate) fn message(&self) -> &str {
         &self.message
     }
+
+    pub(crate) fn with_details(mut self, details: Value) -> Self {
+        self.details = Some(details);
+        self
+    }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (
-            self.status,
-            Json(json!({"type": "error", "error": {
-                "type": "kaponir_proxy_error", "message": self.message
-            }})),
-        )
-            .into_response()
+        let mut body = json!({"type": "error", "error": {
+            "type": "kaponir_proxy_error", "message": self.message
+        }});
+        if let Some(details) = self.details {
+            body["error"]["details"] = details;
+        }
+        (self.status, Json(body)).into_response()
     }
 }
 
@@ -134,6 +140,7 @@ pub(crate) fn error(status: StatusCode, msg: impl Into<String>) -> ApiError {
     ApiError {
         status,
         message: msg.into(),
+        details: None,
     }
 }
 

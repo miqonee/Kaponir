@@ -23,7 +23,8 @@ const reviewReasons = {
   review_busy: "Уже выполняются задания пересмотра. Дождитесь их завершения.",
   select_up_to_64: "Выберите от 1 до 64 записей.",
   entry_not_found: "Запись больше недоступна. Обновите очередь.",
-  rule_misses_occurrence: "Точное правило уже есть, но его границы не совпадают с этим фрагментом. Проверьте шаблон правила.",
+  rule_misses_occurrence: "Действующее правило пропускает выделение в этом фрагменте.",
+  directory_rule_misses_occurrence: "Правило каталога пропускает этот фрагмент. Проверьте границы пути.",
   rule_action_conflict: "Действующее правило задаёт другое действие. Откройте его во вкладке «Разобранные».",
   entry_not_pending: "По записи уже принято решение. Обновите очередь.",
   event_not_found: "Подробности события больше не хранятся.",
@@ -201,6 +202,7 @@ function reviewCard(item) {
   const pending = pendingFinding(item), proposal = item.proposal, rec = item.recommendation;
   const ro = !ReviewUI.data.editable, currentJob = activeReview(item);
   const hasProposal = pending && proposal && !proposal.declined && !currentJob;
+  const unmatched = pending && item.unmatched_rule;
   const canAsk = pending && !item.protected && reviewIssue(item) !== "protected_credential" && ReviewUI.data.sources.some(source => source.provider !== "none");
   const article = h("article", {class:"panel review-card", "data-review-key":item.key,
     "data-learning-id":item.origin === "learning" ? item.id : null});
@@ -211,9 +213,11 @@ function reviewCard(item) {
     h("h3", {}, decisionStatus(item)));
   if (item.deferred_at) heading.append(h("small", {class:"hint"}, tr("Отложено")));
   const primary = h("div", {class:"decision-actions"});
-  const target = pending && !item.proposal_conflict && !currentJob
+  const target = pending && !unmatched && !item.proposal_conflict && !currentJob
     ? directoryTarget(item, hasProposal ? proposal.action : "mask", hasProposal ? proposal.kind : reviewDraft(item).kind) : null;
-  if (hasProposal) {
+  if (unmatched) {
+    verdict.append(h("p", {}, reviewError("rule_misses_occurrence")), ruleConflict(unmatched, item, ro));
+  } else if (hasProposal) {
     const why = proposal.reason;
     verdict.append(h("p", {}, decisionEffect(item, proposal.action, target)));
     if (why && why !== "configured_categorizer") verdict.append(h("p", {class:"decision-reason"}, learningError(why)));
@@ -236,14 +240,10 @@ function reviewCard(item) {
     else if (categoryStage(item) === "failed") note = learningError(item.reason || "categorization_failed");
     else if (item.protected) note = reviewError("protected_credential");
     else note = tr(canAsk ? "Решения о маскировании пока нет. Проверьте фрагмент или запросите предложение модели." : "Проверьте фрагмент и выберите ручное решение.");
-    if (item.unmatched_rule) {
-      note = reviewError("rule_misses_occurrence");
-      primary.append(workButton("Открыть правило", () => openFindingRule(item), "secondary"));
-    }
     verdict.append(h("p", {}, note));
     if (reviewIssue(item) === "type_format_conflict" && canAsk) {
       primary.append(workButton("Уточнить тип моделью", () => requestReview([item], "standard"), "primary", ro));
-    } else if (!item.unmatched_rule && !item.proposal_conflict && reviewIssue(item) !== "type_format_conflict") {
+    } else if (!item.proposal_conflict && reviewIssue(item) !== "type_format_conflict") {
       const draft = reviewDraft(item);
       primary.prepend(workButton(effectLabel(item, "mask", draft.scope, target), () =>
         item.validation_reason ? confirmReview([item], "mask", true) : applyReview([{item, action:"mask", kind:draft.kind, scope:draft.scope}], true), "primary", ro));
@@ -448,6 +448,42 @@ async function openFindingRule(item) {
   const row=document.getElementById("rule-"+scope+"-"+id);
   if(row){row.focus();row.scrollIntoView({block:"center"});}
 }
+
+function ruleConflict(rule, finding, disabled = false) {
+  return h("div", {class:"rule-conflict"},
+    h("span", {class:"hint"}, tr("Действующее правило"), " · ", scopeLabel(rule.scope), " · ",
+      tr(rule.action === "keep" ? "Оставлять открытым" : "Маскировать")),
+    h("code", {}, rule.value),
+    workButton("Изменить правило", () => editFindingRule(rule, finding), "secondary", disabled));
+}
+
+async function editFindingRule(target, finding) {
+  const sets = await api("/api/v1/rules");
+  const set = sets.find(set => set.scope === target.scope);
+  const rule = set?.file.rule?.[target.index];
+  if (!rule || rule.disabled || (rule.id || "") !== target.id || rule.value !== target.value ||
+      rule.kind !== target.kind || rule.action !== target.action) {
+    await loadReview(true);
+    throw new Error(tr("rule_list_changed"));
+  }
+  openRuleEditor(target.scope, {rule, finding, index:target.index, revision:set.revision, onSaved:() => {
+    const result = $("#review-result");
+    for (const failure of result.querySelectorAll(".review-failure")) {
+      if (failure.dataset.ruleAddress === `${target.scope}/${target.index}`) failure.remove();
+    }
+    result.classList.toggle("err", Boolean(result.querySelector(".review-failure")));
+  }});
+}
+
+function reviewFailure(item, error) {
+  const {finding, rule} = error.details || {};
+  const source = finding || item;
+  return h("div", {class:"review-failure", "data-rule-address":rule ? `${rule.scope}/${rule.index}` : null},
+    h("p", {}, h("code", {}, source.value), " · ", reviewError(error.messageKey || error.message)),
+    rule && ruleConflict(rule, source),
+    finding && h("blockquote", {class:"candidate-fragment"}, candidateExcerpt(source.context, source.value, source.context_span)));
+}
+
 let findingNavigation = 0;
 async function adjacentFinding(key, step) {
   let data = ReviewUI.data;
@@ -813,7 +849,7 @@ async function applyReview(entries, fromCard = false, seen = fromCard ? displaye
       if (result.already_covered) covered++; else applied++;
       ReviewUI.selected.delete(item.key); ReviewUI.drafts.delete(item.key);
       if (snapshot && snapshot === ReviewUI.snapshot) ReviewUI.excluded.add(item.key);
-    } catch (error) { failures.push(`${item.value}: ${reviewError(error.messageKey || error.message)}`); }
+    } catch (error) { failures.push(reviewFailure(item, error)); }
     const processed = applied + covered + failures.length;
     if (processed < entries.length && performance.now() - lastProgress >= 1000) {
       lastProgress = performance.now();
@@ -830,11 +866,13 @@ async function applyReview(entries, fromCard = false, seen = fromCard ? displaye
     dismiss: "Закрыто без правила",
     reject: "Находка отклонена",
   }[single?.action];
-  const message = actionMessage ? tr(actionMessage) : applied || !covered ? tr("Применено: {{0}}", [applied]) : "";
-  $("#review-result").textContent = [message, covered ? tr("Уже учтено правилами · {{0}}", [number(covered)]) : "",
+  const message = actionMessage ? tr(actionMessage) : applied || !covered && !failures.length ? tr("Применено: {{0}}", [applied]) : "";
+  const summary = [message, covered ? tr("Уже учтено правилами · {{0}}", [number(covered)]) : "",
     checked || drafts ? tr("В датасет · проверено {{0}}, черновиков {{1}}", [checked,drafts]) : "",
-    captureError ? tr("Решение сохранено. Добавьте пример из разобранных находок в датасете.") : "", ...failures].filter(Boolean).join(" · ");
-  $("#review-result").classList.toggle("err", !!failures.length);
+    captureError ? tr("Решение сохранено. Добавьте пример из разобранных находок в датасете.") : ""].filter(Boolean).join(" · ");
+  const status = $("#review-result");
+  status.replaceChildren(...(summary ? [summary] : []), ...failures);
+  status.classList.toggle("err", !!failures.length);
   const sameCard = advance && !failures.length && ReviewUI.detailKey === first.item.key;
   let [updated] = await Promise.all([loadReview(true), loadInfo()]);
   if (!sameCard || !updated || navigation !== findingNavigation || location.hash !== "#review" || (ReviewUI.detailKey && ReviewUI.detailKey !== first.item.key)) return;

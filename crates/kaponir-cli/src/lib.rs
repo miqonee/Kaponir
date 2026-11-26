@@ -139,6 +139,10 @@ impl Home {
 
     /// Единая сборка для CLI, прокси и перезагрузки правил из UI.
     pub fn build_engine(&self, cfg: &Config) -> Result<Engine> {
+        self.build_engine_with_rules(cfg, &self.load_rules()?)
+    }
+
+    fn build_engine_with_rules(&self, cfg: &Config, rules: &[ScopedRules]) -> Result<Engine> {
         let master = self.master_key()?;
         let mut s1 = cfg.s1.clone();
         if let Ok(vault) = kaponir_vault::SqliteVault::open(&self.vault_path(), &master)
@@ -146,13 +150,12 @@ impl Home {
         {
             s1.http.token = Some(String::from_utf8(bytes).context("S1 token is not UTF-8")?);
         }
-        let rules = self.load_rules()?;
         build_engine(
             cfg,
             load_packs(cfg)?,
-            &rules,
+            rules,
             self.token_key(&master)?,
-            kaponir_s1::build(&s1, &self.s1_dir(), &rules)?,
+            kaponir_s1::build(&s1, &self.s1_dir(), rules)?,
         )
     }
 
@@ -624,6 +627,80 @@ impl kaponir_proxy::Control for HomeControl {
 
     fn remove_rule(&self, scope: Scope, index: usize) -> Result<Rule> {
         self.home.remove_rule(scope, index)
+    }
+
+    fn update_rule_pattern(
+        &self,
+        scope: Scope,
+        index: usize,
+        revision: &str,
+        pattern: kaponir_proxy::RulePattern,
+    ) -> Result<Engine> {
+        use kaponir_proxy::RulePattern;
+        use toml_edit::{Item, TableLike, Value};
+
+        let (field, text) = match pattern {
+            RulePattern::Value(text) => ("value", text),
+            RulePattern::Template(text) => ("template", text),
+            RulePattern::Regex(text) => ("regex", text),
+        };
+        anyhow::ensure!(!text.trim().is_empty(), "empty rule pattern");
+        let path = self.home.rules_path(scope);
+        let original = std::fs::read_to_string(&path)?;
+        let file = RuleFile::parse(&original).map_err(|e| anyhow!("{e}"))?;
+        let hash = blake3::hash(&serde_json::to_vec(&file)?).to_hex();
+        anyhow::ensure!(hash.as_str() == revision, "rule_list_changed");
+
+        let mut doc = original.parse::<toml_edit::DocumentMut>()?;
+        let table: &mut dyn TableLike = match doc.get_mut("rule") {
+            Some(Item::ArrayOfTables(rules)) => rules.get_mut(index).map(|rule| rule as _),
+            Some(Item::Value(Value::Array(rules))) => rules
+                .get_mut(index)
+                .and_then(Value::as_inline_table_mut)
+                .map(|rule| rule as _),
+            _ => None,
+        }
+        .ok_or_else(|| anyhow!("no rule #{index}"))?;
+        for other in ["value", "template", "regex"] {
+            if other != field {
+                table.remove(other);
+            }
+        }
+        table.insert(field, toml_edit::value(text));
+        let updated = doc.to_string();
+        let mut rules = self.home.load_rules()?;
+        let set = rules
+            .iter_mut()
+            .find(|set| set.scope == scope)
+            .ok_or_else(|| anyhow!("rule_list_changed"))?;
+        set.file = RuleFile::parse(&updated).map_err(|e| anyhow!("{e}"))?;
+        let engine = self
+            .home
+            .build_engine_with_rules(&self.home.load_config()?, &rules)?;
+
+        let permissions = std::fs::metadata(&path)?.permissions();
+        let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
+        let mut output = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&tmp)?;
+        let written = (|| -> Result<()> {
+            output.set_permissions(permissions)?;
+            output.write_all(updated.as_bytes())?;
+            output.sync_all()?;
+            drop(output);
+            anyhow::ensure!(
+                std::fs::read_to_string(&path)? == original,
+                "rule_list_changed"
+            );
+            std::fs::rename(&tmp, &path)?;
+            Ok(())
+        })();
+        if written.is_err() {
+            let _ = std::fs::remove_file(&tmp);
+        }
+        written?;
+        Ok(engine)
     }
 
     fn set_rule_disabled(

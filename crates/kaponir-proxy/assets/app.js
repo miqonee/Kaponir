@@ -183,7 +183,10 @@ async function api(path, { method = 'GET', body, timeoutMs = 45000 } = {}) {
   const data = await r.json().catch(() => null);
   if (!r.ok) {
     const messageKey=(data && data.error && data.error.message) || `HTTP ${r.status}`;
-    const error=new Error(tr(messageKey));error.messageKey=messageKey;throw error;
+    const error = new Error(tr(messageKey));
+    error.messageKey = messageKey;
+    error.details = data?.error?.details;
+    throw error;
   }
   return data;
 }
@@ -1157,40 +1160,69 @@ const PTYPE_HINTS = {
 
 const rf = $('#rf');
 const F = rf.elements;
+let rulePatternEdit = null;
 function syncRuleForm() {
   const [ph, hint] = PTYPE_HINTS[F.ptype.value];
   F.pattern.placeholder = ph;
   $('#rf-hint').textContent = hint;
   const global = F.scope.value === 'global';
+  const editing = rulePatternEdit !== null;
+  for (const field of [F.scope, F.action, F.note, F.case_sensitive]) field.disabled = editing;
   F.enforced.closest("label").hidden = !global;
-  F.enforced.disabled = !global;
+  F.enforced.disabled = editing || !global;
   if (!global) F.enforced.checked = false;
   const keep = F.action.value === 'keep';
   // У шаблона тип задают слоты {SVC}.
-  F.kind.disabled = keep || F.ptype.value === 'template';
-  F.strategy.disabled = keep;
-  F.kind.closest('label').hidden = F.kind.disabled;
-  F.strategy.closest('label').hidden = F.strategy.disabled;
+  const showKind = !keep && F.ptype.value !== 'template';
+  F.kind.disabled = editing || !showKind;
+  F.strategy.disabled = editing || keep;
+  F.kind.closest('label').hidden = !showKind;
+  F.strategy.closest('label').hidden = keep;
   F.pattern.setCustomValidity('');
 }
 for (const n of ['ptype', 'scope', 'action']) rf[n].addEventListener('change', syncRuleForm);
 syncRuleForm();
 
 const ruleEditor = $('#rule-editor');
-$('#rules-new').onclick = () => {
+const ruleSubmit = rf.querySelector('[type=submit]');
+function openRuleEditor(scope, edit = null) {
+  rulePatternEdit = edit;
   rf.reset();
-  F.scope.value = ruleScope;
+  F.scope.value = scope;
   F.action.value = selectedRuleState().value === 'keep' ? 'keep' : 'mask';
+  const excerpt = $('#rf-excerpt');
+  excerpt.hidden = !edit;
+  excerpt.querySelector('blockquote').replaceChildren();
+  if (edit) {
+    const {rule, finding} = edit;
+    F.action.value = rule.action;
+    F.kind.value = rule.kind;
+    F.pattern.value = rule.value;
+    F.note.value = rule.note || '';
+    F.case_sensitive.checked = Boolean(rule.case_sensitive);
+    F.enforced.checked = Boolean(rule.enforced);
+    F.strategy.value = rule.strategy || '';
+    excerpt.querySelector('blockquote').replaceChildren(candidateExcerpt(finding.context, finding.value, finding.context_span));
+  }
+  for (const [element, label] of [
+    [$('#rule-editor-title'), edit ? "Изменить правило" : "Новое правило"],
+    [ruleSubmit, edit ? "Сохранить изменения" : "Создать правило"],
+  ]) {
+    element.dataset.i18n = label;
+    element.textContent = tr(label);
+  }
   $('#rf-error').textContent = '';
   F.kind.setCustomValidity('');
   syncRuleForm();
   ruleEditor.showModal();
-};
+}
+$('#rules-new').onclick = () => openRuleEditor(ruleScope);
 $('#rf-cancel').onclick = () => ruleEditor.close();
 F.kind.addEventListener('input', () => F.kind.setCustomValidity(''));
 F.pattern.addEventListener('input', () => F.pattern.setCustomValidity(''));
 rf.addEventListener('submit', async (event) => {
   event.preventDefault();
+  const edit = rulePatternEdit;
   const keep = F.action.value === 'keep';
   const scope = F.scope.value;
   const rule = {
@@ -1206,23 +1238,31 @@ rf.addEventListener('submit', async (event) => {
   F.kind.setCustomValidity(rule.kind ? '' : tr("Укажите тип токена латиницей, например SVC"));
   F.pattern.setCustomValidity(rule[F.ptype.value].trim() ? '' : tr("Введите значение для поиска"));
   if (!rf.reportValidity()) return;
-  const submit = rf.querySelector('[type=submit]');
-  if (submit.disabled) return;
-  submit.disabled = true;
+  if (ruleSubmit.disabled) return;
+  ruleSubmit.disabled = true;
   $('#rf-error').textContent = '';
   try {
-    await api('/api/v1/rules', {method:'POST', body:{scope, rule}});
-    chooseRuleScope(scope);
-    if (selectedRuleState().value !== 'all') selectRuleState(rule.action);
-    if (!ruleSearchText(rule).includes($('#rules-query').value.trim().toLocaleLowerCase())) $('#rules-query').value = '';
-    ruleEditor.close();
-    toast(tr("Правило добавлено: {{0}}", [SCOPE_TITLES[scope].toLowerCase()]));
+    if (edit) {
+      await api(`/api/v1/rules/${scope}/${edit.index}`, {
+        method:'PATCH', body:{revision:edit.revision, pattern:{type:F.ptype.value, text:F.pattern.value}},
+      });
+      if (rulePatternEdit === edit) ruleEditor.close();
+      edit.onSaved();
+      toast(tr("Правило обновлено."));
+    } else {
+      await api('/api/v1/rules', {method:'POST', body:{scope, rule}});
+      chooseRuleScope(scope);
+      if (selectedRuleState().value !== 'all') selectRuleState(rule.action);
+      if (!ruleSearchText(rule).includes($('#rules-query').value.trim().toLocaleLowerCase())) $('#rules-query').value = '';
+      if (rulePatternEdit === edit) ruleEditor.close();
+      toast(tr("Правило добавлено: {{0}}", [SCOPE_TITLES[scope].toLowerCase()]));
+    }
     await afterRulesChanged();
   } catch (error) {
-    if (ruleEditor.open) $('#rf-error').textContent = error.message;
+    if (ruleEditor.open && rulePatternEdit === edit) $('#rf-error').textContent = error.message;
     else fail(error);
   } finally {
-    submit.disabled = false;
+    ruleSubmit.disabled = false;
   }
 });
 

@@ -55,6 +55,14 @@ pub struct RuleSet {
     pub file: RuleFile,
 }
 
+#[derive(Deserialize)]
+#[serde(tag = "type", content = "text", rename_all = "snake_case")]
+pub enum RulePattern {
+    Value(String),
+    Template(String),
+    Regex(String),
+}
+
 /// Хранилище правил контуров и сборка движка из них. Реализуется приложением (файлы в `KAPONIR_HOME`),
 /// прокси о раскладке файлов не знает. После каждого изменения UI пересобирает движок.
 pub trait Control: Send + Sync {
@@ -73,6 +81,15 @@ pub trait Control: Send + Sync {
     fn add_rule(&self, scope: Scope, rule: Rule) -> anyhow::Result<()>;
     /// Удаляет правило по номеру в контуре (как в `rules()`), возвращает удалённое.
     fn remove_rule(&self, scope: Scope, index: usize) -> anyhow::Result<Rule>;
+    fn update_rule_pattern(
+        &self,
+        _scope: Scope,
+        _index: usize,
+        _revision: &str,
+        _pattern: RulePattern,
+    ) -> anyhow::Result<Engine> {
+        anyhow::bail!("rule editing is unavailable")
+    }
     fn set_rule_disabled(
         &self,
         _scope: Scope,

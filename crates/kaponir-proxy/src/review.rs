@@ -24,6 +24,17 @@ type ResultJson = Result<Json<Value>, ApiError>;
 fn bad(code: &str) -> ApiError {
     error(StatusCode::BAD_REQUEST, code)
 }
+
+fn finding_excerpt(item: &Value) -> Value {
+    json!({"value":item["value"], "context":item["context"], "context_span":item["context_span"]})
+}
+
+fn unmatched_rule_error(item: &Value) -> ApiError {
+    bad("rule_misses_occurrence").with_details(json!({
+        "rule":item["unmatched_rule"], "finding":finding_excerpt(item)
+    }))
+}
+
 fn read(st: &Shared, id: &str) -> anyhow::Result<Option<Value>> {
     st.with_vault(|_, v| {
         v.app_record(id)?
@@ -2323,6 +2334,9 @@ async fn apply(
         scope = serde_json::from_value(rec["scope"].clone()).map_err(|_| bad("invalid_scope"))?;
         action = rec["action"].as_str().unwrap().into();
     }
+    if matches!(action.as_str(), "mask" | "keep") && !item["unmatched_rule"].is_null() {
+        return Err(unmatched_rule_error(&item));
+    }
     if action == "mask"
         && kind == "PATH"
         && !manual_whole_path
@@ -2477,9 +2491,6 @@ fn apply_effect(
     let origin = item["origin"].as_str().unwrap_or_default();
     let id = item["id"].as_str().unwrap_or_default();
     let key = item["key"].as_str().unwrap_or_default();
-    if matches!(action, "mask" | "keep") && !item["unmatched_rule"].is_null() {
-        return Err(bad("rule_misses_occurrence"));
-    }
     let active = &item["document_rule"];
     if matches!(action, "mask" | "keep") && !active.is_null() {
         if active["action"] != action {
