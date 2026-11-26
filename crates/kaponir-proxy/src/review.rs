@@ -366,6 +366,7 @@ pub(crate) fn routes() -> Router<Shared> {
     Router::new()
         .route("/api/v1/ui/review", get(list))
         .route("/api/v1/ui/review/selection", post(selection))
+        .route("/api/v1/ui/review/skip", post(skip_selected))
         .route("/api/v1/ui/review/path-prefix", post(paths::apply))
         .route("/api/v1/ui/jobs", get(jobs))
         .route("/api/v1/ui/review/jobs/{id}/retry", post(retry))
@@ -2412,6 +2413,56 @@ fn related_occurrences(
         }
     }
     Ok(())
+}
+
+async fn skip_selected(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(selection): Json<Selection>,
+) -> ResultJson {
+    authorized(&st, &headers, true)?;
+    if st.control.is_none() {
+        return Err(bad("read_only"));
+    }
+    let _guard = st.rule_changes.lock().await;
+    let items = selection
+        .resolve(&st, true)
+        .map_err(|error| bad(&learning::safe_error(&error)))?;
+    let mut closed = Vec::new();
+    let mut failures = Vec::new();
+    for item in items.into_iter().filter(needs_decision) {
+        let action = if item["origin"] == "detector" {
+            "dismiss"
+        } else {
+            "reject"
+        };
+        let kind = item["kind"].as_str().unwrap_or_default();
+        match apply_effect(&st, &item, action, kind, paths::scope(&item), false, false) {
+            Ok(_) => closed.push(item),
+            Err(error) => failures.push(json!({"value":item["value"],"error":error.message()})),
+        }
+    }
+    let dataset = st
+        .with_vault(|_, v| {
+            learning::transaction(v, || {
+                let mut drafts = 0;
+                if !closed.is_empty() && crate::dataset::capture_enabled(v)? {
+                    for item in &closed {
+                        if matches!(
+                            crate::dataset::capture_finding(v, item, None, false)?,
+                            crate::dataset::Capture::Draft
+                        ) {
+                            drafts += 1;
+                        }
+                    }
+                }
+                Ok(json!({"drafts":drafts}))
+            })
+        })
+        .unwrap_or_else(|_| json!({"error":"dataset_capture_failed"}));
+    Ok(Json(
+        json!({"skipped":closed.len(),"failures":failures,"dataset":dataset}),
+    ))
 }
 
 fn apply_effect(

@@ -151,6 +151,9 @@ function decisionEffect(item, action, prefix) {
   if (action === "dismiss") return tr("Находка перейдёт в «Разобранные». Её можно вернуть на проверку.");
   return tr("Созданное правило отключится. Сохранённые токены останутся доступны.");
 }
+function closeFindingAction(item) {
+  return item.origin === "detector" ? "dismiss" : "reject";
+}
 function effectLabel(item, action, scope, prefix) {
   if (prefix) return tr("Скрывать каталог · {{0}}", [scopeLabel(scope)]);
   if (action === "keep" && item.origin === "learning") return tr("Оставить открытым");
@@ -248,8 +251,13 @@ function reviewCard(item) {
   } else if (item.document_rule || item.state === "active" || item.state === "masked" || item.state === "kept") {
     primary.append(workButton("Открыть правило", () => openFindingRule(item), "secondary"));
   }
-  if (pending) primary.append(workButton("Исправить", () => manualDecision(item), "secondary", ro),
-    workButton("Отложить", () => applyReview([{item,action:"defer"}], true), "text-button", ro));
+  if (pending) {
+    const action = closeFindingAction(item);
+    const skip = workButton("Пропустить", () => applyReview([{item, action}], true), "secondary", ro);
+    skip.title = decisionEffect(item, action);
+    primary.append(workButton("Исправить", () => manualDecision(item), "secondary", ro), skip,
+      workButton("Отложить", () => applyReview([{item,action:"defer"}], true), "text-button", ro));
+  }
   if (rec?.state === "failed" && ["invalid_classification_response","invalid_model_json","model_response_truncated"].includes(rec.error))
     verdict.append(h("p", {class:"hint"}, tr("При повторной проверке Kaponir отправит эту находку отдельно.")));
   if (rec?.redacted_git_revision) verdict.append(h("p", {class:"hint"}, tr("Хеш ревизии заменён на [GIT_REVISION] в примере для модели.")));
@@ -342,7 +350,7 @@ function manualDecision(item) {
   const kind = makeKindSelect(draft.kind), scope = makeScopeSelect(draft.scope);
   const kindField = reviewField("decision-kind", "Тип значения", kind);
   const scopeField = reviewField("decision-scope", "Область правила", scope);
-  const dismiss = item.origin === "detector" ? "dismiss" : "reject";
+  const dismiss = closeFindingAction(item);
   const options = [["mask","Скрывать значение"], ["keep",item.origin === "detector" ? "Создать исключение" : "Оставить открытым"],
     [dismiss, item.origin === "detector" ? "Закрыть без правила" : "Отклонить находку"]];
   const action = h("select", {autofocus:true}, options.map(([value,label]) => h("option", {value}, tr(label))));
@@ -602,13 +610,18 @@ function renderReviewSelection() {
     return button;
   };
   const list = [...ReviewUI.selected.values()];
+  const manualCount = ReviewUI.snapshot ? pickedCount() : list.filter(pendingFinding).length;
   if (ReviewUI.view !== "history" && ReviewUI.view !== "proposals") {
-    const manualCount = ReviewUI.snapshot ? pickedCount() : list.filter(pendingFinding).length;
     const label = manualCount && (!ReviewUI.snapshot || ReviewUI.view === "pending")
       ? tr("Создать правила маскирования · {{0}}", [manualCount]) : tr("Создать правила маскирования");
     if (selected) controls.append(batchButton(label, manualCount === selected ? tr("Скрыть") : label, maskSelectedFindings, "primary", busy || !manualCount));
     if (source) controls.append(batchButton(tr(selected || modelCount!==count ? "Проверить моделью · {{0}}" : "Проверить моделью все {{0}}", [modelCount]),
       tr("Проверить моделью"), () => requestReview(), manualCount ? "secondary" : "primary", busy));
+  }
+  if (selected && manualCount && ReviewUI.view !== "history") {
+    const skip = workButton("Пропустить", skipSelectedFindings, "secondary", busy);
+    skip.title = tr("Закрыть без правила");
+    controls.append(skip);
   }
   controls.append(batchButton(modelCount!==count ? tr("Добавить примеры в датасет") : tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload(null, true)),"secondary",busy));
   quick.replaceChildren();
@@ -698,6 +711,39 @@ function renderReviewSelection() {
 function pendingFinding(item) {
   return item.state === "open" || item.state === "pending";
 }
+async function skipSelectedFindings() {
+  if (ReviewUI.busy || !pickedCount()) return;
+  const version = ReviewUI.selectionVersion;
+  const selection = await selectedPayload(null, true);
+  if (location.hash !== "#review" || version !== ReviewUI.selectionVersion || ReviewUI.busy) return;
+
+  const status = $("#review-result");
+  setReviewBusy(true);
+  renderReviewSelection();
+  try {
+    const result = await api("/api/v1/ui/review/skip", {method:"POST", body:selection});
+    if (version === ReviewUI.selectionVersion) {
+      clearPicking();
+      ReviewUI.browseSet = null;
+    }
+    const failures = result.failures.map(({value, error}) => `${value}: ${reviewError(error)}`);
+    status.textContent = [
+      result.skipped || failures.length ? tr("Пропущено находок · {{0}}", [number(result.skipped)])
+        : tr("В выборке больше нет находок на проверку."),
+      result.dataset?.drafts ? tr("В датасет · проверено {{0}}, черновиков {{1}}", [0, result.dataset.drafts]) : "",
+      result.dataset?.error ? tr("Решение сохранено. Добавьте пример из разобранных находок в датасете.") : "",
+      ...failures,
+    ].filter(Boolean).join(" · ");
+    status.classList.toggle("err", failures.length > 0);
+  } catch (error) {
+    status.textContent = reviewError(error.messageKey || error.message);
+    status.classList.add("err");
+  } finally {
+    setReviewBusy(false);
+    renderReviewSelection();
+    if (location.hash === "#review") await Promise.all([loadReview(), loadInfo()]);
+  }
+}
 async function maskSelectedFindings() {
   const snapshot = ReviewUI.snapshot;
   let items = [...ReviewUI.selected.values()].filter(pendingFinding);
@@ -777,8 +823,14 @@ async function applyReview(entries, fromCard = false, seen = fromCard ? displaye
   if (snapshot && snapshot === ReviewUI.snapshot && pickedCount() === 0) clearPicking();
   setReviewBusy(false);
   const single = entries.length === 1 && applied === 1 ? entries[0] : null;
-  const message = single?.action === "defer" ? tr("Отложено до конца очереди.") : single?.action === "decline-proposal" ? tr("Предложение отклонено. Находка осталась на проверке.") :
-    single?.action === "accept-proposal" ? tr("Предложение принято.") : applied || !covered ? tr("Применено: {{0}}", [applied]) : "";
+  const actionMessage = {
+    defer: "Отложено до конца очереди.",
+    "decline-proposal": "Предложение отклонено. Находка осталась на проверке.",
+    "accept-proposal": "Предложение принято.",
+    dismiss: "Закрыто без правила",
+    reject: "Находка отклонена",
+  }[single?.action];
+  const message = actionMessage ? tr(actionMessage) : applied || !covered ? tr("Применено: {{0}}", [applied]) : "";
   $("#review-result").textContent = [message, covered ? tr("Уже учтено правилами · {{0}}", [number(covered)]) : "",
     checked || drafts ? tr("В датасет · проверено {{0}}, черновиков {{1}}", [checked,drafts]) : "",
     captureError ? tr("Решение сохранено. Добавьте пример из разобранных находок в датасете.") : "", ...failures].filter(Boolean).join(" · ");

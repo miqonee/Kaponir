@@ -1079,6 +1079,7 @@
   "Для токена нет соответствия в Vault. Проверьте исходную сессию, хранилище и ответ поставщика.": "No mapping for this token exists in the Vault. Check the original session, storage, and provider response.",
   "Закрывает запись, но не меняет маскирование и не создаёт правила. Повторные появления остаются в закрытой записи.": "Closes the record without changing masking or creating rules. Later occurrences stay in the closed record.",
   "Закрыто без правила": "Closed without a rule",
+  "Пропущено находок · {{0}}": "Findings skipped · {{0}}",
   "Замаскировано": "Masked",
   "Записей: {{0}}": "Records: {{0}}",
   "Запрос": "Request",
