@@ -485,6 +485,58 @@ def check_concurrent_rule_update(api):
     assert matches == [winner], masked
 
 
+def check_rule_removal_recovery(api, home):
+    values = ['alderremoval', 'birchsurvivor']
+    for value in values:
+        api('/api/v1/rules', {'scope': 'team', 'rule': {
+            'id': value, 'kind': 'PROJ', 'value': value}})
+
+    def team_rules():
+        return next(s for s in api('/api/v1/rules') if s['scope'] == 'team')
+
+    text = ' '.join(values)
+    before = api('/api/v1/ui/mask', {'text': text, 'commit': True})
+    assert [r['original'] for r in before['replacements']] == values, before
+    team = team_rules()
+    index = next(i for i, rule in enumerate(team['file']['rule']) if rule.get('id') == values[0])
+    endpoint = f"/api/v1/rules/team/{index}?revision={team['revision']}"
+
+    # Only the engine rebuild reads config.toml. The rule file can still be updated.
+    config = home / 'config.toml'
+    original = config.read_bytes()
+    try:
+        config.write_text('[invalid')
+        try:
+            api(endpoint, method='DELETE')
+        except HTTPError as err:
+            with err:
+                assert err.code == 500 and 'config.toml' in json.load(err)['error']['message']
+        else:
+            raise AssertionError('rule removal did not report the failed engine rebuild')
+    finally:
+        config.write_bytes(original)
+
+    saved = team_rules()
+    assert saved['revision'] != team['revision']
+    assert saved['file']['rule'][index]['id'] == values[1], saved
+    still_active = api('/api/v1/ui/mask', {'text': text, 'commit': False})
+    assert [r['original'] for r in still_active['replacements']] == values, still_active
+    try:
+        api(endpoint, method='DELETE')
+    except HTTPError as err:
+        with err:
+            assert err.code == 409 and json.load(err)['error']['message'] == 'rule_list_changed'
+    else:
+        raise AssertionError('a stale deletion was accepted for the shifted rule')
+    assert team_rules() == saved
+
+    api(f"/api/v1/rules/team/domains?revision={saved['revision']}",
+        {'domains': saved['file']['corp']['domains']}, 'PUT')
+    after = api('/api/v1/ui/mask', {'text': text, 'commit': False})
+    assert [r['original'] for r in after['replacements']] == values[1:], after
+    assert api('/api/v1/ui/restore', {'text': before['text']})['text'] == text
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary', type=Path)
@@ -514,6 +566,7 @@ def main():
                 check_directory_rule_conflict(page, api, base)
                 check_rule_update(page, api, base)
                 check_concurrent_rule_update(api)
+                check_rule_removal_recovery(api, Path(home))
                 assert not errors, errors
                 browser.close()
         finally:
