@@ -39,6 +39,7 @@ impl Api {
 pub fn router(state: Shared) -> Router {
     crate::learning::start(&state);
     crate::review::start(&state);
+    crate::image_protection::start_cleanup(&state);
     Router::new()
         .route("/v1/messages", post(anthropic_messages))
         .route("/v1/messages/count_tokens", post(anthropic_messages))
@@ -60,6 +61,7 @@ pub fn router(state: Shared) -> Router {
         .merge(crate::review::routes())
         .merge(crate::dataset::routes())
         .merge(crate::providers::routes())
+        .merge(crate::image_protection::routes())
         .layer(DefaultBodyLimit::max(64 << 20))
         .layer(middleware::from_fn_with_state(state.clone(), guard_host))
         .layer(middleware::from_fn_with_state(
@@ -457,6 +459,9 @@ async fn proxy_request(
                 headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
             );
     }
+    let image_session = tag
+        .clone()
+        .unwrap_or_else(|| format!("request-{}", span.id));
     if let Some(tag) = tag {
         *span
             .session
@@ -474,6 +479,17 @@ async fn proxy_request(
         "completion"
     }
     .into();
+    let has_images =
+        match crate::image_protection::protect(&st, &mut json, &span, &image_session, &original)
+            .await
+        {
+            Ok(found) => found,
+            Err(failure) => {
+                let e = failure.api();
+                span.set_error("", Some(e.status.as_u16()), "image_protection", e.message());
+                return Err(e);
+            }
+        };
     let hint = st
         .cfg
         .system_hint
@@ -502,7 +518,12 @@ async fn proxy_request(
     span.classifier_us.fetch_add(classifier_us, Relaxed);
     {
         let masked = crate::conversation::Transcript::capture(&json);
-        let masked_payload_json = serde_json::to_string_pretty(&json).unwrap_or_default();
+        let masked_payload_json = if has_images {
+            serde_json::to_string_pretty(&crate::image_protection::wire::omit_images(&json))
+        } else {
+            serde_json::to_string_pretty(&json)
+        }
+        .unwrap_or_default();
         let mut insp = span
             .inspector
             .lock()
@@ -531,7 +552,7 @@ async fn proxy_request(
         entry.masked_payload_json = crate::traffic::cap_str(&masked_payload_json, 32_768);
     }
     span.add(&usage);
-    let body = serde_json::to_vec(&json).map_err(|e| internal(e.into()))?;
+    let body = Bytes::from(serde_json::to_vec(&json).map_err(|e| internal(e.into()))?);
 
     let base = match api {
         Api::Anthropic => &st.cfg.anthropic_upstream,
@@ -580,6 +601,7 @@ async fn proxy_request(
                     .as_ref()
                     .map_or_else(|| kind.to_string(), |p| p.id.clone()),
             );
+        crate::image_protection::upstream_stage(&span, crate::image_protection::Stage::Sending);
         span.sent.store(true, Relaxed);
         let up_started = std::time::Instant::now();
         let send_res = st
@@ -628,6 +650,14 @@ async fn proxy_request(
         provider = Some(next);
     };
     let status = resp.status();
+    crate::image_protection::upstream_stage(
+        &span,
+        if status.is_success() {
+            crate::image_protection::Stage::Sent
+        } else {
+            crate::image_protection::Stage::ProviderError
+        },
+    );
     let out_headers = response_headers(resp.headers());
     let content_type = resp
         .headers()
@@ -698,7 +728,7 @@ async fn proxy_request(
             target_url,
             Some(status.as_u16()),
             err_kind,
-            if detail.is_empty() {
+            if has_images || detail.is_empty() {
                 status.to_string()
             } else {
                 detail

@@ -24,6 +24,9 @@ pub(crate) fn tool_result(block: &Value) -> bool {
 }
 
 pub(crate) fn human_block(block: &Value) -> bool {
+    if crate::image_protection::wire::is_image_block(block) {
+        return true;
+    }
     match block["type"].as_str() {
         Some("file" | "document" | "image" | "image_url" | "input_audio") => true,
         Some("text") | None => block["text"].as_str().is_some_and(|s| !s.trim().is_empty()),
@@ -250,6 +253,13 @@ fn tool_call_name<'a>(messages: &'a [Value], id: &str) -> Option<&'a str> {
     None
 }
 
+pub(crate) fn tool_result_id(id: &Value, message: usize, index: usize) -> String {
+    match id.as_str().filter(|key| !key.is_empty()) {
+        Some(key) => crate::traffic::cap_str(key, 256),
+        None => format!("legacy:{message}:{index}"),
+    }
+}
+
 /// Only the tool results being returned on this call, never the whole replayed history.
 pub(crate) fn incoming_tools(payload: &Value) -> Vec<ToolResult> {
     let Some(messages) = payload["messages"].as_array() else {
@@ -287,6 +297,7 @@ pub(crate) fn incoming_tools(payload: &Value) -> Vec<ToolResult> {
                     .as_array()
                     .into_iter()
                     .flatten()
+                    .filter(|b| !crate::image_protection::wire::is_image_block(b))
                     .filter_map(|b| b["text"].as_str())
                 {
                     if !value.is_empty() {
@@ -301,16 +312,7 @@ pub(crate) fn incoming_tools(payload: &Value) -> Vec<ToolResult> {
                 value
             };
             remaining = remaining.saturating_sub(result.len());
-            // Position distinguishes equal results of separate legacy function calls.
-            let id = if key.is_empty() {
-                format!(
-                    "legacy:{}:{index}:{}",
-                    start + offset,
-                    &blake3::hash(result.as_bytes()).to_hex()[..12]
-                )
-            } else {
-                crate::traffic::cap_str(key, 256)
-            };
+            let id = tool_result_id(id, start + offset, index);
             results.push(ToolResult {
                 id,
                 name: crate::traffic::cap_str(name, 256),
@@ -355,6 +357,9 @@ fn text_blocks(node: &Value, out: &mut Vec<String>) {
 }
 
 fn append_block(b: &Value, out: &mut Vec<String>) {
+    if crate::image_protection::wire::is_image_block(b) {
+        return;
+    }
     if let Some(s) = b["text"].as_str() {
         out.push(s.into());
     } else if let Some(input) = b.get("input") {
@@ -421,6 +426,12 @@ impl Transcript {
                 }
                 if !parts.is_empty() {
                     out.push(role, &parts.join("\n"));
+                } else if role == "user"
+                    && blocks
+                        .iter()
+                        .any(crate::image_protection::wire::is_image_block)
+                {
+                    out.push(role, "[Image]");
                 }
             }
             if let Some(calls) = msg["tool_calls"].as_array() {
@@ -436,7 +447,9 @@ impl Transcript {
             }
         }
         if out.text.is_empty() {
-            out.text = serde_json::to_string_pretty(payload).unwrap_or_default();
+            out.text =
+                serde_json::to_string_pretty(&crate::image_protection::wire::omit_images(payload))
+                    .unwrap_or_default();
         }
         out
     }

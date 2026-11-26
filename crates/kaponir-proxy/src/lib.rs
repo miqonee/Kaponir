@@ -12,6 +12,7 @@ pub mod anthropic;
 mod conversation;
 mod dataset;
 pub mod discovery;
+mod image_protection;
 mod inline_file;
 mod learning;
 mod metrics;
@@ -34,6 +35,7 @@ use kaponir_core::{Engine, Scope};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+pub use image_protection::Settings as ImageProtectionSettings;
 pub use server::router;
 pub use state::{Cx, State};
 
@@ -134,6 +136,8 @@ pub struct ProxyConfig {
     pub listen: String,
     /// Optional management API of the separate document worker.
     pub worker_url: Option<String>,
+    /// Protection for inline images on the proxy request path.
+    pub ocr: ImageProtectionSettings,
     /// Куда уходят запросы Anthropic Messages (провайдер или следующий прокси, например 9router).
     pub anthropic_upstream: String,
     pub openai_upstream: String,
@@ -156,6 +160,7 @@ impl Default for ProxyConfig {
         Self {
             listen: "127.0.0.1:8787".into(),
             worker_url: None,
+            ocr: ImageProtectionSettings::default(),
             anthropic_upstream: "https://api.anthropic.com".into(),
             openai_upstream: "https://api.openai.com".into(),
             system_hint: false,

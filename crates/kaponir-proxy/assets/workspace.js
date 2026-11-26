@@ -126,6 +126,7 @@ function jobGroup(job) {
   return ["queued", "collecting", "paused"].includes(job.state) ? job.state : "history";
 }
 function jobTitle(job) {
+  if (job.family === "ocr") return tr("Защита изображений");
   if (job.family === "review" && job.automatic)
     return tr("Автопроверка находок · {{0}}", [number(job.total)]);
   if (job.family === "review") return job.total != null ? tr("Проверка находок · {{0}}", [number(job.total)]) : tr("Проверка находок");
@@ -160,6 +161,11 @@ const queueReasons = {
   categorization_model: "Ожидает готовности модели категоризации и среды запуска.",
 };
 function jobActivity(job) {
+  if (job.family === "ocr") {
+    const label = ocrStageLabel(job.ocr);
+    const end = ["queued","running"].includes(job.state) ? Date.now() : job.updated;
+    return {label,text:tr("{{0}} с",[Math.max(0,Math.floor((end-job.created)/1000))])};
+  }
   const group = jobGroup(job), pr = job.progress;
   const count = (label, unit, done, total) => ({
     label: tr(label), text: tr(unit, [number(done),number(total)]), done, total,
@@ -321,6 +327,13 @@ function renderJob(job, family) {
     h("header", {class:"job-detail-head"}, h("h2", {}, jobTitle(job)), jobBadge(job)),
     context || source.some(Boolean) ? h("p", {class:"job-meta"}, [context, ...source].filter(Boolean).join(" · ")) : null,
     activityBlock(job));
+  if (family === "ocr") {
+    card.append(workButton("Открыть переписку",async()=>{
+      await loadDashboard();
+      openSession({session_id:job.session_id,turn_id:job.turn_id,id:job.event_id});
+    },"secondary"),workButton("Изображения",()=>openInspector(job.event_id,"images")));
+    return [...nodes,card];
+  }
   if (job.question && job.state === "collecting") {
     card.append(h("p", {class:"hint"}, tr("Проверка начнётся после ответа агента или минуты без новых шагов.")));
   } else if (job.question && job.question.passes > 0 && ["queued", "running"].includes(job.state)) {

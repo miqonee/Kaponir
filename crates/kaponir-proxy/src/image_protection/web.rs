@@ -1,0 +1,352 @@
+use super::{
+    Attachment, Code, Failure, InputImage, Mode, Node, SETTINGS, Settings, elapsed, now_ms, ocr,
+    process,
+};
+use crate::{
+    Shared, providers,
+    server::{ApiError, authorized, error},
+};
+use axum::{
+    Router,
+    body::Bytes,
+    extract::{Json, Path, State},
+    http::{HeaderMap, HeaderValue, StatusCode, header},
+    response::{IntoResponse, Response},
+    routing::{get, post},
+};
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+use serde::Deserialize;
+use serde_json::{Value, json};
+use std::time::Instant;
+
+type ResultResponse = Result<Response, ApiError>;
+
+pub(crate) fn routes() -> Router<Shared> {
+    Router::new()
+        .route("/ui/ocr-example.png", get(example))
+        .route("/api/v1/ui/ocr/settings", get(settings).put(save))
+        .route("/api/v1/ui/ocr/check", post(check))
+        .route("/api/v1/ui/ocr/models", post(models))
+        .route("/api/v1/ui/ocr/preview", post(preview))
+        .route("/api/v1/ui/ocr/review-links/{id}", get(review_links))
+        .route(
+            "/api/v1/ui/ocr/images/{session}/{event}/{attachment}/{variant}",
+            get(image),
+        )
+}
+
+fn private(mut response: Response) -> Response {
+    response.headers_mut().insert(
+        header::CACHE_CONTROL,
+        HeaderValue::from_static("private, no-store"),
+    );
+    response.headers_mut().insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    response
+}
+
+async fn example() -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "image/png"),
+            (header::CACHE_CONTROL, "public, max-age=3600"),
+        ],
+        ocr::EXAMPLE,
+    )
+        .into_response()
+}
+
+async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
+    let registry = providers::registry(st)?;
+    let connections: Vec<_> = registry.connections.into_iter().filter(|p| p.enabled)
+        .map(|p| json!({"id":p.id, "name":p.name, "kind":p.kind, "recipient":ocr::endpoint(&p), "models":p.models}))
+        .collect();
+    let recipient = match (settings.mode, settings.node) {
+        (Mode::Local, Node::Proxy) => None,
+        (Mode::Local, Node::Worker) => ocr::worker_recipient(st),
+        (Mode::Vision, _) => connections
+            .iter()
+            .find(|p| p["id"] == settings.connection_id)
+            .and_then(|p| p["recipient"].as_str())
+            .map(str::to_owned),
+    };
+    let (languages, failure) = match ocr::Backend::resolve(st, settings) {
+        Ok(backend) => match backend.languages(st).await {
+            Ok(languages) => {
+                let missing = settings.mode == Mode::Local
+                    && settings
+                        .languages
+                        .split('+')
+                        .any(|wanted| !languages.iter().any(|found| found == wanted));
+                (languages, missing.then_some(Code::Languages))
+            }
+            Err(failure) => (Vec::new(), Some(failure.code)),
+        },
+        Err(failure) => (Vec::new(), Some(failure.code)),
+    };
+    Ok(json!({
+        "settings":settings, "recipient":recipient, "connections":connections,
+        "worker":ocr::worker_recipient(st), "installed_languages":languages,
+        "engine_state": match failure {
+            None => "ready",
+            Some(Code::Consent | Code::Languages) => "needs_setup",
+            Some(_) => "unavailable",
+        },
+        "failure": failure,
+        "max_images":super::MAX_IMAGES,
+        "max_edge":super::raster::MAX_EDGE,
+    }))
+}
+
+async fn settings(State(st): State<Shared>, headers: HeaderMap) -> ResultResponse {
+    authorized(&st, &headers, true)?;
+    Ok(private(
+        Json(status(&st, &st.images.settings()).await?).into_response(),
+    ))
+}
+
+async fn save(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(settings): Json<Settings>,
+) -> ResultResponse {
+    authorized(&st, &headers, true)?;
+    if !settings.checked() {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "invalid image protection settings",
+        ));
+    }
+    let guard = st.images.settings_changes.lock().await;
+    if settings.enabled {
+        ocr::Backend::resolve(&st, &settings).map_err(|e| e.api())?;
+    }
+    st.with_vault(|_, v| {
+        v.set_private_setting(SETTINGS, &serde_json::to_vec(&settings)?)?;
+        Ok(())
+    })
+    .map_err(|_| Failure::new(Code::Storage).api())?;
+    *st.images
+        .settings
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = settings.clone();
+    drop(guard);
+    Ok(private(Json(status(&st, &settings).await?).into_response()))
+}
+
+#[derive(Deserialize)]
+struct VisionSelection {
+    connection_id: String,
+    #[serde(default)]
+    model: String,
+}
+
+async fn check(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(selection): Json<VisionSelection>,
+) -> ResultResponse {
+    authorized(&st, &headers, true)?;
+    if selection.model.trim().is_empty()
+        || selection.model.len() > 240
+        || selection.model.chars().any(char::is_control)
+    {
+        return Err(error(StatusCode::BAD_REQUEST, "enter a Vision model ID"));
+    }
+    let provider = providers::by_id(&st, &selection.connection_id)?;
+    if !provider.enabled {
+        return Err(Failure::new(Code::Consent).api());
+    }
+    let settings = st.images.settings();
+    let started = Instant::now();
+    let result = tokio::time::timeout(settings.timeout(), async {
+        let _ticket = super::Ticket::acquire(st.images.queue.clone(), &settings).await?;
+        ocr::verify(&st, &provider, &selection.model).await
+    })
+    .await
+    .unwrap_or_else(|_| Err(Failure::new(Code::Timeout)));
+    let (reachable, images, coordinates) = match result.as_ref().err().map(|e| e.code) {
+        None => (Some(true), Some(true), Some(true)),
+        Some(Code::VisionAddress) => (Some(false), None, None),
+        Some(Code::VisionImages) => (Some(true), Some(false), None),
+        Some(Code::VisionCoordinates | Code::Limits) => (Some(true), Some(true), Some(false)),
+        _ => (None, None, None),
+    };
+    Ok(private(Json(json!({"recipient":ocr::endpoint(&provider),"reachable":reachable,
+        "images":images,"coordinates":coordinates,"failure":result.err(),"elapsed_ms":elapsed(started)})).into_response()))
+}
+
+async fn models(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(selection): Json<VisionSelection>,
+) -> ResultResponse {
+    authorized(&st, &headers, true)?;
+    let provider = providers::by_id(&st, &selection.connection_id)?;
+    if !provider.enabled {
+        return Err(Failure::new(Code::Consent).api());
+    }
+    let (models, failure) = match providers::fetch_models(&st, &provider).await {
+        Ok(models) => (models, None),
+        Err(error) => (provider.models, Some(error)),
+    };
+    Ok(private(
+        Json(json!({"models":models,"failure":failure})).into_response(),
+    ))
+}
+
+async fn preview(State(st): State<Shared>, headers: HeaderMap, bytes: Bytes) -> ResultResponse {
+    authorized(&st, &headers, true)?;
+    let mut settings = st.images.settings();
+    if !settings.enabled {
+        settings.mode = Mode::Local;
+        settings.node = Node::Proxy;
+    } else if (settings.mode == Mode::Vision || settings.node == Node::Worker)
+        && headers
+            .get("x-kaponir-ocr-recipient")
+            .and_then(|value| value.to_str().ok())
+            != Some(&settings.approved_recipient)
+    {
+        return Err(Failure::new(Code::Consent).api());
+    }
+    settings.save_originals = false;
+    if bytes.len() > settings.max_bytes() {
+        return Err(Failure::new(Code::Limits).api());
+    }
+    let timeout = settings.timeout();
+    let started = Instant::now();
+    let (mut output, timings) = tokio::time::timeout(
+        timeout,
+        process(
+            &st,
+            settings,
+            None,
+            vec![InputImage::Bytes(bytes.to_vec())],
+            vec![Attachment::default()],
+            started,
+        ),
+    )
+    .await
+    .unwrap_or_else(|_| Err(Failure::new(Code::Timeout)))
+    .map_err(|e| e.api())?;
+    let item = output.pop().expect("one preview attachment");
+    Ok(private(Json(json!({
+        "image":item.attachment, "data":format!("data:image/png;base64,{}", STANDARD.encode(item.png)),
+        "elapsed_ms":elapsed(started), "timings":timings,
+    })).into_response()))
+}
+
+async fn review_links(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ResultResponse {
+    authorized(&st, &headers, true)?;
+    let exists = st
+        .with_vault(|_, v| Ok(v.journal_states()?.contains_key(&id)))
+        .map_err(|_| Failure::new(Code::Storage).api())?;
+    let mut links = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    if exists {
+        'events: for event in st.traffic.snapshot().events {
+            let Some(audit) = event.inspector.and_then(|i| i.images) else {
+                continue;
+            };
+            for attachment in audit.attachments {
+                if attachment
+                    .preview_until_ms
+                    .is_none_or(|time| time <= now_ms())
+                {
+                    continue;
+                }
+                for area in attachment.areas {
+                    if area.review_id == Some(id) && seen.insert((attachment.id.clone(), area.id)) {
+                        links.push(json!({
+                            "event_id":event.id, "session_id":event.session_id,
+                            "turn_id":event.turn.as_ref().map(|t| &t.id),
+                            "message_id":attachment.message_id, "attachment_id":attachment.id,
+                            "area_id":area.id,
+                        }));
+                        if links.len() >= 20 {
+                            break 'events;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(private(Json(links).into_response()))
+}
+
+async fn image(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Path((session, event, attachment, variant)): Path<(String, u64, String, String)>,
+) -> Response {
+    let result: ResultResponse = async {
+        authorized(&st, &headers, true)?;
+        let missing = || error(StatusCode::NOT_FOUND, "attachment_not_found");
+        let original = match variant.as_str() {
+            "original" => true,
+            "sent" => false,
+            _ => return Err(missing()),
+        };
+        let entry = st.traffic.event_by_id(event).ok_or_else(missing)?;
+        let tag = entry
+            .session_id
+            .unwrap_or_else(|| format!("request-{event}"));
+        if tag != session {
+            return Err(missing());
+        }
+        let audit = entry
+            .inspector
+            .and_then(|inspector| inspector.images)
+            .ok_or_else(missing)?;
+        let data = audit
+            .attachments
+            .iter()
+            .find(|a| a.id == attachment)
+            .ok_or_else(missing)?;
+        let expires = if original {
+            data.original_until_ms
+        } else {
+            data.preview_until_ms
+        };
+        let expires = expires.ok_or_else(|| {
+            error(
+                StatusCode::NOT_FOUND,
+                if original {
+                    "original_not_saved"
+                } else {
+                    "preview_not_saved"
+                },
+            )
+        })?;
+        let time = now_ms();
+        if expires <= time {
+            return Err(error(StatusCode::GONE, "attachment_expired"));
+        }
+        let contents = tokio::task::spawn_blocking(move || {
+            st.with_vault(|_, v| {
+                Ok(v.traffic_image(
+                    kaponir_vault::TrafficImage {
+                        event,
+                        session: &session,
+                        attachment: &attachment,
+                        original,
+                    },
+                    time,
+                )?)
+            })
+        })
+        .await
+        .map_err(|_| Failure::new(Code::Storage).api())?
+        .map_err(|_| Failure::new(Code::Storage).api())?
+        .ok_or_else(|| error(StatusCode::GONE, "attachment_removed"))?;
+        Ok(([(header::CONTENT_TYPE, contents.0)], contents.1).into_response())
+    }
+    .await;
+    private(result.unwrap_or_else(IntoResponse::into_response))
+}

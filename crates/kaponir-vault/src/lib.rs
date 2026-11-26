@@ -58,6 +58,22 @@ CREATE TABLE IF NOT EXISTS traffic_events (
     nonce BLOB NOT NULL,
     ct BLOB NOT NULL
 );
+CREATE TABLE IF NOT EXISTS traffic_images (
+    event INTEGER NOT NULL,
+    attachment TEXT NOT NULL,
+    original INTEGER NOT NULL,
+    expires INTEGER NOT NULL,
+    mime TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    nonce BLOB NOT NULL,
+    ct BLOB NOT NULL,
+    PRIMARY KEY (event, attachment, original)
+);
+CREATE INDEX IF NOT EXISTS traffic_images_expires ON traffic_images(expires);
+CREATE TRIGGER IF NOT EXISTS rotate_traffic_images AFTER DELETE ON traffic_events
+BEGIN
+    DELETE FROM traffic_images WHERE event=OLD.id;
+END;
 CREATE TABLE IF NOT EXISTS session_titles (
     tag TEXT PRIMARY KEY,
     started_ms INTEGER NOT NULL,
@@ -886,6 +902,115 @@ impl SqliteVault {
         }
         out.reverse();
         Ok(out)
+    }
+}
+
+/// A binary attachment is sealed independently of the inspector's JSON.
+pub struct TrafficImage<'a> {
+    pub event: u64,
+    pub session: &'a str,
+    pub attachment: &'a str,
+    pub original: bool,
+}
+impl TrafficImage<'_> {
+    fn aad(&self, expires: u64, mime: &str) -> String {
+        format!(
+            "traffic-image:v1:{}:{}:{}:{}:{expires}:{mime}",
+            self.event, self.session, self.attachment, self.original
+        )
+    }
+}
+
+impl SqliteVault {
+    pub fn save_traffic_image(
+        &self,
+        image: TrafficImage<'_>,
+        expires: u64,
+        mime: &str,
+        bytes: &[u8],
+    ) -> Result<(), VaultError> {
+        let (nonce, ct) = self.seal(bytes, image.aad(expires, mime).as_bytes())?;
+        self.conn
+            .execute(
+                "INSERT INTO traffic_images(event,attachment,original,expires,mime,size,nonce,ct)
+             VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",
+                params![
+                    image.event as i64,
+                    image.attachment,
+                    image.original,
+                    expires as i64,
+                    mime,
+                    ct.len() as i64,
+                    nonce,
+                    ct
+                ],
+            )
+            .map_err(db)?;
+        Ok(())
+    }
+
+    pub fn traffic_image(
+        &self,
+        image: TrafficImage<'_>,
+        now_ms: u64,
+    ) -> Result<Option<(String, Vec<u8>)>, VaultError> {
+        let row = self
+            .conn
+            .query_row(
+                "SELECT expires,mime,nonce,ct FROM traffic_images
+             WHERE event=?1 AND attachment=?2 AND original=?3 AND expires>?4",
+                params![
+                    image.event as i64,
+                    image.attachment,
+                    image.original,
+                    now_ms as i64
+                ],
+                |r| {
+                    Ok((
+                        r.get::<_, i64>(0)? as u64,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, Vec<u8>>(2)?,
+                        r.get::<_, Vec<u8>>(3)?,
+                    ))
+                },
+            )
+            .optional()
+            .map_err(db)?;
+        row.map(|(expires, mime, nonce, ct)| {
+            let bytes = self.unseal(&nonce, &ct, image.aad(expires, &mime).as_bytes())?;
+            Ok((mime, bytes))
+        })
+        .transpose()
+    }
+
+    pub fn clean_traffic_images(&self, now_ms: u64, after_restart: bool) -> Result<(), VaultError> {
+        self.conn
+            .execute(
+                "DELETE FROM traffic_images WHERE expires<=?1",
+                [now_ms as i64],
+            )
+            .map_err(db)?;
+        if after_restart {
+            self.conn
+                .execute(
+                    "DELETE FROM traffic_images WHERE event NOT IN (SELECT id FROM traffic_events)",
+                    [],
+                )
+                .map_err(db)?;
+        }
+        const IMAGE_BUDGET: i64 = 128 << 20;
+        self.conn
+            .execute(
+                "DELETE FROM traffic_images WHERE event IN (
+                SELECT event FROM (
+                    SELECT event, sum(sum(size)) OVER (ORDER BY event DESC) AS used
+                    FROM traffic_images GROUP BY event
+                ) WHERE used > ?1
+            )",
+                [IMAGE_BUDGET],
+            )
+            .map_err(db)?;
+        Ok(())
     }
 }
 

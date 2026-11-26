@@ -18,6 +18,8 @@ const PAGE_META = {
     "Подключения и адреса API для ваших приложений.",
   ],
   analysis: ["", "Обнаружение", ""],
+  ocr: ["", "OCR и изображения", ""],
+  "image-lab": ["", "Проверка изображения", ""],
   worker: ["", "Служба и очередь", "Установка моделей, обработка файлов и состояние локальной службы."],
   categorization: ["", "Категоризация находок", ""],
   rules: ["", "Правила", ""],
@@ -703,6 +705,8 @@ async function openInspector(id, initialTab = null, target = null) {
         body.replaceChildren(...(nodes.length ? nodes : [h("p", { class: "hint" }, tr("Причин для проверки не зарегистрировано"))]));
       },
       request: () => body.replaceChildren(inspectorComparison(insp,ev.usage || {},false)),
+      images: () => body.replaceChildren(ocrAttachmentCards(insp.images,ev) ||
+        h("p",{class:"hint"},tr("Данные об обработке изображения отсутствуют"))),
       response: () => body.replaceChildren(inspectorComparison(insp,ev.usage || {},true)),
       replacements: () => {
         const items = ev.usage?.masked_items || [];
@@ -825,6 +829,7 @@ async function openInspector(id, initialTab = null, target = null) {
     for (const [key, label] of [
       ["request", "Запрос"],
       ["response", "Ответ"],
+      ...(insp.images || initialTab === "images" ? [["images","Изображения"]] : []),
       ["replacements", "Замены"],
       ["review", "Проверка"],
       ["diagnostics", "Диагностика"],

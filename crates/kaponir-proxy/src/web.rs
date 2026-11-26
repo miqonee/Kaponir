@@ -169,6 +169,15 @@ pub(crate) fn routes() -> Router<Shared> {
                 )
             }),
         )
+        .route(
+            "/ui/ocr.js",
+            get(|| async {
+                asset(
+                    include_str!("../assets/ocr.js"),
+                    "text/javascript; charset=utf-8",
+                )
+            }),
+        )
         .route("/api/v1/ui/events", get(ui_events))
         .route("/api/v1/ui/events/{id}", get(ui_event_by_id))
         .route(
@@ -225,7 +234,7 @@ fn asset(body: &'static str, content_type: &'static str) -> Response {
         header::CONTENT_SECURITY_POLICY,
         HeaderValue::from_static(
             "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; \
-             img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
+             img-src 'self' data: blob:; frame-ancestors 'none'; base-uri 'none'; form-action 'none'",
         ),
     );
     r
@@ -438,7 +447,7 @@ async fn ui_conversation_steps(
         });
         steps.push(
             json!({"id":id, "outcome":e.outcome, "reply":reply, "tools":insp.tool_results,
-            "restore_marks":marks, "review_items":e.usage.review_items}),
+            "restore_marks":marks, "review_items":e.usage.review_items, "images":insp.images}),
         );
     }
     Ok(Json(steps).into_response())

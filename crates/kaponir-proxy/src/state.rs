@@ -170,6 +170,7 @@ impl Drop for ApiSlot<'_> {
     }
 }
 pub struct State {
+    pub(crate) images: crate::image_protection::Service,
     pub(crate) api_slots: ApiSlots,
     pub(crate) learning: Arc<crate::learning::Learning>,
     pub(crate) learning_changes: tokio::sync::Mutex<()>,
@@ -215,6 +216,7 @@ impl State {
             .build()?;
         let traffic = Arc::new(Traffic::default());
         let learning = crate::learning::Learning::load(&vault)?;
+        let images = crate::image_protection::Service::load(&vault, &cfg.ocr)?;
         let inner = Arc::new(Mutex::new(Inner {
             vault,
             sessions: HashMap::new(),
@@ -251,6 +253,7 @@ impl State {
             }
         }));
         let state = Self {
+            images,
             learning,
             learning_changes: tokio::sync::Mutex::new(()),
             provider_refresh: tokio::sync::Mutex::new(()),
@@ -279,10 +282,25 @@ impl State {
                 .into_iter()
                 .filter_map(|bytes| serde_json::from_slice(&bytes).ok())
                 .collect();
+            let mut legacy = Vec::new();
             for event in &mut events {
+                let scrubbed = event.mark_legacy_images();
                 if crate::opencode::repair_event(&state, event).is_err() {
                     eprintln!("kaponir: could not repair title for request {}", event.id);
                 }
+                if scrubbed {
+                    legacy.push((event.id, event.time_ms / 1000, serde_json::to_vec(event)?));
+                }
+            }
+            if !legacy.is_empty() {
+                state.with_vault(|_, v| {
+                    crate::learning::transaction(v, || {
+                        for (id, created, bytes) in legacy {
+                            v.save_traffic_event(id, created, &bytes, 0)?;
+                        }
+                        Ok(())
+                    })
+                })?;
             }
             state.traffic.restore_events(events);
         }
