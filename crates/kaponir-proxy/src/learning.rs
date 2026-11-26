@@ -240,6 +240,51 @@ pub struct Settings {
     pub categorization: CategorizationSettings,
     pub revision: u64,
 }
+
+impl Settings {
+    fn uses_analysis_api(&self) -> bool {
+        self.analysis.provider == "api" && self.categorization.provider != "s1"
+    }
+
+    fn effective(mut self) -> Self {
+        if self.uses_analysis_api() {
+            let analysis = &self.analysis;
+            self.categorization = CategorizationSettings {
+                provider: "api".into(),
+                scenario: Scenario::Standard.for_provider("api"),
+                api_manual: analysis.api_manual.clone(),
+                inference: analysis.inference.clone(),
+                http: kaponir_s1::http::HttpSettings {
+                    model: Some(analysis.model.clone()),
+                    url: analysis.url.clone(),
+                    protocol: kaponir_s1::http::HttpProtocol::Openai,
+                    timeout_ms: analysis.timeout_seconds * 1000,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+        }
+        self
+    }
+
+    fn key_role<'a>(&self, role: &'a str) -> &'a str {
+        if role == "categorization" && self.uses_analysis_api() {
+            "analysis"
+        } else {
+            role
+        }
+    }
+
+    fn reset_s1_override(&mut self) {
+        if self.categorization.provider == "s1" {
+            self.categorization = CategorizationSettings {
+                http: std::mem::take(&mut self.categorization.http),
+                ..Default::default()
+            };
+        }
+    }
+}
+
 #[derive(Default, Clone, Serialize, Deserialize)]
 struct Counters {
     processed: u64,
@@ -685,6 +730,10 @@ impl Learning {
     }
 
     pub(crate) fn snapshot(&self) -> Settings {
+        self.saved_settings().effective()
+    }
+
+    fn saved_settings(&self) -> Settings {
         self.settings
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -695,7 +744,7 @@ impl Learning {
             if v.private_setting(SETTINGS)?.is_some() {
                 return Ok(());
             }
-            let mut settings = self.snapshot();
+            let mut settings = self.saved_settings();
             if let Some(ctl) = &st.control {
                 let old = ctl.s1_settings()?;
                 if old.provider == kaponir_s1::ProviderKind::Http {
@@ -1112,28 +1161,10 @@ async fn workspace_model(
         })
         .map_err(internal)?;
     Ok(Json(
-        json!({"analysis":review_source(&st,"analysis").ok(),"categorization":review_source(&st,"categorization").ok(),
+        json!({"analysis":source_for(&settings,"analysis").ok(),"categorization":source_for(&settings,"categorization").ok(),
         "slots":settings.analysis.parallelism,"analysis_enabled":settings.analysis.enabled,"previous_slots":previous}),
     ))
 }
-fn share_analysis_api(settings: &mut Settings) {
-    let source = &settings.analysis;
-    settings
-        .categorization
-        .api_manual
-        .clone_from(&source.api_manual);
-    settings.categorization.provider = "api".into();
-    settings.categorization.http = kaponir_s1::http::HttpSettings {
-        model: Some(source.model.clone()),
-        url: source.url.clone(),
-        protocol: kaponir_s1::http::HttpProtocol::Openai,
-        timeout_ms: source.timeout_seconds * 1000,
-        ..Default::default()
-    };
-    settings.categorization.inference = source.inference.clone();
-    normalize_categorization(&mut settings.categorization);
-}
-
 async fn set_workspace_model(
     AxumState(st): AxumState<Shared>,
     headers: HeaderMap,
@@ -1142,13 +1173,12 @@ async fn set_workspace_model(
     authorized(&st, &headers, true)?;
     let _guard = st.learning_changes.lock().await;
     let _rules = st.rule_changes.lock().await;
-    let mut settings = st.learning.snapshot();
-    let shared_api = change.use_analysis_api;
-    if shared_api {
+    let mut settings = st.learning.saved_settings();
+    if change.use_analysis_api {
         if change.model.is_some() || settings.analysis.provider != "api" {
             return Err(bad(anyhow::anyhow!("invalid_review_source")));
         }
-        share_analysis_api(&mut settings);
+        settings.reset_s1_override();
     }
     if let Some(model) = change.model {
         if settings.analysis.provider == "none" && !settings.analysis.enabled {
@@ -1189,11 +1219,7 @@ async fn set_workspace_model(
     validate_categorization(&settings.categorization).map_err(bad)?;
     save_settings(
         &st,
-        if shared_api {
-            "workspace-api"
-        } else {
-            "workspace"
-        },
+        "workspace",
         settings,
         None,
         false,
@@ -1221,12 +1247,16 @@ async fn get_categorization(
     h: HeaderMap,
 ) -> Result<Json<Value>, ApiError> {
     authorized(&st, &h, true)?;
-    let saved = st
-        .with_vault(|_, v| Ok(key(v, "categorization")?.is_some()))
+    let (snapshot, saved) = st
+        .with_vault(|_, v| {
+            let snapshot = st.learning.snapshot();
+            let saved = key(v, snapshot.key_role("categorization"))?.is_some();
+            Ok((snapshot, saved))
+        })
         .map_err(internal)?;
-    let snapshot = st.learning.snapshot();
     Ok(Json(
-        json!({"settings":snapshot.categorization,"revision":snapshot.revision,"key_saved":saved,"editable":st.control.is_some()}),
+        json!({"settings":snapshot.categorization,"revision":snapshot.revision,"key_saved":saved,
+            "uses_analysis_api":snapshot.uses_analysis_api(),"editable":st.control.is_some()}),
     ))
 }
 #[derive(Clone, Copy, Deserialize, PartialEq)]
@@ -1357,45 +1387,44 @@ fn save_settings(
     anyhow::ensure!(st.control.is_some(), "read_only");
     anyhow::ensure!(!(clear && new_key.is_some()), "key_and_clear_conflict");
     let mut settings = settings;
-    let previous = st.learning.snapshot();
+    let previous = st.learning.saved_settings();
+    let previous_effective = previous.clone().effective();
+    let changed_url = match role {
+        "analysis" => previous.analysis.url != settings.analysis.url,
+        "categorization" => previous.categorization.http.url != settings.categorization.http.url,
+        _ => false,
+    };
+    if role == "categorization" && changed_url {
+        settings.categorization.http.token_env = None;
+    }
+    let mut effective = settings.clone().effective();
     let review_role = match role {
         "analysis"
-            if (
-                previous.analysis.provider.as_str(),
-                &previous.analysis.model,
-                &previous.analysis.url,
-            ) != (
-                settings.analysis.provider.as_str(),
-                &settings.analysis.model,
-                &settings.analysis.url,
-            ) =>
+            if effective.categorization.provider != "s1"
+                && (
+                    previous.analysis.provider.as_str(),
+                    &previous.analysis.model,
+                    &previous.analysis.url,
+                ) != (
+                    settings.analysis.provider.as_str(),
+                    &settings.analysis.model,
+                    &settings.analysis.url,
+                ) =>
         {
             Some("analysis")
         }
         "categorization"
-            if previous.categorization.provider != settings.categorization.provider
-                || previous.categorization.model != settings.categorization.model
-                || previous.categorization.http.url != settings.categorization.http.url
-                || previous.categorization.http.model != settings.categorization.http.model =>
+            if previous_effective.categorization.provider != effective.categorization.provider
+                || previous_effective.categorization.model != effective.categorization.model
+                || previous_effective.categorization.http.url
+                    != effective.categorization.http.url
+                || previous_effective.categorization.http.model
+                    != effective.categorization.http.model =>
         {
             Some("categorization")
         }
         _ => None,
     };
-    let key_role = if role == "shared-analysis-api" {
-        "analysis"
-    } else {
-        role
-    };
-    let share_api = matches!(role, "workspace-api" | "shared-analysis-api");
-    let changed_url = if key_role == "analysis" {
-        previous.analysis.url != settings.analysis.url
-    } else {
-        previous.categorization.http.url != settings.categorization.http.url
-    };
-    if role == "categorization" && changed_url {
-        settings.categorization.http.token_env = None;
-    }
     let binding = |s: &Settings| {
         json!([
             s.analysis.provider,
@@ -1412,7 +1441,10 @@ fn save_settings(
         ])
     };
     settings.revision = previous.revision
-        + u64::from(binding(&previous) != binding(&settings) || new_key.is_some() || clear);
+        + u64::from(
+            binding(&previous_effective) != binding(&effective) || new_key.is_some() || clear,
+        );
+    effective.revision = settings.revision;
     st.with_vault(|engine, v| {
         v.begin()?;
         let result = (|| {
@@ -1422,32 +1454,17 @@ fn save_settings(
                     "queue_choice_required"
                 );
             }
-            if share_api
-                && settings.revision == previous.revision
-                && v.private_setting("learning:analysis:key")?
-                    != v.private_setting("learning:categorization:key")?
-            {
-                settings.revision += 1;
-            }
             if settings.revision != previous.revision && queue_counts(v)? != (0, 0) {
                 let choice = queue.ok_or_else(|| anyhow::anyhow!("queue_choice_required"))?;
-                switch_queue(v, &settings, choice.action, review_role, engine)?;
+                switch_queue(v, &effective, choice.action, review_role, engine)?;
             }
             if clear || changed_url && new_key.is_none() {
-                v.delete_private_setting(&format!("learning:{key_role}:key"))?;
+                v.delete_private_setting(&format!("learning:{role}:key"))?;
             } else if let Some(k) = new_key {
                 anyhow::ensure!(!k.contains(['\n', '\r']) && k.len() <= 8192, "invalid_key");
-                v.set_private_setting(&format!("learning:{key_role}:key"), k.as_bytes())?;
+                v.set_private_setting(&format!("learning:{role}:key"), k.as_bytes())?;
             }
-            if share_api {
-                if let Some(token) = v.private_setting("learning:analysis:key")? {
-                    v.set_private_setting("learning:categorization:key", &token)?;
-                } else {
-                    v.delete_private_setting("learning:categorization:key")?;
-                }
-            }
-            if role.starts_with("workspace")
-                && settings.analysis.parallelism != previous.analysis.parallelism
+            if role == "workspace" && settings.analysis.parallelism != previous.analysis.parallelism
             {
                 v.set_private_setting(
                     "workspace:previous-slots",
@@ -1493,23 +1510,18 @@ async fn put_analysis(
     let _guard = st.learning_changes.lock().await;
     let _rules = st.rule_changes.lock().await;
     validate_analysis(&req.settings).map_err(bad)?;
-    let mut s = st.learning.snapshot();
+    let mut s = st.learning.saved_settings();
     let was_enabled = s.analysis.enabled;
     s.analysis = req.settings;
     if req.use_for_categorization {
         if s.analysis.provider != "api" {
             return Err(bad(anyhow::anyhow!("invalid_review_source")));
         }
-        share_analysis_api(&mut s);
-        validate_categorization(&s.categorization).map_err(bad)?;
+        s.reset_s1_override();
     }
     save_settings(
         &st,
-        if req.use_for_categorization {
-            "shared-analysis-api"
-        } else {
-            "analysis"
-        },
+        "analysis",
         s,
         req.key.as_deref().map(str::trim).filter(|s| !s.is_empty()),
         req.clear_key,
@@ -1529,10 +1541,19 @@ async fn put_categorization(
     authorized(&st, &h, true)?;
     let _guard = st.learning_changes.lock().await;
     let _rules = st.rule_changes.lock().await;
-    normalize_categorization(&mut req.settings);
-    validate_categorization(&req.settings).map_err(bad)?;
-    let mut s = st.learning.snapshot();
-    s.categorization = req.settings;
+    let mut s = st.learning.saved_settings();
+    if req.settings.provider == "analysis" {
+        if s.analysis.provider != "api" {
+            return Err(bad(anyhow::anyhow!("invalid_review_source")));
+        }
+        s.reset_s1_override();
+        req.key = None;
+        req.clear_key = false;
+    } else {
+        normalize_categorization(&mut req.settings);
+        validate_categorization(&req.settings).map_err(bad)?;
+        s.categorization = req.settings;
+    }
     save_settings(
         &st,
         "categorization",
@@ -2116,9 +2137,15 @@ async fn test_categorization(
         .await
         .map_err(bad);
     }
+    let saved = st.learning.saved_settings();
+    let key_role = if req.settings.provider == "api" {
+        saved.key_role("categorization")
+    } else {
+        "categorization"
+    };
     let token = test_key(
         &st,
-        "categorization",
+        key_role,
         req.key,
         req.clear_key,
         &req.settings.http.url,
@@ -2134,7 +2161,7 @@ async fn test_categorization(
         "synthetic",
     );
     let mut settings = req.settings;
-    if settings.http.url != st.learning.snapshot().categorization.http.url {
+    if settings.http.url != saved.categorization.http.url {
         settings.http.token_env = None;
     }
     if settings.scenario != Scenario::Standard {
@@ -2168,7 +2195,7 @@ fn test_key(
     }
     // Check the binding under the same vault lock that commits URL and key changes.
     st.with_vault(|_, v| {
-        let saved = st.learning.snapshot();
+        let saved = st.learning.saved_settings();
         let saved_url = if role == "analysis" {
             saved.analysis.url
         } else {
@@ -2898,14 +2925,17 @@ pub(crate) async fn review_infer(
     items: Value,
     schema: Value,
 ) -> anyhow::Result<Value> {
-    let mut settings = st.learning.snapshot();
-    anyhow::ensure!(
-        selected["revision"] == settings.revision,
-        "configuration_changed"
-    );
-    settings.categorization.scenario = serde_json::from_value(selected["scenario"].clone())?;
     let role = selected["role"].as_str().unwrap();
-    let token = st.with_vault(|_, v| key(v, role))?;
+    let (mut settings, token) = st.with_vault(|_, v| {
+        let settings = st.learning.snapshot();
+        anyhow::ensure!(
+            selected["revision"] == settings.revision,
+            "configuration_changed"
+        );
+        let token = key(v, settings.key_role(role))?;
+        Ok((settings, token))
+    })?;
+    settings.categorization.scenario = serde_json::from_value(selected["scenario"].clone())?;
     if settings.categorization.scenario != Scenario::Standard {
         if role == "analysis" {
             let a = &settings.analysis;
@@ -3072,8 +3102,13 @@ async fn process(st: &Shared, job: &mut Job, s: &Settings) -> anyhow::Result<usi
     }
     validate_categorization(&categorization)?;
 
-    let (analysis_key, cat_key) =
-        st.with_vault(|_, v| Ok((key(v, "analysis")?, key(v, "categorization")?)))?;
+    let (analysis_key, cat_key) = st.with_vault(|_, v| {
+        anyhow::ensure!(
+            *st.learning.revision_signal.borrow() == s.revision,
+            "configuration_changed"
+        );
+        Ok((key(v, "analysis")?, key(v, s.key_role("categorization"))?))
+    })?;
     let mut entries = Vec::new();
     let mut seen = BTreeSet::new();
     let engine = st.engine();
@@ -4215,12 +4250,17 @@ mod tests {
         let mut settings = Settings::default();
         settings.analysis.enabled = true;
         settings.analysis.provider = "api".into();
+        settings.analysis.model = "discovery".into();
         settings.analysis.url = "https://example.test/v1".into();
         settings.categorization.provider = "api".into();
-        settings.categorization.http.url = settings.analysis.url.clone();
-        settings.categorization.http.model = Some("fixture".into());
+        settings.categorization.http.url = "https://legacy.test/v1".into();
+        settings.categorization.http.model = Some("legacy".into());
         settings.categorization.scenario = Scenario::B;
         let v = vault();
+        v.set_private_setting("learning:analysis:key", b"discovery-key")
+            .unwrap();
+        v.set_private_setting("learning:categorization:key", b"legacy-key")
+            .unwrap();
         v.set_private_setting(SETTINGS, &serde_json::to_vec(&settings).unwrap())
             .unwrap();
         let st = Arc::new(
@@ -4232,7 +4272,21 @@ mod tests {
             )
             .unwrap(),
         );
-        assert_eq!(st.learning.snapshot().categorization.scenario, Scenario::D);
+        let effective = st.learning.snapshot();
+        assert_eq!(effective.categorization.scenario, Scenario::D);
+        assert_eq!(
+            effective.categorization.http.model.as_deref(),
+            Some("discovery")
+        );
+        assert_eq!(effective.categorization.http.url, settings.analysis.url);
+        let token = st
+            .with_vault(|_, v| key(v, effective.key_role("categorization")))
+            .unwrap();
+        assert_eq!(token.as_deref(), Some("discovery-key"));
+        assert_eq!(
+            st.learning.saved_settings().categorization.http.url,
+            settings.categorization.http.url
+        );
         let queued = queue_documents(
             &st,
             vec![kaponir_core::discover::Document {

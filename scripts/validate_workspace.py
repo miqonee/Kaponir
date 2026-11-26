@@ -195,11 +195,9 @@ def main():
                                 model='workspace-fixture',parallelism=4,background=False,auto_apply=False,enabled=True)
                 settings['inference']['batch_size']=8
                 api('/api/v1/ui/analysis',{'settings':settings},'PUT')
-                cat=api('/api/v1/ui/categorization')['settings'];cat['provider']='none'
-                api('/api/v1/ui/categorization',{'settings':cat},'PUT')
                 seed(0,137)
                 assert api('/api/v1/ui/review?q=zorgworkspace')['total']==137
-                shared=api('/api/v1/ui/workspace/model',{'use_analysis_api':True},'PUT')
+                shared=api('/api/v1/ui/workspace/model')
                 assert shared['analysis']['connection_id']==shared['categorization']['connection_id']
                 with sync_playwright() as pw:
                     browser=pw.chromium.launch(executable_path=shutil.which('chromium'),args=['--disable-background-networking'])

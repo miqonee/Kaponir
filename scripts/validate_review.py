@@ -65,6 +65,7 @@ def check_local_presets(page, api, output):
         page.reload()
         page.wait_for_function("() => document.querySelector('#analysis-output-tokens').value === '1400'")
         assert api('/api/v1/ui/analysis')['settings']['inference']['local_generation']['top_k'] == 40
+        categorization = api('/api/v1/ui/categorization')['settings']
         page.evaluate("showTab('categorization')")
         page.locator('#categorization-provider').select_option('local')
         for row in rows:
@@ -302,6 +303,8 @@ def check_manual_mask(page, base, api):
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('binary',type=Path);parser.add_argument('--output',type=Path,default=Path('artifacts/review'));args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True)
     fail=threading.Event();release=threading.Event();release.set();seen=[];seen_formats=[]
+    amount_candidates = {'candidates': [{'value': '40%', 'kind': 'PERSON', 'confidence': .90},
+                                        {'value': '1 320,00 ₽', 'kind': 'SVC', 'confidence': .78}]}
     class Provider(BaseHTTPRequestHandler):
         def log_message(self,*_):pass
         def respond(self,data,status=200):
@@ -316,6 +319,9 @@ def main():
                 if body.get('operation') == 'probe':
                     assert body['input'] == {} and body['timeout_seconds'] == 300
                     self.respond({'ready':True})
+                    return
+                if 'source' in body['input']:
+                    self.respond(amount_candidates)
                     return
                 if 'items' in body['input']:
                     packet = body['input']
@@ -349,7 +355,7 @@ def main():
                                   else 'Confirmed private project in source context.')
                         decisions.append({'id':item['id'],'verdict':verdict,'reason':reason})
                     result = {'decisions':decisions}
-                else:result={'candidates':[{'value':'40%','kind':'PERSON','confidence':.90},{'value':'1 320,00 ₽','kind':'SVC','confidence':.78}]}
+                else:result=amount_candidates
                 self.respond({'choices':[{'finish_reason':'stop','message':{'content':json.dumps(result,ensure_ascii=False)}}]});return
             self.respond({'choices':[{'message':{'role':'assistant','content':'ready'}}]})
     provider=ThreadingHTTPServer(('127.0.0.1',0),Provider);threading.Thread(target=provider.serve_forever,daemon=True).start();upstream=f'http://127.0.0.1:{provider.server_port}'
@@ -403,10 +409,13 @@ def main():
                     expect(page.locator('#review-options #review-scenario-choice')).to_have_count(0)
                     page.locator('#review-options').get_by_role('button', name='Готово').click()
                     assert 'Нет общей оценки' not in page.locator('#review-list').inner_text()
-                    money=next(i for i in rows() if i['value']=='40%');assert money['kind']=='AMOUNT' and money['proposed_kind']=='PERSON' and money['categorization_state']=='disabled'
+                    money = next(i for i in rows() if i['value'] == '40%')
+                    assert money['kind'] == 'AMOUNT' and money['proposed_kind'] == 'PERSON'
+                    assert money['categorization_state'] == 'verdict_only'
+                    assert money['scenario_result']['verdict'] == 'mask'
                     money_card=card_for(money)
                     money_card.get_by_role('tab',name='Происхождение').click()
-                    expect(money_card.locator('.origin-fields')).to_contain_text('тип не проверен')
+                    expect(money_card.locator('.origin-fields')).to_contain_text('Тип остаётся на ручной проверке')
                     target=next(i for i in rows() if i['value']=='zorgreviewalpha');card=card_for(target)
                     rules_before_review=json.dumps(api('/api/v1/rules'))
                     card.get_by_role('button',name='Получить предложение ИИ',exact=True).click()
@@ -535,7 +544,8 @@ def main():
                                 page.screenshot(path=str(args.output/f'review-{language}-{theme}-{width}.png'),full_page=True)
                     # A later confident categorizer cannot silently activate a numeric type correction.
                     cat.update(provider='local',model='qwen3-0.6b');api('/api/v1/ui/categorization',{'settings':cat},'PUT')
-                    settings['auto_apply']=True;api('/api/v1/ui/analysis',{'settings':settings},'PUT')
+                    settings.update(provider='local', model='qwen3-0.6b', auto_apply=True)
+                    api('/api/v1/ui/analysis',{'settings':settings},'PUT')
                     api('/api/v1/ui/worker/start',{})
                     rules_before=json.dumps(api('/api/v1/rules'))
                     api('/api/v1/ui/analysis/documents',{'documents':[{'name':'numeric-validation.md','text':'Additional private estimate: Аванс 40%, цена 1 320,00 ₽.'}]})
