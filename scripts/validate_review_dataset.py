@@ -543,6 +543,15 @@ def check_rule_removal_recovery(api, home, restart):
     restart()
     assert_unchanged()
 
+    alias = shared_dir / 'linked-team.toml'
+    os.link(shared_rules, alias)
+    try:
+        assert 'multiple hard links' in rejected_delete(400)
+        assert_unchanged()
+        assert alias.samefile(shared_rules)
+    finally:
+        alias.unlink()
+
     # Exercise both permission failures when running as an unprivileged user.
     for path, mode in [(shared_rules, 0o440), (shared_dir, 0o500)]:
         previous_mode = path.stat().st_mode & 0o777

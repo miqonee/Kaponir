@@ -588,6 +588,22 @@ fn read_rule_file(path: &Path, revision: Option<&str>) -> Result<String> {
     Ok(original)
 }
 
+fn check_removal_access(path: &Path) -> Result<()> {
+    // Rename alone would bypass a read-only file and detach any other hard links.
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .open(path)
+        .with_context(|| format!("{}", path.display()))?;
+    #[cfg(unix)]
+    anyhow::ensure!(
+        std::os::unix::fs::MetadataExt::nlink(&file.metadata()?) == 1,
+        "{} has multiple hard links; atomic deletion would detach its aliases",
+        path.display()
+    );
+    drop(file);
+    Ok(())
+}
+
 fn replace_rule_file(path: &Path, original: &str, updated: &str) -> Result<()> {
     // Shared rule files can be symlinked into the home. Replace the target in its directory.
     let target = path.canonicalize()?;
@@ -697,12 +713,7 @@ impl kaponir_proxy::Control for HomeControl {
         let original = read_rule_file(&path, revision).map_err(RuleEditError::from_edit)?;
         let (updated, removed) = remove_rule_block(&original, index)
             .map_err(|e| RuleEditError::Edit(anyhow!("{}: {e}", path.display())))?;
-        // Renaming only requires directory access. Keep DELETE's write check on the rule file.
-        std::fs::OpenOptions::new()
-            .write(true)
-            .open(&path)
-            .with_context(|| format!("{}", path.display()))
-            .map_err(RuleEditError::Edit)?;
+        check_removal_access(&path).map_err(RuleEditError::Edit)?;
         let engine = self
             .engine_for_rule_edit(scope, &updated)
             .map_err(RuleEditError::Internal)?;
