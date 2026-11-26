@@ -565,6 +565,57 @@ pub struct HomeControl {
     pub home: Home,
 }
 
+impl HomeControl {
+    fn engine_for_rule_edit(&self, scope: Scope, updated: &str) -> Result<Engine> {
+        let mut rules = self.home.load_rules()?;
+        let set = rules
+            .iter_mut()
+            .find(|set| set.scope == scope)
+            .ok_or_else(|| anyhow!("rule_list_changed"))?;
+        set.file = RuleFile::parse(updated).map_err(|e| anyhow!("{e}"))?;
+        self.home
+            .build_engine_with_rules(&self.home.load_config()?, &rules)
+    }
+}
+
+fn read_rule_file(path: &Path, revision: Option<&str>) -> Result<String> {
+    let original = std::fs::read_to_string(path).with_context(|| format!("{}", path.display()))?;
+    if let Some(revision) = revision {
+        let file = RuleFile::parse(&original).map_err(|e| anyhow!("{e}"))?;
+        let hash = blake3::hash(&serde_json::to_vec(&file)?).to_hex();
+        anyhow::ensure!(hash.as_str() == revision, "rule_list_changed");
+    }
+    Ok(original)
+}
+
+fn replace_rule_file(path: &Path, original: &str, updated: &str) -> Result<()> {
+    // Shared rule files can be symlinked into the home. Replace the target in its directory.
+    let target = path.canonicalize()?;
+    let permissions = std::fs::metadata(&target)?.permissions();
+    let tmp = target.with_added_extension(format!("{}.tmp", std::process::id()));
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let mut output = options.open(&tmp)?;
+    let written = (|| -> Result<()> {
+        output.set_permissions(permissions)?;
+        output.write_all(updated.as_bytes())?;
+        output.sync_all()?;
+        drop(output);
+        anyhow::ensure!(
+            path.canonicalize()? == target && std::fs::read_to_string(&target)? == original,
+            "rule_list_changed"
+        );
+        std::fs::rename(&tmp, &target)?;
+        Ok(())
+    })();
+    if written.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    written
+}
+
 impl kaponir_proxy::Control for HomeControl {
     fn export_settings(&self, include_secrets: bool) -> Result<serde_json::Value> {
         self.home.export_settings(include_secrets)
@@ -634,6 +685,31 @@ impl kaponir_proxy::Control for HomeControl {
         self.home.remove_rule(scope, index)
     }
 
+    fn remove_rule_and_build(
+        &self,
+        scope: Scope,
+        index: usize,
+        revision: Option<&str>,
+    ) -> Result<(Rule, Engine), kaponir_proxy::RuleEditError> {
+        use kaponir_proxy::RuleEditError;
+
+        let path = self.home.rules_path(scope);
+        let original = read_rule_file(&path, revision).map_err(RuleEditError::from_edit)?;
+        let (updated, removed) = remove_rule_block(&original, index)
+            .map_err(|e| RuleEditError::Edit(anyhow!("{}: {e}", path.display())))?;
+        // Renaming only requires directory access. Keep DELETE's write check on the rule file.
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(&path)
+            .with_context(|| format!("{}", path.display()))
+            .map_err(RuleEditError::Edit)?;
+        let engine = self
+            .engine_for_rule_edit(scope, &updated)
+            .map_err(RuleEditError::Internal)?;
+        replace_rule_file(&path, &original, &updated).map_err(RuleEditError::from_edit)?;
+        Ok((removed, engine))
+    }
+
     fn update_rule_pattern(
         &self,
         scope: Scope,
@@ -651,10 +727,7 @@ impl kaponir_proxy::Control for HomeControl {
         };
         anyhow::ensure!(!text.trim().is_empty(), "empty rule pattern");
         let path = self.home.rules_path(scope);
-        let original = std::fs::read_to_string(&path)?;
-        let file = RuleFile::parse(&original).map_err(|e| anyhow!("{e}"))?;
-        let hash = blake3::hash(&serde_json::to_vec(&file)?).to_hex();
-        anyhow::ensure!(hash.as_str() == revision, "rule_list_changed");
+        let original = read_rule_file(&path, Some(revision))?;
 
         let mut doc = original.parse::<toml_edit::DocumentMut>()?;
         let table: &mut dyn TableLike = match doc.get_mut("rule") {
@@ -673,38 +746,8 @@ impl kaponir_proxy::Control for HomeControl {
         }
         table.insert(field, toml_edit::value(text));
         let updated = doc.to_string();
-        let mut rules = self.home.load_rules()?;
-        let set = rules
-            .iter_mut()
-            .find(|set| set.scope == scope)
-            .ok_or_else(|| anyhow!("rule_list_changed"))?;
-        set.file = RuleFile::parse(&updated).map_err(|e| anyhow!("{e}"))?;
-        let engine = self
-            .home
-            .build_engine_with_rules(&self.home.load_config()?, &rules)?;
-
-        let permissions = std::fs::metadata(&path)?.permissions();
-        let tmp = path.with_extension(format!("{}.tmp", std::process::id()));
-        let mut output = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&tmp)?;
-        let written = (|| -> Result<()> {
-            output.set_permissions(permissions)?;
-            output.write_all(updated.as_bytes())?;
-            output.sync_all()?;
-            drop(output);
-            anyhow::ensure!(
-                std::fs::read_to_string(&path)? == original,
-                "rule_list_changed"
-            );
-            std::fs::rename(&tmp, &path)?;
-            Ok(())
-        })();
-        if written.is_err() {
-            let _ = std::fs::remove_file(&tmp);
-        }
-        written?;
+        let engine = self.engine_for_rule_edit(scope, &updated)?;
+        replace_rule_file(&path, &original, &updated)?;
         Ok(engine)
     }
 

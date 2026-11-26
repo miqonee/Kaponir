@@ -15,11 +15,22 @@ use std::time::{Duration, Instant};
 use crate::traffic::{Traffic, Usage};
 use crate::{Control, ProxyConfig, RulePattern, RuleSet};
 
-pub(crate) enum RuleEditError {
+#[derive(Debug)]
+pub enum RuleEditError {
     ReadOnly,
     Conflict(anyhow::Error),
     Internal(anyhow::Error),
     Edit(anyhow::Error),
+}
+
+impl RuleEditError {
+    pub fn from_edit(err: anyhow::Error) -> Self {
+        if err.to_string() == "rule_list_changed" {
+            Self::Conflict(err)
+        } else {
+            Self::Edit(err)
+        }
+    }
 }
 
 fn check_rule_revision(
@@ -423,12 +434,12 @@ impl State {
         index: usize,
         revision: Option<&str>,
     ) -> Result<Rule, RuleEditError> {
-        self.edit_rules(|ctl| {
-            // Deletion shifts indices. Check the caller's snapshot before touching the file.
-            check_rule_revision(ctl, scope, revision)?;
-            ctl.remove_rule(scope, index).map_err(RuleEditError::Edit)
-        })
-        .await
+        let _rules = self.rule_changes.lock().await;
+        let ctl = self.control.as_deref().ok_or(RuleEditError::ReadOnly)?;
+        check_rule_revision(ctl, scope, revision)?;
+        let (removed, engine) = ctl.remove_rule_and_build(scope, index, revision)?;
+        self.replace_engine(engine);
+        Ok(removed)
     }
 
     pub(crate) async fn set_corp_domains(
@@ -471,13 +482,7 @@ impl State {
         check_rule_revision(ctl, scope, Some(revision))?;
         let engine = ctl
             .update_rule_pattern(scope, index, revision, pattern)
-            .map_err(|err| {
-                if err.to_string() == "rule_list_changed" {
-                    RuleEditError::Conflict(err)
-                } else {
-                    RuleEditError::Edit(err)
-                }
-            })?;
+            .map_err(RuleEditError::from_edit)?;
         self.replace_engine(engine);
         Ok(())
     }
