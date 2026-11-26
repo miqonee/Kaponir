@@ -2062,5 +2062,17 @@
   "Модель получила только запрос на подсчёт токенов.": "Only a token count was requested.",
   "Вызов модели": "Model call",
   "Вызов · запрос {{0}}": "Call · request {{0}}",
-  "Результат · запрос {{0}}": "Result · request {{0}}"
+  "Результат · запрос {{0}}": "Result · request {{0}}",
+  "Спорные значения": "Disputed values",
+  "Фрагмент не сохранён": "Excerpt unavailable",
+  "В журнале сохранилось число решений без привязки к конкретным значениям.": "The log retained the decision count without links to individual values.",
+  "Действие не сохранено": "Action unavailable",
+  "Показать в тексте": "Show in text",
+  "Журнал запросов": "Request log",
+  "Начало": "Started",
+  "Открыть находку": "Open finding",
+  "Сохранено решений · {{0}} из {{1}}": "Retained decisions · {{0}} of {{1}}",
+  "Запросов со спорными решениями · {{0}}": "Requests with uncertain decisions · {{0}}",
+  "Подробности недоступны": "Details unavailable",
+  "Не удалось загрузить сохранённое решение этого запроса.": "The recorded decision for this request could not be loaded."
 }

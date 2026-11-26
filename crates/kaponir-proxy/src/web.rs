@@ -384,7 +384,7 @@ struct ConversationRequest {
 }
 
 /// Read only the new/changed calls in the open turn. Full request histories
-/// and replacement originals are available separately in the inspector.
+/// stay in the inspector. Retained detector decisions belong to their own call.
 async fn ui_conversation_steps(
     State(st): State<Shared>,
     headers: HeaderMap,
@@ -427,7 +427,7 @@ async fn ui_conversation_steps(
         });
         steps.push(
             json!({"id":id, "outcome":e.outcome, "reply":reply, "tools":insp.tool_results,
-            "restore_marks":marks}),
+            "restore_marks":marks, "review_items":e.usage.review_items}),
         );
     }
     Ok(Json(steps).into_response())

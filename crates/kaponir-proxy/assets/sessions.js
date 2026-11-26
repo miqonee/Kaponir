@@ -85,7 +85,7 @@ function markedDialogue(text, ranges, base=0, openReview=null) {
     const label=tr(masked && review ? "Скрыто · спорное решение" : review ? "Спорное решение" : (covers[0].label || "Скрыто при передаче"));
     const ref=covers.find(r=>r.review);
     const attrs={class:"dialogue-mark"+(masked?" masked":"")+(review?" uncertain":""),title:label,"aria-description":label};
-    const target=ref && openReview ? h("button",{type:"button",class:"inline-decision","data-ref-index":ref.refIndex,
+    const target=ref && openReview ? h("button",{type:"button",class:"inline-decision","data-ref-index":ref.refIndex,"data-session-focus":"mark-"+ref.refIndex+"-"+start,
       "aria-label":tr("Открыть решение по значению {{0}}",[value]),onclick:()=>openReview(ref.refIndex)},value) : value;
     result.append(h("mark",attrs,target));
   }
@@ -101,7 +101,7 @@ function dialogueLegend(ranges) {
     ranges.some(r=>r.masked) ? h("span",{class:"dialogue-key masked"},tr("Скрыто при передаче")) : null,
     ranges.some(r=>r.review) ? h("span",{class:"dialogue-key uncertain"},tr("Спорное решение")) : null);
 }
-function sessionQuestion(event, openReview=null, jump=null) {
+function sessionQuestion(event, openReview=null) {
   const question=event.inspector || {}, questionUsage=event.usage || {};
   const excerpt=question.turn_excerpt;
   const text=excerpt?.original ?? question.original_request ?? "";
@@ -134,11 +134,7 @@ function sessionQuestion(event, openReview=null, jump=null) {
       sessionMessage("Исходный запрос клиента",text,visibleRanges,0,false,openReview);
   }
   const legend=dialogueLegend(visibleRanges);
-  const disputed=questionUsage.review_items || [];
-  const links=jump && disputed.length ? h("div",{class:"disputed-links"},
-    ...disputed.map((ref,index)=>h("button",{type:"button",class:"text-button",onclick:()=>jump(index)},
-      tr("Спорное решение детектора")," · ",ref.value,disputed.length>1 ? " ("+(index+1)+"/"+disputed.length+")" : ""))) : null;
-  return [links,legend,request,history].filter(Boolean);
+  return [request,legend,history].filter(Boolean);
 }
 
 function conversationTurns(rows) {
@@ -232,6 +228,88 @@ function conversationStep(row) {
   return tr(({tool:"Результат инструмента",user:"Вызов модели",continuation:"Продолжение ответа"})[row.turn?.step] || "Запрос");
 }
 
+function focusInConversation(element) {
+  if (!element) return;
+  for (let disclosure=element.closest("details"); disclosure; disclosure=disclosure.parentElement.closest("details")) {
+    disclosure.open=true;
+  }
+  element.focus({preventScroll:true});
+  element.scrollIntoView({block:"nearest",inline:"nearest"});
+}
+
+function sessionDecision(row, saved, memory, location, findMark, onChoose) {
+  const references=saved || [];
+  const reasons=(row.review_reasons || []).filter(r=>r.code==="detector_uncertain" || r.code==="legacy_uncertain");
+  if (!references.length && !reasons.length && !row.usage?.uncertain) return null;
+  const key=location+"-"+row.id;
+  const state=memory.get(row.id) || {index:0,message:true,log:false};
+  memory.set(row.id,state);
+  const value=h("code",{class:"decision-value"});
+  const outcome=h("span",{class:"decision-action"});
+  const count=references.length>1 ? h("small",{class:"decision-count"}) : null;
+  const summary=h("summary",{"data-session-focus":key},h("span",{class:"decision-caption"},tr("Спорное решение детектора")),
+    value,outcome,count,icon("chevron"));
+  const body=h("div",{class:"decision-body"});
+  const panel=h("details",{class:"session-decision",id:"decision-"+key,"data-decision":key,open:state[location]},summary,body);
+  let picker;
+  const info=h("div",{class:"decision-reading"});
+  if (references.length && row.usage?.uncertain>references.length) body.append(h("p",{class:"hint"},
+    tr("Сохранено решений · {{0}} из {{1}}",[number(references.length),number(row.usage.uncertain)])));
+  body.append(info);
+  function select(index) {
+    state.index=references[index] ? index : 0;
+    const ref=references[state.index];
+    if (!ref) {
+      const count=row.usage?.uncertain || reasons.reduce((sum,r)=>sum+r.count,0);
+      value.textContent=tr("Значений: {{0}}",[number(count)]);
+      outcome.textContent=tr(saved ? "Фрагмент не сохранён" : "Подробности недоступны");
+      if (panel.open) info.replaceChildren(h("p",{},tr(saved ? "В журнале сохранилось число решений без привязки к конкретным значениям." :
+        "Не удалось загрузить сохранённое решение этого запроса.")));
+      return;
+    }
+    if (count) count.textContent=tr("{{0}} из {{1}}",[state.index+1,references.length]);
+    value.textContent=ref.value;
+    outcome.textContent=tr(({mask:"Замаскировано",keep:"Оставлено в тексте"})[ref.applied] || "Действие не сохранено");
+    outcome.dataset.applied=ref.applied || "";
+    if (!panel.open) return;
+    // A replayed history can have many decisions on every call. Only build the picker and excerpt when read.
+    if (count && !picker) {
+      picker=h("select",{"data-session-focus":key+"-select",onchange:()=>choose(picker.selectedIndex)},
+        references.map((item,i)=>h("option",{value:i},(i+1)+". "+item.value)));
+      info.before(h("label",{class:"decision-picker"},tr("Спорные значения"),picker));
+    }
+    if (picker) picker.selectedIndex=state.index;
+    const reviewKey="detector:"+ref.id;
+    const linked=reasons.find(r=>r.keys?.includes(reviewKey));
+    const meta=[ref.kind && kindLabel(ref.kind),
+      Number.isFinite(ref.probability) && tr("Оценка детектора: {{0}}",[reviewPercent(ref.probability)]),
+      linked?.state==="resolved" && tr("Проверка закрыта")].filter(Boolean);
+    const mark=findMark?.(state.index);
+    const actions=h("div",{class:"decision-actions"});
+    if (mark) actions.append(h("button",{type:"button",class:"text-button","data-session-focus":key+"-source",
+      onclick:()=>focusInConversation(mark)},tr("Показать в тексте")));
+    if (linked?.state==="open" || linked?.state==="resolved") actions.append(h("button",{type:"button",class:"text-button",
+      "data-session-focus":key+"-finding",onclick:()=>{
+        panel.closest("dialog").close();
+        showReview([reviewKey],linked.state==="resolved" ? "history" : "pending");
+      }},tr("Открыть находку")));
+    info.replaceChildren(h("p",{class:"decision-meta"},meta.join(" · ")),h("p",{},detectorReason(ref)),
+      h("blockquote",{class:"decision-context"},candidateExcerpt(ref.context,ref.value,ref.context_span)),
+      ...(actions.childElementCount ? [actions] : []));
+  }
+  function choose(index) {
+    select(index);
+    onChoose?.(row.id,state.index);
+  }
+  select(state.index);
+  panel.addEventListener("toggle",()=>{
+    if (!panel.isConnected) return;
+    state[location]=panel.open;
+    if (panel.open) select(state.index);
+  });
+  return {panel,select, reveal(index=state.index) { panel.open=true; choose(index); focusInConversation(summary); }};
+}
+
 function openSession(event) {
   const dialog = $("#session-dialog");
   const target = event.session_id ? {session: event.session_id} : {request: event.id};
@@ -247,10 +325,7 @@ function openSession(event) {
   const previous = h("button", {class:"secondary", onclick:()=>display(turns[pick.selectedIndex-1])}, tr("Предыдущее сообщение"));
   const next = h("button", {class:"secondary", onclick:()=>display(turns[pick.selectedIndex+1])}, tr("Следующее сообщение"));
   let selectedRequest;
-  const inspect=workButton("Подробности запроса",()=>{
-    dialog.close();
-    return openInspector(selectedRequest);
-  },"text-button");
+  const inspect=workButton("Подробности запроса",()=>openInspector(selectedRequest),"text-button");
   const scan = workButton(event.session_id ? "Найти значения в этой сессии" : "Найти значения в этом запросе", () => {
     if (D.busy) { toast(tr("Дождитесь окончания текущего поиска.")); return; }
     dialog.close();
@@ -276,7 +351,7 @@ function openSession(event) {
     } else modelRun.textContent=tr("Настроить модель для переписки");
   }).catch(()=>{ modelRun.hidden=true; });
 
-  const stepCache=new Map(), previewCache=new Map();
+  const stepCache=new Map(), previewCache=new Map(), decisionMemory=new Map();
   let questionCache;
   function sourceOf(group) {
     return group.rows.find(r=>r.turn?.step==="user" && r.request_kind!=="count_tokens") ||
@@ -291,7 +366,7 @@ function openSession(event) {
     return result;
   }
   async function loadSteps(rows) {
-    const missing=rows.filter(r=>r.request_kind!=="count_tokens" && stepCache.get(r.id)?.outcome!==r.outcome);
+    const missing=rows.filter(r=>stepCache.get(r.id)?.outcome!==r.outcome);
     const result=new Map(stepCache);
     for (const step of await readCalls(missing)) {
       result.set(step.id,step);
@@ -327,27 +402,46 @@ function openSession(event) {
   function titleOf(group) {
     return group.linked ? tr("Сообщение {{0}}", [group.ordinal]) : tr("Запрос {{0}}", [group.rows[0].id]);
   }
-  function stepList(group) {
-    const focused = steps.contains(document.activeElement) ? document.activeElement.dataset.step : null;
-    const hasMasks=group.rows.some(r=>r.usage?.replacements || r.usage?.cached_replacements);
-    steps.replaceChildren(h("summary",{},icon("chevron"),tr("Журнал запросов · {{0}}",[group.rows.length]),
-      hasMasks ? h("span",{class:"steps-mask-label"},tr("Есть скрытые значения")) : null),
-      h("ol", {}, group.rows.map(row=>{
-        const notes=requestNotes(row);
-        const masks=(row.usage?.replacements || 0)+(row.usage?.cached_replacements || 0);
-        const inspect=()=>openInspector(row.id,"request");
-        return h("li",{},h("div",{},h("strong",{},conversationStep(row)),
-          h("small",{},[sessionTime(row.started_at_ms || row.time_ms),outcomeLabel(row),
-            masks ? tr("Скрыто при передаче · {{0}}",[masks]) : ""].filter(Boolean).join(" · ")),
-          notes.length ? h("button",{type:"button",class:"text-button","data-step":"review-"+row.id,
+  function stepList(group,details,question,onChoose) {
+    const decisions=new Map();
+    let totalMasks=0;
+    const table=h("table",{class:"request-ledger","aria-label":tr("Журнал запросов")},
+      h("thead",{},h("tr",{},["Запрос","Начало","Состояние","Замены"].map(label=>h("th",{scope:"col"},tr(label))))));
+    const fullDates=new Set(group.rows.map(r=>new Date(r.started_at_ms || r.time_ms).toDateString())).size>1;
+    for (const row of group.rows) {
+      const refs=row.id===question?.id ? question.usage?.review_items || [] : details.get(row.id)?.review_items;
+      const decision=sessionDecision(row,refs,decisionMemory,"log",null,onChoose);
+      const outcome=outcomeLabel(row);
+      const notes=requestNotes(row).filter(note=>note!==outcome && note!==tr(reviewReasonLabels.detector_uncertain) && note!==tr(reviewReasonLabels.legacy_uncertain));
+      const stamp=row.started_at_ms || row.time_ms;
+      const masks=(row.usage?.replacements || 0)+(row.usage?.cached_replacements || 0);
+      totalMasks+=masks;
+      const body=h("tbody",{"data-log-request":row.id},h("tr",{},
+        h("th",{scope:"row"},h("strong",{},conversationStep(row)),
+          h("button",{type:"button",class:"text-button log-request","data-session-focus":"raw-"+row.id,onclick:()=>openInspector(row.id,"request")},
+            tr("Запрос {{0}}",[row.id]),icon("arrow"))),
+        h("td",{class:"log-time"},stamp ? h("time",{datetime:new Date(stamp).toISOString(),title:sessionTime(stamp)},fullDates ? sessionTime(stamp) : time(stamp)) : "—"),
+        h("td",{},h("span",{class:"event-status "+row.outcome},outcome),
+          notes.length ? h("button",{type:"button",class:"text-button log-note","data-session-focus":"note-"+row.id,
             onclick:()=>openInspector(row.id,"review")},notes.join(" · ")) : null),
-          h("button",{class:"secondary small",type:"button","data-step":row.id,onclick:inspect},tr("Запрос {{0}}",[row.id])));
-      })));
-    if (focused) steps.querySelector('[data-step="'+focused+'"]')?.focus({preventScroll:true});
+        h("td",{class:"num"},number(masks))));
+      if (decision) {
+        decisions.set(row.id,decision);
+        body.append(h("tr",{class:"log-decision"},h("td",{colspan:4},decision.panel)));
+      }
+      table.append(body);
+    }
+    steps.replaceChildren(h("summary",{"data-session-focus":"log-title"},icon("list"),tr("Журнал запросов"),
+      h("span",{class:"log-count"},number(group.rows.length)),
+      decisions.size ? h("small",{class:"log-disputed"},tr("Запросов со спорными решениями · {{0}}",[number(decisions.size)])) : null,
+      totalMasks ? h("small",{class:"log-masks"},tr("Скрыто при передаче · {{0}}",[number(totalMasks)])) : null,icon("chevron")),
+      h("div",{class:"log-scroll",tabindex:0,role:"region","aria-label":tr("Журнал запросов"),"data-session-focus":"log-table"},table));
+    steps.hidden=false;
+    return decisions;
   }
   async function display(group, issueRow=null) {
     if (!group) return;
-    const row=issueRow || sourceOf(group);
+    const row=sourceOf(group);
     selectedRequest=row.id;
     inspect.hidden=group.rows.length!==1;
     const changed=group.key!==currentKey;
@@ -358,42 +452,53 @@ function openSession(event) {
     position.textContent=tr("{{0}} из {{1}}", [pick.selectedIndex+1,turns.length]);
     const radio=requestList.querySelector('input[value="'+group.key+'"]');
     if (radio) radio.checked=true;
-    if (changed) steps.open=false;
+    if (changed) { steps.open=false; steps.hidden=true; }
     const detailKey=JSON.stringify([group.key,row.id,group.rows.map(r=>[r.id,r.outcome,r.review_reasons,r.usage?.replacements,r.usage?.cached_replacements,r.usage?.completion_tokens])]);
     if (selection===detailKey && !issueRow) return;
     selection=detailKey;
-    stepList(group);
     const version=++generation;
     status.textContent=group.rows.some(r=>r.outcome==="in_progress") ? tr("Ожидаем ответ поставщика…") : "";
     if (changed) content.textContent=tr("Загрузка…");
     try {
       const [question,details]=await Promise.all([loadQuestion(row),loadSteps(group.rows)]);
       if (!dialog.open || version!==generation) return;
-      const inspectRef=index=>openInspector(question.id,"review",index);
-      function jump(index) {
-        const mark=content.querySelector('.inline-decision[data-ref-index="'+index+'"]');
-        if (!mark) return inspectRef(index);
-        const history=mark.closest("details");
-        if (history) history.open=true;
-        mark.focus({preventScroll:true});
-        mark.scrollIntoView({block:"center",inline:"nearest"});
+      const active=document.activeElement;
+      const focusKey=changed ? null : active.dataset.sessionFocus;
+      const focusedTool=changed ? null : active.closest("[data-activity]")?.dataset.activity;
+      const openTools=changed ? [] : [...content.querySelectorAll(".conversation-tool[open]")].map(d=>d.dataset.activity);
+      const historyOpen=!changed && !!content.querySelector(".session-history[open]");
+      let decision, readingRow;
+      const logDecisions=stepList(group,details,question,(id,index)=>{
+        if (id===readingRow?.id) decision?.select(index);
+      });
+      readingRow=logDecisions.has(row.id) ? row : group.rows.find(r=>logDecisions.has(r.id)) || row;
+      const syncLog=(id,index)=>logDecisions.get(id)?.select(index);
+      const questionBox=h("div",{class:"conversation-question"},sessionQuestion(question,index=>decision?.reveal(index)));
+      if (readingRow.id===row.id) {
+        decision=sessionDecision(row,question.usage?.review_items || [],decisionMemory,"message",
+          index=>questionBox.querySelector('.inline-decision[data-ref-index="'+index+'"]'),syncLog);
+      } else {
+        decision=sessionDecision(readingRow,details.get(readingRow.id)?.review_items,decisionMemory,"message",null,syncLog);
+        decision.panel.querySelector(".decision-body").prepend(h("button",{type:"button",class:"text-button decision-source",
+          "data-session-focus":"origin-"+readingRow.id,onclick:()=>logDecisions.get(readingRow.id).reveal()},
+          tr("Запрос {{0}}",[readingRow.id])," · ",conversationStep(readingRow)));
       }
-      const open=changed ? [] : [...content.querySelectorAll("details[open]")].map(d=>d.dataset.activity || "history");
-      const focused=content.contains(document.activeElement) ? document.activeElement.closest("[data-activity]")?.dataset.activity : null;
-      content.replaceChildren(...sessionQuestion(question,inspectRef,jump),activityTimeline(group.rows,details));
-      for (const view of content.querySelectorAll("details")) {
-        view.open=open.includes(view.dataset.activity || "history");
-        if (focused && view.dataset.activity===focused) view.querySelector("summary").focus({preventScroll:true});
+      if (decision) for (const mark of questionBox.querySelectorAll(".inline-decision")) mark.setAttribute("aria-details",decision.panel.id);
+      content.replaceChildren(h("div",{class:"question-reading"},questionBox,decision?.panel,activityTimeline(group.rows,details)));
+      if (historyOpen && questionBox.querySelector(".session-history")) questionBox.querySelector(".session-history").open=true;
+      for (const view of content.querySelectorAll(".conversation-tool")) {
+        view.open=openTools.includes(view.dataset.activity);
+        if (focusedTool===view.dataset.activity) view.querySelector("summary").focus({preventScroll:true});
       }
+      if (focusKey) dialog.querySelector('[data-session-focus="'+focusKey+'"]')?.focus({preventScroll:true});
       if (issueRow) {
-        const links=content.querySelectorAll(".disputed-links button");
-        if (links.length>1) links[0].focus();
-        else if (links.length) jump(0);
-        else inspectRef(question.review_reasons?.find(r=>r.code==="legacy_uncertain")?.code);
+        (issueRow.id===readingRow.id ? decision : logDecisions.get(issueRow.id))?.reveal();
       }
     } catch(error) {
-      if (dialog.open && version===generation) content.replaceChildren(h("p",{},error.message),
-        workButton("Повторить",()=>{selection="";return display(group);}));
+      if (dialog.open && version===generation) {
+        stepList(group,stepCache,questionCache);
+        content.replaceChildren(h("p",{},error.message),workButton("Повторить",()=>{selection="";return display(group,issueRow);}));
+      }
     }
   }
   pick.onchange=()=>display(turns[pick.selectedIndex]);
@@ -419,7 +524,7 @@ function openSession(event) {
       const issue=g.rows.find(r=>requestNotes(r).some(n=>n===disputed || n===legacy));
       return h("div",{class:"conversation-entry"},h("label",{},h("input",{type:"radio",name:"conversation-turn",value:g.key,onchange:()=>display(g)}),
         h("span",{},h("strong",{},titleOf(g)),h("small",{},g.linked ? tr("Вызовов API · {{0}}",[g.rows.length]) : tr("Связь с сообщением неизвестна")),
-          pending || attention ? h("small",{class:"request-reasons"},tr(pending ? "Выполняется" : "Требует проверки")) : null)),
+          pending || (attention && !issue) ? h("small",{class:"request-reasons"},tr(pending ? "Выполняется" : "Требует проверки")) : null)),
         issue ? h("button",{type:"button",class:"text-button request-issue","data-turn-issue":g.key,
           onclick:()=>display(g,issue)},requestNotes(issue).includes(disputed) ? disputed : legacy) : null);
     }));
@@ -432,7 +537,6 @@ function openSession(event) {
       generation++;selection="";currentKey=null;status.textContent="";steps.hidden=true;inspect.hidden=true;
       content.textContent=tr("В истории больше нет запросов этой сессии.");return;
     }
-    steps.hidden=false;
     const selected=turns.find(g=>g.key===currentKey) || turns.find(g=>g.rows.some(r=>r.id===event.id)) || turns.at(-1);
     display(selected);
     previewQuestions(turns);

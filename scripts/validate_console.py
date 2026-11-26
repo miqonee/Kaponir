@@ -139,15 +139,16 @@ def check_session_conversation(page, api, session_id, output):
     expect(dialog.locator('.conversation-timeline .reply')).to_have_count(6)
     expect(dialog.locator('.conversation-tool summary code')).to_have_text(['read_file'] * 5)
     steps = dialog.locator('.session-steps')
-    steps.locator('summary').focus()
+    steps.locator(':scope > summary').focus()
     page.keyboard.press('Enter')
     expect(steps.get_by_text('Результат инструмента', exact=True)).to_have_count(5)
-    steps.locator('li').last.get_by_role('button', name=f'Запрос {latest["id"]}', exact=True).click()
+    expect(steps.get_by_role('columnheader')).to_have_text(['Запрос','Начало','Состояние','Замены'])
+    steps.locator('tbody').last.get_by_role('button', name=f'Запрос {latest["id"]}', exact=True).click()
     wire = page.locator('#inspector-dialog .inspector-pane').last.locator('pre')
     expect(wire.locator('mark').filter(has_text='ANON_SECRET_').first).to_be_visible()
     expect(wire).not_to_contain_text("test''fixture")
     page.keyboard.press('Escape')
-    expect(steps.locator('li').first).to_be_visible()
+    expect(steps.locator('tbody').first).to_be_visible()
     page.keyboard.press('Escape')
 
 
@@ -233,13 +234,29 @@ def check_session_inspector(page, api, base):
     expect(panes.last.locator('mark')).to_have_text('InspectorProject')
     expect(panes.first.locator('mark')).to_have_text(detail['usage']['restore_marks'][0]['token'])
     page.keyboard.press('Escape')
-    entry.click()
+    expect(dialog).to_be_visible()
     dialog.locator('.conversation-requests').get_by_role('button', name='Спорное решение детектора').first.click()
-    focused = dialog.locator('.session-history button:focus')
-    expect(focused).to_have_text('qzworkitem')
-    focused.press('Enter')
-    expect(viewer.locator('.review-card:focus code')).to_have_text('qzworkitem')
-    viewer.locator('[data-key=request]').click()
+    decision = dialog.locator('.question-reading .session-decision')
+    expect(decision.locator('summary')).to_be_focused()
+    expect(decision.locator('summary code')).to_have_text('qzworkitem')
+    expect(decision.locator('blockquote mark')).to_have_text('qzworkitem')
+    expect(decision.locator('.decision-meta')).to_contain_text('Оценка детектора')
+    expect(viewer).not_to_be_visible()
+    decision.get_by_role('button',name='Показать в тексте').click()
+    mark = dialog.locator('.session-history button:focus')
+    expect(mark).to_have_text('qzworkitem')
+    mark.press('Enter')
+    expect(decision.locator('summary')).to_be_focused()
+    expect(viewer).not_to_be_visible()
+    steps = dialog.locator('.session-steps')
+    steps.locator(':scope > summary').click()
+    log_decision = steps.locator('.log-decision .session-decision')
+    expect(log_decision.locator('summary code')).to_have_text('qzworkitem')
+    log_decision.locator('summary').press('Enter')
+    expect(log_decision.locator('blockquote mark')).to_have_text('qzworkitem')
+    expect(viewer).not_to_be_visible()
+    steps.locator('.log-request').click()
+    expect(viewer).to_be_visible()
     expect(panes.first.locator('mark').filter(has_text='InspectorProject')).to_have_count(1)
     expect(panes.last.locator('mark').filter(has_text='PROJ')).to_have_count(1)
     panes.first.evaluate('el=>{el.scrollTop=el.scrollHeight}')
@@ -260,6 +277,77 @@ def check_session_inspector(page, api, base):
     expect(sync).to_be_enabled()
     page.keyboard.press('Escape')
     page.keyboard.press('Escape')
+
+
+def check_inline_decisions(page, api, output):
+    from playwright.sync_api import expect
+    question = 'Проверь пути в отчёте сборки.'
+    history = [{'role': 'user', 'content': question}]
+    def send():
+        return api('/v1/chat/completions', {'model':'fixture-model','messages':history}, {'X-Kaponir-Session':'inline-decisions'})
+    send()
+    history.extend([{'role':'assistant','content':None,'tool_calls':[{'id':'read-log','type':'function',
+                     'function':{'name':'read_file','arguments':'{"path":"build.log"}'}}]},
+                    {'role':'tool','tool_call_id':'read-log','content':'Журнал /srv/qzworkitem/log.txt. Копия /srv/qzbuildcache/build.log.'}])
+    send()
+    latest = max(api('/api/v1/ui/events')['events'],key=lambda r:r['id'])
+    ident = latest['id']
+    assert not latest['usage'].get('review_items')
+    refs = api('/api/v1/ui/events/'+str(ident))['usage']['review_items']
+    assert len(refs)>=2, refs
+    batch_url = '/api/v1/ui/events/conversation'
+    assert api(batch_url,{'ids':[ident]})[0]['review_items']==refs
+    assert 'review_items' not in api(batch_url,{'ids':[ident],'previews_only':True})[0]
+    choose_preference(page,'theme','light')
+    page.locator('#events-refresh').click()
+    page.locator('#events-table [data-session-open="'+latest['session_id']+'"]').click()
+    dialog = page.locator('#session-dialog')
+    expect(dialog.locator('.session-message:not(.reply) .message-content')).to_have_text(question)
+    decision = dialog.locator('.question-reading .session-decision')
+    expect(decision.locator('summary code')).to_have_text(refs[0]['value'])
+    picker = decision.get_by_role('combobox')
+    picker.select_option('1')
+    expect(decision.locator('summary code')).to_have_text(refs[1]['value'])
+    label = 'Замаскировано' if refs[1]['applied']=='mask' else 'Оставлено в тексте'
+    expect(decision.locator('.decision-action')).to_have_text(label)
+    decision.locator('.decision-source').click()
+    log = dialog.locator('.session-steps')
+    log_card = log.locator(f'[data-decision="log-{ident}"]')
+    expect(log_card.locator('summary')).to_be_focused()
+    expect(log_card.locator('blockquote mark')).to_have_text(refs[1]['value'])
+    expect(log_card.locator('.decision-action')).to_have_text(label)
+    log_card.get_by_role('combobox').select_option('0')
+    expect(decision.locator('summary code')).to_have_text(refs[0]['value'])
+    picker.select_option('1')
+    expect(log_card.get_by_role('combobox')).to_have_value('1')
+    expect(page.locator('#inspector-dialog')).not_to_be_visible()
+    log_card.locator('summary').click()
+    dialog.locator('.inspector-body').evaluate('el=>el.scrollTop=0')
+    dialog.screenshot(path=str(output/'session-decisions-light.png'))
+    page.evaluate("applyTheme('dark')")
+    dialog.screenshot(path=str(output/'session-decisions-dark.png'))
+    log_card.locator('summary').press('Enter')
+    log_picker = log_card.get_by_role('combobox')
+    log_picker.focus()
+    send()
+    expect(dialog.locator('.conversation-totals')).to_contain_text('Вызовов API · 3',timeout=15000)
+    expect(log.locator('tbody')).to_have_count(3)
+    expect(log_picker).to_be_focused()
+    expect(log_picker).to_have_value('1')
+    expect(decision.locator('summary code')).to_have_text(refs[1]['value'])
+    expect(log_card.locator('blockquote mark')).to_have_text(refs[1]['value'])
+    page.set_viewport_size({'width':390,'height':844})
+    assert dialog.evaluate('el=>el.scrollWidth<=el.clientWidth+1')
+    page.set_viewport_size({'width':1440,'height':960})
+    decision.get_by_role('button',name='Открыть находку').click()
+    expect(dialog).not_to_be_visible()
+    assert f'detector%3A{refs[1]["id"]}' in page.url and page.url.endswith('#review')
+    page.locator('#sidebar [data-tab=events]').click()
+    legacy = page.evaluate("""() => {
+        const row={id:42,usage:{uncertain:3},review_reasons:[{code:'legacy_uncertain',state:'unlinked',count:3}]};
+        return sessionDecision(row,[],new Map(),'message').panel.textContent;
+    }""")
+    assert 'Значений: 3' in legacy and 'Фрагмент не сохранён' in legacy
 
 
 def main():
@@ -301,6 +389,8 @@ def main():
                 text = re.search(r'ANON_PROJ_\d+',seen[-2]['messages'][-1]['content'])[0]
             if text.startswith('Проверь смету. '):
                 text = 'Смета принята. ' + text.removeprefix('Проверь смету. ')
+            if any(m.get('role')=='user' and m.get('content')=='Проверь пути в отчёте сборки.' for m in payload['messages']):
+                text = 'В отчёте есть пути к журналу и его копии.' if payload['messages'][-1]['role']=='tool' else 'Читаю журнал сборки.'
             self.send_response(200)
             self.send_header('Content-Type', 'text/event-stream' if payload.get('stream') else 'application/json')
             self.end_headers()
@@ -473,6 +563,7 @@ def main():
                 check_session_conversation(page, api, traffic['events'][0]['session_id'], args.output)
                 replayed_session = check_replayed_question(page, api, args.output)
                 check_session_inspector(page, api, base)
+                check_inline_decisions(page, api, args.output)
                 from validate_navigation import check_navigation
                 check_navigation(page, args.output)
                 assert not errors, errors
@@ -481,7 +572,7 @@ def main():
             stop()
             start()
             wait_for(lambda: api('/api/v1/ui/worker').get('enabled'))
-            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 16
+            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 19
             restored_rows = sorted((row for row in api('/api/v1/ui/events')['events'] if row['session_id']==replayed_session),key=lambda row:row['id'])
             assert len(restored_rows)==5 and len({r['turn']['id'] for r in restored_rows})==2
             restored = api('/api/v1/ui/events/conversation',{'ids':[r['id'] for r in restored_rows]})
