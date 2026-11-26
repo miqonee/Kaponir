@@ -11,6 +11,7 @@ kaponir-s1 = { version = "0.1.0", path = "../kaponir-s1" }
 kaponir-vault = { version = "0.1.0", path = "../kaponir-vault" }
 anyhow = "1.0.104"
 axum = "0.8.9"
+base64 = "0.23.1"
 blake3 = "1.8.7"
 bytes = "1.12.1"
 futures-util = "0.3.34"

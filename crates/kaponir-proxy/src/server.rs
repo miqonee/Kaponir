@@ -344,61 +344,6 @@ async fn proxy(
     result
 }
 
-fn extract_prompt_text(v: &Value) -> (String, Option<usize>) {
-    let mut parts = Vec::new();
-    let mut last_user_len = None;
-    if let Some(sys) = v.get("system") {
-        if let Some(s) = sys.as_str() {
-            if !s.is_empty() {
-                parts.push(format!("[system]\n{s}"));
-            }
-        } else if let Some(arr) = sys.as_array() {
-            for block in arr {
-                if let Some(t) = block.get("text").and_then(Value::as_str) {
-                    parts.push(format!("[system]\n{t}"));
-                }
-            }
-        }
-    }
-    if let Some(msgs) = v.get("messages").and_then(Value::as_array) {
-        for m in msgs {
-            let role = m.get("role").and_then(Value::as_str).unwrap_or("message");
-            let before = parts.len();
-            if let Some(c) = m.get("content") {
-                if let Some(s) = c.as_str() {
-                    parts.push(format!("[{role}]\n{s}"));
-                } else if let Some(arr) = c.as_array() {
-                    let mut blocks = Vec::new();
-                    for b in arr {
-                        if let Some(t) = b.get("text").and_then(Value::as_str) {
-                            blocks.push(t.to_string());
-                        } else if let Some(inp) = b.get("input") {
-                            blocks.push(inp.to_string());
-                        } else if let Some(c) = b.get("content").and_then(Value::as_str) {
-                            blocks.push(c.to_string());
-                        }
-                    }
-                    if !blocks.is_empty() {
-                        parts.push(format!("[{role}]\n{}", blocks.join("\n")));
-                    }
-                }
-            }
-            last_user_len = if role == "user" && parts.len() > before {
-                parts.last().map(String::len)
-            } else {
-                None
-            };
-        }
-    }
-    if parts.is_empty() {
-        (serde_json::to_string_pretty(v).unwrap_or_default(), None)
-    } else {
-        let text = parts.join("\n\n");
-        let offset = last_user_len.map(|len| text.len() - len);
-        (text, offset)
-    }
-}
-
 async fn proxy_request(
     st: Shared,
     api: Api,
@@ -428,7 +373,7 @@ async fn proxy_request(
         .and_then(Value::as_str)
         .filter(|s| !s.is_empty())
         .map(str::to_owned);
-    let (original_request, last_user_offset) = extract_prompt_text(&json);
+    let original = crate::conversation::Transcript::capture(&json);
     if st.learning.enabled()
         && let Some(messages) = json.get("messages")
     {
@@ -454,12 +399,13 @@ async fn proxy_request(
                 )
             })
         });
+    let session_tag = blake3::hash(session.as_bytes()).to_hex()[..24].to_string();
     if explicit || has_start {
         *span
             .session
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((
-            blake3::hash(session.as_bytes()).to_hex()[..24].to_string(),
+            session_tag.clone(),
             if explicit { "explicit" } else { "inferred" }.into(),
         ));
     }
@@ -484,6 +430,10 @@ async fn proxy_request(
             Api::OpenAi => openai::mask_request(&mut json, cx, hint.as_deref()),
         })
         .map_err(|e| {
+            if e.is::<crate::inline_file::Unreadable>() {
+                span.set_error("", Some(422), "unreadable_attachment", e.to_string());
+                return error(StatusCode::UNPROCESSABLE_ENTITY, e.to_string());
+            }
             span.set_error("", Some(500), "mask_failed", format!("{e:#}"));
             error(
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -496,7 +446,12 @@ async fn proxy_request(
     span.mask_us.fetch_add(mask_us, Relaxed);
     span.classifier_us.fetch_add(classifier_us, Relaxed);
     {
-        let (masked_request, masked_last_user_offset) = extract_prompt_text(&json);
+        let masked = crate::conversation::Transcript::capture(&json);
+        *span
+            .turn
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            crate::conversation::Turn::from_payload(&session_tag, &json);
         let masked_payload_json = serde_json::to_string_pretty(&json).unwrap_or_default();
         let mut insp = span
             .inspector
@@ -508,10 +463,20 @@ async fn proxy_request(
             .and_then(Value::as_str)
             .unwrap_or_default()
             .into();
-        entry.original_request = crate::traffic::cap_str(&original_request, 32_768);
-        entry.last_user_offset = last_user_offset.filter(|&i| i < 32_768);
-        entry.masked_request = crate::traffic::cap_str(&masked_request, 32_768);
-        entry.masked_last_user_offset = masked_last_user_offset.filter(|&i| i < 32_768);
+        entry.original_request = crate::traffic::cap_str(&original.text, 32_768);
+        entry.last_user_offset = original.last_user_offset.filter(|&i| i < 32_768);
+        entry.masked_request = crate::traffic::cap_str(&masked.text, 32_768);
+        entry.masked_last_user_offset = masked.last_user_offset.filter(|&i| i < 32_768);
+        entry.user_span = original.user_span.filter(|s| s[1] <= 32_768);
+        entry.masked_user_span = masked.user_span.filter(|s| s[1] <= 32_768);
+        if (entry.user_span.is_none() || entry.masked_user_span.is_none())
+            && let (Some([a, b]), Some([x, y])) = (original.user_span, masked.user_span)
+        {
+            entry.turn_excerpt = Some(crate::traffic::TurnExcerpt {
+                original: crate::traffic::cap_str(&original.text[a..b], 4096),
+                masked: crate::traffic::cap_str(&masked.text[x..y], 4096),
+            });
+        }
         entry.masked_payload_json = crate::traffic::cap_str(&masked_payload_json, 32_768);
     }
     span.add(&usage);
@@ -989,7 +954,8 @@ async fn api_deanonymize_stream(
 
 #[cfg(test)]
 mod tests {
-    use super::{extract_prompt_text, loopback_host};
+    use super::loopback_host;
+    use crate::conversation::Transcript;
 
     #[test]
     fn transcript_marks_the_actual_final_user_message() {
@@ -997,7 +963,11 @@ mod tests {
             {"role":"assistant", "content":"История"},
             {"role":"user", "content":[{"text":"Первая строка\n\n[user]\nЭто цитата"}]}
         ]});
-        let (text, offset) = extract_prompt_text(&prompt);
+        let Transcript {
+            text,
+            last_user_offset: offset,
+            ..
+        } = Transcript::capture(&prompt);
         assert_eq!(
             &text[offset.unwrap()..],
             "[user]\nПервая строка\n\n[user]\nЭто цитата"
@@ -1008,7 +978,7 @@ mod tests {
             .push(serde_json::json!({
                 "role":"tool", "content":"result"
             }));
-        assert!(extract_prompt_text(&prompt).1.is_none());
+        assert!(Transcript::capture(&prompt).last_user_offset.is_none());
     }
 
     #[test]

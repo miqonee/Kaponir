@@ -74,11 +74,11 @@ def check_session_conversation(page, api, session_id, output):
     page.keyboard.press('ArrowDown')
     expect(requests.last).to_be_checked()
     expect(dialog.locator('.session-messages')).to_contain_text('125 000 ₽')
-    dialog.get_by_role('button', name='Предыдущий запрос').click()
+    dialog.get_by_role('button', name='Предыдущее сообщение').click()
     expect(dialog.locator('.session-messages')).to_contain_text('ConsoleFixture_47')
     expect(dialog.locator('.session-messages')).not_to_contain_text('125 000 ₽')
-    expect(dialog.get_by_role('button', name='Предыдущий запрос')).to_be_disabled()
-    dialog.get_by_role('button', name='Следующий запрос').click()
+    expect(dialog.get_by_role('button', name='Предыдущее сообщение')).to_be_disabled()
+    dialog.get_by_role('button', name='Следующее сообщение').click()
     expect(dialog.locator('.session-message').first).to_contain_text('Проверь смету. Бюджет 125 000 ₽.')
     expect(dialog.locator('.session-message').nth(1)).to_contain_text('Смета принята. Бюджет 125 000 ₽.')
     history = dialog.locator('.session-history')
@@ -119,6 +119,34 @@ def check_session_conversation(page, api, session_id, output):
     expect(page.locator('#d-list')).to_contain_text('98 500 ₽')
     page.get_by_role('button', name='К списку сессий').click()
     expect(page.locator('#page-title')).to_have_text('Сессии')
+
+    question = 'Проверь параметры Helm.'
+    chain = [{'role':'user', 'content':question}]
+    def send_step():
+        api('/v1/chat/completions', {'model':'fixture-model', 'messages':chain}, {'X-Kaponir-Session':'agent-steps'})
+    send_step()
+    for index in range(5):
+        call_id = f'read-{index}'
+        chain.extend([{'role':'assistant', 'content':None, 'tool_calls':[{'id':call_id, 'type':'function',
+                       'function':{'name':'read_file','arguments':'{}'}}]},
+                      {'role':'tool','tool_call_id':call_id,'content':"dbPassword: 'test''fixture'"}])
+        send_step()
+    latest = max(api('/api/v1/ui/events')['events'], key=lambda row:row['id'])
+    page.locator('#events-refresh').click()
+    page.locator('#events-table [data-session-open="'+latest['session_id']+'"]').click()
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Запросов · 6')
+    expect(dialog.locator('.session-message').first).to_contain_text(question)
+    steps = dialog.locator('.session-steps')
+    steps.locator('summary').focus()
+    page.keyboard.press('Enter')
+    expect(steps.get_by_text('Результат инструмента', exact=True)).to_have_count(5)
+    steps.locator('li').last.get_by_role('button', name=f'Запрос {latest["id"]}', exact=True).click()
+    wire = page.locator('#inspector-dialog .inspector-pane').last.locator('pre')
+    expect(wire.locator('mark').filter(has_text='ANON_SECRET_').first).to_be_visible()
+    expect(wire).not_to_contain_text("test''fixture")
+    page.keyboard.press('Escape')
+    expect(steps.locator('li').first).to_be_visible()
+    page.keyboard.press('Escape')
 
 
 def check_session_inspector(page, api, base):
@@ -384,7 +412,7 @@ def main():
             stop()
             start()
             wait_for(lambda: api('/api/v1/ui/worker').get('enabled'))
-            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 5
+            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 11
             assert api('/api/v1/anonymize', {'text':'character','session':'legacy-chat'})['text'] == 'character'
             assert api('/api/v1/deanonymize', {'text':legacy['text'],'session':'legacy-chat'})['text'] == 'character'
             api('/api/v1/ui/worker/stop', {})

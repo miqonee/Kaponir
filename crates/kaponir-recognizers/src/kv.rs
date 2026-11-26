@@ -47,7 +47,7 @@ impl KeyValue {
             )
             .expect("valid regex"),
             inline: Regex::new(
-                r#"(?:^|[^\p{L}\p{N}_.\-])([\p{L}_][\p{L}\p{N}_.\-]*)[ \t]*[:=][ \t]*("(?:[^"\\\r\n]|\\.)*"|'[^'\r\n]*'|[^\s,;"']+)"#,
+                r#"(?:^|[^\p{L}\p{N}_.\-])([\p{L}_][\p{L}\p{N}_.\-]*)[ \t]*[:=][ \t]*("(?:[^"\\\r\n]|\\.)*"|'(?:[^'\r\n]|'')*'|[^\s,;"']+)"#,
             ).expect("valid regex"),
         }
     }
@@ -64,17 +64,61 @@ impl KeyValue {
         let Some(kind) = kind_for_key(lex, key) else {
             return;
         };
-        if start >= end || is_placeholder(&text[start..end]) {
+        if start >= end {
             return;
         }
-        let (category, hard, prior) = key_kind_class(kind);
-        let mut c = Candidate::new(start, end, kind, category, ID, prior)
-            .with_evidence(format!("key:{key}"), 1.0);
-        if hard {
-            c = c.hard();
+        let hard = key_kind_class(kind).1;
+        let quoted = start > 0 && matches!(text.as_bytes()[start - 1], b'\'' | b'"');
+        let value = &text[start..end];
+        let placeholder = if hard && quoted {
+            quoted_credential_placeholder(value)
+        } else {
+            is_placeholder(value)
+        };
+        if placeholder {
+            return;
         }
-        out.push(c);
+        out.push(key_candidate(key, kind, start, end));
     }
+}
+
+fn key_candidate(key: &str, kind: &str, start: usize, end: usize) -> Candidate {
+    let (category, hard, prior) = key_kind_class(kind);
+    let candidate = Candidate::new(start, end, kind, category, ID, prior)
+        .with_evidence(format!("key:{key}"), 1.0);
+    if hard { candidate.hard() } else { candidate }
+}
+
+/// Tool arguments have already been parsed as JSON. Keep the field context
+/// while reporting byte offsets into its decoded string, so restoration is exact.
+pub fn credential_field(lex: &Lexicon, key: &str, value: &str) -> Option<Candidate> {
+    let kind = kind_for_key(lex, key)?;
+    (key_kind_class(kind).1 && !quoted_credential_placeholder(value))
+        .then(|| key_candidate(key, kind, 0, value.len()))
+}
+
+fn quoted_credential_placeholder(raw: &str) -> bool {
+    let value = raw.trim();
+    if let Some(rest) = value.strip_prefix("${") {
+        // A shell default or a suffix can itself contain a literal password.
+        return rest.strip_suffix('}').is_some_and(|name| {
+            !name.is_empty() && name.bytes().all(|c| c.is_ascii_alphanumeric() || c == b'_')
+        });
+    }
+    for (open, close) in [("{{", "}}"), ("$(", ")"), ("%(", ")s"), ("#{", "}")] {
+        if let Some(rest) = value.strip_prefix(open) {
+            return rest.split_once(close).is_some_and(|(expression, tail)| {
+                tail.is_empty() && !expression.contains(['\'', '"'])
+            });
+        }
+    }
+    if value.len() < 3 {
+        return value.is_empty()
+            || value
+                .chars()
+                .all(|c| matches!(c, '*' | '•' | '.' | '…' | 'x' | 'X'));
+    }
+    is_placeholder(value)
 }
 
 /// Значение строки `key: value`: кавычки снимаются, комментарий в конце отрезается.
@@ -88,6 +132,10 @@ fn value_span(raw: &str, base: usize) -> Option<(usize, usize)> {
         let mut i = 1;
         while i < bytes.len() {
             if bytes[i] == b'\\' && first == '"' {
+                i += 2;
+                continue;
+            }
+            if bytes[i] == b'\'' && first == '\'' && bytes.get(i + 1) == Some(&b'\'') {
                 i += 2;
                 continue;
             }
@@ -107,6 +155,28 @@ fn value_span(raw: &str, base: usize) -> Option<(usize, usize)> {
     let trimmed = v[..end].trim_end();
     let trimmed = trimmed.strip_suffix(',').unwrap_or(trimmed);
     (!trimmed.is_empty()).then_some((b, b + trimmed.len()))
+}
+
+/// YAML permits a quoted scalar to continue on more-indented lines. A clipped
+/// file still contains sensitive bytes up to the end of the available scalar.
+fn line_value_span(text: &str, value: regex::Match<'_>) -> Option<(usize, usize)> {
+    let raw = value.as_str();
+    if let Some(span) = value_span(raw, value.start()) {
+        return Some(span);
+    }
+    let trimmed = raw.trim_start();
+    if !trimmed.starts_with(['\'', '"']) {
+        return None;
+    }
+    let line_start = text[..value.start()].rfind('\n').map_or(0, |p| p + 1);
+    let prefix = &text[line_start..value.start()];
+    let indent = prefix.len() - prefix.trim_start().len();
+    let next_line = text[value.end()..].find('\n').map(|p| value.end() + p + 1);
+    let end = next_line
+        .and_then(|pos| block_span(text, pos, indent))
+        .map_or(value.end(), |(_, end)| end);
+    let start = value.start() + raw.len() - trimmed.len();
+    value_span(&text[start..end], start).or(Some((start + 1, end)))
 }
 
 /// Блочный скаляр YAML (`key: |`): строки с отступом больше, чем у ключа.
@@ -155,7 +225,7 @@ impl Recognizer for KeyValue {
                     .map_or(text.len(), |i| val.end() + i + 1);
                 block_span(text, line_end.min(text.len()), indent)
             } else {
-                value_span(raw, val.start())
+                line_value_span(text, val)
             };
             if let Some((s, e)) = span {
                 self.emit(lex, key.as_str(), s, e, text, out);
@@ -190,7 +260,7 @@ impl Recognizer for KeyValue {
         for cap in self.yaml_pair.captures_iter(text) {
             let key = cap.get(1).expect("name");
             let val = cap.get(2).expect("value");
-            if let Some((s, e)) = value_span(val.as_str(), val.start()) {
+            if let Some((s, e)) = line_value_span(text, val) {
                 self.emit(lex, key.as_str(), s, e, text, out);
             }
         }
@@ -322,6 +392,47 @@ mod tests {
         assert_eq!(
             found("password: two words\n"),
             [("SECRET".into(), "two words".into())]
+        );
+    }
+
+    #[test]
+    fn helm_quoted_passwords_cover_the_entire_yaml_scalar() {
+        for (source, value) in [
+            (
+                "postgresPassword: 'little''synthetic / #; tail' # note",
+                "little''synthetic / #; tail",
+            ),
+            ("42:  db.password: 'left''right' # note", "left''right"),
+            (
+                "env:\r\n  - name: DB_PASSWORD\r\n    value: \"one\\\"line\r\n      and another\" # note",
+                "one\\\"line\r\n      and another",
+            ),
+            (
+                "password: '<starts-with-symbol/and-space !'",
+                "<starts-with-symbol/and-space !",
+            ),
+            ("password: '***suffix-is-private'", "***suffix-is-private"),
+        ] {
+            let matches = found(source);
+            assert!(
+                matches.contains(&("SECRET".to_owned(), value.to_owned())),
+                "{matches:?}"
+            );
+        }
+        for literal in [
+            "${TOKEN}-suffix",
+            "${TOKEN:-not-a-placeholder}",
+            "{{ .Values.token }}-tail",
+            "AA",
+        ] {
+            assert_eq!(
+                found(&format!("password: '{literal}'")),
+                [("SECRET".into(), literal.into())]
+            );
+        }
+        assert!(
+            found("password: '<PASSWORD>'\npassword: '***'\nimageTag: 'ordinary-public-string'")
+                .is_empty()
         );
     }
 }

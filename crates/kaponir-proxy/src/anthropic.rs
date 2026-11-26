@@ -58,6 +58,7 @@ fn mask_block(b: &mut Value, cx: &mut Cx<'_>) -> anyhow::Result<()> {
             }
         }
         "document" => {
+            crate::inline_file::mask(b, cx)?;
             if let Some(src) = b.get_mut("source")
                 && ty(src) == "text"
             {

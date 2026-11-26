@@ -1686,9 +1686,19 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
 .comparison-options input[type=checkbox] { inline-size:16px; block-size:16px; min-height:0; margin:0; flex:none; accent-color:var(--accent); }
 .inspector-pane pre { overscroll-behavior:contain; }
 .disputed-links { display:flex; flex-wrap:wrap; gap:4px 12px; }
-.conversation-entry { clear:both; }
-.conversation-entry:has(:checked) { background:var(--soft); border-radius:6px; }
-.conversation-entry .request-issue { margin:0 8px 6px 32px; padding:0; text-align:start; text-decoration:underline dotted; }
+.conversation-entry { clear: both; }
+.conversation-entry .request-issue { margin: 0 8px 6px 32px; padding: 0; text-align: start; }
+.session-steps { border-block: 1px solid var(--line); margin-block: 16px; }
+.session-steps summary { display: flex; align-items: center; gap: 8px; padding: 12px 4px; cursor: pointer; font-weight: 650; list-style: none; }
+.session-steps summary::-webkit-details-marker { display: none; }
+.session-steps summary svg { width: 14px; height: 14px; flex: none; }
+.session-steps:not([open]) summary svg { transform: rotate(-90deg); }
+.session-steps summary:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.steps-mask-label { margin-inline-start: auto; font-size: 12px; color: var(--accent); }
+.session-steps ol { list-style: none; padding: 0; margin: 0; }
+.session-steps li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 4px; border-block-start: 1px solid var(--line); }
+.session-steps li div { display: grid; justify-items: start; gap: 3px; }
+.session-steps small { color: var(--dim); }
 button.inline-decision { display:inline; border:0; border-radius:0; min-height:0; padding:0; margin:0; background:transparent; font:inherit; line-height:inherit; color:inherit; text-decoration:inherit; }
 .inline-decision:focus, .review-card[data-ref-index]:focus { outline:2px solid var(--focus); outline-offset:2px; }
 

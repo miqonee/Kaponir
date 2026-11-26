@@ -671,7 +671,10 @@ impl Engine {
             let token = self.codec.format(&c.kind, &id, c.form);
             // Bound clipped tokens explicitly so a retained digit cannot become
             // part of the vault ID. The codec already restores this wrapper.
-            let token = if matches!(s, Cow::Owned(_)) && !matches!(&id, TokenId::Surrogate(_)) {
+            let token = if matches!(s, Cow::Owned(_))
+                && (c.start > 0 || end < text.len())
+                && !matches!(&id, TokenId::Surrogate(_))
+            {
                 format!("${{{token}}}")
             } else {
                 token
@@ -769,7 +772,13 @@ impl Engine {
                 verdict: Verdict::Mask,
             };
             for remaining in subtract_ranges(c.start..c.end, &covered) {
-                emission.push(fragment(&decision, &remaining));
+                // A whole credential from a structured field uses the normal
+                // credential strategy, including on its first occurrence.
+                if c.category == Category::Credential && c.hard && remaining == (c.start..c.end) {
+                    emission.push((Cow::Owned(decision.clone()), c.end));
+                } else {
+                    emission.push(fragment(&decision, &remaining));
+                }
                 covered.push(remaining);
             }
         }
@@ -1047,10 +1056,36 @@ impl Engine {
                 .then(y.len().cmp(&x.len()))
                 .then(x.start.cmp(&y.start))
         });
+        // A recognized key embedded in a longer password must not leave the rest
+        // of that password on the wire. Keep only maximal builtin credential
+        // intervals in this index; both starts and ends are then increasing.
+        let mut credentials: Vec<_> = masks
+            .iter()
+            .map(|&i| &scored[i].c)
+            .filter(|c| c.hard && c.category == Category::Credential && c.origin == Origin::Builtin)
+            .map(|c| (c.start, std::cmp::Reverse(c.end)))
+            .collect();
+        credentials.sort_unstable();
+        let mut max_end = 0;
+        credentials.retain(|&(_, std::cmp::Reverse(end))| {
+            let extends = end > max_end;
+            max_end = max_end.max(end);
+            extends
+        });
         // Значение из памяти сессии внутри более длинной маски не дробит её (`m.ivanov@corp.ru`
         // целиком, а не только домен) — но возвращается, если длинная маска проиграла другой.
         let inside_longer = |i: usize| {
             let c = &scored[i].c;
+            if c.origin == Origin::Builtin && c.hard {
+                let n = credentials.partition_point(|&(start, _)| start <= c.start);
+                if let Some(&(start, std::cmp::Reverse(end))) =
+                    n.checked_sub(1).and_then(|j| credentials.get(j))
+                    && end >= c.end
+                    && (start < c.start || end > c.end)
+                {
+                    return true;
+                }
+            }
             c.recognizer == SESSION
                 && masks.iter().any(|&j| {
                     let o = &scored[j].c;

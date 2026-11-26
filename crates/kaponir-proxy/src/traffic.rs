@@ -62,15 +62,29 @@ pub struct StageTimings {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct TurnExcerpt {
+    pub original: String,
+    pub masked: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EventInspector {
     pub model: String,
     pub original_request: String,
     /// UTF-8 byte offset of the final user message header in the retained transcript.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_user_offset: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub user_span: Option<[usize; 2]>,
     pub masked_request: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub masked_last_user_offset: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub masked_user_span: Option<[usize; 2]>,
+    /// Retain the question separately when a long system prompt or tool history
+    /// pushes it outside the bounded inspector snapshot.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub turn_excerpt: Option<TurnExcerpt>,
     #[serde(default)]
     pub masked_payload_json: String,
     pub raw_response: String,
@@ -269,6 +283,8 @@ pub struct Event {
     pub session_id: Option<String>,
     #[serde(default)]
     pub session_source: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) turn: Option<crate::conversation::Turn>,
     #[serde(default)]
     pub streaming: bool,
     #[serde(default)]
@@ -385,7 +401,13 @@ impl Traffic {
             .history
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        for event in events {
+        for mut event in events {
+            if event.turn.is_none()
+                && let (Some(session), Some(insp)) = (&event.session_id, &event.inspector)
+                && let Ok(payload) = serde_json::from_str(&insp.masked_payload_json)
+            {
+                event.turn = crate::conversation::Turn::from_payload(session, &payload);
+            }
             accumulate(&mut h.archive, &event);
             if h.events.len() == 200 {
                 h.events.pop_front();
@@ -486,6 +508,7 @@ impl Traffic {
 
 pub struct Span {
     history: Arc<Traffic>,
+    pub(crate) turn: Mutex<Option<crate::conversation::Turn>>,
     pub usage: Mutex<Usage>,
     pub connection_id: Mutex<Option<String>>,
     pub model: Mutex<Option<String>>,
@@ -527,6 +550,7 @@ impl Span {
             model: Default::default(),
             upstream_url: Default::default(),
             session: Default::default(),
+            turn: Default::default(),
             request_kind: Default::default(),
             attempts: Default::default(),
             mask_us: AtomicU64::new(0),
@@ -630,6 +654,11 @@ impl Span {
             started_at_ms: self.started_at_ms,
             session_id: session.as_ref().map(|s| s.0.clone()),
             session_source: session.map(|s| s.1),
+            turn: self
+                .turn
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone(),
             streaming: self.streaming.load(Relaxed),
             request_kind: self
                 .request_kind
@@ -759,6 +788,34 @@ mod tests {
                 .unwrap()
                 .original_request
                 .contains("private-value")
+        );
+    }
+
+    #[test]
+    fn legacy_turns_use_only_complete_structured_snapshots() {
+        let history = Arc::new(Traffic::default());
+        let span = Span::new(history, "openai");
+        let mut old = span.event(true);
+        old.session_id = Some("session".into());
+        let payload = serde_json::json!({"messages":[{"role":"user","content":"a private-looking question"},
+            {"role":"tool","content":"output"}]});
+        let expected = crate::conversation::Turn::from_payload("session", &payload).unwrap();
+        old.inspector = Some(EventInspector {
+            masked_payload_json: payload.to_string(),
+            ..Default::default()
+        });
+        let mut clipped = old.clone();
+        clipped.id += 1;
+        clipped.inspector.as_mut().unwrap().masked_payload_json = "{… [truncated]".into();
+        let restored = Traffic::default();
+        restored.restore_events(vec![old, clipped]);
+        let summary = restored.summary_snapshot();
+        assert!(summary.events[0].turn.is_none());
+        assert_eq!(summary.events[1].turn.as_ref().unwrap().id, expected.id);
+        assert!(
+            !serde_json::to_string(&summary)
+                .unwrap()
+                .contains("private-looking")
         );
     }
 

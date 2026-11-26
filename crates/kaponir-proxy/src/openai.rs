@@ -35,6 +35,8 @@ pub fn mask_request(body: &mut Value, cx: &mut Cx<'_>, hint: Option<&str>) -> an
                 for p in parts {
                     if ty(p) == "text" {
                         mask_field(p, "text", cx)?;
+                    } else if ty(p) == "file" {
+                        crate::inline_file::mask(p, cx)?;
                     }
                 }
             }
