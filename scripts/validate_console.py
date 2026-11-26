@@ -350,6 +350,40 @@ def check_inline_decisions(page, api, output):
     assert 'Значений: 3' in legacy and 'Фрагмент не сохранён' in legacy
 
 
+def check_opencode_title(page, api):
+    from playwright.sync_api import expect
+    headers = {'x-opencode-session-id': 'console-private-native-id'}
+    question = {'role': 'user', 'content': 'Объясни лимиты контейнера.'}
+    api('/v1/chat/completions', {'model': 'fixture-model', 'messages': [question]}, headers)
+    latest = max(api('/api/v1/ui/events')['events'], key=lambda r: r['id'])
+    tag = latest['session_id']
+    page.evaluate("showTab('events')")
+    page.locator('#events-refresh').click()
+    row = page.locator(f'#events-table [data-session-key="{tag}"]')
+    expect(row).to_have_text('Сессия ' + tag[:8])
+    page.locator(f'#events-table [data-session-open="{tag}"]').click()
+    dialog = page.locator('#session-dialog')
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 1')
+    system = {'role': 'system', 'content': 'You are a title generator. You output ONLY a thread title. Nothing else.'}
+    marker = {'role': 'user', 'content': 'Generate a title for this conversation:\n'}
+    api('/v1/chat/completions', {'model': 'fixture-model', 'stream': True, 'messages': [system, marker, question]}, headers)
+    expect(dialog.get_by_role('heading', name='Лимиты контейнера')).to_be_visible(timeout=15000)
+    expect(dialog.locator('.conversation-totals')).to_have_text('Сообщений пользователя · 1 · Вызовов API · 2')
+    expect(dialog.locator('input[name="conversation-turn"]')).to_have_count(1)
+    expect(dialog.locator('.session-messages')).not_to_contain_text('Generate a title')
+    service = dialog.locator('.session-service-log')
+    service.locator('summary').click()
+    expect(service.get_by_role('button', name=re.compile('Название сессии OpenCode'))).to_be_visible()
+    dialog.get_by_role('button', name='Скопировать ID сессии').click()
+    assert page.evaluate('navigator.clipboard.readText()') == tag
+    dialog.get_by_role('button', name='Закрыть', exact=True).click()
+    page.locator('#events-search').fill('лимиты контейнера')
+    expect(page.locator('#events-table .session-row')).to_have_count(1)
+    expect(row).to_contain_text('Лимиты контейнера')
+    page.locator('#events-search').fill('')
+    return tag
+
+
 def main():
     from playwright.sync_api import expect, sync_playwright
 
@@ -378,6 +412,8 @@ def main():
             assert not self.headers.get('X-Kaponir-Turn')
             text = payload['messages'][-1]['content']
             extra = {}
+            if any(m.get('content') == 'Generate a title for this conversation:\n' for m in payload['messages']):
+                text = 'Лимиты контейнера'
             if any(m.get('role')=='user' and m.get('content')=='Проверь конфигурацию.' for m in payload['messages']):
                 previous = sum(any(m.get('content')=='Проверь конфигурацию.' for m in q['messages']) for q in seen) - 1
                 text = ['Посмотрю настройки контейнера.','Прочитаю лимиты из values.yaml.',
@@ -564,6 +600,7 @@ def main():
                 replayed_session = check_replayed_question(page, api, args.output)
                 check_session_inspector(page, api, base)
                 check_inline_decisions(page, api, args.output)
+                opencode_session = check_opencode_title(page, api)
                 from validate_navigation import check_navigation
                 check_navigation(page, args.output)
                 assert not errors, errors
@@ -572,7 +609,10 @@ def main():
             stop()
             start()
             wait_for(lambda: api('/api/v1/ui/worker').get('enabled'))
-            assert api('/api/v1/metrics')['traffic']['total']['requests'] == 19
+            traffic = api('/api/v1/metrics')['traffic']
+            assert traffic['total']['requests'] == 21
+            assert traffic['session_titles'][opencode_session] == 'Лимиты контейнера'
+            assert all(not row.get('turn') for row in traffic['events'] if row['request_kind'] == 'session_title')
             restored_rows = sorted((row for row in api('/api/v1/ui/events')['events'] if row['session_id']==replayed_session),key=lambda row:row['id'])
             assert len(restored_rows)==5 and len({r['turn']['id'] for r in restored_rows})==2
             restored = api('/api/v1/ui/events/conversation',{'ids':[r['id'] for r in restored_rows]})

@@ -181,14 +181,23 @@ pub(crate) fn authorized(st: &Shared, headers: &HeaderMap, api: bool) -> Result<
     }
 }
 
-/// Сессия: `X-Kaponir-Session`, иначе хеш первого сообщения разговора — он одинаков на всех ходах.
-fn session_id(headers: &HeaderMap, api: Api, body: &Value) -> String {
+/// Prefer explicit identifiers. OpenCode's title agent can use a different
+/// model, protocol and first message from the conversation it is naming.
+fn session_id(
+    headers: &HeaderMap,
+    opencode: Option<&str>,
+    api: Api,
+    body: &Value,
+) -> (String, &'static str) {
     if let Some(h) = headers
         .get("x-kaponir-session")
         .and_then(|v| v.to_str().ok())
         .filter(|h| !h.is_empty())
     {
-        return named(h);
+        return (named(h), "explicit");
+    }
+    if let Some(id) = opencode {
+        return (format!("opencode:{id}"), "opencode");
     }
     let first = body
         .get("messages")
@@ -208,7 +217,11 @@ fn session_id(headers: &HeaderMap, api: Api, body: &Value) -> String {
         b"openai\0"
     });
     h.update(first.map(Value::to_string).unwrap_or_default().as_bytes());
-    format!("c:{}", &h.finalize().to_hex()[..32])
+    (format!("c:{}", &h.finalize().to_hex()[..32]), "inferred")
+}
+
+pub(crate) fn session_tag(session: &str) -> String {
+    blake3::hash(session.as_bytes()).to_hex()[..24].to_string()
 }
 
 /// Явные сессии общие для прокси и REST: шлюз может маскировать через API, а восстанавливать
@@ -382,7 +395,22 @@ async fn proxy_request(
         .filter(|s| !s.is_empty())
         .map(str::to_owned);
     let original = crate::conversation::Transcript::capture(&json);
-    if st.learning.enabled()
+    let opencode = crate::opencode::session(&headers);
+    let count_tokens = uri.path().ends_with("count_tokens");
+    let title_call = (opencode.is_some() || crate::opencode::user_agent(&headers))
+        && crate::opencode::is_title_call(&json);
+    let (session, source) = session_id(&headers, opencode, api, &json);
+    let capture_title = title_call && !count_tokens && source != "inferred";
+    // Older clients can omit their ID. Their identical naming prompts must
+    // never collect unrelated chats under one inferred session.
+    let session = if title_call && source == "inferred" {
+        format!("title-request:{}", span.id)
+    } else {
+        session
+    };
+    if !title_call
+        && !count_tokens
+        && st.learning.enabled()
         && let Some(messages) = json.get("messages")
     {
         *span
@@ -391,11 +419,6 @@ async fn proxy_request(
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             Some(crate::learning::capture_messages(messages));
     }
-    let session = session_id(&headers, api, &json);
-    let explicit = headers
-        .get("x-kaponir-session")
-        .and_then(|v| v.to_str().ok())
-        .is_some_and(|v| !v.is_empty());
     let has_start = json
         .get("messages")
         .and_then(Value::as_array)
@@ -407,26 +430,25 @@ async fn proxy_request(
                 )
             })
         });
-    let session_tag = blake3::hash(session.as_bytes()).to_hex()[..24].to_string();
-    if explicit || has_start {
+    let session_tag = session_tag(&session);
+    if source != "inferred" || (has_start && !title_call) {
         *span
             .session
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((
-            session_tag.clone(),
-            if explicit { "explicit" } else { "inferred" }.into(),
-        ));
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some((session_tag.clone(), source.into()));
     }
     *span
         .request_kind
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner) =
-        if uri.path().ends_with("count_tokens") {
-            "count_tokens"
-        } else {
-            "completion"
-        }
-        .into();
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = if title_call {
+        "session_title"
+    } else if count_tokens {
+        "count_tokens"
+    } else {
+        "completion"
+    }
+    .into();
     let hint = st
         .cfg
         .system_hint
@@ -455,15 +477,17 @@ async fn proxy_request(
     span.classifier_us.fetch_add(classifier_us, Relaxed);
     {
         let masked = crate::conversation::Transcript::capture(&json);
-        *span
-            .turn
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            crate::conversation::Turn::with_client_id(
-                &session_tag,
-                &json,
-                headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
-            );
+        if !title_call {
+            *span
+                .turn
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                crate::conversation::Turn::with_client_id(
+                    &session_tag,
+                    &json,
+                    headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
+                );
+        }
         let masked_payload_json = serde_json::to_string_pretty(&json).unwrap_or_default();
         let mut insp = span
             .inspector
@@ -609,7 +633,14 @@ async fn proxy_request(
             Api::OpenAi => Box::<openai::StreamRewriter>::default(),
         };
         span.streaming.store(true, Relaxed);
-        let stream = restore_stream(st, session, rw, Box::pin(resp.bytes_stream()), span);
+        let stream = restore_stream(
+            st,
+            session,
+            rw,
+            Box::pin(resp.bytes_stream()),
+            span,
+            capture_title.then_some(api),
+        );
         return Ok(respond(status, out_headers, Body::from_stream(stream)));
     }
 
@@ -679,6 +710,9 @@ async fn proxy_request(
         .fetch_add(restore_started.elapsed().as_micros() as u64, Relaxed);
     let body = match restored.and_then(|((), usage)| {
         span.add(&usage);
+        if capture_title && crate::opencode::completion_status(&v) != Some(false) {
+            crate::opencode::capture_title(&st, &session, &span, api == Api::OpenAi);
+        }
         Ok(serde_json::to_vec(&v)?)
     }) {
         Ok(b) => Body::from(b),
@@ -701,10 +735,17 @@ struct StreamState {
     st: Shared,
     session: String,
     done: bool,
+    title_api: Option<Api>,
 }
 
 impl StreamState {
     fn process(&mut self, events: Vec<crate::sse::Event>, end: bool) -> String {
+        let title_end = self.title_api.and_then(|_| {
+            events
+                .iter()
+                .filter_map(crate::opencode::stream_finished)
+                .reduce(|a, b| a && b)
+        });
         let raw: String = events.iter().map(|e| e.raw.as_str()).collect();
         let st = self.st.clone();
         let rw = &mut self.rw;
@@ -728,6 +769,13 @@ impl StreamState {
             .fetch_add(restore_started.elapsed().as_micros() as u64, Relaxed);
         let r = r.map(|(out, usage)| {
             self.span.add(&usage);
+            if let Some(success) = title_end
+                && let Some(api) = self.title_api.take()
+                && success
+                && !self.span.restore_failed.load(Relaxed)
+            {
+                crate::opencode::capture_title(&st, &self.session, &self.span, api == Api::OpenAi);
+            }
             out
         });
         let out = r.unwrap_or_else(|e| {
@@ -750,6 +798,7 @@ fn restore_stream(
     rw: Box<dyn Rewriter>,
     up: Upstream,
     span: Arc<Span>,
+    title_api: Option<Api>,
 ) -> impl Stream<Item = Result<Bytes, std::io::Error>> + Send + 'static {
     let state = StreamState {
         span,
@@ -759,6 +808,7 @@ fn restore_stream(
         st,
         session,
         done: false,
+        title_api,
     };
     futures_util::stream::unfold(state, |mut s| async move {
         loop {

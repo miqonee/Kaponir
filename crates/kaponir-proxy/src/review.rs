@@ -536,7 +536,19 @@ fn decorate_event(event: &mut Value, states: &std::collections::HashMap<i64, Str
     event["review_reasons"] = json!(reasons);
 }
 pub(crate) fn traffic_summary(st: &Shared) -> Value {
-    let mut snapshot = json!(st.traffic.summary_snapshot());
+    let traffic = st.traffic.summary_snapshot();
+    let sessions: Vec<_> = traffic
+        .events
+        .iter()
+        .chain(&traffic.active)
+        .filter(|e| matches!(e.session_source.as_deref(), Some("opencode" | "explicit")))
+        .filter_map(|e| e.session_id.as_deref())
+        .collect();
+    let titles = st
+        .with_vault(|_, v| Ok(v.session_titles(&sessions)?))
+        .unwrap_or_default();
+    let mut snapshot = json!(traffic);
+    snapshot["session_titles"] = json!(titles);
     let states = st
         .with_vault(|_, v| Ok(v.journal_states()?))
         .unwrap_or_default();

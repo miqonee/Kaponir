@@ -8,6 +8,7 @@ use kaponir_core::vault::{AllocRequest, Resolved, Vault, VaultError, pick_id};
 use kaponir_core::{Known, Scope, TokenId};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -54,6 +55,13 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS traffic_events (
     id INTEGER PRIMARY KEY,
     created INTEGER NOT NULL,
+    nonce BLOB NOT NULL,
+    ct BLOB NOT NULL
+);
+CREATE TABLE IF NOT EXISTS session_titles (
+    tag TEXT PRIMARY KEY,
+    started_ms INTEGER NOT NULL,
+    request INTEGER NOT NULL,
     nonce BLOB NOT NULL,
     ct BLOB NOT NULL
 );
@@ -701,12 +709,69 @@ impl SqliteVault {
 
     /// Удаляет память сессий, не обновлявшихся `max_age_secs`.
     pub fn purge_sessions(&self, max_age_secs: i64) -> Result<usize, VaultError> {
+        let cutoff = now() - max_age_secs;
         self.conn
             .execute(
-                "DELETE FROM sessions WHERE updated < ?1",
-                params![now() - max_age_secs],
+                "DELETE FROM session_titles WHERE started_ms < ?1",
+                [cutoff.saturating_mul(1000)],
             )
+            .map_err(db)?;
+        self.conn
+            .execute("DELETE FROM sessions WHERE updated < ?1", [cutoff])
             .map_err(db)
+    }
+
+    /// The opaque traffic tag identifies the chat. A slow earlier naming call
+    /// cannot overwrite a later one, even across a proxy restart.
+    pub fn save_session_title(
+        &self,
+        tag: &str,
+        started_ms: u64,
+        request: u64,
+        title: &str,
+    ) -> Result<(), VaultError> {
+        let started_ms = i64::try_from(started_ms).map_err(|e| VaultError::Other(e.to_string()))?;
+        let request = i64::try_from(request).map_err(|e| VaultError::Other(e.to_string()))?;
+        let aad = format!("title:{tag}:{started_ms}:{request}");
+        let (nonce, ct) = self.seal(title.as_bytes(), aad.as_bytes())?;
+        self.conn.execute(
+            "INSERT INTO session_titles(tag, started_ms, request, nonce, ct) VALUES (?1, ?2, ?3, ?4, ?5)
+             ON CONFLICT(tag) DO UPDATE SET started_ms=excluded.started_ms, request=excluded.request, nonce=excluded.nonce, ct=excluded.ct
+             WHERE (excluded.started_ms, excluded.request) >= (session_titles.started_ms, session_titles.request)",
+            params![tag, started_ms, request, nonce, ct],
+        ).map_err(db)?;
+        Ok(())
+    }
+
+    /// One indexed lookup for the sessions in this dashboard snapshot. The
+    /// JSON parameter binds the entire ID list without a variable SQL string.
+    pub fn session_titles(&self, tags: &[&str]) -> Result<BTreeMap<String, String>, VaultError> {
+        let mut titles = BTreeMap::new();
+        if tags.is_empty() {
+            return Ok(titles);
+        }
+        let tags = serde_json::to_string(tags).map_err(|e| VaultError::Other(e.to_string()))?;
+        let mut stmt = self.conn.prepare_cached(
+            "SELECT tag, started_ms, request, nonce, ct FROM session_titles WHERE tag IN (SELECT value FROM json_each(?1))"
+        ).map_err(db)?;
+        let mut rows = stmt.query([tags]).map_err(db)?;
+        while let Some(row) = rows.next().map_err(db)? {
+            let tag: String = row.get(0).map_err(db)?;
+            let started: i64 = row.get(1).map_err(db)?;
+            let request: i64 = row.get(2).map_err(db)?;
+            let nonce: Vec<u8> = row.get(3).map_err(db)?;
+            let ct: Vec<u8> = row.get(4).map_err(db)?;
+            let raw = self.unseal(
+                &nonce,
+                &ct,
+                format!("title:{tag}:{started}:{request}").as_bytes(),
+            )?;
+            titles.insert(
+                tag,
+                String::from_utf8(raw).map_err(|e| VaultError::Other(e.to_string()))?,
+            );
+        }
+        Ok(titles)
     }
 
     /// Удаляет записи журнала старше `max_age_secs` (TTL: журнал содержит секреты).
@@ -965,6 +1030,25 @@ pub fn key_from_hex(s: &str) -> Result<[u8; 32], VaultError> {
 mod tests {
     use super::*;
     use kaponir_core::Strategy;
+
+    #[test]
+    fn session_titles_follow_the_latest_request_and_session_retention() {
+        let vault = SqliteVault::open_in_memory(&[5; 32]).unwrap();
+        vault
+            .save_session_title("a", 101, 7, "Новое название")
+            .unwrap();
+        vault
+            .save_session_title("a", 100, 6, "Старое название")
+            .unwrap();
+        vault
+            .save_session_title("b", 102, 8, "Другая сессия")
+            .unwrap();
+        let visible = vault.session_titles(&["a", "a", "unknown"]).unwrap();
+        assert_eq!(visible.len(), 1);
+        assert_eq!(visible["a"], "Новое название");
+        vault.purge_sessions(0).unwrap();
+        assert!(vault.session_titles(&["a", "b"]).unwrap().is_empty());
+    }
 
     #[test]
     fn background_records_are_encrypted_and_bound_to_id_and_state() {

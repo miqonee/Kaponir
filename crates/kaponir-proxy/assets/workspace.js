@@ -129,8 +129,8 @@ function jobTitle(job) {
     return tr("Автопроверка находок · {{0}}", [number(job.total)]);
   if (job.family === "review") return job.total != null ? tr("Проверка находок · {{0}}", [number(job.total)]) : tr("Проверка находок");
   if (job.family === "learning" && job.kind === "turn")
-    return job.event_id != null ? tr("Анализ запроса №{{0}}", [job.event_id]) : tr("Анализ запроса");
-  if (job.kind === "session") return tr("Анализ переписки · {{0}}",[job.session_id?.slice(0,8) || job.event_id || job.name]);
+    return job.event_id != null ? tr("Анализ новых сообщений · запрос №{{0}}", [job.event_id]) : tr("Анализ новых сообщений");
+  if (job.kind === "session") return tr("Анализ переписки · {{0}}",[sessionTitle(job.session_id) || job.session_id?.slice(0,8) || job.event_id || job.name]);
   if (job.kind === "download") return tr("Установка модели");
   if (job.kind === "scan") return tr(job.name === "@sessions" ? "Поиск в сохранённых сессиях" : "Поиск значений в файлах");
   return job.name || tr(job.family === "learning" ? "Анализ документа" : "Обработка файлов");
@@ -141,8 +141,8 @@ function jobModel(job) {
 }
 function jobContext(job) {
   const parts = [];
-  if (job.session_id && job.session_id !== "request-" + job.event_id)
-    parts.push(tr("Сессия {{0}}", [job.session_id.slice(0, 8)]));
+  if (job.kind !== "session" && job.session_id && job.session_id !== "request-" + job.event_id)
+    parts.push(sessionTitle(job.session_id) || tr("Сессия {{0}}", [job.session_id.slice(0, 8)]));
   if (job.family === "learning" && job.kind === "document") parts.push(tr("Документ"));
   if (job.kind === "scan" && job.name && job.name !== "@sessions") parts.push(job.name);
   const model = jobModel(job);
@@ -315,6 +315,8 @@ function renderJob(job, family) {
     h("header", {class:"job-detail-head"}, h("h2", {}, jobTitle(job)), jobBadge(job)),
     context || source.some(Boolean) ? h("p", {class:"job-meta"}, [context, ...source].filter(Boolean).join(" · ")) : null,
     activityBlock(job));
+  if (family === "learning" && job.kind === "turn")
+    card.append(h("p", {class:"hint"}, tr("Модель ищет находки в новых сообщениях пользователя и результатах инструментов. Для контекста добавляется короткий фрагмент переписки.")));
   if (family === "review") {
     if (["running", "queued"].includes(job.state))
       card.append(h("p", {}, tr("Принято {{0}} · ждут {{1}} · в работе {{2}}", [

@@ -205,13 +205,19 @@ const fail = (e) => toast(e.message || String(e), true);
 async function copy(text) {
   try {
     await navigator.clipboard.writeText(text);
+    return true;
   } catch {
     const ta = h('textarea', { style: 'position:fixed;opacity:0' });
     ta.value = text;
-    document.body.append(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
+    const previous = document.activeElement;
+    (previous?.closest('dialog[open]') || document.body).append(ta);
+    try {
+      ta.select();
+      return document.execCommand('copy');
+    } finally {
+      ta.remove();
+      previous?.focus({preventScroll:true});
+    }
   }
 }
 

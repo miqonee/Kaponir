@@ -1606,6 +1606,121 @@ async fn session_metadata_groups_requests_and_sse_chunks_without_revealing_clien
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn opencode_titles_follow_the_native_session_across_protocols_and_ignore_partial_replies() {
+    async fn provider(Json(body): Json<Value>) -> Response {
+        if body["stream"] == true {
+            let mut sse = String::new();
+            for text in ["Проверка ", "лимитов"] {
+                let chunk = json!({"choices":[{"index":0,"delta":{"content":text,"reasoning_content":"invisible reasoning"}}]});
+                sse.push_str(&format!("data: {chunk}\n\n"));
+            }
+            if body["model"] != "interrupted" {
+                sse.push_str("data: [DONE]\n\n");
+            }
+            return sse_response(sse);
+        }
+        Json(json!({"content":[{"type":"thinking","thinking":"invisible reasoning"},
+            {"type":"text","text":"<think>invisible reasoning</think>Бюджет password: TitleFixture_92!Secret"}]})).into_response()
+    }
+    let upstream = spawn(
+        Router::new()
+            .route("/v1/messages", post(provider))
+            .route("/v1/chat/completions", post(provider)),
+    )
+    .await;
+    let base = spawn(kaponir_proxy::router(state(&upstream, None))).await;
+    let first = json!({"model":"chat","messages":[{"role":"user","content":"Check the budget"}]});
+    let system = "You are a title generator. You output ONLY a thread title. Nothing else.";
+    let title = json!({"model":"title","system":[{"type":"text","text":system}],"messages":[
+        {"role":"user","content":[{"type":"text","text":"Generate a title for this conversation:\n"},{"type":"text","text":"Check the budget"}]}]});
+    let mut stream = json!({"model":"title","stream":true,"messages":[{"role":"system","content":system},
+        {"role":"user","content":"Generate a title for this conversation:\n"},{"role":"user","content":"Check the budget"}]});
+    let id = [
+        ("x-opencode-session-id", "private-native-id"),
+        ("x-opencode-session", "same-affinity"),
+    ];
+    for (body, route, headers) in [
+        (&first, "messages", id.as_slice()),
+        (
+            &first,
+            "messages",
+            &[
+                ("x-opencode-session-id", "another-private-id"),
+                ("x-opencode-session", "same-affinity"),
+            ],
+        ),
+        (&title, "messages", &id),
+    ] {
+        let response = post_json(format!("{base}/v1/{route}"), body, headers).await;
+        assert_eq!(response.status(), 200);
+        response.bytes().await.unwrap();
+    }
+    let summary = traffic_snapshot(&base, 3).await;
+    let events = summary["traffic"]["events"].as_array().unwrap();
+    let tag = events[2]["session_id"].as_str().unwrap();
+    assert_eq!(events[0]["session_id"], tag);
+    assert_eq!(events[0]["request_kind"], "session_title");
+    assert!(events[0].get("turn").is_none());
+    assert_ne!(events[1]["session_id"], tag);
+    let titles = &summary["traffic"]["session_titles"];
+    let masked = titles[tag].as_str().unwrap();
+    assert!(
+        masked.contains("Бюджет") && masked.contains("ANON_"),
+        "{masked}"
+    );
+    assert_eq!(titles.as_object().unwrap().len(), 1);
+    let output = summary.to_string();
+    for hidden in [
+        "private-native-id",
+        "another-private-id",
+        "same-affinity",
+        "TitleFixture_92",
+        "invisible reasoning",
+    ] {
+        assert!(!output.contains(hidden), "{hidden}");
+    }
+    for (model, expected, count) in [("interrupted", masked, 4), ("title", "Проверка лимитов", 5)]
+    {
+        stream["model"] = json!(model);
+        post_json(format!("{base}/v1/chat/completions"), &stream, &id)
+            .await
+            .bytes()
+            .await
+            .unwrap();
+        assert_eq!(
+            traffic_snapshot(&base, count).await["traffic"]["session_titles"][tag],
+            expected
+        );
+    }
+    // A user quoting the naming instruction remains a human turn. An older
+    // OpenCode service request without a native ID remains unlinked.
+    stream["messages"][0]["content"] = json!("You are a coding assistant");
+    post_json(format!("{base}/v1/chat/completions"), &stream, &id)
+        .await
+        .bytes()
+        .await
+        .unwrap();
+    post_json(
+        format!("{base}/v1/messages"),
+        &title,
+        &[("user-agent", "opencode/1.3")],
+    )
+    .await
+    .bytes()
+    .await
+    .unwrap();
+    let snapshot = traffic_snapshot(&base, 7).await;
+    let rows = &snapshot["traffic"]["events"];
+    assert!(rows[0]["session_id"].is_null());
+    assert_eq!(rows[1]["request_kind"], "completion");
+    assert!(rows[1].get("turn").is_some());
+    assert_eq!(
+        snapshot["traffic"]["session_titles"][tag],
+        "Проверка лимитов"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn conversation_keeps_public_reply_text_and_real_tools_for_json_and_sse() {
     let (proxy, _) = setup(Some("console-token")).await;
     let auth = [("authorization", "Bearer console-token")];

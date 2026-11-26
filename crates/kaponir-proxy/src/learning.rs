@@ -887,7 +887,10 @@ pub(crate) fn enqueue_event(
         || settings.analysis.provider == "none"
         || !settings.analysis.background
         || event.outcome != "ok"
-        || event.request_kind == "count_tokens"
+        || matches!(
+            event.request_kind.as_str(),
+            "count_tokens" | "session_title"
+        )
     {
         return Ok(());
     }
@@ -4818,12 +4821,25 @@ mod tests {
         }
         let mut ev:Event=serde_json::from_value(json!({"id":1,"time_ms":now_ms(),"provider":"openai","connection_id":null,"status":200,"outcome":"ok","duration_ms":1,"sent":true,"usage":crate::traffic::Usage::default(),"session_id":"test-session"})).unwrap();
         let one = json!([{"role":"user","content":"project: Cedar Plum"}]);
+        ev.request_kind = "session_title".into();
+        enqueue_event(&v, &learning, &ev, Some(&one)).unwrap();
+        assert_eq!(v.app_record_count("learning-job-queued").unwrap(), 0);
+        ev.request_kind = "completion".into();
         enqueue_event(&v, &learning, &ev, Some(&one)).unwrap();
         assert_eq!(v.app_record_count("learning-job-queued").unwrap(), 1);
         ev.id = 2;
         enqueue_event(&v, &learning, &ev, Some(&one)).unwrap();
         assert_eq!(v.app_record_count("learning-job-queued").unwrap(), 1);
         ev.id = 3;
+        let with_tool = json!([one[0], {"role":"assistant","content":"Reading the file"},
+            {"role":"tool","content":"Budget: 2500"}]);
+        enqueue_event(&v, &learning, &ev, Some(&with_tool)).unwrap();
+        let delta = record::<Job>(&v, &format!("learning:job:turn:{:020}", ev.id))
+            .unwrap()
+            .unwrap();
+        assert_eq!(delta.source, "Budget: 2500");
+        assert!(!delta.context.contains("Cedar Plum"));
+        ev.id = 4;
         ev.outcome = "cancelled".into();
         enqueue_event(
             &v,
@@ -4832,10 +4848,10 @@ mod tests {
             Some(&json!([{"role":"user","content":"new content"}])),
         )
         .unwrap();
-        assert_eq!(v.app_record_count("learning-job-queued").unwrap(), 1);
+        assert_eq!(v.app_record_count("learning-job-queued").unwrap(), 2);
         learning.settings.write().unwrap().analysis.enabled = false;
         ev.outcome = "ok".into();
         enqueue_event(&v, &learning, &ev, Some(&one)).unwrap();
-        assert_eq!(v.app_record_count("learning-job-queued").unwrap(), 1);
+        assert_eq!(v.app_record_count("learning-job-queued").unwrap(), 2);
     }
 }

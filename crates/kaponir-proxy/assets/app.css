@@ -1132,6 +1132,13 @@ td small { display: block; }
 .sessions-table .session-open {background:transparent; color:var(--accent); min-height:32px; padding:3px 9px}
 .session-open svg,.issue-button svg {width:15px; height:15px; flex:none}
 .session-toggle {font-weight:650; background:transparent}
+.session-toggle .session-label {max-inline-size:34ch; text-align:start; white-space:normal; overflow-wrap:anywhere}
+.session-toggle .session-label small {display:block; color:var(--dim); font-weight:400}
+.session-toggle svg {flex:none}
+#session-title {overflow-wrap:anywhere}
+.session-copy-id {font:inherit; padding:2px 0; min-height:24px}
+.session-service-log ul {list-style:none; margin:0; padding:0}
+.session-service-log li {display:flex; flex-wrap:wrap; align-items:center; gap:8px; padding:5px 12px}
 .session-toggle[aria-expanded="false"] svg {transform:rotate(-90deg)}
 .session-children > th,.session-children > td {background:var(--panel-subtle)!important; font-weight:400}
 .sessions-table .session-children > th {padding-inline-start:24px}

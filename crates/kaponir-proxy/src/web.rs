@@ -885,7 +885,7 @@ fn session_documents(
 ) -> (Vec<kaponir_core::discover::Document>, bool) {
     let mut groups = std::collections::BTreeMap::<String, Vec<String>>::new();
     for ev in st.traffic.snapshot().events {
-        if target.is_some_and(|scope| !scope.matches(&ev)) {
+        if ev.request_kind == "session_title" || target.is_some_and(|scope| !scope.matches(&ev)) {
             continue;
         }
         if let Some(insp) = ev.inspector {
@@ -938,7 +938,7 @@ async fn analyze_session(
 ) -> ApiResult {
     authorized(&st, &headers, true)?;
     let mut events = st.traffic.snapshot().events;
-    events.retain(|e| req.target.matches(e));
+    events.retain(|e| e.request_kind != "session_title" && req.target.matches(e));
     events.sort_by_key(|e| e.id);
     let total = events.len();
     let mut used = 0;

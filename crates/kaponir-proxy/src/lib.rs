@@ -18,6 +18,7 @@ mod metrics;
 mod model_json;
 mod occurrences;
 pub mod openai;
+mod opencode;
 pub mod providers;
 mod review;
 mod server;

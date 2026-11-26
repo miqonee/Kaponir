@@ -460,7 +460,8 @@ impl Traffic {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         for mut event in events {
-            if let Some(insp) = &mut event.inspector
+            if event.request_kind != "session_title"
+                && let Some(insp) = &mut event.inspector
                 && (event.turn.is_none() || (insp.reply.is_none() && insp.tool_results.is_empty()))
                 && let Ok(payload) = serde_json::from_str(&insp.masked_payload_json)
             {
@@ -473,7 +474,8 @@ impl Traffic {
                     insp.tool_results = crate::conversation::incoming_tools(&payload);
                 }
             }
-            if event.turn.is_none()
+            if event.request_kind != "session_title"
+                && event.turn.is_none()
                 && let (Some(insp), Some(session)) = (&event.inspector, &event.session_id)
             {
                 event.turn = insp.retained_turn(session);
@@ -606,8 +608,8 @@ pub struct Span {
     pub failed: AtomicBool,
     pub restore_failed: AtomicBool,
     provider: &'static str,
-    id: u64,
-    started_at_ms: u64,
+    pub(crate) id: u64,
+    pub(crate) started_at_ms: u64,
     start: Instant,
 }
 

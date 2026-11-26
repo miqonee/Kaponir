@@ -140,6 +140,7 @@ function sessionQuestion(event, openReview=null) {
 function conversationTurns(rows) {
   const groups=[], byAnchor=new Map();
   for (const row of rows) {
+    if (row.request_kind === "session_title") continue;
     const anchor=row.turn?.id;
     let group=anchor && byAnchor.get(anchor);
     if (!group) {
@@ -313,13 +314,21 @@ function sessionDecision(row, saved, memory, location, findMark, onChoose) {
 function openSession(event) {
   const dialog = $("#session-dialog");
   const target = event.session_id ? {session: event.session_id} : {request: event.id};
-  const title = event.session_id ? tr("Сессия {{0}}", [event.session_id]) : tr("Запрос {{0}}", [event.id]);
+  const heading = h("h2", {id:"session-title"}, tr("Переписка"));
+  const identity = event.session_id ? h("button", {type:"button",class:"text-button session-copy-id",
+    title:tr("Скопировать ID сессии"),"aria-label":tr("Скопировать ID сессии"),
+    onclick:async()=>{
+      if (await copy(event.session_id)) toast(tr("ID сессии скопирован"));
+      else toast(tr("Скопируйте ID вручную"),true);
+    }}, "ID · " + event.session_id) :
+    tr("Запрос {{0}}", [event.id]);
   const pick = h("select", {"aria-label": tr("Сообщения пользователя")});
   const requestList = h("fieldset", {class:"conversation-requests"}, h("legend", {}, tr("Сообщения пользователя")));
   const position = h("span", {class:"conversation-position"});
   const content = h("div", {class: "session-messages"});
   const status = h("p", {class: "hint",role:"status"});
   const steps = h("details", {class:"session-steps"});
+  const serviceLog = h("details", {class:"session-steps session-service-log", hidden:true});
   const totals = h("span", {class:"conversation-totals"});
   let turns = [], currentKey = null, generation = 0, signature = "", selection = "";
   const previous = h("button", {class:"secondary", onclick:()=>display(turns[pick.selectedIndex-1])}, tr("Предыдущее сообщение"));
@@ -344,7 +353,7 @@ function openSession(event) {
   const destination=h("p",{class:"hint"});
   api("/api/v1/ui/workspace/model").then(cfg=>{
     if(!dialog.open || !modelRun.isConnected)return;
-    modelConfig=cfg;modelRun.disabled=false;
+    modelConfig=cfg;modelRun.disabled=scan.disabled;
     if(cfg.analysis_enabled && cfg.analysis) {
       const destinations=[cfg.analysis,cfg.categorization].filter(Boolean).map(s=>[modelName(s.model),s.connection].filter(Boolean).join(" · "));
       destination.textContent=tr("Анализ сохранённой переписки · {{0}}",[[...new Set(destinations)].join(" / ")]);
@@ -507,7 +516,8 @@ function openSession(event) {
     const rows=[...(traffic.events || []),...(traffic.active || [])]
       .filter(r=>target.session ? r.session_id===target.session : r.id===target.request)
       .sort((a,b)=>(a.started_at_ms || a.time_ms)-(b.started_at_ms || b.time_ms) || a.id-b.id);
-    const key=JSON.stringify(rows.map(r=>[r.id,r.turn,r.outcome,r.status,r.review_reasons,r.usage?.replacements,r.usage?.cached_replacements,r.usage?.completion_tokens]));
+    heading.textContent=sessionTitle(event.session_id) || tr("Переписка");
+    const key=JSON.stringify(rows.map(r=>[r.id,r.request_kind,r.turn,r.outcome,r.status,r.review_reasons,r.usage?.replacements,r.usage?.cached_replacements,r.usage?.completion_tokens]));
     if (signature===key) return;
     signature=key;
     const focus=requestList.contains(document.activeElement) ? document.activeElement.value : null;
@@ -515,6 +525,13 @@ function openSession(event) {
     const retained=new Set(rows.map(r=>r.id));
     for (const cache of [stepCache,previewCache]) for (const id of cache.keys()) if (!retained.has(id)) cache.delete(id);
     turns=conversationTurns(rows);
+    const service=rows.filter(r=>r.request_kind==="session_title");
+    serviceLog.hidden=!service.length;
+    if (service.length) {
+      serviceLog.replaceChildren(h("summary",{},icon("list"),tr("Служебные запросы OpenCode"),h("span",{class:"log-count"},number(service.length)),icon("chevron")),
+        h("ul",{},service.map(r=>h("li",{},h("button",{type:"button",class:"text-button",onclick:()=>openInspector(r.id,"request")},
+          tr("Название сессии OpenCode")," · ",tr("Запрос {{0}}",[r.id])),h("span",{class:"event-status "+r.outcome},outcomeLabel(r))))));
+    }
     const linked=turns.filter(g=>g.linked).length;
     totals.textContent=[linked ? tr("Сообщений пользователя · {{0}}",[linked]) : "",
       tr("Вызовов API · {{0}}",[rows.length])].filter(Boolean).join(" · ");
@@ -532,10 +549,12 @@ function openSession(event) {
     else if (focus) requestList.querySelector('input[value="'+focus+'"]')?.focus({preventScroll:true});
     pick.replaceChildren(...turns.map(g=>h("option",{value:g.key},titleOf(g))));
     dialog.classList.toggle("single-request",turns.length<=1);
-    scan.disabled=!rows.some(r=>r.outcome!=="in_progress");
+    const hasTranscript=rows.some(r=>r.request_kind!=="session_title" && r.outcome!=="in_progress");
+    scan.disabled=!hasTranscript;
+    modelRun.disabled=!modelConfig || !hasTranscript;
     if (!turns.length) {
       generation++;selection="";currentKey=null;status.textContent="";steps.hidden=true;inspect.hidden=true;
-      content.textContent=tr("В истории больше нет запросов этой сессии.");return;
+      content.textContent=tr(service.length ? "Пока получен только запрос на название сессии." : "В истории больше нет запросов этой сессии.");return;
     }
     const selected=turns.find(g=>g.key===currentKey) || turns.find(g=>g.rows.some(r=>r.id===event.id)) || turns.at(-1);
     display(selected);
@@ -544,9 +563,9 @@ function openSession(event) {
   const close = h("button", {class: "icon-button", "aria-label": tr("Закрыть"), onclick: () => dialog.close()}, "×");
   dialog.onclose = () => { generation++; refreshOpenSession = null; dialog.replaceChildren(); };
   dialog.replaceChildren(h("div", {class: "inspector-shell"},
-    h("div", {class: "inspector-header"}, h("div", {}, h("h2", {id: "session-title"}, tr("Переписка")), h("p", {}, title," · ",totals)), close),
+    h("div", {class: "inspector-header"}, h("div", {}, heading, h("p", {}, identity," · ",totals)), close),
     h("div", {class: "conversation-layout"}, requestList, h("div", {class: "inspector-body"}, h("div", {class: "session-navigation"},
-      h("label", {class: "field"}, tr("Сообщения пользователя"), pick), position, previous, next), status, content, steps,
+      h("label", {class: "field"}, tr("Сообщения пользователя"), pick), position, previous, next), status, content, steps, serviceLog,
       h("div", {class: "form-actions"}, scan, modelRun, inspect),destination))));
   dialog.showModal();
   refreshOpenSession();

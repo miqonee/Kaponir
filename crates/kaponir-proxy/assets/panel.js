@@ -148,6 +148,10 @@ function periodBuckets() {
       },
   );
 }
+function sessionTitle(id) {
+  const title = dashboard?.traffic?.session_titles?.[id];
+  return typeof title === "string" ? title : "";
+}
 function filteredEvents(applyFilter = true) {
   const cutoff =
     (Math.floor(Date.now() / 3600000) - Number($("#period").value) + 1) *
@@ -164,7 +168,7 @@ function filteredEvents(applyFilter = true) {
       e.time_ms >= cutoff &&
       (!applyFilter || eventFilter !== "issues" || hasIssue(e)) &&
       (!query ||
-        [e.model, e.session_id, e.connection_id, e.provider, String(e.id)]
+        [sessionTitle(e.session_id), e.model, e.session_id, e.connection_id, e.provider, String(e.id)]
           .join(" ")
           .toLowerCase()
           .includes(query)),
@@ -512,7 +516,8 @@ function toggleGroup(key, expanded, requests) {
 }
 function requestRow(event, prefix) {
   const notes = requestNotes(event), outcome = outcomeLabel(event);
-  const format = event.request_kind === "count_tokens" ? tr("Подсчёт токенов") : event.streaming ? "SSE" : "";
+  const format = event.request_kind === "session_title" ? tr("Название сессии OpenCode") :
+    event.request_kind === "count_tokens" ? tr("Подсчёт токенов") : event.streaming ? "SSE" : "";
   const open = () => openInspector(event.id, ["error","restore_error","cancelled"].includes(event.outcome) ? "diagnostics" :
     notes.length ? "review" : "request");
   const state = h("td", {class:"traffic-status"}, h("span", {class:"event-status " + event.outcome}, outcome));
@@ -557,11 +562,12 @@ function sessionsTable(events, compact = false) {
       const messages = conversationTurns([...rows].sort((a,b)=>a.id-b.id)).filter(g=>g.linked).length;
       const expanded = requests ? !collapsedRequestGroups.has(key) : expandedSessions.has(key);
       const issueOnly = onlyIssues || issueGroups.has(key);
-      const name = latest.session_id ? tr("Сессия {{0}}", [key.slice(0,8)]) : tr("Запрос {{0}}", [latest.id]);
+      const title = sessionTitle(latest.session_id);
+      const name = title || (latest.session_id ? tr("Сессия {{0}}", [key.slice(0,8)]) : tr("Запрос {{0}}", [latest.id]));
       const trigger = h("button", {class:"session-toggle", "data-session-key":key, "aria-expanded":String(expanded),
         onclick:()=>toggleGroup(key,!expanded,requests), onkeydown:e=>{
           if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); toggleGroup(key,e.key === "ArrowRight",requests); }
-        }}, icon("chevron"), name);
+        }}, icon("chevron"), h("span", {class:"session-label"}, name, title ? h("small", {}, "ID · " + key.slice(0,8)) : null));
       const summary = h("td", {class:"traffic-status"});
       if (active) summary.append(h("span", {class:"event-status in_progress"}, tr("Выполняется · {{0}}", [active])));
       if (issues.length) {
@@ -787,9 +793,8 @@ async function openInspector(id, initialTab = null, target = null) {
               ["HTTP", ev.status || "—"],
               [
                 "Операция",
-                ev.request_kind === "count_tokens"
-                  ? tr("Подсчёт токенов")
-                  : tr("Генерация"),
+                ev.request_kind === "session_title" ? tr("Название сессии OpenCode") :
+                  ev.request_kind === "count_tokens" ? tr("Подсчёт токенов") : tr("Генерация"),
               ],
               ["Сессия", ev.session_id || "—"],
               ["Связь", ev.session_source || "—"],
