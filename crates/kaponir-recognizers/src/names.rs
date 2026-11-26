@@ -13,11 +13,15 @@ use kaponir_core::{
 
 use crate::{char_after, char_before};
 use regex::Regex;
+use std::collections::HashMap;
 
 const ID: &str = "names";
 
 /// Больше слов подряд с заглавной — скорее заголовок, чем имя.
 const MAX_WORDS: usize = 4;
+
+// Ограничивает память на тексты с большим числом разных слов.
+const MAX_CACHED_SPELLINGS: usize = 4096;
 
 pub struct Names {
     calendar: Regex,
@@ -305,10 +309,22 @@ impl Names {
     }
 
     /// У слова нет ни одного признака имени (ни по словарю, ни по разбору пакета).
-    fn weak(&self, text: &str, w: &Word, ctx: &AnalyzeCtx<'_>) -> bool {
-        self.options(&text[w.start..w.end], ctx)
-            .iter()
-            .all(|o| o.quality == 0)
+    fn weak<'a>(
+        &self,
+        text: &'a str,
+        w: &Word,
+        ctx: &AnalyzeCtx<'_>,
+        weak_by_spelling: &mut HashMap<&'a str, bool>,
+    ) -> bool {
+        let word = &text[w.start..w.end];
+        if let Some(&weak) = weak_by_spelling.get(word) {
+            return weak;
+        }
+        let weak = self.options(word, ctx).iter().all(|o| o.quality == 0);
+        if weak_by_spelling.len() < MAX_CACHED_SPELLINGS {
+            weak_by_spelling.insert(word, weak);
+        }
+        weak
     }
 
     /// Обычное слово или слово контекста имени (`Передай`, `Ask`, `Thanks`).
@@ -524,6 +540,7 @@ impl Recognizer for Names {
         }
         let text = input.text;
         let names = &ctx.lexicon.names;
+        let mut weak_by_spelling = HashMap::new();
         let ws = words(text);
         let calendar: Vec<_> = self
             .calendar
@@ -541,7 +558,7 @@ impl Recognizer for Names {
                 Tok::Name | Tok::Initial => true,
                 // Строчная словоформа рассматривается отдельно и только при признаках имени:
                 // обычные глаголы не должны начинать группу и поглощать следующие слова.
-                Tok::Lower => !self.weak(text, w, ctx),
+                Tok::Lower => !self.weak(text, w, ctx, &mut weak_by_spelling),
                 Tok::Other => false,
             } && !glued(text, w.start, w.end - usize::from(w.tok == Tok::Initial));
             if !starts {
@@ -593,7 +610,7 @@ impl Recognizer for Names {
             // `Ask John`), а в начале предложения — любое такое слово (`Позвони Ивану`).
             while group.len() > 1
                 && group[0].tok == Tok::Name
-                && self.weak(text, &group[0], ctx)
+                && self.weak(text, &group[0], ctx, &mut weak_by_spelling)
                 && (self.ordinary(text, &group[0], ctx)
                     || (sentence_start(text, group[0].start) && group[1].tok == Tok::Name))
             {
@@ -601,7 +618,7 @@ impl Recognizer for Names {
             }
             while group.len() > 1
                 && group[group.len() - 1].tok == Tok::Name
-                && self.weak(text, &group[group.len() - 1], ctx)
+                && self.weak(text, &group[group.len() - 1], ctx, &mut weak_by_spelling)
                 && self.ordinary(text, &group[group.len() - 1], ctx)
             {
                 group = &group[..group.len() - 1];
@@ -704,6 +721,24 @@ mod tests {
                 .iter()
                 .any(|(_, value, _)| value == "Thu")
         );
+    }
+
+    #[test]
+    fn repeated_spellings_respect_context_at_each_position() {
+        let text = "/home/john/bin — mr. john ответил.\n".repeat(100);
+        let lexicon = lex();
+        let mut out = Vec::new();
+        Names::new().analyze(&Input::text(&text), &AnalyzeCtx::new(&lexicon), &mut out);
+        let names: Vec<_> = out
+            .iter()
+            .filter(|c| c.kind == "FNAME")
+            .map(|c| (c.start, c.end))
+            .collect();
+        let expected: Vec<_> = text
+            .match_indices("john ответил")
+            .map(|(start, _)| (start, start + "john".len()))
+            .collect();
+        assert_eq!(names, expected);
     }
 
     #[test]
