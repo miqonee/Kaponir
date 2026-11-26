@@ -751,9 +751,7 @@ pub fn build_engine(
     for p in packs {
         b = b.pack(p);
     }
-    for r in kaponir_recognizers::builtin() {
-        b = b.recognizer(r);
-    }
+    b = b.recognizer(Box::new(kaponir_recognizers::BuiltinDetectors::default()));
     if !rules.is_empty() {
         for set in rules {
             b = b.lexicon(&set.lexicon());

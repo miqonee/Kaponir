@@ -1,6 +1,7 @@
 //! Встроенные языконезависимые распознаватели. Слова, ключи и домены берутся из словаря
 //! (пакетов), а не зашиты в код.
 
+mod builtin;
 pub mod composite;
 pub mod kv;
 pub mod names;
@@ -13,25 +14,8 @@ pub mod users;
 pub mod validators;
 pub mod web;
 
-use kaponir_core::Recognizer;
-
+pub use builtin::{BuiltinDetectors, builtin};
 pub use rules::RulesRecognizer;
-
-/// Набор встроенных распознавателей по умолчанию.
-pub fn builtin() -> Vec<Box<dyn Recognizer>> {
-    vec![
-        Box::new(secrets::Secrets::new()),
-        Box::new(kv::KeyValue::new()),
-        Box::new(users::Users::new()),
-        Box::new(tabular::Tabular::new()),
-        Box::new(network::Network::new()),
-        Box::new(web::Web::new()),
-        Box::new(paths::Paths::new()),
-        Box::new(composite::Composite::new()),
-        Box::new(validators::Validators::new()),
-        Box::new(names::Names::new()),
-    ]
-}
 
 /// Символ, продолжающий идентификатор: граница слова для всех распознавателей.
 pub(crate) fn is_ident(c: char) -> bool {
