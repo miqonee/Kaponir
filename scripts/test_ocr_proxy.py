@@ -558,6 +558,19 @@ def exercise_review_and_history(binary, chat):
         assert new["turn"]["id"] == image["turn"]["id"]
         assert p.call(old_preview).body == first
 
+        masked_preview = attachment_url(new, new["inspector"]["images"]["attachments"][0], "sent")
+        sent_with_rule, = binary_parts(chat.records[-1][2])
+        team = next(s for s in p.call("/api/v1/rules").json() if s["scope"] == "team")
+        index = next(i for i, rule in enumerate(team["file"]["rule"])
+                     if rule.get("id") == "synthetic-image-policy")
+        removed = p.call(f"/api/v1/rules/team/{index}?revision={team['revision']}", method="DELETE")
+        assert removed.status == 200 and removed.json()["removed"]["id"] == "synthetic-image-policy"
+
+        # Replaying the same turn uses current rules. Its earlier preview keeps the pixels sent.
+        replay = accepted(p, chat, messages, [source])
+        assert replay["turn"]["id"] == new["turn"]["id"]
+        assert p.call(masked_preview).body == sent_with_rule
+
 
 def run_tests(binary):
     chat, vision = Recorder(), Recorder(vision=True)
