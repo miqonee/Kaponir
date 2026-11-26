@@ -2455,7 +2455,7 @@ fn weak(c: &Candidate) -> bool {
         && c.value.chars().any(char::is_alphabetic)
         && c.value.chars().any(|c| c.is_ascii_digit())
         && c.value.contains(['-', '_', '/', '#']);
-    kaponir_core::kinds::weak_business_value(&c.kind, &c.value)
+    kaponir_core::discover::weak_business_value(&c.kind, &c.value)
         || (c.kind == "AMOUNT"
             && !kaponir_core::kinds::financial_value(&c.value)
             && c.value.chars().any(char::is_alphabetic))

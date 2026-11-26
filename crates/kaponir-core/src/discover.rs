@@ -3,7 +3,7 @@
 //! По умолчанию анализ локальный. S1 включается явно и только оценивает предложения;
 //! создание правил и обучающих меток всегда требует решения человека.
 
-pub use crate::kinds::weak_business_value;
+pub use crate::candidate_filter::weak_business_value;
 use crate::rules::{Rule, RuleAction};
 use crate::{Category, Engine, Input, MemoryVault};
 use regex::Regex;

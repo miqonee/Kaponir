@@ -374,7 +374,7 @@ impl Engine {
                 && text.is_char_boundary(c.end)
                 && !(c.origin == Origin::Builtin
                     && c.kind == "PROJ"
-                    && crate::kinds::weak_business_value(&c.kind, &text[c.start..c.end]))
+                    && crate::candidate_filter::weak_business_value(&c.kind, &text[c.start..c.end]))
         });
         for c in out.iter_mut() {
             self.boost_context(text, c);
