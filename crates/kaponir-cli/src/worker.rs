@@ -1,6 +1,7 @@
 //! Packaged Python worker; it is a separate process and never runs in a proxy request.
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::borrow::Cow;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -85,7 +86,28 @@ pub fn run(
     }
 }
 
+fn worker_path<'a>(home: &Path, configured: &'a Path) -> Cow<'a, Path> {
+    if configured.is_absolute() {
+        Cow::Borrowed(configured)
+    } else {
+        Cow::Owned(home.join(configured))
+    }
+}
+
 impl Settings {
+    fn data_dir(&self, home: &Path) -> Cow<'_, Path> {
+        worker_path(home, &self.data_dir)
+    }
+
+    fn input_root(&self, home: &Path) -> Cow<'_, Path> {
+        worker_path(home, &self.input_root)
+    }
+
+    /// Resolves the configured model directory relative to the Kaponir home.
+    pub fn model_dir(&self, home: &Path) -> Cow<'_, Path> {
+        worker_path(home, &self.model_dir)
+    }
+
     pub fn validate(&self) -> anyhow::Result<()> {
         anyhow::ensure!(
             kaponir_core::models::valid_local_id(&self.model),
@@ -150,11 +172,7 @@ impl ManagedWorker {
         let Ok(cfg) = home.load_config() else {
             return false;
         };
-        let path = if cfg.worker.data_dir.is_absolute() {
-            cfg.worker.data_dir
-        } else {
-            self.home.join(cfg.worker.data_dir)
-        };
+        let path = cfg.worker.data_dir(&self.home);
         std::fs::read(path.join("activation.json"))
             .ok()
             .and_then(|b| serde_json::from_slice::<serde_json::Value>(&b).ok())
@@ -180,17 +198,9 @@ impl kaponir_proxy::WorkerManager for ManagedWorker {
         drop(probe);
         let home = crate::Home::new(self.home.clone());
         let cfg = home.load_config()?;
-        let input_root = if cfg.worker.input_root.is_absolute() {
-            cfg.worker.input_root.clone()
-        } else {
-            self.home.join(&cfg.worker.input_root)
-        };
+        let input_root = cfg.worker.input_root(&self.home);
         std::fs::create_dir_all(input_root)?;
-        let log_dir = if cfg.worker.data_dir.is_absolute() {
-            cfg.worker.data_dir
-        } else {
-            self.home.join(cfg.worker.data_dir)
-        };
+        let log_dir = cfg.worker.data_dir(&self.home);
         std::fs::create_dir_all(&log_dir)?;
         let mut options = std::fs::OpenOptions::new();
         options.create(true).append(true);
@@ -272,5 +282,25 @@ impl Drop for ManagedWorker {
             }
             let _ = child.wait();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn worker_directories_resolve_each_configured_path_against_home() {
+        let home = std::env::temp_dir().join("synthetic-kaponir-home");
+        let absolute_input = std::env::temp_dir().join("synthetic inbox");
+        let s = Settings {
+            input_root: absolute_input.clone(),
+            data_dir: PathBuf::from("relative data"),
+            model_dir: PathBuf::from("nested").join("..").join("models"),
+            ..Settings::default()
+        };
+        assert_eq!(s.input_root(&home).as_ref(), absolute_input.as_path());
+        assert_eq!(s.data_dir(&home).as_ref(), home.join("relative data"));
+        assert_eq!(s.model_dir(&home).as_ref(), home.join(&s.model_dir));
     }
 }
