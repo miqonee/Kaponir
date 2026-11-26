@@ -1,9 +1,7 @@
 //! OpenCode names a chat with a separate model call. Its stable session ID,
 //! rather than the generated text or the provider connection, links the calls.
 use crate::{
-    State,
-    conversation::{PartKind, Reply},
-    sse,
+    State, sse,
     traffic::{Event, Span},
 };
 use axum::http::HeaderMap;
@@ -237,25 +235,6 @@ fn title_line(mut wire: &str) -> Option<String> {
     (!text.trim().is_empty()).then(|| text.trim().to_owned())
 }
 
-fn visible_title(reply: &Reply, openai: bool) -> Option<String> {
-    if reply.truncated || reply.parts.iter().any(|p| p.kind == PartKind::Call) {
-        return None;
-    }
-    let wire = reply
-        .parts
-        .iter()
-        .filter(|p| {
-            if openai {
-                p.slot == [0, 0]
-            } else {
-                p.slot[0] == 0
-            }
-        })
-        .map(|p| p.wire.as_str())
-        .collect::<String>();
-    title_line(&wire)
-}
-
 fn save_title(
     st: &State,
     mask_session: &str,
@@ -274,12 +253,9 @@ fn save_title(
 
 pub(crate) fn capture_title(st: &State, session: &str, span: &Span, openai: bool) {
     let line = span
-        .usage
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .reply
-        .as_ref()
-        .and_then(|r| visible_title(r, openai));
+        .plain_reply_wire(openai)
+        .as_deref()
+        .and_then(title_line);
     let tag = span
         .session
         .lock()
@@ -359,7 +335,10 @@ pub(crate) fn repair_event(st: &State, event: &mut Event) -> anyhow::Result<()> 
         // Legacy inspectors elided an untruncated plain reply when wire text
         // matched raw_response. An explicitly empty reply means reasoning only.
         let line = match &insp.reply {
-            Some(r) => visible_title(r, event.provider == "openai"),
+            Some(reply) => reply
+                .plain_wire(event.provider == "openai")
+                .as_deref()
+                .and_then(title_line),
             None if !insp.raw_response.contains("… [truncated]") => {
                 title_line(&insp.raw_response)
             }

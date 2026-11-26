@@ -694,6 +694,16 @@ impl Span {
             .insert(id, Arc::downgrade(&span));
         span
     }
+
+    pub(crate) fn plain_reply_wire(&self, openai: bool) -> Option<String> {
+        self.usage
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .reply
+            .as_ref()?
+            .plain_wire(openai)
+    }
+
     pub fn add(&self, usage: &Usage) {
         let mut current = self
             .usage

@@ -125,7 +125,7 @@ impl ActiveRules {
                     let directory = kind == "PATH"
                         && mask.start == start
                         && rule["path_prefix"].as_str().is_some_and(|p| {
-                            super::paths::directories(value).contains(&p)
+                            super::path_prefixes::directories(value).contains(&p)
                                 && mask.end == start + p.len() - 1
                                 && mask.end < end
                         });
