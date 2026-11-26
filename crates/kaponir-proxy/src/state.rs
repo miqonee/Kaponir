@@ -468,6 +468,10 @@ pub struct Cx<'a> {
 }
 
 impl Cx<'_> {
+    pub(crate) fn reply(&mut self) -> &mut crate::conversation::Reply {
+        self.usage.reply.get_or_insert_with(Default::default)
+    }
+
     /// Маскирует блок текста с кэшем сессии.
     pub fn mask(&mut self, text: &str) -> anyhow::Result<String> {
         if text.trim().is_empty() {

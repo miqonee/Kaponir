@@ -2043,5 +2043,18 @@
   "Ожидаем ответ поставщика…": "Waiting for the provider…",
   "Связь с сообщением неизвестна": "No message link available",
   "Есть скрытые значения": "Contains masked values",
-  "Запросов · {{0}}": "Requests · {{0}}"
+  "Запросов · {{0}}": "Requests · {{0}}",
+  "Ход переписки": "Conversation timeline",
+  "Ответ модели": "Model reply",
+  "Вызов инструмента": "Tool call",
+  "Аргументы": "Arguments",
+  "Ошибка инструмента": "Tool error",
+  "Показана сохранённая часть ответа.": "Showing the retained portion of the reply.",
+  "Текст ответа не сохранён.": "No reply text was retained.",
+  "Журнал запросов · {{0}}": "Request log · {{0}}",
+  "Вызовов API · {{0}}": "API calls · {{0}}",
+  "Модель получила только запрос на подсчёт токенов.": "Only a token count was requested.",
+  "Вызов модели": "Model call",
+  "Вызов · запрос {{0}}": "Call · request {{0}}",
+  "Результат · запрос {{0}}": "Result · request {{0}}"
 }

@@ -325,7 +325,7 @@ Understand these boundaries before using Kaponir with real data:
 - **Not every model will preserve meaning.** Substitutions change the text visible to the model; exact restoration is possible only for tokens returned without distortion.
 - **Traffic inspection is bounded.** The latest 200 inspectors and persistent counters are separate from the learning history.
 - **Helm checks before forwarding.** Pasted YAML, tool output and inline `.yaml` or `.yml` attachments go through local masking. For a packaged chart (`.tgz`, `.tar.gz`) or a YAML reference without accessible contents, the gateway returns HTTP 422. Send `values.yaml` or the output of `helm template`.
-- **Agent steps in a conversation.** Open a message, expand its processing steps and select a request. The provider pane shows the substitutions for that call. Requests without a recorded message link remain available individually.
+- **Agent steps in a conversation.** Open a user message to read its model replies and tool calls in order. Expand a tool to inspect its arguments and result. The request log shows what reached the provider on each call. Replaying the same history stays in the same turn. Clients sending identical questions without history can send a fresh `X-Kaponir-Turn` per user message and reuse it with `X-Kaponir-Session` on all related calls.
 - **Model confidence is not measured accuracy.** Background learning can auto-apply verified findings above the configured threshold; review its journal and use rollback.
 - **Team/Global are not RBAC.** Separate user roles and a shared multi-server vault are not implemented.
 - **The server trusts the workspace owner.** Kaponir does not protect data from a host administrator who controls the process, memory, keys, and vault.

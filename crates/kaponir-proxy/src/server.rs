@@ -224,6 +224,7 @@ const HOP: &[&str] = &[
     "accept-encoding",
     "x-kaponir-token",
     "x-kaponir-session",
+    "x-kaponir-turn",
 ];
 
 fn forward_headers(h: &HeaderMap) -> HeaderMap {
@@ -451,13 +452,18 @@ async fn proxy_request(
             .turn
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            crate::conversation::Turn::from_payload(&session_tag, &json);
+            crate::conversation::Turn::with_client_id(
+                &session_tag,
+                &json,
+                headers.get("x-kaponir-turn").and_then(|v| v.to_str().ok()),
+            );
         let masked_payload_json = serde_json::to_string_pretty(&json).unwrap_or_default();
         let mut insp = span
             .inspector
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let entry = insp.get_or_insert_with(Default::default);
+        entry.tool_results = crate::conversation::incoming_tools(&json);
         entry.model = json
             .get("model")
             .and_then(Value::as_str)

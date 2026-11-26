@@ -171,6 +171,10 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/events", get(ui_events))
         .route("/api/v1/ui/events/{id}", get(ui_event_by_id))
         .route(
+            "/api/v1/ui/events/conversation",
+            post(ui_conversation_steps),
+        )
+        .route(
             "/api/v1/ui/rules/audit",
             get(audit_rules).put(update_audit_rule),
         )
@@ -370,6 +374,63 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
 async fn ui_events(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
     authorized(&st, &headers, true)?;
     Ok(Json(crate::review::traffic_summary(&st)).into_response())
+}
+
+#[derive(Deserialize)]
+struct ConversationRequest {
+    ids: Vec<u64>,
+    #[serde(default)]
+    previews_only: bool,
+}
+
+/// Read only the new/changed calls in the open turn. Full request histories
+/// and replacement originals are available separately in the inspector.
+async fn ui_conversation_steps(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<ConversationRequest>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    if req.ids.len() > 32 {
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "at most 32 requests per batch",
+        ));
+    }
+    let mut steps = Vec::new();
+    for id in req.ids {
+        let Some(e) = st.traffic.event_by_id(id) else {
+            continue;
+        };
+        let insp = e.inspector.unwrap_or_default();
+        if req.previews_only {
+            steps.push(json!({"id":id, "preview":insp.question_preview(), "outcome":e.outcome}));
+            continue;
+        }
+        let mut marks = e.usage.restore_marks;
+        if marks.is_empty() && insp.reply.is_none() {
+            // Earlier versions recorded some restorations only as replacement items.
+            marks.extend(
+                e.usage
+                    .masked_items
+                    .iter()
+                    .map(|m| kaponir_core::engine::RestoreMark {
+                        token: m.token.clone(),
+                        restored_utf16: m.original.encode_utf16().count(),
+                    }),
+            );
+        }
+        let reply = insp.reply.unwrap_or_else(|| {
+            let mut legacy = crate::conversation::Reply::default();
+            legacy.text([0, 0], &insp.raw_response, &insp.restored_response);
+            legacy
+        });
+        steps.push(
+            json!({"id":id, "outcome":e.outcome, "reply":reply, "tools":insp.tool_results,
+            "restore_marks":marks}),
+        );
+    }
+    Ok(Json(steps).into_response())
 }
 
 async fn ui_event_by_id(

@@ -87,8 +87,64 @@ pub struct EventInspector {
     pub turn_excerpt: Option<TurnExcerpt>,
     #[serde(default)]
     pub masked_payload_json: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub(crate) tool_results: Vec<crate::conversation::ToolResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) reply: Option<crate::conversation::Reply>,
     pub raw_response: String,
     pub restored_response: String,
+}
+
+impl EventInspector {
+    fn masked_question_span(&self) -> Option<[usize; 2]> {
+        self.masked_user_span.or_else(|| {
+            let offset = self.masked_last_user_offset?;
+            let prefix = "[user]\n";
+            self.masked_request
+                .get(offset..)?
+                .starts_with(prefix)
+                .then_some([offset + prefix.len(), self.masked_request.len()])
+        })
+    }
+
+    pub(crate) fn question_preview(&self) -> Option<String> {
+        let question = if let Some(excerpt) = &self.turn_excerpt {
+            &excerpt.masked
+        } else {
+            let [start, end] = self.masked_question_span()?;
+            self.masked_request.get(start..end)?
+        };
+        let mut chars = question.trim().chars();
+        let preview: String = chars.by_ref().take(90).collect();
+        let mut preview = preview.split_whitespace().collect::<Vec<_>>().join(" ");
+        if chars.next().is_some() {
+            preview.push('…');
+        }
+        (!preview.is_empty()).then_some(preview)
+    }
+
+    /// Records without a parseable wire payload can still have a trusted
+    /// question boundary. Link identical retained prefixes only, within the session.
+    fn retained_turn(&self, session: &str) -> Option<crate::conversation::Turn> {
+        let [start, end] = self.masked_question_span()?;
+        let prefix = self.masked_request.get(..end)?;
+        let question = self.masked_request.get(start..end)?;
+        if question.is_empty() || prefix.ends_with("… [truncated]") {
+            return None;
+        }
+        let mut hash = blake3::Hasher::new_derive_key("Kaponir retained conversation prefix v1");
+        hash.update(session.as_bytes());
+        hash.update(&(start as u64).to_be_bytes());
+        hash.update(prefix.as_bytes());
+        Some(crate::conversation::Turn {
+            id: hash.finalize().to_hex()[..24].into(),
+            step: if self.masked_last_user_offset.is_some() {
+                crate::conversation::Step::User
+            } else {
+                crate::conversation::Step::Continuation
+            },
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -133,6 +189,8 @@ pub struct Usage {
     pub denied_tokens: Vec<String>,
     #[serde(skip)]
     pub raw_response_buf: String,
+    #[serde(skip)]
+    pub(crate) reply: Option<crate::conversation::Reply>,
     #[serde(skip)]
     pub classifier_us: u64,
     #[serde(skip)]
@@ -402,11 +460,23 @@ impl Traffic {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         for mut event in events {
-            if event.turn.is_none()
-                && let (Some(session), Some(insp)) = (&event.session_id, &event.inspector)
+            if let Some(insp) = &mut event.inspector
+                && (event.turn.is_none() || (insp.reply.is_none() && insp.tool_results.is_empty()))
                 && let Ok(payload) = serde_json::from_str(&insp.masked_payload_json)
             {
-                event.turn = crate::conversation::Turn::from_payload(session, &payload);
+                if event.turn.is_none()
+                    && let Some(session) = &event.session_id
+                {
+                    event.turn = crate::conversation::Turn::from_payload(session, &payload);
+                }
+                if insp.tool_results.is_empty() {
+                    insp.tool_results = crate::conversation::incoming_tools(&payload);
+                }
+            }
+            if event.turn.is_none()
+                && let (Some(insp), Some(session)) = (&event.inspector, &event.session_id)
+            {
+                event.turn = insp.retained_turn(session);
             }
             accumulate(&mut h.archive, &event);
             if h.events.len() == 200 {
@@ -498,11 +568,17 @@ impl Traffic {
     }
 
     pub fn event_by_id(&self, id: u64) -> Option<Event> {
-        let snap = self.snapshot();
-        snap.events
-            .into_iter()
-            .chain(snap.active)
-            .find(|e| e.id == id)
+        let active = {
+            let h = self
+                .history
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(e) = h.events.iter().rev().find(|e| e.id == id) {
+                return Some(e.clone());
+            }
+            h.active.get(&id)?.upgrade()?
+        };
+        Some(active.event(false))
     }
 }
 
@@ -587,6 +663,12 @@ impl Span {
             .max(usage.total_tokens)
             .max(prompt + completion);
         current.add(usage);
+        if let Some(reply) = &usage.reply {
+            current
+                .reply
+                .get_or_insert_with(Default::default)
+                .merge(reply);
+        }
         current.prompt_tokens = prompt;
         current.completion_tokens = completion;
         current.total_tokens = total;
@@ -625,7 +707,7 @@ impl Span {
         } else {
             "ok"
         };
-        let usage = self
+        let mut usage = self
             .usage
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -642,6 +724,13 @@ impl Span {
             if insp.restored_response.is_empty() {
                 insp.restored_response = usage.restored_response_buf.clone();
             }
+            // A plain answer is already saved byte-for-byte in the inspector.
+            // Keep an explicit empty reply for reasoning-only responses.
+            insp.reply = usage.reply.take().filter(|reply| {
+                !matches!(reply.parts.as_slice(), [p] if !reply.truncated &&
+                    p.kind == crate::conversation::PartKind::Text &&
+                    p.text == insp.restored_response && p.wire == insp.raw_response)
+            });
         }
         let session = self
             .session
@@ -722,6 +811,24 @@ impl Drop for Span {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn legacy_turns_require_a_retained_structural_boundary() {
+        let mut insp = EventInspector {
+            masked_request: "[user]\nliteral [user]\nvalue".into(),
+            ..Default::default()
+        };
+        assert!(insp.retained_turn("session").is_none());
+        insp.masked_last_user_offset = Some(0);
+        let id = insp.retained_turn("session").unwrap().id;
+        assert_eq!(
+            insp.question_preview().as_deref(),
+            Some("literal [user] value")
+        );
+        assert_ne!(id, insp.retained_turn("elsewhere").unwrap().id);
+        insp.masked_request.push_str("… [truncated]");
+        assert!(insp.retained_turn("session").is_none());
+    }
 
     #[test]
     fn stream_has_one_record_and_cumulative_usage_is_not_added_twice() {

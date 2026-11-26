@@ -1606,6 +1606,55 @@ async fn session_metadata_groups_requests_and_sse_chunks_without_revealing_clien
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn conversation_keeps_public_reply_text_and_real_tools_for_json_and_sse() {
+    let (proxy, _) = setup(Some("console-token")).await;
+    let auth = [("authorization", "Bearer console-token")];
+    let mut expected_calls = Vec::new();
+    for (route, call_id) in [("messages", "t1"), ("chat/completions", "c1")] {
+        for stream in [false, true] {
+            let body = json!({"model":"m","stream":stream,"messages":[{"role":"user","content":ORIGINAL}]});
+            let response = post_json(format!("{proxy}/v1/{route}"), &body, &auth).await;
+            assert_eq!(response.status(), 200);
+            response.bytes().await.unwrap();
+            expected_calls.push(call_id);
+        }
+    }
+    let batch = json!({"ids":[1,2,3,4]});
+    let url = format!("{proxy}/api/v1/ui/events/conversation");
+    assert_eq!(post_json(url.clone(), &batch, &[]).await.status(), 401);
+    let steps: Value = post_json(url.clone(), &batch, &auth)
+        .await
+        .json_or_panic()
+        .await;
+    assert_eq!(steps.as_array().unwrap().len(), 4);
+    for (step, expected_id) in steps.as_array().unwrap().iter().zip(expected_calls) {
+        assert_eq!(step["outcome"], "ok");
+        let parts = step["reply"]["parts"].as_array().unwrap();
+        assert_eq!(
+            parts.len(),
+            2,
+            "reasoning and arguments do not become model replies"
+        );
+        assert_eq!(parts[0]["kind"], "text");
+        assert_eq!(parts[0]["text"], ORIGINAL);
+        assert_no_leaks(&parts[0]["wire"]);
+        assert_eq!(parts[1]["kind"], "call");
+        assert_eq!(parts[1]["name"], "bash");
+        assert_eq!(parts[1]["id"], expected_id);
+        let args: Value = serde_json::from_str(parts[1]["text"].as_str().unwrap()).unwrap();
+        assert_eq!(args["cmd"], parts[0]["wire"]);
+        assert!(!step["restore_marks"].as_array().unwrap().is_empty());
+        assert!(step.get("inspector").is_none());
+    }
+    assert_eq!(
+        post_json(url, &json!({"ids":vec![1;33]}), &auth)
+            .await
+            .status(),
+        400
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn helm_files_and_tool_steps_are_masked_at_the_provider_and_visible_in_the_inspector() {
     use base64::{Engine as _, engine::general_purpose::STANDARD};
     let seen: Seen = Default::default();
