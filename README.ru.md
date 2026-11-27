@@ -62,6 +62,8 @@ kaponir init --corp-domain mycompany.ru
 `~/.config/kaponir`. Сохраните резервную копию `vault.key`: без него старые соответствия
 нельзя восстановить.
 
+Для установки без датасета выполните `kaponir init --without-dataset`. В Docker Compose укажите `KAPONIR_DATASET_ENABLED=false` в `.env`. Разбор находок, правила и история решений доступны в обоих вариантах.
+
 ### 2. Восстановите фактический результат маскирования
 
 ```bash

@@ -19,7 +19,6 @@ pub(crate) fn routes() -> Router<Shared> {
         .route("/api/v1/ui/worker/stop", post(stop))
         .route("/api/v1/ui/worker/jobs", post(submit))
         .route("/api/v1/ui/worker/calibrate", post(calibrate))
-        .route("/api/v1/ui/worker/privacy-suggest", post(privacy_suggest))
         .route("/api/v1/ui/worker/models/download", post(download))
         .route("/api/v1/ui/worker/models/verify", post(verify))
         .route("/api/v1/ui/worker/models/resolve", post(resolve_model))
@@ -244,7 +243,7 @@ async fn submit(
     }
     forward(&st, "/jobs", Some(body)).await
 }
-async fn privacy_suggest(
+pub(crate) async fn privacy_suggest(
     State(st): State<Shared>,
     headers: HeaderMap,
     Json(body): Json<Value>,

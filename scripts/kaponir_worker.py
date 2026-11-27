@@ -485,7 +485,8 @@ def http_json(url, body=None, token='', timeout=10):
 
 def configuration(home, overrides=None):
     path = home / 'config.toml'
-    raw = tomllib.loads(path.read_text()).get('worker', {}) if path.exists() else {}
+    config = tomllib.loads(path.read_text()) if path.exists() else {}
+    raw = config.get('worker', {})
     defaults = {'listen':'127.0.0.1:8788', 'input_root':'inbox', 'data_dir':'worker', 'model_dir':'models',
                 'model':'q4', 'threads':2, 'max_files':1000, 'max_file_bytes':16777216, 'max_pages':100,
                 'max_edge':1024, 'ocr_timeout_seconds':300, 'runtime':None, 'api_url':None}
@@ -493,6 +494,15 @@ def configuration(home, overrides=None):
     for key, env in [('listen','KAPONIR_WORKER_LISTEN'),('input_root','KAPONIR_INPUT_ROOT'),('model_dir','KAPONIR_MODEL_DIR'),('api_url','KAPONIR_WORKER_API_URL')]:
         if os.getenv(env): defaults[key] = os.environ[env]
     defaults.update({k:v for k,v in (overrides or {}).items() if v is not None})
+    dataset_enabled = config.get('serve', {}).get('dataset_enabled', True)
+    env_dataset = os.getenv('KAPONIR_DATASET_ENABLED')
+    if env_dataset:
+        if env_dataset not in ('true', 'false'):
+            raise ValueError('KAPONIR_DATASET_ENABLED must be true or false')
+        dataset_enabled = env_dataset == 'true'
+    if not isinstance(dataset_enabled, bool):
+        raise ValueError('serve.dataset_enabled must be a boolean')
+    defaults['dataset_enabled'] = dataset_enabled
     for key in ['input_root','data_dir','model_dir']:
         p = Path(defaults[key]).expanduser()
         defaults[key] = (p if p.is_absolute() else home / p).resolve()
@@ -1775,6 +1785,9 @@ def handler(worker, token):
                 if self.headers.get('Origin') and self.headers['Origin']!='http://'+self.headers.get('Host',''):
                     raise ValueError('cross-origin worker request rejected')
                 path=urllib.parse.urlsplit(self.path).path
+                if path == '/privacy-suggest' and not worker.cfg['dataset_enabled']:
+                    self.respond(404, {'error': 'unknown route'})
+                    return
                 if path.startswith('/ocr/'):
                     self.dispatch_ocr(path)
                     return

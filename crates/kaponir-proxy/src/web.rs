@@ -23,6 +23,19 @@ use crate::state::RuleEditError;
 use crate::{RulePattern, Shared};
 
 const INDEX: &str = include_str!("../assets/index.html");
+static INDEX_WITHOUT_DATASET: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| {
+    let mut html = String::with_capacity(INDEX.len());
+    let mut rest = INDEX;
+    while let Some((before, section)) = rest.split_once("<!-- dataset -->") {
+        html.push_str(before);
+        rest = section
+            .split_once("<!-- /dataset -->")
+            .expect("dataset HTML section must close")
+            .1;
+    }
+    html.push_str(rest);
+    html
+});
 const APP_JS: &str = include_str!("../assets/app.js");
 const APP_CSS: &str = include_str!("../assets/app.css");
 
@@ -30,10 +43,7 @@ pub(crate) fn routes() -> Router<Shared> {
     Router::new()
         .route("/", get(|| async { Redirect::temporary("/ui/") }))
         .route("/ui", get(|| async { Redirect::permanent("/ui/") }))
-        .route(
-            "/ui/",
-            get(|| async { asset(INDEX, "text/html; charset=utf-8") }),
-        )
+        .route("/ui/", get(index))
         .route(
             "/ui/app.js",
             get(|| async { asset(APP_JS, "text/javascript; charset=utf-8") }),
@@ -161,15 +171,6 @@ pub(crate) fn routes() -> Router<Shared> {
             }),
         )
         .route(
-            "/ui/dataset.js",
-            get(|| async {
-                asset(
-                    include_str!("../assets/dataset.js"),
-                    "text/javascript; charset=utf-8",
-                )
-            }),
-        )
-        .route(
             "/ui/ocr.js",
             get(|| async {
                 asset(
@@ -219,6 +220,24 @@ pub(crate) fn routes() -> Router<Shared> {
             delete(remove_rule).patch(update_rule_pattern),
         )
         .route("/api/v1/rules/{scope}/domains", put(set_domains))
+}
+
+async fn index(State(st): State<Shared>) -> Response {
+    asset(
+        if st.cfg.dataset_enabled {
+            INDEX
+        } else {
+            &INDEX_WITHOUT_DATASET
+        },
+        "text/html; charset=utf-8",
+    )
+}
+
+pub(crate) async fn dataset_script() -> Response {
+    asset(
+        include_str!("../assets/dataset.js"),
+        "text/javascript; charset=utf-8",
+    )
 }
 
 fn asset(body: &'static str, content_type: &'static str) -> Response {
@@ -399,6 +418,7 @@ async fn info(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
         "prefix": engine.codec().prefix(),
         "packs": packs,
         "editable": st.control.is_some(),
+        "modules": {"dataset": st.cfg.dataset_enabled},
         "s1_mode": engine.s1_mode(),
         "uncertain_policy": uncertain_policy,
         "rules_count": rules_count,

@@ -45,6 +45,9 @@ enum Cmd {
         /// Корпоративный домен (можно несколько): записывается в личные правила.
         #[arg(long = "corp-domain")]
         corp_domains: Vec<String>,
+        /// Отключить модуль «Датасет» и сбор обучающих примеров для этой установки.
+        #[arg(long)]
+        without_dataset: bool,
         /// Optional setup questions; Enter or EOF may skip the wizard.
         #[arg(long, conflicts_with = "learn")]
         wizard: bool,
@@ -447,14 +450,15 @@ fn run(cli: Cli) -> Result<ExitCode> {
         }
         Cmd::Init {
             corp_domains,
+            without_dataset,
             wizard,
             setup_language,
             learn,
             select,
         } => {
-            let code = init(&home, &corp_domains)?;
+            let code = init(&home, &corp_domains, without_dataset)?;
             if wizard {
-                setup_wizard(&home, &setup_language)?;
+                setup_wizard(&home, &setup_language, without_dataset)?;
             }
             if !learn.is_empty() {
                 return discover(
@@ -503,7 +507,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
 
 // ---------- init ----------
 
-fn init(home: &Home, corp_domains: &[String]) -> Result<ExitCode> {
+fn init(home: &Home, corp_domains: &[String], without_dataset: bool) -> Result<ExitCode> {
     std::fs::create_dir_all(home.dir.join("rules"))
         .with_context(|| format!("{}", home.dir.display()))?;
     #[cfg(unix)]
@@ -521,8 +525,14 @@ fn init(home: &Home, corp_domains: &[String]) -> Result<ExitCode> {
         created.push(home.key_path());
     }
     if !home.config_path().exists() {
-        std::fs::write(home.config_path(), kaponir_cli::CONFIG_TEMPLATE)?;
+        let mut config = kaponir_cli::CONFIG_TEMPLATE.parse::<toml_edit::DocumentMut>()?;
+        if without_dataset {
+            config["serve"]["dataset_enabled"] = toml_edit::value(false);
+        }
+        kaponir_cli::write_secret(&home.config_path(), &config.to_string())?;
         created.push(home.config_path());
+    } else if without_dataset {
+        home.set_dataset_enabled(false)?;
     }
     for scope in [Scope::Personal, Scope::Team, Scope::Global] {
         let p = home.rules_path(scope);
@@ -1323,6 +1333,13 @@ fn serve(home: &Home, a: ServeArgs, open: bool) -> Result<ExitCode> {
     use std::net::ToSocketAddrs;
     let (mut cfg, engine) = engine(home)?;
     let s = &mut cfg.serve;
+    if let Ok(value) = std::env::var("KAPONIR_DATASET_ENABLED")
+        && !value.is_empty()
+    {
+        s.dataset_enabled = value
+            .parse()
+            .context("KAPONIR_DATASET_ENABLED must be true or false")?;
+    }
     if let Some(l) = a.listen {
         s.listen = l;
     }
@@ -1479,7 +1496,7 @@ fn stats(home: &Home) -> Result<ExitCode> {
     Ok(ExitCode::SUCCESS)
 }
 
-fn setup_wizard(home: &Home, language: &str) -> Result<()> {
+fn setup_wizard(home: &Home, language: &str, without_dataset: bool) -> Result<()> {
     let ru = language == "ru";
     let msg = |r: &'static str, e: &'static str| if ru { r } else { e };
     fn ask(prompt: &str) -> Result<Option<String>> {
@@ -1578,6 +1595,16 @@ fn setup_wizard(home: &Home, language: &str) -> Result<()> {
     }
     if !plan.domains.is_empty() {
         add_domains(home, Scope::Personal, &plan.domains)?;
+    }
+    if !without_dataset
+        && home.load_config()?.serve.dataset_enabled
+        && let Some(answer) = ask(msg(
+            "Оставить модуль «Датасет» для сбора и разметки примеров? [Y/n]",
+            "Keep the Dataset module for collecting and labeling examples? [Y/n]",
+        ))?
+        && ["n", "no", "н", "нет"].contains(&answer.to_lowercase().as_str())
+    {
+        home.set_dataset_enabled(false)?;
     }
     println!(
         "{}",

@@ -198,6 +198,18 @@ pub(crate) fn example_index(v: &SqliteVault) -> anyhow::Result<ExampleIndex> {
 pub(crate) fn capture_enabled(v: &SqliteVault) -> anyhow::Result<bool> {
     Ok(v.private_setting("dataset:capture-review")?.as_deref() == Some(b"true"))
 }
+
+/// Rule application succeeds independently of optional example collection.
+pub(crate) fn record_review(
+    st: &Shared,
+    result: &mut Value,
+    collect: impl FnOnce(&SqliteVault) -> anyhow::Result<Value>,
+) {
+    if st.cfg.dataset_enabled {
+        let captured = st.with_vault(|_, v| transaction(v, || collect(v)));
+        result["dataset"] = captured.unwrap_or_else(|_| json!({"error":"dataset_capture_failed"}));
+    }
+}
 #[derive(Deserialize)]
 struct Preferences {
     capture_review: bool,
@@ -224,6 +236,11 @@ async fn preferences(
 
 pub(crate) fn routes() -> Router<Shared> {
     Router::new()
+        .route("/ui/dataset.js", get(crate::web::dataset_script))
+        .route(
+            "/api/v1/ui/worker/privacy-suggest",
+            post(crate::worker::privacy_suggest),
+        )
         .route("/api/v1/ui/dataset", get(list))
         .route("/api/v1/ui/dataset/collect", post(collect))
         .route("/api/v1/ui/dataset/preferences", put(preferences))

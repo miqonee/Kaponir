@@ -136,8 +136,10 @@ fn redacted_transfer_preserves_matching_keys_and_disables_new_connections() {
         Some("fixture-access-key")
     );
     let target = Temp::new();
+    target.0.set_dataset_enabled(false).unwrap();
     target.0.import_settings(bundle.clone()).unwrap();
     let output = target.0.export_settings(true).unwrap();
+    assert_eq!(output["config"]["serve"]["dataset_enabled"], false);
     assert_eq!(output["providers"]["connections"][0]["enabled"], false);
     assert!(
         output["providers"]["connections"][0]

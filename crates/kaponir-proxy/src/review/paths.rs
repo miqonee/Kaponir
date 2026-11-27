@@ -252,29 +252,24 @@ pub(super) fn apply_directory(
     }
     st.replace_engine(ctl.build_engine().map_err(internal)?);
     let applied_rule = projected.first().map(|row| &row["document_rule"]);
-    let dataset = st
-        .with_vault(|_, v| {
-            learning::transaction(v, || {
-                let mut drafts = 0;
-                let mut checked = 0;
-                if crate::dataset::capture_enabled(v)? {
-                    for row in &projected {
-                        let seen = seen_key.is_some() && seen_key == row["key"].as_str();
-                        match crate::dataset::capture_finding(v, row, Some(("mask", "PATH")), seen)?
-                        {
-                            crate::dataset::Capture::Draft => drafts += 1,
-                            crate::dataset::Capture::Checked => checked += 1,
-                            crate::dataset::Capture::Unchanged => {}
-                        }
-                    }
+    let mut result =
+        json!({"ok":true,"state":"covered","already_covered":existing,"rule":applied_rule});
+    crate::dataset::record_review(st, &mut result, |v| {
+        let mut drafts = 0;
+        let mut checked = 0;
+        if crate::dataset::capture_enabled(v)? {
+            for row in &projected {
+                let seen = seen_key.is_some() && seen_key == row["key"].as_str();
+                match crate::dataset::capture_finding(v, row, Some(("mask", "PATH")), seen)? {
+                    crate::dataset::Capture::Draft => drafts += 1,
+                    crate::dataset::Capture::Checked => checked += 1,
+                    crate::dataset::Capture::Unchanged => {}
                 }
-                Ok(json!({"drafts":drafts,"checked":checked}))
-            })
-        })
-        .unwrap_or_else(|_| json!({"error":true}));
-    Ok(Json(
-        json!({"ok":true,"state":"covered","already_covered":existing,"dataset":dataset,"rule":applied_rule}),
-    ))
+            }
+        }
+        Ok(json!({"drafts":drafts,"checked":checked}))
+    });
+    Ok(Json(result))
 }
 
 #[cfg(test)]
