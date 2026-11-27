@@ -410,6 +410,8 @@ development guidelines.
 
 ## Documentation
 
+The [Kaponir Enterprise architecture](docs/ENTERPRISE_ARCHITECTURE.md) describes the planned Kubernetes edition, its admin console and its shared Rust core with Kaponir Community.
+
 Start with the [documentation index](docs/README.md). Main routes:
 
 - [CLI reference](docs/COMMANDS.md) — commands, flags, formats, and examples.

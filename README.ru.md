@@ -424,6 +424,8 @@ release-проверка — в [OPERATIONS.md](docs/OPERATIONS.md), прави�
 
 ## Документация
 
+В [плане Kaponir Enterprise](docs/ENTERPRISE_ARCHITECTURE.md) описаны редакция для Kubernetes, её админка и общее ядро с Kaponir Community.
+
 Начните с [карты документации](docs/README.md). Основные маршруты:
 
 - [Справочник CLI](docs/COMMANDS.md) — команды, флаги, форматы и примеры.

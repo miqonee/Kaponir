@@ -48,11 +48,11 @@
 
 - **[Архитектура и решения](DESIGN.md)** — чистое ядро, токены, детекторы, log-odds, пакеты,
   vault, прокси, SSE, Web UI и направления развития.
-- **[Корпоративная архитектура Kaponir](CORPORATE_ARCHITECTURE.md)** — проект шлюза в Kubernetes с одним
+- **[Архитектура Kaponir Enterprise](ENTERPRISE_ARCHITECTURE.md)** — проект шлюза в Kubernetes с одним
   адресом и PostgreSQL. Описаны реализация воркеров на общем ядре, пулы анализа и OCR, Redis для сессий,
   управление репликами, показатели защиты данных, vault, ключи команд и расходы. Отдельный раздел админки
-  объединяет подключение внешнего PostgreSQL и будущий SSO. [Настройки](CORPORATE_ARCHITECTURE.md#настройки-админки-и-внешний-postgresql)
-  [Задание для разработки](corporate/implementation-prompt.txt) · [Приёмка в Minikube](corporate/minikube-prompt.txt)
+  объединяет подключение внешнего PostgreSQL и будущий SSO. [Настройки](ENTERPRISE_ARCHITECTURE.md#настройки-админки-и-внешний-postgresql)
+  [Задание для разработки](enterprise/implementation-prompt.txt) · [Приёмка в Minikube](enterprise/minikube-prompt.txt)
 - **[Участие в проекте](../CONTRIBUTING.md)** — изолированная среда разработки, тесты,
   требования к Web UI, переводам и описанию изменений.
 - **[Качество разбора решений](REVIEW_QUALITY.md)** — реальный CPU-прогон Qwen3.5 на смете,

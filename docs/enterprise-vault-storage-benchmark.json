@@ -1,0 +1,131 @@
+{
+  "date_utc": "2026-11-25",
+  "layer": "standalone storage workload; production PostgreSQL Kaponir backend does not yet exist",
+  "users": 100,
+  "teams": 10,
+  "schemas": 111,
+  "active_vaults_per_request": 3,
+  "db_clients": 8,
+  "seeded_entries_per_schema": 128,
+  "inputs_per_request": 12,
+  "restored_per_request": 3,
+  "cpu_quota": "400000 100000",
+  "memory_limit_bytes": 17179869184,
+  "machine": "INTEL(R) XEON(R) PLATINUM 8573C",
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "driver": "asyncpg 0.30.0",
+  "method": "Local Unix socket; temporary database on the local filesystem, no network PVC or replication. Indexed digest lookup authenticates a synthetic key. Three indexed schema lookups are batched. Each user contributes 4 known or fresh candidate values per scope. Fresh rows use ChaCha20-Poly1305, a per-vault encryption key, a separate HMAC blind index key and an opaque UUID. New entries and the token directory commit together. A second transaction resolves three tokens, restricted to the caller's allowed vaults, decrypts and checks every original. Eight concurrent requests. The client and server share the CPU quota. No proxy, rule matching, model, audit history, application session state, cluster network, KMS calls or web UI.",
+  "cases": [
+    {
+      "mode": "known",
+      "new_values_per_request": 0,
+      "requests": 14400,
+      "warmup_excluded": 200,
+      "errors": 0,
+      "rps": 1699.24,
+      "p50_ms": 4.566,
+      "p95_ms": 5.929,
+      "rounds": [
+        {
+          "requests": 4800,
+          "seconds": 3.02305,
+          "rps": 1587.8,
+          "p95_ms": 7.102,
+          "new_entries": 0
+        },
+        {
+          "requests": 4800,
+          "seconds": 2.7581,
+          "rps": 1740.33,
+          "p95_ms": 5.117,
+          "new_entries": 0
+        },
+        {
+          "requests": 4800,
+          "seconds": 2.69324,
+          "rps": 1782.24,
+          "p95_ms": 4.992,
+          "new_entries": 0
+        }
+      ]
+    },
+    {
+      "mode": "mixed",
+      "new_values_per_request": 3,
+      "requests": 14400,
+      "warmup_excluded": 200,
+      "errors": 0,
+      "rps": 817.08,
+      "p50_ms": 9.366,
+      "p95_ms": 13.001,
+      "rounds": [
+        {
+          "requests": 4800,
+          "seconds": 5.85816,
+          "rps": 819.37,
+          "p95_ms": 12.114,
+          "new_entries": 14400
+        },
+        {
+          "requests": 4800,
+          "seconds": 6.42927,
+          "rps": 746.59,
+          "p95_ms": 14.284,
+          "new_entries": 14400
+        },
+        {
+          "requests": 4800,
+          "seconds": 5.33636,
+          "rps": 899.49,
+          "p95_ms": 10.732,
+          "new_entries": 14400
+        }
+      ]
+    },
+    {
+      "mode": "new",
+      "new_values_per_request": 12,
+      "requests": 14400,
+      "warmup_excluded": 200,
+      "errors": 0,
+      "rps": 897.98,
+      "p50_ms": 8.372,
+      "p95_ms": 12.64,
+      "rounds": [
+        {
+          "requests": 4800,
+          "seconds": 5.26771,
+          "rps": 911.21,
+          "p95_ms": 11.058,
+          "new_entries": 57600
+        },
+        {
+          "requests": 4800,
+          "seconds": 4.30796,
+          "rps": 1114.22,
+          "p95_ms": 8.817,
+          "new_entries": 57600
+        },
+        {
+          "requests": 4800,
+          "seconds": 6.46032,
+          "rps": 743.0,
+          "p95_ms": 13.961,
+          "new_entries": 57600
+        }
+      ]
+    }
+  ],
+  "postgres_settings": {
+    "version": "17.12 (Debian 17.12-0+deb13u1)",
+    "fsync": "on",
+    "synchronous_commit": "on",
+    "full_page_writes": "on",
+    "shared_buffers": "128MB"
+  },
+  "verified_directory_entries_including_warmup": 233208,
+  "verified_entries_across_all_schemas": 233208,
+  "local_storage": "overlayfs, private Unix socket and local disk",
+  "measured_cycles": 43200,
+  "verified_response_values": 129600
+}
