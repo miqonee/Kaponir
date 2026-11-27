@@ -39,6 +39,8 @@ async function hit(path, payload, session) {
 }
 const model = "fixture-chat";
 const fixture = await readFile(new URL("../crates/kaponir-proxy/assets/ocr-example.png",import.meta.url));
+const sizeLabel = "Размер у прокси · " + [16,20]
+  .map(offset=>fixture.readUInt32BE(offset).toLocaleString("ru")).join("×") + " px";
 const photo = {type:"image_url",image_url:{url:"data:image/png;base64," + fixture.toString("base64")}};
 const user = {role:"user",content:[{type:"text",text:"Проверь конфигурацию"},photo]};
 
@@ -58,12 +60,17 @@ try {
   await page.goBack();
   await page.getByRole("heading",{name:"Защита изображений"}).waitFor();
   await page.getByRole("link",{name:"Проверить изображение"}).click();
+  const openCode = page.getByText("Сравнение с OpenCode",{exact:true});
+  await openCode.click();
+  await page.getByText("В контрольном тесте OpenCode уменьшил PNG с 5000×1320 до 1250×330. RapidOCR полностью закрыл 13 из 13 размеченных значений.",{exact:true}).waitFor();
+  await openCode.click();
   const callsBeforeLab = (await upstream()).calls;
   await page.getByRole("button",{name:"Пример с двумя ключами"}).click();
   await page.waitForFunction(()=>document.querySelector("#ocr-file").files[0]?.name==="values.yaml.png");
   const run = page.getByRole("button",{name:"Запустить проверку"});
   await run.press("Enter");
   await page.getByRole("heading",{name:"Закрыто 2 области"}).waitFor();
+  await page.getByText(sizeLabel,{exact:true}).waitFor();
   assert.equal((await upstream()).calls,callsBeforeLab);
   const area = page.locator(".ocr-region").first();
   await area.press("Enter");
@@ -106,6 +113,7 @@ try {
   await card.press("Enter");
   const inspector = page.locator("#ocr-image-dialog");
   await inspector.getByRole("heading",{name:"Отправлено поставщику"}).waitFor();
+  await inspector.getByText(sizeLabel,{exact:true}).waitFor();
   const previewURL = (await inspectorResponse).url();
   await page.waitForFunction(()=>document.querySelector("#ocr-image-dialog img")?.naturalWidth > 0);
   const previewBytes = await context.request.get(previewURL,{headers:{Authorization:"Bearer " + config.token}});
@@ -161,6 +169,7 @@ try {
   assert.equal(await page.locator("html").getAttribute("data-theme"),"dark");
   await capture("05-settings-dark-en.png");
   await page.getByRole("link",{name:"Test an image"}).click();
+  await page.getByText("Compare with OpenCode",{exact:true}).waitFor();
   await page.getByRole("button",{name:"Example with two keys"}).click();
   await page.getByRole("button",{name:"Run check"}).click();
   await page.getByRole("heading",{name:"2 regions covered"}).waitFor();

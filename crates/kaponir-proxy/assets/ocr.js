@@ -287,7 +287,8 @@ function imageComparison(image, images) {
     h("div",{class:"ocr-image-tools"},
       imageButton("Вписать",()=>{factor=1;fit();for (const view of viewports) view.scrollTo(0,0);}),
       imageButton("Уменьшить",()=>{factor=Math.max(1,factor/1.35);fit();}),
-      imageButton("Увеличить",()=>{factor=Math.min(8,factor*1.35);fit();})),
+      imageButton("Увеличить",()=>{factor=Math.min(8,factor*1.35);fit();}),
+      h("span",{class:"hint"},tr("Размер у прокси · {{0}}×{{1}} px",[number(image.width),number(image.height)]))),
     h("div",{class:"ocr-image-panes"},images.map(({label},index)=>h("section",{},
       h("h3",{},tr(label)), viewports[index]))),
     image.areas.length ? h("ol",{class:"ocr-regions","aria-label":tr("Закрытые области")},image.areas.map(area =>
