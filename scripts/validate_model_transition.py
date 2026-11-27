@@ -355,7 +355,7 @@ def main():
                     assert category['uses_analysis_api'] and category['settings']['http']['model'] == 'new'
                     # Act on successive proposals in place, including keyboard focus and the final empty state.
                     page.goto(base+'/ui/#review')
-                    page.locator('#review-advice-filter').check()
+                    page.locator('label[for="review-advice-yes"]').click()
                     buttons=page.locator('#review-list .finding-value')
                     wait_for(lambda:api('/api/v1/ui/review?status=proposals')['total']==3)
                     expect(buttons).to_have_count(3)

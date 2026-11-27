@@ -483,7 +483,7 @@ def main():
                     assert seen_formats and not any(seen_formats)
                     assert rows()[0].get('origin')
                     first_proposal = next(i for i in rows() if i['key']==target['key'])['proposal']['id']
-                    page.locator('#review-advice-filter').check()
+                    page.locator('label[for="review-advice-yes"]').click()
                     card = card_for(target)
                     expect(card.locator('.decision-summary')).to_contain_text('Команда')
                     card.get_by_role('button',name='Отклонить предложение',exact=True).click()
@@ -502,7 +502,7 @@ def main():
                     else:
                         raise AssertionError('accepted a superseded proposal')
                     expect(card.locator('[data-accept-proposal]')).to_be_visible()
-                    page.locator('#review-advice-filter').check()
+                    page.locator('label[for="review-advice-yes"]').click()
                     card_for(target).locator('[data-accept-proposal]').click()
                     wait_for(lambda:not any(i['key']==target['key'] for i in rows()))
                     expect(page.locator('#review-confirm')).to_be_hidden()
