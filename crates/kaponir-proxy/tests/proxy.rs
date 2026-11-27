@@ -1445,6 +1445,74 @@ async fn system_hint_is_opt_in_for_both_apis() {
     );
 }
 
+#[tokio::test]
+async fn saved_system_prompt_extends_client_instructions() {
+    let (proxy, seen) = setup(None).await;
+    let client = reqwest::Client::new();
+    let settings = format!("{proxy}/api/v1/ui/system-prompt");
+    let prompt = "Use Bash for ANON_AMOUNT_* calculations.\nParse amounts with Decimal.";
+    let saved = client
+        .put(&settings)
+        .json(&json!({"prompt": prompt}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(saved.status(), 204);
+    let stored: Value = client
+        .get(&settings)
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    assert_eq!(stored["prompt"], prompt);
+
+    let user = json!({"role":"user","content":"Calculate the total"});
+    let openai = json!({
+        "model":"m",
+        "messages":[{"role":"developer","content":"OpenCode instructions"},user],
+    });
+    let system =
+        json!({"type":"text","text":"Client instructions","cache_control":{"type":"ephemeral"}});
+    let anthropic = json!({"model":"m","system":[system],"messages":[user],"max_tokens":16});
+    let no_system = json!({"model":"m","messages":[user]});
+    for (path, body) in [
+        ("/v1/chat/completions", &openai),
+        ("/v1/messages", &anthropic),
+        ("/v1/chat/completions", &no_system),
+    ] {
+        let response = post_json(format!("{proxy}{path}"), body, &[]).await;
+        assert_eq!(response.status(), 200);
+    }
+    {
+        let rows = seen.lock().unwrap();
+        assert_eq!(
+            rows[0]["messages"],
+            json!([{"role":"developer","content":format!("OpenCode instructions\n\n{prompt}")},user]),
+        );
+        assert_eq!(
+            rows[1]["system"],
+            json!([system, {"type":"text","text":prompt}]),
+        );
+        assert_eq!(
+            rows[2]["messages"],
+            json!([{"role":"system","content":prompt}, user]),
+        );
+    }
+
+    let cleared = client
+        .put(&settings)
+        .json(&json!({"prompt": " \n"}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(cleared.status(), 204);
+    let response = post_json(format!("{proxy}/v1/chat/completions"), &openai, &[]).await;
+    assert_eq!(response.status(), 200);
+    assert_eq!(seen.lock().unwrap()[3]["messages"], openai["messages"]);
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn session_metadata_groups_requests_and_sse_chunks_without_revealing_client_ids() {
     let (proxy, _) = setup(None).await;

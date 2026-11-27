@@ -722,6 +722,10 @@ impl Cx<'_> {
         Ok(())
     }
 
+    pub(crate) fn system_prompt(&self) -> anyhow::Result<Option<String>> {
+        crate::system_prompt::load(self.vault)
+    }
+
     pub(crate) fn reply_text(&mut self, slot: [u64; 2], wire: &str, restored: &str) {
         if let Some(answer) = &mut self.answer {
             answer.append(slot, wire);

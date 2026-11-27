@@ -6,6 +6,7 @@ use kaponir_core::{
     rules::{RuleFile, ScopedRules},
 };
 use kaponir_proxy::providers::{self, Registry};
+use kaponir_proxy::system_prompt;
 use kaponir_vault::SqliteVault;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -22,6 +23,8 @@ struct Bundle {
     providers: Registry,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     s1_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    system_prompt: Option<String>,
 }
 
 impl Home {
@@ -59,6 +62,7 @@ impl Home {
             } else {
                 None
             },
+            system_prompt: system_prompt::load(&vault)?,
         })?)
     }
 
@@ -166,6 +170,9 @@ impl Home {
                     vault.set_private_setting(S1_TOKEN_SETTING, key.as_bytes())?;
                 } else {
                     vault.delete_private_setting(S1_TOKEN_SETTING)?;
+                }
+                if let Some(prompt) = &bundle.system_prompt {
+                    system_prompt::save(&vault, prompt)?;
                 }
                 for (i, (path, _)) in files.iter().enumerate() {
                     std::fs::rename(stage.join(i.to_string()), path)?;

@@ -1379,8 +1379,7 @@ async function loadWorkspaceModels() {
 }
 const basicSettings = TABS.settings;
 TABS.settings = async () => {
-  basicSettings();
-  await loadWorkspaceModels();
+  await Promise.all([basicSettings(), loadWorkspaceModels()]);
 };
 
 async function refreshWorkerReadings() {

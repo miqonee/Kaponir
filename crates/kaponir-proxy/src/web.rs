@@ -194,6 +194,10 @@ pub(crate) fn routes() -> Router<Shared> {
         )
         .route("/api/v1/ui/config/export", post(export_settings))
         .route("/api/v1/ui/config/import", post(import_settings))
+        .route(
+            "/api/v1/ui/system-prompt",
+            get(get_system_prompt).put(put_system_prompt),
+        )
         .route("/api/v1/ui/s1", get(get_s1).put(put_s1))
         .route("/api/v1/ui/setup", post(setup))
         .route("/api/v1/ui/mask", post(mask))
@@ -312,6 +316,35 @@ async fn import_settings(
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clear();
     Ok(Json(json!({"imported": true, "restart_required": true})).into_response())
+}
+
+#[derive(Deserialize)]
+struct SystemPrompt {
+    prompt: String,
+}
+
+async fn get_system_prompt(State(st): State<Shared>, headers: HeaderMap) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    let prompt = st
+        .with_vault(|_, vault| crate::system_prompt::load(vault))
+        .map_err(internal)?
+        .unwrap_or_default();
+    Ok((
+        [(header::CACHE_CONTROL, "no-store")],
+        Json(json!({"prompt": prompt})),
+    )
+        .into_response())
+}
+
+async fn put_system_prompt(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(req): Json<SystemPrompt>,
+) -> ApiResult {
+    authorized(&st, &headers, true)?;
+    st.with_vault(|_, vault| crate::system_prompt::save(vault, &req.prompt))
+        .map_err(internal)?;
+    Ok(StatusCode::NO_CONTENT.into_response())
 }
 
 // ---------- info ----------

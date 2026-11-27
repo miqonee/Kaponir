@@ -1420,11 +1420,61 @@ $("#setup-form").addEventListener("submit", async (e) => {
   }
 });
 
+const systemPromptPath = "/api/v1/ui/system-prompt";
+const systemPromptInput = $("#system-prompt");
+const systemPromptSave = $("#system-prompt-save");
+const systemPromptExample = $("#system-prompt-example");
+const systemPromptStatus = $("#system-prompt-status");
+let savedSystemPrompt;
+
+async function loadSystemPrompt() {
+  const saved = savedSystemPrompt;
+  const { prompt } = await api(systemPromptPath);
+  if (saved !== savedSystemPrompt || (saved !== undefined && systemPromptInput.value !== saved)) return;
+  systemPromptInput.value = prompt;
+  savedSystemPrompt = systemPromptInput.value;
+  if (saved === undefined) {
+    systemPromptInput.disabled = systemPromptSave.disabled = systemPromptExample.disabled = false;
+  }
+}
+
+systemPromptExample.addEventListener("click", () => {
+  const prefix = info.prefix || "ANON";
+  const example = [
+    `For \`${prefix}_AMOUNT_*\` calculations, run Python immediately via \`bash\` or \`shell\`.`,
+    "Pass tokens unchanged as separate quoted arguments. Kaponir restores values before execution.",
+    "Avoid environment variables and `$((…))`. Use `Decimal` and print only the result.",
+  ].join(" ");
+  const current = systemPromptInput.value.trimEnd();
+  if (!current.includes(example)) systemPromptInput.value = current ? current + "\n\n" + example : example;
+  systemPromptStatus.textContent = "";
+  systemPromptInput.focus();
+});
+
+$("#system-prompt-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (systemPromptSave.disabled) return;
+  const draft = systemPromptInput.value;
+  const prompt = draft.trim() ? draft : "";
+  systemPromptSave.disabled = true;
+  systemPromptStatus.textContent = "";
+  try {
+    await api(systemPromptPath, { method: "PUT", body: { prompt } });
+    if (systemPromptInput.value === draft) systemPromptInput.value = prompt;
+    savedSystemPrompt = prompt;
+    systemPromptStatus.textContent = tr("Настройки сохранены");
+  } catch (error) {
+    systemPromptStatus.textContent = error.message;
+  } finally {
+    systemPromptSave.disabled = false;
+  }
+});
+
 Object.assign(TABS, {
   overview: loadDashboard,
   events: loadDashboard,
   connect: renderConnection,
-  settings: () => {},
+  settings: loadSystemPrompt,
   proxy: renderSettings,
   setup: renderWizard,
   analysis: loadAnalysis,

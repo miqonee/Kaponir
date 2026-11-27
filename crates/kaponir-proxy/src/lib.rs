@@ -26,6 +26,7 @@ mod review;
 mod server;
 pub mod sse;
 mod state;
+pub mod system_prompt;
 mod traffic;
 mod walk;
 mod web;

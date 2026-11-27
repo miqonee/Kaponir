@@ -57,6 +57,8 @@ impl Drop for Temp {
 fn full_transfer_round_trip_and_cli_format() {
     let source = Temp::new();
     source.seed();
+    let prompt = "Use Decimal for ANON_AMOUNT_* calculations.";
+    kaponir_proxy::system_prompt::save(&source.vault(), prompt).unwrap();
     let target = Temp::new();
     let file: PathBuf = target.0.dir.join("settings.json");
     let result = Command::new(env!("CARGO_BIN_EXE_kaponir"))
@@ -72,6 +74,7 @@ fn full_transfer_round_trip_and_cli_format() {
         String::from_utf8_lossy(&result.stderr)
     );
     let exported: Value = serde_json::from_slice(&std::fs::read(&file).unwrap()).unwrap();
+    assert_eq!(exported["system_prompt"], prompt);
     assert_eq!(exported, source.0.export_settings(true).unwrap());
     let imported = Command::new(env!("CARGO_BIN_EXE_kaponir"))
         .arg("--home")

@@ -532,12 +532,28 @@ async fn proxy_request(
                 Api::Anthropic => anthropic::mask_request(&mut json, cx, hint),
                 Api::OpenAi => openai::mask_request(&mut json, cx, hint),
             };
+            let system_prompt = if title_call {
+                None
+            } else {
+                cx.system_prompt()?
+            };
             if cx.commands.has_open() {
                 cx.screening = true;
                 mask(cx, None)?;
+                if let Some(prompt) = &system_prompt {
+                    cx.mask(prompt)?;
+                }
                 cx.screening = false;
             }
-            mask(cx, hint.as_deref())?;
+            let mut instructions = hint.unwrap_or_default();
+            if let Some(prompt) = system_prompt {
+                if !instructions.is_empty() {
+                    instructions.push_str("\n\n");
+                }
+                instructions.push_str(&cx.mask(&prompt)?);
+            }
+            let instructions = (!instructions.is_empty()).then_some(instructions.as_str());
+            mask(cx, instructions)?;
             Ok(cx.disclosed)
         })
         .map_err(|e| {

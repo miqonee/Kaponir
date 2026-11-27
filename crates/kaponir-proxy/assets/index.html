@@ -130,7 +130,19 @@
 <button class="secondary" id="dataset-export" data-i18n="Скачать JSONL">Скачать JSONL</button>
 </div></div></div>
 </details></section>
-<section class="tab" hidden id="tab-settings"><div id="workspace-models"></div></section>
+<section class="tab" hidden id="tab-settings">
+<div id="workspace-models"></div>
+<form class="panel settings-card" id="system-prompt-form">
+<h2><label for="system-prompt" data-i18n="Системный промпт агента">Системный промпт агента</label></h2>
+<p class="hint" id="system-prompt-help" data-i18n="Текст дополняет системный промпт клиента. Чтобы отключить инструкцию, сохраните пустое поле.">Текст дополняет системный промпт клиента. Чтобы отключить инструкцию, сохраните пустое поле.</p>
+<div class="field"><textarea id="system-prompt" rows="6" spellcheck="false" aria-describedby="system-prompt-help" disabled></textarea></div>
+<div class="form-actions">
+<button class="primary" id="system-prompt-save" type="submit" data-i18n="Сохранить" disabled>Сохранить</button>
+<button class="secondary" id="system-prompt-example" type="button" data-i18n="Добавить пример для расчётов" disabled>Добавить пример для расчётов</button>
+</div>
+<p class="form-status" id="system-prompt-status" role="status"></p>
+</form>
+</section>
 <section class="tab" id="tab-ocr" hidden>
 <form id="ocr-settings" class="panel ocr-settings" aria-labelledby="ocr-settings-title">
   <header class="ocr-settings-head">
