@@ -109,10 +109,10 @@ def helm(**options):
     return fixture(rows, **options)
 
 
-def pdf_fixture(scan):
+def pdf_fixture(scan, *, printed=None):
     """A printed page, a scanned page and a blank page, with hidden source data."""
-    text = (f'BT /F1 22 Tf 32 184 Td ({FIELDS[0][0]}{FIELDS[0][1]}) Tj '
-            '0 -34 Td (replicas: 3) Tj 0 -30 Td 3 Tr (PDF_FIXTURE_HIDDEN_TEXT) Tj ET').encode()
+    text = printed or (f'BT /F1 22 Tf 32 184 Td ({FIELDS[0][0]}{FIELDS[0][1]}) Tj '
+                       '0 -34 Td (replicas: 3) Tj 0 -30 Td 3 Tr (PDF_FIXTURE_HIDDEN_TEXT) Tj ET').encode()
     w, h = scan.reference.size
     def stream(data, fields=b""):
         return b"<< /Length %d " % len(data) + fields + b" >>\nstream\n" + data + b"\nendstream"
@@ -814,6 +814,76 @@ def exercise_pdf(p, chat, scan):
             page.close()
 
 
+def exercise_pdf_text_rules(p, chat, vision, scan, *, path):
+    """A readable OCR response omits every rule, including the two-character code."""
+    import pypdfium2 as pdfium
+
+    url = "https://www.r9.example/docs"
+    printed = (f"BT /F1 16 Tf 32 190 Td (Catalog R9 Aero labels) Tj "
+               f"0 -30 Td (R9 short. R90 XR9 public.) Tj 0 -30 Td (Visit {url}) Tj "
+               "0 -30 Td 3 Tr (R9 Aero invisible text) Tj ET").encode()
+    source = BytesIO()
+    with pdfium.PdfDocument(pdf_fixture(scan, printed=printed)) as document:
+        page = document[0]
+        page.set_cropbox(12.1, 12.1, 480.95, 235.88)
+        page.set_rotation(90)
+        page.close()
+        document.save(source)
+    for key in ("R9", "R9 Aero"):
+        assert p.call("/api/v1/rules", {"scope":"team", "rule":{
+            "id":"pdf-"+key.replace(" ","-").lower(), "kind":"CUSTOM", "action":"mask", "value":key,
+        }}).status == 200
+    words = vision.words
+    vision.words = [{"line":1,"order":1,"text":"Public","box":[0.1,0.1,0.2,0.2]}]
+    try:
+        with pdfium.PdfDocument(source.getvalue()) as document:
+            page = document[0]
+            textpage = page.get_textpage()
+            text = textpage.get_text_range()
+            bitmap = page.render(scale=2)
+            original = bitmap.to_pil().convert("RGB")
+            convert = bitmap.get_posconv(page)
+
+            def bounds(phrase, after=""):
+                start = text.index(phrase, text.index(after))
+                points = []
+                for index in range(start, start + len(phrase)):
+                    if not text[index].isspace():
+                        l, b, r, t = textpage.get_charbox(index)
+                        points.extend([convert.to_bitmap(l,b),convert.to_bitmap(r,t)])
+                return (min(p[0] for p in points),min(p[1] for p in points),
+                        max(p[0] for p in points),max(p[1] for p in points))
+
+            data = "data:application/pdf;base64," + base64_image(source.getvalue())
+            part = {"type":"file","file":{"filename":"printed.pdf","file_data":data}}
+            for mode in ("full","partial"):
+                p.settings(url_mask=mode)
+                reply = request(p,[user_message(part)],path=path)
+                assert reply.status == 200, reply.body[:250]
+                event = p.event()
+                attachment = event["inspector"]["images"]["attachments"][0]
+                assert len(attachment["areas"]) == 3
+                png = p.call(attachment_url(event,attachment,"sent")).body
+                protected = Image.open(BytesIO(png))
+                for region in [bounds("R9 Aero","Catalog"), bounds("R9","R9 short"),
+                               bounds(url) if mode == "full" else bounds("r9",url)]:
+                    assert any(low != high for low, high in original.crop(region).getextrema()), region
+                    assert all(low == high for low, high in protected.crop(region).getextrema()), region
+                public = [bounds("Catalog"),bounds("R90 XR9")]
+                if mode == "partial":
+                    public.extend([bounds("https://www."),bounds("/docs")])
+                for region in public:
+                    assert ImageChops.difference(protected.crop(region),original.crop(region)).getbbox() is None
+                packed = chat.records[-1][2]["messages"][-1]["content"][1]["file"]["file_data"]
+                with pdfium.PdfDocument(base64.b64decode(packed.split(",",1)[1])) as sent:
+                    assert ImageChops.difference(sent[0].render(scale=2).to_pil().convert("RGB"),protected).getbbox() is None
+            textpage.close()
+            bitmap.close()
+    finally:
+        vision.words = words
+        p.settings(url_mask="full")
+
+
 def exercise_review_and_history(binary, chat):
     value = "10.23.45.67"
     source = fixture([(64, 32, [("Address: ", False), (value, True)]),
@@ -1046,6 +1116,8 @@ def run_tests(binary):
             accepted(p, chat, [user_message(openai_image(sample))], [sample], path=f"/p/{managed}/v1/chat/completions")
             report(sample)
             assert len(vision.records) == 2
+            exercise_pdf_text_rules(p, chat, vision, sample, path=f"/p/{managed}/v1/chat/completions")
+            out["pdf_text_rules"] = "passed"
             vision.mode = "invalid"
             refused(p, [user_message(openai_image(sample))], {"vision_coordinates"}, 503,
                     path=f"/p/{managed}/v1/chat/completions")

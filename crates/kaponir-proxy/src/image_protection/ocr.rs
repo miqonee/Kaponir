@@ -34,6 +34,7 @@ pub(super) struct Suggestion {
 pub(super) struct Reading {
     pub words: Vec<Word>,
     pub suggestions: Vec<Suggestion>,
+    pub native_text: Option<super::pdf::PageText>,
 }
 
 fn tsv(bytes: &[u8], width: u32, height: u32) -> Result<Reading, Failure> {
@@ -116,7 +117,7 @@ fn tsv(bytes: &[u8], width: u32, height: u32) -> Result<Reading, Failure> {
     }
     Ok(Reading {
         words,
-        suggestions: Vec::new(),
+        ..Reading::default()
     })
 }
 
@@ -514,7 +515,11 @@ fn parse_vision(text: &str, width: u32, height: u32) -> Result<Reading, Failure>
             })
         })
         .collect::<Result<_, Failure>>()?;
-    Ok(Reading { words, suggestions })
+    Ok(Reading {
+        words,
+        suggestions,
+        ..Reading::default()
+    })
 }
 
 async fn response_bytes(mut response: reqwest::Response, code: Code) -> Result<Vec<u8>, Failure> {

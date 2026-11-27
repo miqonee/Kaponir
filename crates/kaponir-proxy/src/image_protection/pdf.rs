@@ -1,6 +1,7 @@
 //! Render with a bounded local PDFium process. Only processed rasters reach the PDF writer.
-use super::{Code, Failure, raster};
+use super::{Code, Failure, Rect, ocr::OUTPUT_LIMIT, raster};
 use image::RgbImage;
+use serde::Deserialize;
 use std::{ffi::OsStr, process::Stdio};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
@@ -21,16 +22,45 @@ pub(super) fn signature(bytes: &[u8]) -> bool {
         })
 }
 
-#[derive(Clone, Copy)]
-pub(super) struct Size {
-    width: f64,
-    height: f64,
-}
-
 struct Page {
-    size: Size,
     width: u32,
     height: u32,
+}
+
+pub(super) struct PageText {
+    pub text: String,
+    pub glyphs: Vec<(usize, Rect)>,
+}
+
+impl PageText {
+    fn parse(bytes: &[u8], width: u32, height: u32) -> Result<Option<Self>, Failure> {
+        if bytes.is_empty() {
+            return Ok(None);
+        }
+        #[derive(Deserialize)]
+        struct Geometry {
+            text: String,
+            boxes: Vec<Option<[u32; 4]>>,
+        }
+        let invalid = || Failure::new(Code::InvalidPdf);
+        let Geometry { text, boxes } = serde_json::from_slice(bytes).map_err(|_| invalid())?;
+        if boxes.len() != text.chars().count() {
+            return Err(invalid());
+        }
+        let mut glyphs = Vec::new();
+        for ((offset, ch), bounds) in text.char_indices().zip(boxes) {
+            if let Some([x0, y0, x1, y1]) = bounds {
+                let rect = Rect { x0, y0, x1, y1 };
+                if ch.is_whitespace() || !rect.valid(width, height) {
+                    return Err(invalid());
+                }
+                glyphs.push((offset, rect));
+            } else if !ch.is_whitespace() {
+                return Err(invalid());
+            }
+        }
+        Ok(Some(Self { text, glyphs }))
+    }
 }
 
 fn spawn(python: &OsStr, mode: &str, limits: &[String]) -> Result<Child, Failure> {
@@ -95,17 +125,11 @@ impl Renderer {
         }
         let mut pages = Vec::with_capacity(count);
         for _ in 0..count {
-            let size = Size {
-                width: output.read_f64().await.map_err(invalid)?,
-                height: output.read_f64().await.map_err(invalid)?,
-            };
             let width = output.read_u32().await.map_err(invalid)?;
             let height = output.read_u32().await.map_err(invalid)?;
             let pixels = u64::from(width) * u64::from(height);
             if !(1..=raster::MAX_EDGE).contains(&width)
                 || !(1..=raster::MAX_EDGE).contains(&height)
-                || (size.width * 2.0).ceil() != f64::from(width)
-                || (size.height * 2.0).ceil() != f64::from(height)
                 || pixels > max_page_pixels
             {
                 return Err(Failure::new(Code::Limits));
@@ -113,11 +137,7 @@ impl Renderer {
             *remaining_pixels = remaining_pixels
                 .checked_sub(pixels)
                 .ok_or_else(|| Failure::new(Code::Limits))?;
-            pages.push(Page {
-                size,
-                width,
-                height,
-            });
+            pages.push(Page { width, height });
         }
         Ok(Self {
             child,
@@ -131,47 +151,57 @@ impl Renderer {
         self.pages.len()
     }
 
-    pub(super) async fn read_page(&mut self, index: usize) -> Result<RgbImage, Failure> {
+    pub(super) async fn read_page(
+        &mut self,
+        index: usize,
+    ) -> Result<(RgbImage, Option<PageText>), Failure> {
         let invalid = |_| Failure::new(Code::InvalidPdf);
         let written = self.input.write_u8(1).await;
         status(&mut self.output, Code::InvalidPdf).await?;
         written.map_err(invalid)?;
-        let Page { width, height, .. } = self.pages[index];
+        let Page { width, height } = self.pages[index];
+        let text_len = self.output.read_u32().await.map_err(invalid)? as usize;
+        if text_len > OUTPUT_LIMIT {
+            return Err(Failure::new(Code::Limits));
+        }
+        let mut text = vec![0; text_len];
+        self.output.read_exact(&mut text).await.map_err(invalid)?;
+        let text = PageText::parse(&text, width, height)?;
         let mut rgb = vec![0; (u64::from(width) * u64::from(height) * 3) as usize];
         self.output.read_exact(&mut rgb).await.map_err(invalid)?;
-        Ok(RgbImage::from_raw(width, height, rgb).expect("validated PDF raster size"))
+        Ok((
+            RgbImage::from_raw(width, height, rgb).expect("validated PDF raster size"),
+            text,
+        ))
     }
 
-    pub(super) async fn finish(self) -> Result<Vec<Size>, Failure> {
+    pub(super) async fn finish(self) -> Result<(), Failure> {
         let Self {
             mut child,
             input,
             mut output,
-            pages,
+            ..
         } = self;
         let invalid = |_| Failure::new(Code::InvalidPdf);
         drop(input);
         if output.read_u8().await.is_ok() || !child.wait().await.map_err(invalid)?.success() {
             return Err(Failure::new(Code::InvalidPdf));
         }
-        Ok(pages.into_iter().map(|page| page.size).collect())
+        Ok(())
     }
 }
 
 pub(super) async fn assemble<'a>(
     python: &OsStr,
-    sizes: Vec<Size>,
-    rasters: impl Iterator<Item = &'a [u8]>,
+    rasters: impl ExactSizeIterator<Item = &'a [u8]>,
     remaining_bytes: usize,
 ) -> Result<Vec<u8>, Failure> {
     let encoding = |_| Failure::new(Code::Encoding);
     let mut child = spawn(python, "assemble", &[remaining_bytes.to_string()])?;
     let mut input = child.stdin.take().expect("piped PDF input");
     let written = async {
-        input.write_u8(sizes.len() as u8).await?;
-        for (size, png) in sizes.into_iter().zip(rasters) {
-            input.write_f64(size.width).await?;
-            input.write_f64(size.height).await?;
+        input.write_u8(rasters.len() as u8).await?;
+        for png in rasters {
             input.write_u32(png.len() as u32).await?;
             input.write_all(png).await?;
         }

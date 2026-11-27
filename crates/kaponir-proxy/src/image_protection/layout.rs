@@ -1,6 +1,7 @@
 //! Translate UTF-8 ranges into the oriented raster. Field assignments additionally use
 //! the visible row and column boundaries, including glyphs omitted by OCR.
 use super::ocr::{Reading, Word};
+use super::pdf::PageText;
 use super::{Area, Code, Failure, Reason, Rect, UrlMask, raster};
 use image::{Rgb, RgbImage};
 use kaponir_core::{
@@ -315,6 +316,51 @@ fn inline_url(text: &str) -> bool {
     (bare.starts_with("www.") || (bare.contains('.') && bare.contains('/')))
         && reqwest::Url::parse(&format!("https://{bare}"))
             .is_ok_and(|url| url.domain().is_some_and(|host| host.contains('.')))
+}
+
+fn pdf_rectangles(
+    page: &PageText,
+    mut start: usize,
+    mut end: usize,
+    url_mask: UrlMask,
+    (width, height): (u32, u32),
+) -> Vec<Rect> {
+    if url_mask == UrlMask::Full {
+        let left = page.text[..start]
+            .rmatch_indices(char::is_whitespace)
+            .next()
+            .map_or(0, |(at, space)| at + space.len());
+        let right = page.text[end..]
+            .find(char::is_whitespace)
+            .map_or(page.text.len(), |at| end + at);
+        if inline_url(&page.text[left..right]) {
+            (start, end) = (left, right);
+        }
+    }
+    let first = page.glyphs.partition_point(|&(offset, _)| offset < start);
+    let last = page.glyphs.partition_point(|&(offset, _)| offset < end);
+    let mut rectangles: Vec<Rect> = Vec::new();
+    let mut previous = start;
+    for &(offset, rect) in &page.glyphs[first..last] {
+        if !page.text[previous..offset].contains(['\r', '\n'])
+            && let Some(last) = rectangles.last_mut()
+        {
+            *last = last.union(rect);
+        } else {
+            rectangles.push(rect);
+        }
+        previous = offset;
+    }
+    rectangles
+        .into_iter()
+        .map(|rect| rect.pad(2, width, height))
+        .collect()
+}
+
+fn same_region(a: Rect, b: Rect) -> bool {
+    let width = a.x1.min(b.x1).saturating_sub(a.x0.max(b.x0));
+    let height = a.y1.min(b.y1).saturating_sub(a.y0.max(b.y0));
+    width * 5 >= a.width().min(b.width()) * 4 && height * 4 >= a.height().min(b.height()) * 3
 }
 
 // CTC positions can drift into the next glyph in proportional text. A stable
@@ -691,14 +737,14 @@ pub(super) fn mask(
         explain: true,
         ..MaskOptions::default()
     };
-    let detect = |doc: &Document, options: &MaskOptions| {
+    let detect = |text: &str, options: &MaskOptions| {
         if cancelled.load(Relaxed) {
             return Err(Failure::new(Code::Cancelled));
         }
         engine
             .mask_without_s1(
                 &Input {
-                    text: &doc.text,
+                    text,
                     format: Format::Auto,
                 },
                 options,
@@ -715,7 +761,7 @@ pub(super) fn mask(
         let Some(doc) = Document::build(&rows, column, glyph, &ink) else {
             continue;
         };
-        let masked = detect(&doc, &options)?;
+        let masked = detect(&doc.text, &options)?;
         documents.push((doc, masked));
     }
     // OCR can read a repeated value while dropping the separator that identified it
@@ -739,7 +785,7 @@ pub(super) fn mask(
     let repeat_options = MaskOptions {
         known,
         explain: false,
-        ..options
+        ..options.clone()
     };
     let mut areas: Vec<Area> = Vec::new();
     let mut review_values = BTreeMap::new();
@@ -797,7 +843,7 @@ pub(super) fn mask(
         let mut replacements = masked.replacements;
         if !repeat_options.known.is_empty() {
             replacements.extend(
-                detect(&doc, &repeat_options)?
+                detect(&doc.text, &repeat_options)?
                     .replacements
                     .into_iter()
                     .filter(|r| r.recognizer == "session")
@@ -916,6 +962,60 @@ pub(super) fn mask(
         }
         if areas.len() > MAX_AREAS {
             return Err(Failure::new(Code::Limits));
+        }
+    }
+    if let Some(page) = reading.native_text {
+        for replacement in detect(&page.text, &options)?.replacements {
+            if cancelled.load(Relaxed) {
+                return Err(Failure::new(Code::Cancelled));
+            }
+            let rectangles = pdf_rectangles(
+                &page,
+                replacement.start,
+                replacement.end,
+                url_mask,
+                (width, height),
+            );
+            if rectangles.iter().all(|rect| {
+                areas
+                    .iter()
+                    .flat_map(|a| &a.rectangles)
+                    .any(|known| known.contains(*rect))
+            }) {
+                continue;
+            }
+            // The native text may supply the rest of a phrase the OCR read only
+            // in part. Keep both masks' coverage under one audit entry.
+            let id = if rectangles.len() == 1
+                && let Some(area) = areas.iter_mut().find(|area| {
+                    area.rectangles.len() == 1
+                        && area.category == replacement.category
+                        && area.kind == replacement.kind
+                        && area.scope == replacement.scope
+                        && same_region(area.rectangles[0], rectangles[0])
+                }) {
+                area.rectangles[0] = area.rectangles[0].union(rectangles[0]);
+                area.id
+            } else {
+                let id = areas.len();
+                if id == MAX_AREAS {
+                    return Err(Failure::new(Code::Limits));
+                }
+                areas.push(Area {
+                    id,
+                    rectangles,
+                    category: replacement.category,
+                    kind: replacement.kind,
+                    scope: replacement.scope,
+                    reason: Reason::Detector,
+                    field: None,
+                    review_id: None,
+                });
+                id
+            };
+            if link_reviews && !replacement.protected {
+                review_values.insert(id, replacement.original);
+            }
         }
     }
     areas.sort_by_key(|a| (a.rectangles[0].y0, a.rectangles[0].x0));

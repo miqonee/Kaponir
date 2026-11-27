@@ -754,19 +754,25 @@ async fn process(
                     audit.timings = timings;
                 });
             }
-            let Raster {
-                pixels,
-                mut original,
-            } = if let Some(renderer) = &mut renderer {
-                let started = Instant::now();
-                let pixels = renderer.read_page(index).await.map_err(|e| e.at(i))?;
-                timings.decode_ms += elapsed(started);
+            let (
                 Raster {
                     pixels,
-                    original: None,
-                }
+                    mut original,
+                },
+                native_text,
+            ) = if let Some(renderer) = &mut renderer {
+                let started = Instant::now();
+                let (pixels, native_text) = renderer.read_page(index).await.map_err(|e| e.at(i))?;
+                timings.decode_ms += elapsed(started);
+                (
+                    Raster {
+                        pixels,
+                        original: None,
+                    },
+                    native_text,
+                )
             } else {
-                raster.take().expect("one standalone image")
+                (raster.take().expect("one standalone image"), None)
             };
             let (w, h) = pixels.dimensions();
             let encoding_started = Instant::now();
@@ -794,10 +800,11 @@ async fn process(
                 (input, Vec::new(), Vec::new())
             } else {
                 let ocr_started = Instant::now();
-                let text = backend
+                let mut text = backend
                     .read(st, &settings, input, w, h)
                     .await
                     .map_err(|e| e.at(i))?;
+                text.native_text = native_text;
                 timings.ocr_ms += elapsed(ocr_started);
                 if let Some(span) = span {
                     set_stage(span, Stage::Masking);
@@ -852,14 +859,13 @@ async fn process(
             });
         }
         let pdf = if let Some(renderer) = renderer {
-            let sizes = renderer.finish().await.map_err(|e| e.at(first))?;
+            renderer.finish().await.map_err(|e| e.at(first))?;
             if let Some(span) = span {
                 set_stage(span, Stage::Encoding);
             }
             let encoding_started = Instant::now();
             let bytes = pdf::assemble(
                 &st.images.local.python(),
-                sizes,
                 pages.iter().map(|page| page.png.as_slice()),
                 raster::MAX_PNG_BYTES - wire_size,
             )

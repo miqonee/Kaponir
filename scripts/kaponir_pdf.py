@@ -1,5 +1,7 @@
 """Rasterize untrusted PDF attachments or build a fresh PDF from masked PNGs."""
+from ctypes import c_int
 from io import BytesIO
+import json
 import math
 import struct
 import sys
@@ -7,10 +9,65 @@ import sys
 
 SCALE = 2
 MAX_EDGE = 8192
+MAX_TEXT_BYTES = 2 << 20
 
 
 class LimitError(Exception):
     pass
+
+
+def page_text(pdfium, page, width, height):
+    raw = pdfium.raw
+    text_object = getattr(raw, "FPDFText_GetTextObject", None)
+    render_mode = getattr(raw, "FPDFTextObj_GetTextRenderMode", None)
+    device_x, device_y = c_int(), c_int()
+
+    def pixel(x, y):
+        if not raw.FPDF_PageToDevice(page, 0, 0, width, height, 0, x, y, device_x, device_y):
+            raise ValueError("invalid page coordinates")
+        return device_x.value, device_y.value
+
+    try:
+        textpage = page.get_textpage()
+    except pdfium.PdfiumError:
+        # A rasterized page can still be checked if its text layer is unavailable.
+        return b""
+    text, boxes = [], []
+    try:
+        count = textpage.count_chars()
+        if count > 50_000:
+            raise LimitError
+        for index in range(count):
+            code = raw.FPDFText_GetUnicode(textpage, index)
+            char = chr(code) if 0 < code <= 0x10ffff and not 0xd800 <= code <= 0xdfff else "\ufffd"
+            rect = None
+            if not char.isspace() and char.isprintable():
+                obj = text_object(textpage, index) if text_object and render_mode else None
+                # Ignore invisible and clipping-only text. The raster pass still
+                # checks any visible text in graphics below these layers.
+                if not obj or render_mode(obj) not in (3, 7):
+                    try:
+                        left, bottom, right, top = textpage.get_charbox(index)
+                        if all(math.isfinite(n) for n in (left, bottom, right, top)):
+                            x, y = pixel(left, bottom)
+                            a, b = pixel(right, top)
+                            x0, y0 = max(0, min(x, a)), max(0, min(y, b))
+                            x1, y1 = min(width, max(x, a)), min(height, max(y, b))
+                            if x0 < x1 and y0 < y1:
+                                rect = (x0, y0, x1, y1)
+                    except (pdfium.PdfiumError, ValueError):
+                        pass
+            text.append(char if rect is not None or char in "\r\n" else " ")
+            boxes.append(rect)
+    finally:
+        textpage.close()
+    if not any(boxes):
+        return b""
+    data = json.dumps({"text": "".join(text), "boxes": boxes}, ensure_ascii=False,
+                      separators=(",", ":")).encode("utf-8")
+    if len(data) > MAX_TEXT_BYTES:
+        raise LimitError
+    return data
 
 
 def render(pdfium, source, output, page_limit, pixel_limit, page_pixels, byte_length):
@@ -37,12 +94,12 @@ def render(pdfium, source, output, page_limit, pixel_limit, page_pixels, byte_le
             pixel_limit -= w * h
             if max(w, h) > MAX_EDGE or w * h > page_pixels or pixel_limit < 0:
                 raise LimitError
-            sizes.append((width, height, w, h))
+            sizes.append((w, h))
 
         output.write(struct.pack(">BB", 0, count))
         for size in sizes:
-            output.write(struct.pack(">ddII", *size))
-        for index, (width, height, w, h) in enumerate(sizes):
+            output.write(struct.pack(">II", *size))
+        for index, (w, h) in enumerate(sizes):
             # Wait for the proxy to release the previous raster.
             if source.read(1) != b"\x01":
                 raise ValueError("missing page request")
@@ -55,10 +112,12 @@ def render(pdfium, source, output, page_limit, pixel_limit, page_pixels, byte_le
                     with bitmap.to_pil().convert("RGB") as image:
                         if image.size != (w, h):
                             raise ValueError("unexpected raster size")
+                        text = page_text(pdfium, page, w, h)
                         pixels = image.tobytes()
-                        output.write(b"\x00")
+                        output.write(struct.pack(">BI", 0, len(text)))
+                        output.write(text)
                         output.write(pixels)
-                        del pixels
+                        del text, pixels
                 finally:
                     bitmap.close()
             finally:
@@ -69,8 +128,11 @@ def assemble(pdfium, Image, source, output, byte_limit):
     count, = struct.unpack(">B", source.read(1))
     with pdfium.PdfDocument.new() as document:
         for _ in range(count):
-            width, height, length = struct.unpack(">ddI", source.read(20))
+            length, = struct.unpack(">I", source.read(4))
             with Image.open(BytesIO(source.read(length)), formats=["PNG"]) as image:
+                # Use the rendered grid to avoid re-interpolating mask edges
+                # when the source page size was fractional.
+                width, height = image.width / SCALE, image.height / SCALE
                 bitmap = pdfium.PdfBitmap.from_pil(image)
                 page = document.new_page(width, height)
                 try:
