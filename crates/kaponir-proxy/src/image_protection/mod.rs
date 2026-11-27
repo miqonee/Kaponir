@@ -476,14 +476,53 @@ impl Drop for Ticket {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
+pub enum InstallFailure {
+    PythonEnvironment,
+    Dependencies,
+    RuntimeCheck,
+    CyrillicModel,
+}
+
+impl std::fmt::Display for InstallFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::PythonEnvironment => "Could not create the OCR environment. Install Python with venv support or pass --python",
+            Self::Dependencies => "Could not install OCR dependencies. Check PyPI access and try Python 3.12 or 3.13 with --python",
+            Self::RuntimeCheck => "could not verify the OCR runtime",
+            Self::CyrillicModel => "Could not install the Cyrillic RapidOCR model. Check access to ModelScope",
+        })
+    }
+}
+
+impl std::error::Error for InstallFailure {}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum InstallState {
     #[default]
     Idle,
     Installing,
     Ready,
-    Failed,
+    Failed(Option<InstallFailure>),
+}
+
+impl InstallState {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Installing => "installing",
+            Self::Ready => "ready",
+            Self::Failed(_) => "failed",
+        }
+    }
+
+    fn failure(self) -> Option<InstallFailure> {
+        match self {
+            Self::Failed(failure) => failure,
+            _ => None,
+        }
+    }
 }
 
 pub(crate) struct Service {

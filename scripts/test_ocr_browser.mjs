@@ -52,10 +52,6 @@ try {
   const profile = page.getByLabel("Профиль распознавания");
   const save = page.getByRole("button",{name:"Сохранить изменения"});
   assert.equal(await profile.inputValue(),"standard");
-  await profile.selectOption("ru_en");
-  await page.locator("#ocr-engine[data-state=pending]").waitFor();
-  await save.click();
-  await page.getByText("Настройки сохранены",{exact:true}).waitFor();
   if (config.install_ocr) {
     const options = page.locator("#ocr-options > summary");
     await options.click();
@@ -69,6 +65,16 @@ try {
     assert.equal(await limit.inputValue(),"17");
     await limit.fill(originalLimit);
     await options.click();
+  }
+  await profile.selectOption("ru_en");
+  await page.locator("#ocr-engine[data-state=pending]").waitFor();
+  await save.click();
+  await page.getByText("Настройки сохранены",{exact:true}).waitFor();
+  if (config.install_ocr) {
+    await page.locator("#ocr-engine[data-state=needs_setup]").waitFor();
+    await page.getByRole("button",{name:"Установить кириллическую модель",exact:true}).click();
+    await page.getByText("Скачиваем и проверяем кириллическую модель…",{exact:true}).waitFor();
+    await page.locator("#ocr-engine[data-state=ready]").waitFor({timeout:120000});
   }
   const setup = page.getByText("Как установить RapidOCR",{exact:true});
   await setup.click();

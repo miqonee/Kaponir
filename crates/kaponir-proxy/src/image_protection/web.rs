@@ -70,8 +70,9 @@ fn can_install(st: &Shared, settings: &Settings, worker_managed: bool) -> bool {
 
 async fn installation(State(st): State<Shared>, headers: HeaderMap) -> ResultResponse {
     authorized(&st, &headers, true)?;
+    let install = *st.images.install_state();
     Ok(private(
-        Json(json!({"state": *st.images.install_state()})).into_response(),
+        Json(json!({"state": install.name(), "failure": install.failure()})).into_response(),
     ))
 }
 
@@ -88,7 +89,8 @@ async fn install(
     authorized(&st, &headers, true)?;
     let worker_managed = ocr::worker_recipient(&st)
         .is_some_and(|recipient| ocr::managed_worker(&st, &recipient).is_some());
-    if !can_install(&st, &st.images.settings(), worker_managed) {
+    let settings = st.images.settings();
+    if !can_install(&st, &settings, worker_managed) {
         return Err(error(
             StatusCode::FORBIDDEN,
             "local_ocr_install_unavailable",
@@ -99,6 +101,7 @@ async fn install(
     if *install != InstallState::Installing {
         *install = InstallState::Installing;
         let st = st.clone();
+        let profile = settings.profile;
         tokio::spawn(async move {
             let worker = st.clone();
             let result = tokio::task::spawn_blocking(move || {
@@ -108,7 +111,7 @@ async fn install(
                     .runtime
                     .as_ref()
                     .expect("checked OCR runtime")
-                    .install()
+                    .install_profile(profile)
             })
             .await
             .map_err(anyhow::Error::from)
@@ -117,13 +120,13 @@ async fn install(
                 Ok(()) => InstallState::Ready,
                 Err(error) => {
                     eprintln!("kaponir: RapidOCR setup: {error:#}");
-                    InstallState::Failed
+                    InstallState::Failed(error.downcast_ref::<crate::OcrInstallFailure>().copied())
                 }
             };
         });
     }
     Ok(private(
-        (StatusCode::ACCEPTED, Json(json!({"state": *install}))).into_response(),
+        (StatusCode::ACCEPTED, Json(json!({"state": install.name()}))).into_response(),
     ))
 }
 
@@ -160,10 +163,12 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
         },
         Err(failure) => (Vec::new(), Some(failure.code)),
     };
+    let install = *st.images.install_state();
     Ok(json!({
         "settings":settings, "recipient":recipient, "connections":connections,
         "worker":worker, "worker_managed":worker_managed, "installed_languages":languages, "engine":engine,
-        "can_install":can_install(st, settings, worker_managed), "install_state":*st.images.install_state(),
+        "can_install":can_install(st, settings, worker_managed),
+        "install_state":install.name(), "install_failure":install.failure(),
         "engine_state": match failure {
             None => "ready",
             Some(Code::Consent | Code::Languages | Code::ProfileUnavailable) => "needs_setup",

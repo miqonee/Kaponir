@@ -37,6 +37,7 @@ use kaponir_core::{Engine, Scope};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+pub use image_protection::InstallFailure as OcrInstallFailure;
 pub use image_protection::Profile as ImageProtectionProfile;
 pub use image_protection::Settings as ImageProtectionSettings;
 pub use image_protection::UrlMask as ImageProtectionUrlMask;
@@ -57,6 +58,9 @@ pub trait WorkerManager: Send + Sync {
 pub trait OcrRuntime: Send + Sync {
     fn managed_python(&self) -> Option<std::path::PathBuf>;
     fn install(&self) -> anyhow::Result<()>;
+    fn install_profile(&self, _profile: ImageProtectionProfile) -> anyhow::Result<()> {
+        self.install()
+    }
 }
 
 /// Правила одного контура, как они лежат в хранилище правил.

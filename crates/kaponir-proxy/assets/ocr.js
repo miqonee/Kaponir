@@ -31,6 +31,13 @@ const ocrErrors = {
   vision_coordinates: "Vision API не вернул пригодные координаты.",
 };
 
+const ocrInstallErrors = {
+  python_environment: "Не удалось создать окружение OCR. Проверьте Python с модулем venv и права на каталог данных прокси.",
+  dependencies: "Не удалось установить зависимости OCR. Проверьте доступ к PyPI и версию Python.",
+  runtime_check: "Не удалось загрузить RapidOCR, PDFium или Pillow. Подробности есть в журнале прокси.",
+  cyrillic_model: "Базовый RapidOCR установлен. Не удалось подготовить кириллическую модель. Проверьте доступ к ModelScope и журнал прокси.",
+};
+
 function ocrError(failure, fallback = "") {
   if (failure?.code === "boundaries" && failure.field)
     return tr("Не удалось определить границы значения {{0}}. Отправка остановлена.", [failure.field]);
@@ -100,6 +107,7 @@ function ocrEngineStatus(data, draft) {
     tr("Не хватает языков · {{0}}",[draft.languages.split("+").filter(lang => !data.installed_languages.includes(lang)).join(", ")]) : "";
   $("#ocr-recipient").textContent = [worker && !recipient ? "" : ocrRecipientText(recipient), installed, missing, reason].filter(Boolean).join(" ");
   const install = $("#ocr-install");
+  const needsCyrillic = data.failure === "profile_unavailable";
   const needsInstall = matches && draft.mode === "local" && ["unavailable", "profile_unavailable"].includes(data.failure) &&
     (!worker || data.worker_managed);
   install.hidden = !needsInstall && !(worker && data.worker_managed);
@@ -108,15 +116,23 @@ function ocrEngineStatus(data, draft) {
   else if (!install.hidden) install.textContent = tr("Прокси запускает локальный worker автоматически после подтверждения адреса.");
 
   const installing = ocrInstallSubmitting || data.install_state === "installing";
+  const failed = data.install_state === "failed";
   const button = $("#ocr-install-run");
   button.hidden = !needsInstall || !data.can_install;
   button.disabled = installing;
-  button.textContent = tr(data.install_state === "failed" ? "Повторить установку" : "Установить RapidOCR");
+  button.textContent = tr(failed ? "Повторить установку" :
+    needsCyrillic ? "Установить кириллическую модель" : "Установить RapidOCR");
   const progress = $("#ocr-install-progress");
-  const message = ocrInstallWarning || (installing ? "Скачиваем и проверяем RapidOCR…" :
-    needsInstall && data.install_state === "failed" ? "Не удалось установить RapidOCR. Проверьте Python с модулем venv и доступ к PyPI и ModelScope, затем повторите." :
-    matches && draft.mode === "local" && (!worker || data.worker_managed) && data.install_state === "ready"
-      ? "RapidOCR установлен." : "");
+  let message = ocrInstallWarning;
+  if (!message) {
+    if (installing) {
+      message = needsCyrillic ? "Скачиваем и проверяем кириллическую модель…" : "Скачиваем и проверяем RapidOCR…";
+    } else if (needsInstall && failed) {
+      message = ocrInstallErrors[data.install_failure] || "Не удалось установить RapidOCR. Подробности есть в журнале прокси.";
+    } else if (state === "ready" && data.install_state === "ready" && draft.mode === "local" && (!worker || data.worker_managed)) {
+      message = "RapidOCR установлен.";
+    }
+  }
   progress.textContent = message ? tr(message) : "";
   progress.hidden = !message;
 }

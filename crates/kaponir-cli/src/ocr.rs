@@ -1,5 +1,6 @@
 use crate::Home;
 use anyhow::{Context, Result, ensure};
+use kaponir_proxy::{ImageProtectionProfile as Profile, OcrInstallFailure as InstallFailure};
 use std::fs::{self, DirBuilder, OpenOptions};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -38,6 +39,10 @@ impl kaponir_proxy::OcrRuntime for Home {
     fn install(&self) -> Result<()> {
         setup(self, default_python())
     }
+
+    fn install_profile(&self, profile: Profile) -> Result<()> {
+        setup_for_profile(self, default_python(), profile)
+    }
 }
 
 fn check(python: &Path) -> Result<()> {
@@ -59,11 +64,8 @@ fn install_cyrillic(python: &Path) -> Result<()> {
     let status = Command::new(python)
         .args(["-I", "-c", SCRIPT, "--install-cyrillic"])
         .status()
-        .context("installing the Cyrillic RapidOCR model")?;
-    ensure!(
-        status.success(),
-        "could not install the Cyrillic RapidOCR model; check access to ModelScope"
-    );
+        .context(InstallFailure::CyrillicModel)?;
+    ensure!(status.success(), InstallFailure::CyrillicModel);
     Ok(())
 }
 
@@ -72,6 +74,10 @@ pub fn default_python() -> &'static Path {
 }
 
 pub fn setup(home: &Home, python: &Path) -> Result<()> {
+    setup_for_profile(home, python, Profile::RussianEnglish)
+}
+
+fn setup_for_profile(home: &Home, python: &Path, profile: Profile) -> Result<()> {
     let dir = runtime_dir(home);
     let root = dir.parent().expect("OCR runtime parent");
     let mut mkdir = DirBuilder::new();
@@ -88,14 +94,18 @@ pub fn setup(home: &Home, python: &Path) -> Result<()> {
         .truncate(false)
         .open(root.join("setup.lock"))?;
     lock.lock().context("locking OCR setup")?;
-    if let Some(managed) = managed_python(home)
-        && check(&managed).is_ok()
-    {
+    let managed = match managed_python(home).filter(|managed| check(managed).is_ok()) {
+        Some(managed) => managed,
+        None => create_runtime(python, &dir)?,
+    };
+    if profile == Profile::RussianEnglish {
         install_cyrillic(&managed)?;
-        println!("RapidOCR is ready in {}", managed.display());
-        return Ok(());
     }
+    println!("RapidOCR is ready in {}.", managed.display());
+    Ok(())
+}
 
+fn create_runtime(python: &Path, dir: &Path) -> Result<PathBuf> {
     // An incomplete environment is never selected by the server. Recreate it
     // in place because virtual-environment entry points use absolute paths.
     let ready = dir.join(".ready");
@@ -104,18 +114,16 @@ pub fn setup(home: &Home, python: &Path) -> Result<()> {
     }
     let status = Command::new(python)
         .args(["-I", "-m", "venv", "--clear"])
-        .arg(&dir)
+        .arg(dir)
         .status()
-        .with_context(|| format!("running {} for OCR setup", python.display()))?;
-    ensure!(
-        status.success(),
-        "could not create OCR environment; install Python with venv support or pass --python"
-    );
+        .with_context(|| format!("running {} for OCR setup", python.display()))
+        .context(InstallFailure::PythonEnvironment)?;
+    ensure!(status.success(), InstallFailure::PythonEnvironment);
 
     fs::write(dir.join("requirements-ocr.txt"), OCR_REQUIREMENTS)?;
     let requirements = dir.join("requirements-worker.txt");
     fs::write(&requirements, WORKER_REQUIREMENTS)?;
-    let managed = interpreter(&dir);
+    let managed = interpreter(dir);
     let status = Command::new(&managed)
         .args([
             "-I",
@@ -128,14 +136,9 @@ pub fn setup(home: &Home, python: &Path) -> Result<()> {
         ])
         .arg(&requirements)
         .status()
-        .context("installing RapidOCR dependencies")?;
-    ensure!(
-        status.success(),
-        "OCR dependency installation failed; try a supported Python such as 3.12 or 3.13 with --python"
-    );
-    check(&managed)?;
+        .context(InstallFailure::Dependencies)?;
+    ensure!(status.success(), InstallFailure::Dependencies);
+    check(&managed).context(InstallFailure::RuntimeCheck)?;
     fs::write(ready, b"")?;
-    install_cyrillic(&managed)?;
-    println!("RapidOCR is ready in {}.", managed.display());
-    Ok(())
+    Ok(managed)
 }
