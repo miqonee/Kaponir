@@ -423,11 +423,22 @@ impl Drop for Ticket {
     }
 }
 
+#[derive(Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum InstallState {
+    #[default]
+    Idle,
+    Installing,
+    Ready,
+    Failed,
+}
+
 pub(crate) struct Service {
     settings: RwLock<Settings>,
     queue: Arc<Queue>,
     pub(crate) local: rapidocr::LocalOcr,
     settings_changes: tokio::sync::Mutex<()>,
+    install: Mutex<InstallState>,
 }
 impl Service {
     pub fn load(vault: &kaponir_vault::SqliteVault, config: &Settings) -> anyhow::Result<Self> {
@@ -443,6 +454,7 @@ impl Service {
             queue: Arc::new(Queue::default()),
             local: Default::default(),
             settings_changes: Default::default(),
+            install: Default::default(),
         })
     }
     fn settings(&self) -> Settings {
@@ -450,6 +462,12 @@ impl Service {
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
+    }
+
+    fn install_state(&self) -> std::sync::MutexGuard<'_, InstallState> {
+        self.install
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 }
 fn elapsed(start: Instant) -> u64 {

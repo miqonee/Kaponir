@@ -51,6 +51,12 @@ pub trait WorkerManager: Send + Sync {
     fn running(&self) -> bool;
 }
 
+/// Host integration for installing and finding the managed RapidOCR environment.
+pub trait OcrRuntime: Send + Sync {
+    fn managed_python(&self) -> Option<std::path::PathBuf>;
+    fn install(&self) -> anyhow::Result<()>;
+}
+
 /// Правила одного контура, как они лежат в хранилище правил.
 #[derive(Clone, Debug, Serialize)]
 pub struct RuleSet {

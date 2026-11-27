@@ -445,7 +445,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
         } => {
             let python = python
                 .as_deref()
-                .unwrap_or_else(|| Path::new(if cfg!(windows) { "python" } else { "python3" }));
+                .unwrap_or_else(|| kaponir_cli::ocr::default_python());
             kaponir_cli::ocr::setup(&home, python)?;
             Ok(ExitCode::SUCCESS)
         }
@@ -1404,7 +1404,7 @@ fn serve(home: &Home, a: ServeArgs, open: bool) -> Result<ExitCode> {
         .map(|u| u.trim_end_matches('/'))
         .is_some_and(|u| u == "http://127.0.0.1:8788" || u == "http://localhost:8788");
     let mut state = kaponir_proxy::State::new(engine, vault, cfg.owner.clone(), cfg.serve.clone())?
-        .with_ocr_python(kaponir_cli::ocr::managed_python(home))
+        .with_ocr_runtime(Box::new(Home::new(home.dir.clone())))
         .with_control(control);
     if external_worker.is_none() || is_managed_worker_endpoint {
         match kaponir_cli::worker::ManagedWorker::new(

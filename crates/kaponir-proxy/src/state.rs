@@ -332,6 +332,11 @@ impl State {
         self
     }
 
+    pub fn with_ocr_runtime(mut self, runtime: Box<dyn crate::OcrRuntime>) -> Self {
+        self.images.local.runtime = Some(runtime);
+        self
+    }
+
     pub(crate) fn refresh_suppressed(&self) {
         let sets = self
             .control

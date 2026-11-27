@@ -149,7 +149,12 @@
       </fieldset>
       <label class="field" id="ocr-node-field" for="ocr-node" hidden><span data-i18n="Узел обработки">Узел обработки</span><select name="node" id="ocr-node"><option value="proxy" data-i18n="На компьютере прокси">На компьютере прокси</option><option value="worker" data-i18n="Отдельный worker">Отдельный worker</option></select></label>
     </div>
-    <div class="ocr-engine"><strong data-i18n="Состояние движка">Состояние движка</strong><p id="ocr-engine" role="status"></p><p id="ocr-recipient" class="hint"></p><p id="ocr-install" class="hint" hidden></p></div>
+    <div class="ocr-engine">
+      <strong data-i18n="Состояние движка">Состояние движка</strong>
+      <p id="ocr-engine" role="status"></p><p id="ocr-recipient" class="hint"></p><p id="ocr-install" class="hint" hidden></p>
+      <button type="button" class="secondary" id="ocr-install-run" hidden data-i18n="Установить RapidOCR">Установить RapidOCR</button>
+      <p id="ocr-install-progress" class="form-status" role="status" hidden></p>
+    </div>
   </div>
   <div id="ocr-vision" hidden>
     <div class="ocr-settings-grid">
@@ -163,7 +168,7 @@
   <details id="ocr-setup" class="ocr-options">
     <summary data-i18n="Как установить RapidOCR">Как установить RapidOCR</summary>
     <p class="hint"><strong>Docker Compose.</strong> <span data-i18n="RapidOCR уже входит в образы. Соберите и запустите сервисы из папки проекта.">RapidOCR уже входит в образы. Соберите и запустите сервисы из папки проекта.</span> <code>docker compose up -d --build</code></p>
-    <p class="hint"><strong data-i18n="Запуск из бинарника.">Запуск из бинарника.</strong> <span data-i18n="На сервере прокси установите окружение командой">На сервере прокси установите окружение командой</span> <code>kaponir ocr setup</code>. <span data-i18n="Затем перезапустите прокси и выберите «На компьютере прокси».">Затем перезапустите прокси и выберите «На компьютере прокси».</span></p>
+    <p class="hint"><strong data-i18n="Запуск из бинарника.">Запуск из бинарника.</strong> <span data-i18n="Используйте кнопку установки в настройках OCR или команду на сервере прокси">Используйте кнопку установки в настройках OCR или команду на сервере прокси</span> <code>kaponir ocr setup</code>.</p>
   </details>
   <details id="ocr-options" class="ocr-options">
     <summary data-i18n="Дополнительные параметры">Дополнительные параметры</summary>

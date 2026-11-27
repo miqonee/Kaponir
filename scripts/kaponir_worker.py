@@ -50,8 +50,17 @@ except NameError:
 
 
 
+def managed_ocr_python():
+    if directory := os.environ.get('KAPONIR_MANAGED_OCR_RUNTIME'):
+        runtime = Path(directory)
+        interpreter = runtime / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
+        if (runtime / '.ready').is_file() and interpreter.is_file():
+            return str(interpreter)
+    return None
+
+
 def rapidocr_installed():
-    return all(importlib.util.find_spec(module) is not None
+    return managed_ocr_python() is not None or all(importlib.util.find_spec(module) is not None
                for module in ('rapidocr', 'onnxruntime', 'cv2'))
 
 
@@ -75,7 +84,8 @@ class OcrChildren:
             source = Path(__file__).with_name('kaponir_rapidocr.py').read_text(encoding='utf-8')
         get_cpus = getattr(os, 'process_cpu_count', os.cpu_count)
         threads = os.getenv('KAPONIR_OCR_THREADS', str(min(4, get_cpus() or 1)))
-        return subprocess.Popen([sys.executable, '-u', '-c', source, threads],
+        python = managed_ocr_python() or sys.executable
+        return subprocess.Popen([python, '-u', '-c', source, threads],
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     @staticmethod

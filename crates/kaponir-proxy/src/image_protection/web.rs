@@ -1,6 +1,6 @@
 use super::{
-    Attachment, Code, Failure, InputImage, Mode, Node, SETTINGS, Settings, elapsed, now_ms, ocr,
-    process,
+    Attachment, Code, Failure, InputImage, InstallState, Mode, Node, SETTINGS, Settings, elapsed,
+    now_ms, ocr, process,
 };
 use crate::{
     Shared, providers,
@@ -25,6 +25,7 @@ pub(crate) fn routes() -> Router<Shared> {
     Router::new()
         .route("/ui/ocr-example.png", get(example))
         .route("/api/v1/ui/ocr/settings", get(settings).put(save))
+        .route("/api/v1/ui/ocr/install", get(installation).post(install))
         .route("/api/v1/ui/ocr/check", post(check))
         .route("/api/v1/ui/ocr/models", post(models))
         .route("/api/v1/ui/ocr/preview", post(preview))
@@ -56,6 +57,74 @@ async fn example() -> Response {
         ocr::EXAMPLE,
     )
         .into_response()
+}
+
+fn can_install(st: &Shared, settings: &Settings, worker_managed: bool) -> bool {
+    st.images.local.runtime.is_some()
+        && settings.mode == Mode::Local
+        && match settings.node {
+            Node::Proxy => std::env::var_os("KAPONIR_OCR_PYTHON").is_none(),
+            Node::Worker => worker_managed && std::env::var_os("KAPONIR_WORKER_PYTHON").is_none(),
+        }
+}
+
+async fn installation(State(st): State<Shared>, headers: HeaderMap) -> ResultResponse {
+    authorized(&st, &headers, true)?;
+    Ok(private(
+        Json(json!({"state": *st.images.install_state()})).into_response(),
+    ))
+}
+
+// Requiring a JSON object also excludes a cross-origin HTML form submission.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InstallRequest {}
+
+async fn install(
+    State(st): State<Shared>,
+    headers: HeaderMap,
+    Json(_): Json<InstallRequest>,
+) -> ResultResponse {
+    authorized(&st, &headers, true)?;
+    let worker_managed = ocr::worker_recipient(&st)
+        .is_some_and(|recipient| ocr::managed_worker(&st, &recipient).is_some());
+    if !can_install(&st, &st.images.settings(), worker_managed) {
+        return Err(error(
+            StatusCode::FORBIDDEN,
+            "local_ocr_install_unavailable",
+        ));
+    }
+
+    let mut install = st.images.install_state();
+    if *install != InstallState::Installing {
+        *install = InstallState::Installing;
+        let st = st.clone();
+        tokio::spawn(async move {
+            let worker = st.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                worker
+                    .images
+                    .local
+                    .runtime
+                    .as_ref()
+                    .expect("checked OCR runtime")
+                    .install()
+            })
+            .await
+            .map_err(anyhow::Error::from)
+            .and_then(|result| result);
+            *st.images.install_state() = match result {
+                Ok(()) => InstallState::Ready,
+                Err(error) => {
+                    eprintln!("kaponir: RapidOCR setup: {error:#}");
+                    InstallState::Failed
+                }
+            };
+        });
+    }
+    Ok(private(
+        (StatusCode::ACCEPTED, Json(json!({"state": *install}))).into_response(),
+    ))
 }
 
 async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
@@ -91,6 +160,7 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
     Ok(json!({
         "settings":settings, "recipient":recipient, "connections":connections,
         "worker":worker, "worker_managed":worker_managed, "installed_languages":languages, "engine":engine,
+        "can_install":can_install(st, settings, worker_managed), "install_state":*st.images.install_state(),
         "engine_state": match failure {
             None => "ready",
             Some(Code::Consent | Code::Languages) => "needs_setup",

@@ -84,8 +84,8 @@ open a browser. For a real provider connection, open **Providers and API**, save
 and verify the route with synthetic data first.
 
 For file processing, `--dry-run`, proxy client setup, OCR, and Docker, see the examples below
-and the [CLI reference](docs/COMMANDS.md). When running the binary, use `kaponir ocr setup`
-on the proxy host to install RapidOCR, then restart the proxy. Docker images include RapidOCR.
+and the [CLI reference](docs/COMMANDS.md). When running the binary, install RapidOCR in OCR settings
+or run `kaponir ocr setup` on the proxy host. Docker images include RapidOCR.
 The native worker requires Python 3.12+. [Image protection setup](docs/IMAGE_PROTECTION.md)
 
 ### Proxy for an existing client

@@ -3,6 +3,7 @@
 const imageSettings = $("#ocr-settings");
 const imageLab = { file: null, status: null, running: null, result: null, fileVersion: 0 };
 let imageConfig, proof, catalogVersion = 0, loadingImageSettings = 0;
+let ocrInstallTimer, ocrInstallSubmitting = false, ocrInstallWarning = "";
 
 const ocrErrors = {
   inline_required: "Приложите статический PNG, JPEG или WebP в теле запроса.",
@@ -95,9 +96,22 @@ function ocrEngineStatus(data, draft) {
   const needsInstall = matches && draft.mode === "local" && data.failure === "unavailable" &&
     (!worker || data.worker_managed);
   install.hidden = !needsInstall && !(worker && data.worker_managed);
-  if (needsInstall) install.replaceChildren(h("code", {}, "kaponir ocr setup"), " · ",
-    tr("Команда устанавливает RapidOCR. После установки перезапустите прокси."));
+  if (needsInstall) install.textContent = data.can_install ? tr("Установка на сервере прокси.") :
+    tr("Проверьте окружение Python, указанное при запуске.");
   else if (!install.hidden) install.textContent = tr("Прокси запускает локальный worker автоматически после подтверждения адреса.");
+
+  const installing = ocrInstallSubmitting || data.install_state === "installing";
+  const button = $("#ocr-install-run");
+  button.hidden = !needsInstall || !data.can_install;
+  button.disabled = installing;
+  button.textContent = tr(data.install_state === "failed" ? "Повторить установку" : "Установить RapidOCR");
+  const progress = $("#ocr-install-progress");
+  const message = ocrInstallWarning || (installing ? "Скачиваем и проверяем RapidOCR…" :
+    needsInstall && data.install_state === "failed" ? "Не удалось установить RapidOCR. Проверьте Python с модулем venv и доступ к PyPI, затем повторите." :
+    matches && draft.mode === "local" && (!worker || data.worker_managed) && data.install_state === "ready"
+      ? "RapidOCR установлен." : "");
+  progress.textContent = message ? tr(message) : "";
+  progress.hidden = !message;
 }
 
 function updateOcrForm() {
@@ -147,12 +161,66 @@ function renderOcrSettings(data) {
   const models = data.connections.find(c => c.id === controls.connection_id.value)?.models || [];
   loadOcrModelOptions(models);
   updateOcrForm();
+  watchOcrInstallation();
 }
+
+function watchOcrInstallation() {
+  clearTimeout(ocrInstallTimer);
+  if (location.hash === "#ocr" && imageConfig?.install_state === "installing") {
+    ocrInstallTimer = setTimeout(refreshOcrInstallation, 1000);
+  }
+}
+
+async function refreshOcrInstallation() {
+  if (location.hash !== "#ocr") return;
+  const current = imageConfig;
+  try {
+    const {state} = await api("/api/v1/ui/ocr/install", {timeoutMs:8000});
+    if (location.hash !== "#ocr" || imageConfig !== current) return;
+    ocrInstallWarning = "";
+    if (state !== "installing") {
+      const data = await api("/api/v1/ui/ocr/settings");
+      if (location.hash !== "#ocr" || imageConfig !== current) return;
+      // Installation doesn't edit OCR settings or the user's unsaved form.
+      if (Object.keys(current.settings).every(key => current.settings[key] === data.settings[key])) {
+        imageConfig = data;
+      } else {
+        renderOcrSettings(data);
+      }
+    }
+  } catch {
+    if (location.hash !== "#ocr" || imageConfig !== current) return;
+    ocrInstallWarning = "Связь прервалась. Повторяем проверку установки…";
+  }
+  updateOcrForm();
+  watchOcrInstallation();
+}
+
+$("#ocr-install-run").addEventListener("click", async () => {
+  if (ocrInstallSubmitting || !imageConfig) return;
+  ocrInstallSubmitting = true;
+  ocrInstallWarning = "";
+  updateOcrForm();
+  try {
+    const {state} = await api("/api/v1/ui/ocr/install", {method:"POST",body:{}});
+    imageConfig.install_state = state;
+  } catch (error) {
+    ocrInstallWarning = error.messageKey === "local_ocr_install_unavailable"
+      ? error.messageKey : "Не удалось запустить установку RapidOCR. Попробуйте ещё раз.";
+  } finally {
+    ocrInstallSubmitting = false;
+    updateOcrForm();
+    watchOcrInstallation();
+  }
+});
 
 async function loadImageSettings() {
   const seq = ++loadingImageSettings;
   const data = await api("/api/v1/ui/ocr/settings");
-  if (seq === loadingImageSettings && location.hash === "#ocr") renderOcrSettings(data);
+  if (seq === loadingImageSettings && location.hash === "#ocr") {
+    ocrInstallWarning = "";
+    renderOcrSettings(data);
+  }
 }
 TABS.ocr = loadImageSettings;
 

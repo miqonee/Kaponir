@@ -48,6 +48,20 @@ try {
   await page.goto(config.url + "/ui/#ocr");
   await page.getByRole("checkbox",{name:"Защищать изображения перед отправкой"}).waitFor();
   await page.getByText("Защита выключена. Поставщик может получить исходную картинку.").waitFor();
+  if (config.install_ocr) {
+    const options = page.locator("#ocr-options > summary");
+    await options.click();
+    const limit = page.locator("#ocr-settings input[name=max_mib]");
+    const originalLimit = await limit.inputValue();
+    await limit.fill("17");
+    await page.getByRole("button",{name:"Установить RapidOCR",exact:true}).click();
+    await page.getByText("Скачиваем и проверяем RapidOCR…",{exact:true}).waitFor();
+    await page.getByText("RapidOCR установлен.",{exact:true}).waitFor({timeout:120000});
+    await page.locator("#ocr-engine[data-state=ready]").waitFor();
+    assert.equal(await limit.inputValue(),"17");
+    await limit.fill(originalLimit);
+    await options.click();
+  }
   const setup = page.getByText("Как установить RapidOCR",{exact:true});
   await setup.click();
   await page.getByText("docker compose up -d --build",{exact:true}).waitFor();

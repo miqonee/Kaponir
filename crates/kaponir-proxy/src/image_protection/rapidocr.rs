@@ -1,5 +1,10 @@
 use super::{Code, Failure, ocr::OUTPUT_LIMIT};
-use std::{path::PathBuf, process::Stdio, sync::Mutex};
+use std::{
+    ffi::{OsStr, OsString},
+    path::PathBuf,
+    process::Stdio,
+    sync::Mutex,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     process::{Child, Command},
@@ -10,14 +15,16 @@ const SCRIPT: &str = include_str!("../../../../scripts/kaponir_rapidocr.py");
 
 pub(crate) struct LocalOcr {
     pub(crate) python: Option<PathBuf>,
+    pub(crate) runtime: Option<Box<dyn crate::OcrRuntime>>,
     slots: Semaphore,
-    idle: Mutex<Vec<Child>>,
+    idle: Mutex<Vec<(OsString, Child)>>,
 }
 
 impl Default for LocalOcr {
     fn default() -> Self {
         Self {
             python: None,
+            runtime: None,
             slots: Semaphore::new(4),
             idle: Mutex::default(),
         }
@@ -25,11 +32,20 @@ impl Default for LocalOcr {
 }
 
 impl LocalOcr {
-    fn spawn(&self) -> Result<Child, Failure> {
-        let python = std::env::var_os("KAPONIR_OCR_PYTHON")
+    fn python(&self) -> OsString {
+        std::env::var_os("KAPONIR_OCR_PYTHON")
+            .or_else(|| {
+                self.runtime
+                    .as_ref()?
+                    .managed_python()
+                    .map(PathBuf::into_os_string)
+            })
             .or_else(|| self.python.clone().map(PathBuf::into_os_string))
             .or_else(|| std::env::var_os("KAPONIR_WORKER_PYTHON"))
-            .unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into());
+            .unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into())
+    }
+
+    fn spawn(python: &OsStr) -> Result<Child, Failure> {
         let threads = std::env::var("KAPONIR_OCR_THREADS").unwrap_or_else(|_| {
             std::thread::available_parallelism()
                 .map_or(1, std::num::NonZeroUsize::get)
@@ -52,11 +68,15 @@ impl LocalOcr {
             .acquire()
             .await
             .map_err(|_| Failure::new(Code::Unavailable))?;
-        let mut child = self
-            .idle
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .pop();
+        let python = self.python();
+        let mut child = {
+            let mut idle = self
+                .idle
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            idle.retain(|(interpreter, _)| interpreter == &python);
+            idle.pop().map(|(_, child)| child)
+        };
         // The current call owns the child. Cancelling it drops an incomplete
         // exchange so the next request cannot read its OCR result.
         if child
@@ -67,13 +87,13 @@ impl LocalOcr {
         }
         let mut child = match child {
             Some(child) => child,
-            None => self.spawn()?,
+            None => Self::spawn(&python)?,
         };
         let data = Self::exchange(&mut child, png).await?;
         self.idle
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(child);
+            .push((python, child));
         Ok(data)
     }
 

@@ -1866,6 +1866,7 @@ button.inline-decision { display:inline; border:0; border-radius:0; min-height:0
 }
 .ocr-engine { overflow-wrap: anywhere; }
 .ocr-backend #ocr-node-field { margin-top: 12px; }
+.ocr-engine #ocr-install-run { margin-top: 10px; }
 .ocr-engine [data-state="ready"] { color: var(--success); }
 .ocr-engine [data-state="needs_setup"], .ocr-engine [data-state="pending"] { color: var(--warning); }
 .ocr-engine [data-state="unavailable"] { color: var(--danger); }

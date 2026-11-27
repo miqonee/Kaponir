@@ -251,11 +251,15 @@ def free_port():
 
 
 class Proxy:
-    def __init__(self, binary, home, upstream, env=None, legacy=False, worker=None):
+    def __init__(self, binary, home, upstream, env=None, legacy=False, worker=None, use_system_python=False):
         self.binary, self.home, self.port = binary, Path(home), free_port()
         self.env = {**os.environ, **(env or {}), "KAPONIR_HOME": str(home),
                     "KAPONIR_API_TOKEN": TOKEN}
-        self.env.setdefault("KAPONIR_OCR_PYTHON", sys.executable)
+        if use_system_python:
+            self.env.pop("KAPONIR_OCR_PYTHON", None)
+            self.env.pop("KAPONIR_WORKER_PYTHON", None)
+        else:
+            self.env.setdefault("KAPONIR_OCR_PYTHON", sys.executable)
         subprocess.run([binary, "init"], env=self.env, stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL, check=True)
         cfg = self.home / "config.toml"
@@ -678,6 +682,13 @@ def run_tests(binary):
         with proxy(binary, chat.url, env={"KAPONIR_OCR_PYTHON": str(ROOT / "missing-ocr-python")}) as p:
             status = p.settings()
             assert status["engine"] == "rapidocr" and status["engine_state"] == "unavailable"
+            assert not status["can_install"]
+            install = "/api/v1/ui/ocr/install"
+            assert p.call(install, {}, "POST", auth=False).status == 401
+            assert p.call(install, b"{}", "POST", headers={"Content-Type": "text/plain"}).status == 415
+            assert p.call(install, {"python": "other"}, "POST").status == 422
+            assert p.call(install, {}, "POST").status == 403
+            assert p.call(install).json()["state"] == "idle"
             refused(p, [user_message(openai_image(sample))], {"unavailable"}, 503)
             assert request(p, [{"role": "user", "content": QUESTION}]).status == 200
         with proxy(binary, chat.url) as p:
@@ -948,13 +959,15 @@ def run_benchmark(binary, runs):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, default=ROOT / "target/debug/kaponir")
-    parser.add_argument("--browser-fixture", action="store_true", help="start the proxy and a recording upstream for Playwright")
+    browser_modes = parser.add_mutually_exclusive_group()
+    browser_modes.add_argument("--browser-fixture", action="store_true", help="start the proxy and a recording upstream for Playwright")
+    browser_modes.add_argument("--browser-install-fixture", action="store_true", help="start the browser fixture without OCR to test Web UI installation")
     parser.add_argument("--benchmark", type=int, metavar="RUNS")
     args = parser.parse_args()
     if Image is None:
         parser.error("install Pillow to generate test fixtures")
     binary = str(args.binary.resolve())
-    if args.browser_fixture:
+    if args.browser_fixture or args.browser_install_fixture:
         chat = Recorder()
         running = threading.Event()
         signal.signal(signal.SIGTERM, lambda *_: running.set())
@@ -962,13 +975,14 @@ def main():
         if hasattr(signal, "SIGHUP"):
             signal.signal(signal.SIGHUP, lambda *_: restart.set())
         try:
-            with proxy(binary, chat.url, env={
+            with proxy(binary, chat.url, use_system_python=args.browser_install_fixture, env={
                 "KAPONIR_WORKER_LISTEN": f"127.0.0.1:{free_port()}",
                 "KAPONIR_WORKER_PYTHON": sys.executable,
             }) as p:
                 # Simulate an existing installation so the walkthrough explicitly enables OCR.
                 p.settings(enabled=False)
                 print(json.dumps({"url": p.url, "token": TOKEN, "upstream": chat.url,
+                                  "install_ocr": args.browser_install_fixture,
                                   "fixture_pid": os.getpid() if hasattr(signal, "SIGHUP") else None}), flush=True)
                 while not running.wait(0.1):
                     if restart.is_set():

@@ -44,7 +44,9 @@ pub fn run(
     home: &crate::Home,
     args: &[std::ffi::OsString],
 ) -> anyhow::Result<std::process::ExitCode> {
-    let python = std::env::var_os("KAPONIR_WORKER_PYTHON")
+    let configured_python = std::env::var_os("KAPONIR_WORKER_PYTHON");
+    let python = configured_python
+        .clone()
         .or_else(|| crate::ocr::managed_python(home).map(PathBuf::into_os_string))
         .unwrap_or_else(|| {
             if cfg!(windows) {
@@ -77,6 +79,11 @@ pub fn run(
         .args(args)
         .env("KAPONIR_HOME", &home.dir)
         .env("KAPONIR_EXECUTABLE", std::env::current_exe()?);
+    if configured_python.is_none() {
+        command.env("KAPONIR_MANAGED_OCR_RUNTIME", crate::ocr::runtime_dir(home));
+    } else {
+        command.env_remove("KAPONIR_MANAGED_OCR_RUNTIME");
+    }
     #[cfg(unix)]
     {
         // Python becomes PID 1 in the worker container and receives stop signals directly.

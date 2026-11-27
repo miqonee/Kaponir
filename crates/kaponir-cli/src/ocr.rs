@@ -8,7 +8,7 @@ const OCR_REQUIREMENTS: &str = include_str!("../../../scripts/requirements-ocr.t
 const WORKER_REQUIREMENTS: &str = include_str!("../../../scripts/requirements-worker.txt");
 const SCRIPT: &str = include_str!("../../../scripts/kaponir_rapidocr.py");
 
-fn runtime_dir(home: &Home) -> PathBuf {
+pub(crate) fn runtime_dir(home: &Home) -> PathBuf {
     let requirements = format!("{OCR_REQUIREMENTS}\n{WORKER_REQUIREMENTS}");
     let version = blake3::hash(requirements.as_bytes()).to_hex();
     home.dir
@@ -30,6 +30,16 @@ pub fn managed_python(home: &Home) -> Option<PathBuf> {
     (dir.join(".ready").is_file() && python.is_file()).then_some(python)
 }
 
+impl kaponir_proxy::OcrRuntime for Home {
+    fn managed_python(&self) -> Option<PathBuf> {
+        managed_python(self)
+    }
+
+    fn install(&self) -> Result<()> {
+        setup(self, default_python())
+    }
+}
+
 fn check(python: &Path) -> Result<()> {
     let status = Command::new(python)
         .args(["-I", "-c", SCRIPT, "--check"])
@@ -39,6 +49,10 @@ fn check(python: &Path) -> Result<()> {
         "RapidOCR could not load its bundled models"
     );
     Ok(())
+}
+
+pub fn default_python() -> &'static Path {
+    Path::new(if cfg!(windows) { "python" } else { "python3" })
 }
 
 pub fn setup(home: &Home, python: &Path) -> Result<()> {
@@ -104,9 +118,6 @@ pub fn setup(home: &Home, python: &Path) -> Result<()> {
     );
     check(&managed)?;
     fs::write(ready, b"")?;
-    println!(
-        "RapidOCR is ready in {}. Restart a running Kaponir proxy or worker to use it.",
-        managed.display()
-    );
+    println!("RapidOCR is ready in {}.", managed.display());
     Ok(())
 }
