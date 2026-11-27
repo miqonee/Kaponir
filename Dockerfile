@@ -15,8 +15,12 @@ COPY target/release/kaponir /out/kaponir
 
 FROM ${KAPONIR_BUILD} AS selected
 
-FROM debian:trixie-slim AS proxy
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus && rm -rf /var/lib/apt/lists/*
+FROM python:3.13-slim-trixie AS ocr-runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgomp1 libstdc++6 && rm -rf /var/lib/apt/lists/*
+COPY scripts/requirements-ocr.txt /tmp/requirements-ocr.txt
+RUN pip install --no-cache-dir -r /tmp/requirements-ocr.txt
+
+FROM ocr-runtime AS proxy
 COPY --from=selected /out/kaponir /usr/local/bin/kaponir
 COPY deploy/entrypoint.sh /usr/local/bin/kaponir-entrypoint
 ENV KAPONIR_HOME=/data
@@ -24,8 +28,8 @@ EXPOSE 8787
 ENTRYPOINT ["kaponir-entrypoint"]
 CMD ["serve", "--listen", "0.0.0.0:8787"]
 
-FROM python:3.13-slim-trixie AS worker
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgomp1 libstdc++6 fonts-dejavu-core tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus && rm -rf /var/lib/apt/lists/*
+FROM ocr-runtime AS worker
+RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
 COPY scripts/requirements-worker.txt /tmp/requirements-worker.txt
 RUN pip install --no-cache-dir -r /tmp/requirements-worker.txt
 COPY --from=selected /out/kaponir /usr/local/bin/kaponir

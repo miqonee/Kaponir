@@ -31,8 +31,10 @@ jobs:
       - name: OCR proxy regression
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus fonts-dejavu-core python3-pil
-          /usr/bin/python3 scripts/test_ocr_proxy.py --binary target/release/kaponir
+          sudo apt-get install -y --no-install-recommends fonts-dejavu-core python3-venv
+          python3 -m venv .venv-ocr
+          .venv-ocr/bin/python -m pip install -r scripts/requirements-ocr.txt
+          KAPONIR_OCR_PYTHON="$PWD/.venv-ocr/bin/python" .venv-ocr/bin/python scripts/test_ocr_proxy.py --binary target/release/kaponir
       - name: Browser console regression
         run: |
           python3 -m venv .venv-browser

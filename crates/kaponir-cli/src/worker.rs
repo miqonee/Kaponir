@@ -52,16 +52,20 @@ pub fn run(
         }
     });
     // A file-backed stdin also works under Windows' short command-line limit.
-    let code = concat!(
-        include_str!("../../../scripts/benchmark_resources.py"),
-        "\n",
-        include_str!("../../../scripts/kaponir_inference.py"),
-        "\n",
-        include_str!("../../../scripts/kaponir_worker.py")
+    let ocr_script = serde_json::to_string(include_str!("../../../scripts/kaponir_rapidocr.py"))?;
+    let code = format!(
+        "KAPONIR_RAPIDOCR_SOURCE = {ocr_script}\n{}",
+        concat!(
+            include_str!("../../../scripts/benchmark_resources.py"),
+            "\n",
+            include_str!("../../../scripts/kaponir_inference.py"),
+            "\n",
+            include_str!("../../../scripts/kaponir_worker.py")
+        )
     );
     let nonce = kaponir_vault::key_to_hex(&kaponir_vault::generate_key()?);
     let path = std::env::temp_dir().join(format!("kaponir-worker-{nonce}.py"));
-    crate::write_secret(&path, code)?;
+    crate::write_secret(&path, &code)?;
     let script = std::fs::File::open(&path)?;
     std::fs::remove_file(path)?;
     let mut command = std::process::Command::new(python);

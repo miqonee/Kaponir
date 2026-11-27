@@ -1,6 +1,7 @@
 //! Image protection in the request path. OCR data never enters the text vault or S1.
 mod layout;
 mod ocr;
+mod rapidocr;
 mod raster;
 mod web;
 pub(crate) mod wire;
@@ -144,8 +145,8 @@ impl Code {
             Self::InvalidImage => "The image is damaged. Export it again and retry.",
             Self::Animated => "Export one frame as a static PNG, JPEG or WebP.",
             Self::Limits => "Reduce the image size or attach fewer images.",
-            Self::Unavailable => "Tesseract or the configured OCR worker is unavailable.",
-            Self::Languages => "Install the selected Tesseract language data.",
+            Self::Unavailable => "RapidOCR or the configured OCR worker is unavailable.",
+            Self::Languages => "Install the selected OCR languages on the worker.",
             Self::Empty | Self::Unreadable => {
                 "Text could not be read confidently. Try a larger or sharper image."
             }
@@ -425,6 +426,7 @@ impl Drop for Ticket {
 pub(crate) struct Service {
     settings: RwLock<Settings>,
     queue: Arc<Queue>,
+    local: rapidocr::LocalOcr,
     settings_changes: tokio::sync::Mutex<()>,
 }
 impl Service {
@@ -439,6 +441,7 @@ impl Service {
         Ok(Self {
             settings: RwLock::new(settings),
             queue: Arc::new(Queue::default()),
+            local: Default::default(),
             settings_changes: Default::default(),
         })
     }

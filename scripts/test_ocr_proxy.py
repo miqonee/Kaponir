@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Exercise the real proxy against recording Chat and Vision HTTP servers.
 
-Requires Pillow, DejaVu Sans Mono and a Kaponir binary. The normal test also
-requires Tesseract rus+eng in PATH. All screenshots and credentials are synthetic.
+Requires Pillow, DejaVu Sans Mono, RapidOCR and a Kaponir binary.
+All screenshots and credentials are synthetic.
 """
 from __future__ import annotations
 
@@ -14,11 +14,11 @@ from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 import hashlib
+from importlib.metadata import version
 import json
 import math
 import os
 from pathlib import Path
-import shutil
 import signal
 import socket
 import sqlite3
@@ -254,7 +254,8 @@ class Proxy:
     def __init__(self, binary, home, upstream, env=None, legacy=False, worker=None):
         self.binary, self.home, self.port = binary, Path(home), free_port()
         self.env = {**os.environ, **(env or {}), "KAPONIR_HOME": str(home),
-                    "KAPONIR_API_TOKEN": TOKEN, "OMP_THREAD_LIMIT": "1"}
+                    "KAPONIR_API_TOKEN": TOKEN}
+        self.env.setdefault("KAPONIR_OCR_PYTHON", sys.executable)
         subprocess.run([binary, "init"], env=self.env, stdout=subprocess.DEVNULL,
                        stderr=subprocess.DEVNULL, check=True)
         cfg = self.home / "config.toml"
@@ -417,20 +418,32 @@ def controlled_tsv(sample, replacements=None, joined=False, omit_lines=()):
 
 def run_controlled(binary, chat, sample, wrap, yaml, repeated):
     with tempfile.TemporaryDirectory(prefix="kaponir-tsv-") as location:
-        bin_path, tsv_path = Path(location, "tesseract"), Path(location, "selected.tsv")
+        bin_path, tsv_path = Path(location, "ocr-fixture"), Path(location, "selected.tsv")
         delay = Path(location, "delay")
         running = Path(location, "pid")
-        bin_path.write_text(f"#!{sys.executable}\n"
-                            "import os, sys, time\nfrom pathlib import Path\n"
-                            "if '--list-langs' in sys.argv: print('Available languages:\\nrus\\neng')\n"
-                            "else:\n sys.stdin.buffer.read()\n"
-                            " delay=Path(os.environ['KAPONIR_TEST_TSV']).with_name('delay')\n"
-                            " if delay.exists():\n"
-                            "  delay.with_name('pid').write_text(str(os.getpid()))\n"
-                            "  time.sleep(float(delay.read_text()))\n"
-                            " with open(os.environ['KAPONIR_TEST_TSV'],'rb') as f: sys.stdout.buffer.write(f.read())\n")
+        bin_path.write_text(f"#!{sys.executable}\n" + """\
+import os
+from pathlib import Path
+import struct
+import sys
+import time
+
+source = Path(os.environ["KAPONIR_TEST_TSV"])
+delay = source.with_name("delay")
+while header := sys.stdin.buffer.read(4):
+    size, = struct.unpack(">I", header)
+    data = b""
+    if size:
+        sys.stdin.buffer.read(size)
+        if delay.exists():
+            delay.with_name("pid").write_text(str(os.getpid()))
+            time.sleep(float(delay.read_text()))
+        data = source.read_bytes()
+    sys.stdout.buffer.write(struct.pack(">BI", 0, len(data)) + data)
+    sys.stdout.buffer.flush()
+""")
         bin_path.chmod(0o700)
-        env = {"PATH": location + os.pathsep + os.environ["PATH"], "KAPONIR_TEST_TSV": str(tsv_path)}
+        env = {"KAPONIR_OCR_PYTHON": str(bin_path), "KAPONIR_TEST_TSV": str(tsv_path)}
         with proxy(binary, chat.url, env=env) as p:
             call = [user_message(openai_image(sample))]
             tsv_path.write_text(controlled_tsv(sample, {
@@ -489,7 +502,7 @@ def run_controlled(binary, chat, sample, wrap, yaml, repeated):
                     if not child.exists():
                         break
                     time.sleep(0.02)
-                assert not child.exists(), "disconnect did not stop the Tesseract child"
+                assert not child.exists(), "disconnect did not stop the OCR child"
                 assert len(chat.records) == before + 1  # The independent text request.
                 accepted(p, chat, call, [sample])
     return (6, 2) if sys.platform == "linux" else (5, 1)
@@ -519,7 +532,8 @@ def exercise_worker(binary, chat, sample):
             else:
                 raise RuntimeError("standalone OCR worker did not start")
             with proxy(binary, chat.url, worker=worker_url, env={"KAPONIR_WORKER_TOKEN": key}) as p:
-                p.settings(node="worker", approved_recipient=worker_url + "/ocr/tsv")
+                settings = p.settings(node="worker", approved_recipient=worker_url + "/ocr/tsv")
+                assert settings["engine"] == "rapidocr" and settings["engine_state"] == "ready"
                 accepted(p, chat, [user_message(openai_image(sample))], [sample])
                 worker.terminate()
                 worker.wait(timeout=10)
@@ -628,8 +642,14 @@ def run_tests(binary):
         blocked(p, chat, messages, codes, status, **kwargs)
         out["blocked"] += 1
     try:
+        with proxy(binary, chat.url, env={"KAPONIR_OCR_PYTHON": str(ROOT / "missing-ocr-python")}) as p:
+            status = p.settings()
+            assert status["engine"] == "rapidocr" and status["engine_state"] == "unavailable"
+            refused(p, [user_message(openai_image(sample))], {"unavailable"}, 503)
+            assert request(p, [{"role": "user", "content": QUESTION}]).status == 200
         with proxy(binary, chat.url) as p:
             assert p.settings()["settings"]["enabled"]
+            assert p.settings()["engine"] == "rapidocr"
             assert {"rus", "eng"}.issubset(p.settings()["installed_languages"])
             first = accepted(p, chat, [user_message(openai_image(sample))], [sample])
             assert len(first["inspector"]["images"]["attachments"][0]["areas"]) == 2
@@ -679,9 +699,7 @@ def run_tests(binary):
             refused(p, [user_message({"type": "image_url", "image_url": {"url": "https://example.invalid/pic.png"}})],
                     {"inline_required"}, 422)
             refused(p, [user_message({"type": "file", "file": {"file_id": "fixture-only"}})], {"inline_required"}, 422)
-            p.settings(languages="rus+eng+unknown")
-            refused(p, [user_message(openai_image(sample))], {"languages"}, 503)
-            assert request(p, [{"role": "user", "content": QUESTION}]).status == 200
+            assert p.settings(languages="rus+eng+unknown")["engine_state"] == "ready"
             p.settings(languages="rus+eng", save_originals=True)
             saved = accepted(p, chat, [user_message(openai_image(sample))], [sample], session="retention")
             report(sample)
@@ -823,9 +841,9 @@ def run_benchmark(binary, runs):
         "screenshot_1920x1080": helm(size=(1920, 1080)),
         "simulated_phone_jpeg_1440x1080": helm(size=(1440, 1080), photo=True),
     }
-    results = {"runs": runs, "concurrent_image_requests": 2, "tesseract_threads": 1,
-               "languages": "rus+eng", "gpu": "not used", "live_vision": "not measured",
-               "tesseract": subprocess.check_output(["tesseract", "--version"], text=True).splitlines()[0]}
+    results = {"runs": runs, "concurrent_image_requests": 2,
+               "languages": "multilingual", "gpu": "not used", "live_vision": "not measured",
+               "rapidocr": version("rapidocr"), "onnxruntime": version("onnxruntime")}
     try:
         with proxy(binary, chat.url) as p:
             route = "/v1/chat/completions"
@@ -924,8 +942,6 @@ def main():
         finally:
             chat.close()
     else:
-        if not shutil.which("tesseract"):
-            parser.error("Tesseract is missing")
         if args.benchmark:
             if args.benchmark < 4:
                 parser.error("use at least 4 benchmark runs")

@@ -10,8 +10,8 @@ const ocrErrors = {
   invalid_image: "Файл повреждён. Экспортируйте изображение заново.",
   animated: "Сохраните один кадр в PNG, JPEG или WebP.",
   limits: "Уменьшите размер изображения или число вложений.",
-  unavailable: "Tesseract или настроенный worker недоступен. Проверьте установку и адрес узла.",
-  languages: "Установите выбранные языки Tesseract, например пакет tesseract-ocr-rus.",
+  unavailable: "RapidOCR или настроенный worker недоступен. Проверьте установку и адрес узла.",
+  languages: "Установите выбранные языки OCR на worker.",
   empty: "Текст не удалось уверенно прочитать. Попробуйте снимок крупнее.",
   unreadable: "Текст не удалось уверенно прочитать. Попробуйте снимок крупнее.",
   boundaries: "Не удалось определить границы чувствительного значения. Отправка остановлена.",
@@ -64,23 +64,25 @@ function ocrEngineStatus(data, draft) {
     .every(key => draft[key] === saved[key]);
   const state = matches ? data.engine_state : "needs_setup";
   const label = tr({ready:"ocr.ready", needs_setup:"Нужна настройка", unavailable:"Недоступно"}[state]);
-  const engine = draft.mode === "local" ? "Tesseract" : draft.model;
-  const languages = draft.mode === "local" && matches && data.installed_languages.length
+  const rapid = draft.mode === "local" && (draft.node === "proxy" ||
+    saved.node === draft.node && data.engine === "rapidocr");
+  const engine = rapid ? "RapidOCR · PP-OCRv6 Small" : draft.mode === "local" ? tr("Настроенный worker") : draft.model;
+  const languages = rapid ? tr("Многоязычное распознавание") : draft.mode === "local" && matches && data.installed_languages.length
     ? draft.languages.split("+").map(lang => ({rus:tr("русский"),eng:tr("английский")})[lang] || lang).join(", ") : "";
   box.textContent = [label, engine, languages].filter(Boolean).join(" · ");
   box.dataset.state = state;
   const reason = matches ? ocrError(data.failure ? {code:data.failure} : null) : tr("Сохраните параметры, чтобы применить их к прокси.");
-  const installed = draft.mode === "local" && matches && data.installed_languages.length
+  const installed = !rapid && draft.mode === "local" && matches && data.installed_languages.length
     ? tr("Установлены · {{0}}", [data.installed_languages.join(", ")]) : "";
   const missing = matches && data.failure === "languages" ?
     tr("Не хватает языков · {{0}}",[draft.languages.split("+").filter(lang => !data.installed_languages.includes(lang)).join(", ")]) : "";
   $("#ocr-recipient").textContent = [ocrRecipientText(recipient), installed, missing, reason].filter(Boolean).join(" ");
   const install = $("#ocr-install");
   install.hidden = !matches || draft.mode !== "local" || draft.node !== "proxy" ||
-    !["unavailable","languages"].includes(data.failure);
-  if (!install.hidden) install.replaceChildren(tr("Установка в Debian или Ubuntu"), " ",
-    h("code", {}, "sudo apt-get install tesseract-ocr tesseract-ocr-rus tesseract-ocr-eng"),
-    " · macOS ", h("code", {}, "brew install tesseract tesseract-lang"));
+    data.failure !== "unavailable";
+  if (!install.hidden) install.replaceChildren(tr("Установите зависимости в окружение Python для OCR."), " ",
+    h("code", {}, "python -m pip install rapidocr==3.10.0 onnxruntime==1.32.0"),
+    " ", tr("Укажите путь к этому Python в KAPONIR_OCR_PYTHON и перезапустите прокси."));
 }
 
 function updateOcrForm() {
@@ -90,8 +92,10 @@ function updateOcrForm() {
   const recipient = draftRecipient();
   $("#ocr-vision").hidden = !vision;
   $("#ocr-node-field").hidden = vision || !imageConfig.worker;
-  $("#ocr-languages-field").hidden = vision;
-  $("#ocr-languages").disabled = vision;
+  const workerLanguages = !vision && controls.node.value === "worker" &&
+    !(saved.node === "worker" && imageConfig.engine === "rapidocr");
+  $("#ocr-languages-field").hidden = !workerLanguages;
+  $("#ocr-languages").disabled = !workerLanguages;
   $("#ocr-disabled-note").hidden = controls.enabled.checked;
   $("#ocr-consent-row").hidden = !recipient;
   $("#ocr-consent-label").textContent = tr("Разрешить передачу исходных пикселей на {{0}}", [recipient]);
@@ -311,9 +315,12 @@ async function loadImageLab() {
   imageLab.status = data;
   $("#ocr-upload-limits").textContent = tr("PNG, JPEG, WebP · до {{0}} МиБ и {{1}} Мп · до {{2}} пикселей по стороне",
     [data.settings.max_mib, data.settings.max_megapixels, data.max_edge]);
-  $("#ocr-lab-recipient").textContent = data.settings.enabled
+  const engine = !data.settings.enabled || data.engine === "rapidocr"
+    ? "RapidOCR" : data.engine === "vision" ? data.settings.model : tr("Настроенный worker");
+  const recipient = data.settings.enabled
     ? tr("Используются сохранённые настройки.") + " " + ocrRecipientText(data.recipient)
     : tr("Локальная проба на компьютере прокси. Защита в прокси выключена.");
+  $("#ocr-lab-recipient").textContent = [engine, recipient].filter(Boolean).join(" · ");
   $("#ocr-run").disabled = !imageLab.file || !!imageLab.running;
   if (imageLab.result) renderImagePreview(imageLab.result);
 }
@@ -388,7 +395,8 @@ function renderImagePreview(result) {
   replaceImageView($("#ocr-lab-output"),h("section",{class:"panel ocr-preview"},
     h("header",{class:"ocr-lab-head"},h("h2",{},status),
       h("a",{class:"secondary",href:result.data,download:"kaponir-protected.png"},tr("Скачать обработанное изображение"))),
-    h("p",{class:"hint"},tr("Время обработки · {{0}} мс",[number(result.elapsed_ms)])),comparison));
+    h("p",{class:"hint"},tr("Время обработки · {{0}} мс",[number(result.elapsed_ms)]), " · ",
+      tr("Распознавание · {{0}} мс",[number(result.timings.ocr_ms)])),comparison));
 }
 
 $("#ocr-run").addEventListener("click",async()=>{

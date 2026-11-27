@@ -70,6 +70,7 @@ try {
   const run = page.getByRole("button",{name:"Запустить проверку"});
   await run.press("Enter");
   await page.getByRole("heading",{name:"Закрыто 2 области"}).waitFor();
+  await page.getByText(/Распознавание · .* мс/).waitFor();
   await page.getByText(sizeLabel,{exact:true}).waitFor();
   assert.equal((await upstream()).calls,callsBeforeLab);
   const area = page.locator(".ocr-region").first();
@@ -165,7 +166,7 @@ try {
   await page.getByRole("radio",{name:"Dark theme"}).check({force:true});
   await page.goto(config.url + "/ui/#ocr");
   await page.getByRole("heading",{name:"Image protection"}).waitFor();
-  await page.getByText(/Ready · Tesseract/).waitFor();
+  await page.getByText(/Ready · RapidOCR · PP-OCRv6 Small/).waitFor();
   assert.equal(await page.locator("html").getAttribute("data-theme"),"dark");
   await capture("05-settings-dark-en.png");
   await page.getByRole("link",{name:"Test an image"}).click();

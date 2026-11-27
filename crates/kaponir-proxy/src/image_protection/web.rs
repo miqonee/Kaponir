@@ -72,15 +72,13 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
             .and_then(|p| p["recipient"].as_str())
             .map(str::to_owned),
     };
+    let mut engine = ocr::Backend::engine(settings);
     let (languages, failure) = match ocr::Backend::resolve(st, settings) {
-        Ok(backend) => match backend.languages(st).await {
-            Ok(languages) => {
-                let missing = settings.mode == Mode::Local
-                    && settings
-                        .languages
-                        .split('+')
-                        .any(|wanted| !languages.iter().any(|found| found == wanted));
-                (languages, missing.then_some(Code::Languages))
+        Ok(backend) => match backend.capabilities(st).await {
+            Ok(capabilities) => {
+                engine = capabilities.engine;
+                let missing = capabilities.missing_languages(settings);
+                (capabilities.languages, missing.then_some(Code::Languages))
             }
             Err(failure) => (Vec::new(), Some(failure.code)),
         },
@@ -88,7 +86,7 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
     };
     Ok(json!({
         "settings":settings, "recipient":recipient, "connections":connections,
-        "worker":ocr::worker_recipient(st), "installed_languages":languages,
+        "worker":ocr::worker_recipient(st), "installed_languages":languages, "engine":engine,
         "engine_state": match failure {
             None => "ready",
             Some(Code::Consent | Code::Languages) => "needs_setup",

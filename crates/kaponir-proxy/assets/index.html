@@ -161,7 +161,7 @@
     <summary data-i18n="Дополнительные параметры">Дополнительные параметры</summary>
     <div class="ocr-option-fields">
       <label class="field" id="ocr-node-field" for="ocr-node" hidden><span data-i18n="Узел обработки">Узел обработки</span><select name="node" id="ocr-node"><option value="proxy" data-i18n="На компьютере прокси">На компьютере прокси</option><option value="worker" data-i18n="Настроенный worker">Настроенный worker</option></select></label>
-      <label class="field" id="ocr-languages-field" for="ocr-languages"><span data-i18n="Языки Tesseract">Языки Tesseract</span><input name="languages" id="ocr-languages" required pattern="[A-Za-z0-9_]+([+][A-Za-z0-9_]+)*" maxlength="80" spellcheck="false"/></label>
+      <label class="field" id="ocr-languages-field" for="ocr-languages" hidden><span data-i18n="Языки внешнего OCR">Языки внешнего OCR</span><input name="languages" id="ocr-languages" required pattern="[A-Za-z0-9_]+([+][A-Za-z0-9_]+)*" maxlength="80" spellcheck="false"/></label>
       <label class="field"><span data-i18n="Лимит запроса, МиБ">Лимит запроса, МиБ</span><input name="max_mib" type="number" required min="1" max="24"/></label>
       <label class="field"><span data-i18n="Лимит запроса, Мп">Лимит запроса, Мп</span><input name="max_megapixels" type="number" required min="1" max="32"/></label>
       <label class="field"><span data-i18n="Тайм-аут, мс">Тайм-аут, мс</span><input name="timeout_ms" type="number" required min="250" max="60000"/></label>

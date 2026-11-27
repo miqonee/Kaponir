@@ -1,2 +1,3 @@
+-r requirements-ocr.txt
 Pillow>=11,<14
 pypdfium2>=4,<6

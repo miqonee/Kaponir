@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import http.server
 import importlib.util
+import io
 import json
 import os
 import re
@@ -22,6 +23,7 @@ import signal
 import socket
 import ssl
 import sqlite3
+import struct
 import subprocess
 import sys
 import tarfile
@@ -48,50 +50,105 @@ except NameError:
 
 
 
-def tesseract_languages():
-    binary = shutil.which('tesseract')
-    if not binary:
-        raise OSError('tesseract_unavailable')
-    result = subprocess.run([binary, '--list-langs'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
-                            timeout=3, check=False)
-    if result.returncode:
-        raise OSError('tesseract_unavailable')
-    return result.stdout.decode('utf-8').splitlines()[1:]
+def rapidocr_installed():
+    return all(importlib.util.find_spec(module) is not None
+               for module in ('rapidocr', 'onnxruntime', 'cv2'))
 
 
-def tesseract_command(binary, source, languages, structured=False):
-    args = [binary, source, 'stdout', '-l', languages]
-    if structured:
-        args.extend(['--psm', '11', '-c', 'tessedit_create_tsv=1'])
-    return args
+class OcrPipeError(OSError):
+    def __init__(self, status):
+        self.status = status
+        super().__init__('ocr_failed')
 
 
-def request_tsv(png, languages, timeout, connection):
-    """Foreground OCR uses pipes and has its own slots, separate from file scanning."""
-    command = tesseract_command(shutil.which('tesseract'), 'stdin', languages, structured=True)
-    deadline = time.monotonic() + timeout
-    with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                          stderr=subprocess.DEVNULL, env={**os.environ, 'OMP_THREAD_LIMIT': '1'}) as child:
-        initial = png
+class OcrChildren:
+    """Pool of warmed RapidOCR processes. A cancelled exchange kills its child."""
+
+    def __init__(self):
+        self.idle = []
+        self.lock = threading.Lock()
+
+    @staticmethod
+    def start():
+        source = globals().get('KAPONIR_RAPIDOCR_SOURCE')
+        if source is None:
+            source = Path(__file__).with_name('kaponir_rapidocr.py').read_text(encoding='utf-8')
+        get_cpus = getattr(os, 'process_cpu_count', os.cpu_count)
+        threads = os.getenv('KAPONIR_OCR_THREADS', str(min(4, get_cpus() or 1)))
+        return subprocess.Popen([sys.executable, '-u', '-c', source, threads],
+                                stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+
+    @staticmethod
+    def exchange(child, png):
+        child.stdin.write(struct.pack('>I', len(png)))
+        child.stdin.write(png)
+        child.stdin.flush()
+        reply = child.stdout.read(5)
+        if len(reply) != 5:
+            raise OcrPipeError(1)
+        status, size = struct.unpack('>BI', reply)
+        if size > 2 * 1024 * 1024:
+            raise OcrPipeError(3)
+        if status:
+            raise OcrPipeError(status)
+        data = child.stdout.read(size)
+        if len(data) != size:
+            raise OcrPipeError(1)
+        return data
+
+    def call(self, png, timeout, check=None, on_start=None):
+        with self.lock:
+            child = self.idle.pop() if self.idle else None
+        if child is None or child.poll() is not None:
+            child = self.start()
+        deadline = time.monotonic() + timeout
+        complete = False
         try:
-            while True:
-                remaining = deadline - time.monotonic()
-                if remaining <= 0:
-                    raise TimeoutError('ocr_timeout')
+            if on_start is not None:
+                on_start(child)
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                reply = executor.submit(self.exchange, child, png)
                 try:
-                    stdout, _ = child.communicate(initial, timeout=min(remaining, 0.25))
-                    break
-                except subprocess.TimeoutExpired:
-                    initial = None
-                    if select.select([connection], [], [], 0)[0] and not connection.recv(1, socket.MSG_PEEK):
-                        raise ConnectionError('ocr_cancelled')
+                    while True:
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise TimeoutError('ocr_timeout')
+                        try:
+                            data = reply.result(timeout=min(remaining, 0.25))
+                            break
+                        except TimeoutError:
+                            if check is not None:
+                                check()
+                except BaseException:
+                    if child.poll() is None:
+                        child.kill()
+                    raise
+            complete = True
+            return data
         finally:
-            if child.poll() is None:
-                child.kill()
-                child.communicate()
-        if child.returncode or len(stdout) > 2 * 1024 * 1024:
-            raise OSError('ocr_failed')
-        return stdout
+            if complete:
+                with self.lock:
+                    self.idle.append(child)
+            else:
+                if child.poll() is None:
+                    child.kill()
+                child.wait()
+                child.stdin.close()
+                child.stdout.close()
+
+
+def ocr_text(tsv):
+    lines = []
+    current = None
+    for row in tsv.decode('utf-8').splitlines()[1:]:
+        columns = row.split('\t', 11)
+        group = columns[2:5]
+        if group != current:
+            current = group
+            lines.append([])
+        lines[-1].append(columns[11])
+    return '\n'.join(' '.join(words) for words in lines)
+
 
 def inference_settings(value):
     defaults={'context_tokens':4096,'max_output_tokens':1600,'reserve_tokens':64,'batch_size':2,'response_format':'auto'}
@@ -542,6 +599,7 @@ class Worker:
         self.stop = threading.Event()
         self.process = None
         self.ocr_process = None
+        self.document_ocr = OcrChildren()
         self.process_variant = None
         self.inference_lock = threading.RLock()
         self.runtime_lock = threading.RLock()
@@ -909,7 +967,7 @@ class Worker:
         models['qwen3-0.6b-q8'] = dict(models['q5'])
         runtime = self.runtime_info()
         return {'configured':True,'online':True,'enabled':self.enabled,'state':('stopping' if (self.active or self.evaluations) and not self.enabled else 'ready' if self.enabled else 'disabled'),'can_manage':True,'token_planning':True,'model_verification':True,'model_dir':str(self.models),'runtime':runtime,'resources':self.resources(),'runtime_state':('processing' if self.active or self.evaluations else 'loaded' if self.process and self.process.poll() is None else 'idle'),'last_inference_at':self.last_inference_at,'runtime_json_schema_supported':self.process_supports_json_schema,'input_root':str(self.root),'models':models,'runtime_ready':runtime['ready'],'catalog':catalog,'hf_import':True,
-                'ocr_ready':shutil.which('tesseract') is not None,'image_support':importlib.util.find_spec('PIL') is not None and shutil.which('tesseract') is not None,'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
+                'ocr_ready':rapidocr_installed(),'image_support':importlib.util.find_spec('PIL') is not None and rapidocr_installed(),'pdf_support':importlib.util.find_spec('pypdfium2') is not None,
                 'threads':self.cfg['threads'],'hardware':self.hardware,'calibration':dict(self.calibration),'active_model':self.process_variant,'slots':self.process_slots,'max_pages':self.cfg['max_pages'],'active':self.active,'evaluations':len(self.evaluations),'jobs':[j for j in self.jobs() if j['kind'] != 'evaluate']}
 
     def scan(self, ident, source):
@@ -1118,30 +1176,27 @@ class Worker:
         self.process_reasoning=None;self.process_reasoning_format=None;self.process_reasoning_budget=None
 
     def ocr(self, ident, image, variant):
-        """Extract text from image or scanned PDF page using local Tesseract OCR on CPU."""
-        image=image.convert('RGB');image.thumbnail((self.cfg['max_edge'],self.cfg['max_edge']))
-        tesseract_bin = shutil.which('tesseract')
-        if tesseract_bin:
-            with tempfile.TemporaryDirectory(prefix='ocr-', dir=self.data) as tmp:
-                img_path = Path(tmp) / 'page.png'
-                image.save(img_path, format='PNG')
-                lang = os.getenv('KAPONIR_OCR_LANG', 'rus+eng')
-                with self.lock:
-                    self.check(ident)
-                    process = subprocess.Popen(tesseract_command(tesseract_bin, str(img_path), lang), stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    self.ocr_process = process
-                try:
-                    stdout, _ = process.communicate(timeout=self.cfg['ocr_timeout_seconds'])
-                except subprocess.TimeoutExpired:
-                    process.kill(); process.communicate(); raise
-                finally:
-                    self.ocr_process = None
+        """Extract text from an image or a scanned PDF page using local RapidOCR."""
+        image = image.convert('RGB')
+        image.thumbnail((self.cfg['max_edge'], self.cfg['max_edge']))
+        png = io.BytesIO()
+        image.save(png, format='PNG')
+
+        def on_start(child):
+            with self.lock:
                 self.check(ident)
-                if process.returncode == 0:
-                    text = stdout.decode('utf-8', errors='replace')
-                    if text.strip():
-                        return text
-        raise ValueError('Image/PDF scan OCR requires tesseract installed in PATH')
+                self.ocr_process = child
+
+        try:
+            tsv = self.document_ocr.call(png.getvalue(), self.cfg['ocr_timeout_seconds'],
+                                         check=lambda: self.check(ident), on_start=on_start)
+            self.check(ident)
+            text = ocr_text(tsv)
+            if not text.strip():
+                raise ValueError('Image/PDF scan OCR returned no text')
+            return text
+        finally:
+            self.ocr_process = None
 
     def resources(self):
         worker = read_process(os.getpid())
@@ -1704,18 +1759,26 @@ class Worker:
 
 def handler(worker, token):
     ocr_slots = threading.BoundedSemaphore(4)
+    ocr_children = OcrChildren()
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def log_message(self,*args): pass
-        def respond(self,status,value):
+        def respond(self,status,value,headers=None):
             raw=json.dumps(value,ensure_ascii=False).encode();self.send_response(status)
+            for name, header in (headers or {}).items(): self.send_header(name, header)
             self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
         def dispatch_ocr(self, path):
             if path == '/ocr/status' and self.command == 'GET':
+                if not ocr_slots.acquire(blocking=False):
+                    self.respond(429, {'error': 'ocr_queue_full'})
+                    return
                 try:
-                    self.respond(200, tesseract_languages())
-                except (OSError, subprocess.TimeoutExpired):
-                    self.respond(503, {'error': 'tesseract_unavailable'})
+                    ocr_children.call(b'', 3)
+                    self.respond(200, ['rus', 'eng'], {'X-Kaponir-OCR-Engine': 'rapidocr'})
+                except OSError:
+                    self.respond(503, {'error': 'rapidocr_unavailable'})
+                finally:
+                    ocr_slots.release()
                 return
             if path != '/ocr/tsv' or self.command != 'POST':
                 self.respond(404, {'error': 'unknown_ocr_route'})
@@ -1736,9 +1799,6 @@ def handler(worker, token):
                 self.respond(429, {'error': 'ocr_queue_full'})
                 return
             try:
-                if not set(languages.split('+')).issubset(tesseract_languages()):
-                    self.respond(422, {'error': 'ocr_languages'})
-                    return
                 self.connection.settimeout(timeout_ms / 1000)
                 png = self.rfile.read(size)
                 if (len(png) != size or len(png) < 33 or not png.startswith(bytes.fromhex('89504e470d0a1a0a'))
@@ -1750,7 +1810,10 @@ def handler(worker, token):
                 if not 0 < width <= 8192 or not 0 < height <= 8192 or width * height > 32_000_000:
                     self.respond(413, {'error': 'ocr_limits'})
                     return
-                tsv = request_tsv(png, languages, timeout_ms / 1000, self.connection)
+                def check_connection():
+                    if select.select([self.connection], [], [], 0)[0] and not self.connection.recv(1, socket.MSG_PEEK):
+                        raise ConnectionError('ocr_cancelled')
+                tsv = ocr_children.call(png, timeout_ms / 1000, check=check_connection)
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/tab-separated-values; charset=utf-8')
                 self.send_header('Cache-Control', 'private, no-store')
@@ -1761,8 +1824,12 @@ def handler(worker, token):
                 return
             except (TimeoutError, subprocess.TimeoutExpired):
                 self.respond(504, {'error': 'ocr_timeout'})
+            except OcrPipeError as error:
+                status, code = {2: (422, 'ocr_unreadable'), 3: (413, 'ocr_limits')}.get(
+                    error.status, (503, 'rapidocr_unavailable'))
+                self.respond(status, {'error': code}, {'X-Kaponir-OCR-Engine': 'rapidocr'})
             except OSError:
-                self.respond(503, {'error': 'tesseract_unavailable'})
+                self.respond(503, {'error': 'rapidocr_unavailable'})
             finally:
                 ocr_slots.release()
 
