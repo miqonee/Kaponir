@@ -470,9 +470,15 @@ def main():
                     expect(money_card.locator('.origin-fields')).to_contain_text('Тип остаётся на ручной проверке')
                     target=next(i for i in rows() if i['value']=='zorgreviewalpha');card=card_for(target)
                     rules_before_review=json.dumps(api('/api/v1/rules'))
-                    card.get_by_role('button',name='Получить предложение ИИ',exact=True).click()
-                    wait_for(lambda:any(i.get('recommendation',{}).get('state')=='succeeded' for i in rows() if i['key']==target['key']))
-                    return_to_findings();card=card_for(target);card.locator('.decision-summary').wait_for()
+                    release.clear()
+                    try:
+                        card.get_by_role('button',name='Получить предложение ИИ',exact=True).click()
+                        expect(page).to_have_url(re.compile(r'#review$'))
+                        expect(card.locator('.decision-summary h3')).to_have_text('Идёт проверка ИИ')
+                        expect(card.get_by_role('button',name='Получить предложение ИИ',exact=True)).to_have_count(0)
+                    finally:
+                        release.set()
+                    expect(card.locator('[data-accept-proposal]')).to_be_visible()
                     assert json.dumps(api('/api/v1/rules'))==rules_before_review
                     assert seen_formats and not any(seen_formats)
                     assert rows()[0].get('origin')
@@ -495,7 +501,7 @@ def main():
                         assert error.code == 400
                     else:
                         raise AssertionError('accepted a superseded proposal')
-                    return_to_findings()
+                    expect(card.locator('[data-accept-proposal]')).to_be_visible()
                     page.locator('#review-advice-filter').check()
                     card_for(target).locator('[data-accept-proposal]').click()
                     wait_for(lambda:not any(i['key']==target['key'] for i in rows()))
@@ -539,17 +545,18 @@ def main():
                     fail.set();page.locator('#review-refresh').click();card=card_for(target)
                     card.get_by_role('tab',name='Происхождение').click()
                     card.get_by_role('button',name='Запросить повторную проверку',exact=True).click()
-                    wait_for(lambda:any(i['key']==target['key'] and i.get('recommendation',{}).get('state')=='failed' for i in rows()))
-                    return_to_findings();assert 'RAW_BODY_MUST_NOT_LEAK' not in page.locator('#review-list').inner_text();fail.clear()
+                    expect(card.locator('.decision-summary h3')).to_have_text('Проверка не завершена')
+                    expect(card.get_by_role('tab',name='Происхождение')).to_have_attribute('aria-selected','true')
+                    expect(card).not_to_contain_text('RAW_BODY_MUST_NOT_LEAK')
+                    assert 'RAW_BODY_MUST_NOT_LEAK' not in page.locator('#review-list').inner_text()
+                    fail.clear()
                     # A successful call can abstain: show why and prohibit automatic application.
                     seed('zorgreviewuncertain');page.locator('#review-refresh').click()
                     uncertain=next(i for i in rows() if i['value']=='zorgreviewuncertain')
                     uncertain_card=card_for(uncertain)
                     before=json.dumps(api('/api/v1/rules'))
                     uncertain_card.get_by_role('button',name='Получить предложение ИИ',exact=True).click()
-                    wait_for(lambda:any(i['key']==uncertain['key'] and i.get('recommendation',{}).get('state')=='needs_review' for i in rows()))
-                    return_to_findings();uncertain_card=card_for(uncertain);uncertain_card.locator('.decision-summary').wait_for()
-                    assert 'ИИ просит решить вручную' in uncertain_card.inner_text()
+                    expect(uncertain_card.locator('.decision-summary h3')).to_have_text('ИИ просит решить вручную')
                     assert uncertain_card.locator('[data-accept-proposal]').count()==0
                     expect(uncertain_card.get_by_role('button', name='Исправить', exact=True)).to_be_enabled()
                     assert json.dumps(api('/api/v1/rules'))==before

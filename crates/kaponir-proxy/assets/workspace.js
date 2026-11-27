@@ -495,8 +495,11 @@ async function refreshJobs() {
         $("#review-list").getAttribute("aria-busy") !== "true" && !document.querySelector("#tab-review dialog[open]")) {
       const activity = data.review_activity || (data.preview || []).filter(job => job.family === "review").map(job => [job.id,job.state,job.completed]);
       const signature = JSON.stringify(activity), previous = desk.reviewProgress;
-      desk.reviewProgress = signature;
-      if (previous !== signature && (previous != null || activity.length)) void loadReview({background:true});
+      if (previous !== signature && (previous !== undefined || activity.length)) {
+        void loadReview({background:true}).then(updated => {
+          if (updated && seq === desk.sequence) desk.reviewProgress = signature;
+        });
+      } else desk.reviewProgress = signature;
     }
     const first = (data.preview || data.jobs)[0];
     const home = $("#home-job");
