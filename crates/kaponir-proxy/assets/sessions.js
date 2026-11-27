@@ -324,6 +324,7 @@ function openSession(event) {
   const dialog = $("#session-dialog");
   const target = event.session_id ? {session: event.session_id} : {request: event.id};
   const heading = h("h2", {id:"session-title"}, tr("Переписка"));
+  const parentLabel = h("p", {hidden:true});
   const identity = event.session_id ? h("button", {type:"button",class:"text-button session-copy-id",
     title:tr("Скопировать ID сессии"),"aria-label":tr("Скопировать ID сессии"),
     onclick:async()=>{
@@ -558,7 +559,10 @@ function openSession(event) {
     const rows=[...(traffic.events || []),...(traffic.active || [])]
       .filter(r=>target.session ? r.session_id===target.session : r.id===target.request)
       .sort((a,b)=>(a.started_at_ms || a.time_ms)-(b.started_at_ms || b.time_ms) || a.id-b.id);
-    heading.textContent=sessionTitle(event.session_id) || tr("Переписка");
+    const relation=sessionRelation(event.session_id);
+    heading.textContent=relation ? sessionName(event) : sessionTitle(event.session_id) || tr("Переписка");
+    parentLabel.hidden=!relation;
+    parentLabel.textContent=sessionParentLabel(relation);
     const key=JSON.stringify(rows.map(r=>[r.id,r.request_kind,r.turn,r.outcome,r.status,r.review_reasons,r.usage?.replacements,r.usage?.cached_replacements,r.usage?.completion_tokens,r.image_progress]));
     if (signature===key) {
       const selected=turns.find(group=>group.key===currentKey);
@@ -609,7 +613,7 @@ function openSession(event) {
   const close = h("button", {class: "icon-button", "aria-label": tr("Закрыть"), onclick: () => dialog.close()}, "×");
   dialog.onclose = () => { generation++; refreshOpenSession = null; dialog.replaceChildren(); };
   dialog.replaceChildren(h("div", {class: "inspector-shell"},
-    h("div", {class: "inspector-header"}, h("div", {}, heading, h("p", {}, identity," · ",totals)), close),
+    h("div", {class: "inspector-header"}, h("div", {}, heading, parentLabel, h("p", {}, identity," · ",totals)), close),
     h("div", {class: "conversation-layout"}, requestList, h("div", {class: "inspector-body"}, h("div", {class: "session-navigation"},
       h("label", {class: "field"}, tr("Сообщения пользователя"), pick), position, previous, next), status, content, steps, serviceLog,
       h("div", {class: "form-actions"}, scan, modelRun, inspect),destination))));

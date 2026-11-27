@@ -548,8 +548,11 @@ pub(crate) fn traffic_summary(st: &Shared) -> Value {
     let titles = st
         .with_vault(|_, v| Ok(v.session_titles(&sessions)?))
         .unwrap_or_default();
+    let relations =
+        crate::opencode::session_relations(traffic.events.iter().chain(&traffic.active));
     let mut snapshot = json!(traffic);
     snapshot["session_titles"] = json!(titles);
+    snapshot["session_relations"] = json!(relations);
     let states = st
         .with_vault(|_, v| Ok(v.journal_states()?))
         .unwrap_or_default();

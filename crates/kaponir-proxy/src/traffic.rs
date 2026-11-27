@@ -357,6 +357,8 @@ pub struct Event {
     #[serde(default)]
     pub session_source: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) opencode: Option<crate::opencode::SessionEvidence>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) turn: Option<crate::conversation::Turn>,
     #[serde(default)]
     pub streaming: bool,
@@ -540,7 +542,7 @@ impl Traffic {
             .archive = archive;
     }
 
-    fn record(&self, event: Event, messages: Option<serde_json::Value>) {
+    fn record(&self, mut event: Event, messages: Option<serde_json::Value>) {
         // Serialize persistence with recording so concurrent completions cannot
         // overwrite a newer aggregate with an older snapshot.
         let persister = self
@@ -553,6 +555,18 @@ impl Traffic {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             h.active.remove(&event.id);
+            // Carry the launch evidence into later calls, including calls made
+            // after OpenCode compacts its messages or the first event rotates out.
+            if let (Some(id), Some(observation)) = (&event.session_id, &mut event.opencode)
+                && let Some(previous) = h
+                    .events
+                    .iter()
+                    .rev()
+                    .filter(|e| e.session_id.as_ref() == Some(id))
+                    .find_map(|e| e.opencode.as_ref())
+            {
+                observation.merge(previous);
+            }
             accumulate(&mut h.archive, &event);
             if h.events.len() == 200 {
                 h.events.pop_front();
@@ -656,6 +670,13 @@ impl Traffic {
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct SessionInfo {
+    pub tag: String,
+    pub source: String,
+    pub opencode: Option<crate::opencode::SessionEvidence>,
+}
+
 pub struct Span {
     history: Arc<Traffic>,
     pub(crate) turn: Mutex<Option<crate::conversation::Turn>>,
@@ -663,7 +684,7 @@ pub struct Span {
     pub connection_id: Mutex<Option<String>>,
     pub model: Mutex<Option<String>>,
     pub upstream_url: Mutex<Option<String>>,
-    pub session: Mutex<Option<(String, String)>>,
+    pub(crate) session: Mutex<Option<SessionInfo>>,
     pub request_kind: Mutex<String>,
     pub attempts: Mutex<Vec<String>>,
     pub mask_us: AtomicU64,
@@ -841,8 +862,9 @@ impl Span {
             id: self.id,
             time_ms: now_ms(),
             started_at_ms: self.started_at_ms,
-            session_id: session.as_ref().map(|s| s.0.clone()),
-            session_source: session.map(|s| s.1),
+            session_id: session.as_ref().map(|s| s.tag.clone()),
+            session_source: session.as_ref().map(|s| s.source.clone()),
+            opencode: session.and_then(|s| s.opencode),
             turn: self
                 .turn
                 .lock()

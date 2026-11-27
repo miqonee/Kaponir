@@ -154,6 +154,25 @@ function sessionTitle(id) {
   const title = dashboard?.traffic?.session_titles?.[id];
   return typeof title === "string" ? title : "";
 }
+function sessionRelation(id) {
+  return dashboard?.traffic?.session_relations?.[id];
+}
+function sessionName(event) {
+  const id = event.session_id;
+  if (!id) return tr("Запрос {{0}}", [event.id]);
+  const kind = sessionRelation(id)?.kind;
+  const title = sessionTitle(id);
+  if (!kind) return title || tr("Сессия {{0}}", [id.slice(0,8)]);
+  const label = {subagent:"Субагент", child:"Дочерняя сессия", possible_subagent:"Возможный субагент"}[kind];
+  return tr(label) + " · " + (title || id.slice(0,8));
+}
+function sessionParentLabel(relation) {
+  if (!relation) return "";
+  const parent = relation.parent_id;
+  if (parent) return tr("Родительская сессия · {{0}}", [sessionTitle(parent) || parent.slice(0,8)]);
+  if (relation.pending_parent_id) return tr("Родитель пока не найден по ID · {{0}}", [relation.pending_parent_id.slice(0,8)]);
+  return tr("Родительская сессия не подтверждена");
+}
 function filteredEvents(applyFilter = true) {
   const cutoff =
     (Math.floor(Date.now() / 3600000) - Number($("#period").value) + 1) *
@@ -170,7 +189,7 @@ function filteredEvents(applyFilter = true) {
       e.time_ms >= cutoff &&
       (!applyFilter || eventFilter !== "issues" || hasIssue(e)) &&
       (!query ||
-        [sessionTitle(e.session_id), e.model, e.session_id, e.connection_id, e.provider, String(e.id)]
+        [sessionName(e), sessionParentLabel(sessionRelation(e.session_id)), e.model, e.session_id, e.connection_id, e.provider, String(e.id)]
           .join(" ")
           .toLowerCase()
           .includes(query)),
@@ -534,6 +553,33 @@ function requestRow(event, prefix) {
     h("td", {class:"num traffic-masks"}, number(event.usage?.replacements)),
     state, h("td", {class:"traffic-action"}, action));
 }
+// Display each family at its most recent activity. A filtered-out parent
+// leaves its child visible with the parent label from the full snapshot.
+function sessionFamilyRows(entries) {
+  const byId = new Map(entries.map(entry => [entry.key, entry]));
+  const children = new Map();
+  const parentOf = entry => byId.get(sessionRelation(entry.key)?.parent_id);
+  for (const entry of entries) {
+    const parent = parentOf(entry);
+    if (parent) {
+      if (!children.has(parent)) children.set(parent, []);
+      children.get(parent).push(entry);
+    }
+  }
+  const rows = [], seen = new Set();
+  function append(entry, depth) {
+    seen.add(entry);
+    rows.push({...entry, depth});
+    for (const child of children.get(entry) || []) append(child, depth + 1);
+  }
+  for (const entry of entries) {
+    if (seen.has(entry)) continue;
+    let root = entry;
+    while (parentOf(root)) root = parentOf(root);
+    append(root, 0);
+  }
+  return rows;
+}
 function sessionsTable(events, compact = false) {
   const groups = new Map();
   for (const e of events) {
@@ -559,17 +605,18 @@ function sessionsTable(events, compact = false) {
   const prefix = compact ? "recent" : "traffic";
   return h("table", {class:"console-table sessions-table"}, h("thead", {}, h("tr", {},
     ["Сессия / запрос","Последняя активность","Модель","Запросы","Замены","Состояние","Действия"].map(title => h("th", {scope:"col"}, tr(title))))),
-    entries.map(({key,rows,issues}) => {
+    sessionFamilyRows(entries).map(({key,rows,issues,depth}) => {
       const latest = rows[0], active = rows.filter(e=>e.outcome === "in_progress").length;
       const messages = conversationTurns([...rows].sort((a,b)=>a.id-b.id)).filter(g=>g.linked).length;
       const expanded = requests ? !collapsedRequestGroups.has(key) : expandedSessions.has(key);
       const issueOnly = onlyIssues || issueGroups.has(key);
       const title = sessionTitle(latest.session_id);
-      const name = title || (latest.session_id ? tr("Сессия {{0}}", [key.slice(0,8)]) : tr("Запрос {{0}}", [latest.id]));
+      const name = sessionName(latest);
+      const context = sessionParentLabel(sessionRelation(key)) || (title ? "ID · " + key.slice(0,8) : "");
       const trigger = h("button", {class:"session-toggle", "data-session-key":key, "aria-expanded":String(expanded),
         onclick:()=>toggleGroup(key,!expanded,requests), onkeydown:e=>{
           if (e.key === "ArrowRight" || e.key === "ArrowLeft") { e.preventDefault(); toggleGroup(key,e.key === "ArrowRight",requests); }
-        }}, icon("chevron"), h("span", {class:"session-label"}, name, title ? h("small", {}, "ID · " + key.slice(0,8)) : null));
+        }}, icon("chevron"), h("span", {class:"session-label"}, name, context ? h("small", {}, context) : null));
       const summary = h("td", {class:"traffic-status"});
       if (active) summary.append(h("span", {class:"event-status in_progress"}, tr("Выполняется · {{0}}", [active])));
       if (issues.length) {
@@ -584,7 +631,7 @@ function sessionsTable(events, compact = false) {
       } else if (!active) summary.append(h("span", {class:"event-status ok"}, tr("Без замечаний")));
       const open = h("button", {class:"session-open", "data-session-open":key, title:tr("Открыть переписку"),
         "aria-label":tr("Открыть переписку") + " · " + name, onclick:()=>openSession(latest)}, icon("chat"), h("span", {},tr("Переписка")));
-      return h("tbody", {}, h("tr", {class:"session-row"},
+      return h("tbody", depth ? {class:"session-branch", style:"--session-depth:" + Math.min(depth, 5)} : {}, h("tr", {class:"session-row"},
         h("th", {scope:"row", title:latest.session_source==="inferred" ? tr("Сгруппировано автоматически по началу переписки") : name},trigger),
         h("td", {class:"traffic-time"}, sessionTime(latest.time_ms)),
         h("td", {class:"traffic-model"}, [...new Set(rows.map(e=>e.model||e.provider))].join(", ")),

@@ -1,14 +1,18 @@
-//! OpenCode names a chat with a separate model call. Its stable session ID,
-//! rather than the generated text or the provider connection, links the calls.
+//! OpenCode's native session IDs associate naming calls with conversations
+//! and identify the direct parent of a child session.
 use crate::{
     State, sse,
     traffic::{Event, Span},
 };
 use axum::http::HeaderMap;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, BTreeSet},
+};
 
-pub(crate) fn session(headers: &HeaderMap) -> Option<&str> {
+fn session(headers: &HeaderMap) -> Option<&str> {
     ["x-opencode-session-id", "x-opencode-session"]
         .into_iter()
         .find_map(|key| {
@@ -30,7 +34,153 @@ pub(crate) fn session(headers: &HeaderMap) -> Option<&str> {
         })
 }
 
-pub(crate) fn user_agent(headers: &HeaderMap) -> bool {
+// OpenCode sends routing affinity and session identity separately. Only the
+// native child ID paired with a direct parent ID establishes a relationship.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub(crate) struct SessionEvidence {
+    native: bool,
+    parent: Option<String>,
+    spawn_prompt: bool,
+    conflict: bool,
+}
+
+impl SessionEvidence {
+    pub(crate) fn merge(&mut self, other: &Self) {
+        self.native |= other.native;
+        self.spawn_prompt |= other.spawn_prompt;
+        self.conflict |= other.conflict
+            || matches!((&self.parent, &other.parent),
+            (Some(a), Some(b)) if a != b);
+        if self.conflict {
+            self.parent = None;
+        } else if self.parent.is_none() {
+            self.parent.clone_from(&other.parent);
+        }
+    }
+}
+
+pub(crate) struct Client<'a> {
+    pub id: Option<&'a str>,
+    pub known: bool,
+    pub isolate: bool,
+    pub evidence: Option<SessionEvidence>,
+}
+
+fn single_id<'a>(headers: &'a HeaderMap, key: &str) -> Option<&'a str> {
+    let mut values = headers.get_all(key).iter();
+    let id = values.next()?.to_str().ok()?;
+    (values.next().is_none() && !id.is_empty() && !id.contains([',', ' ', '\t'])).then_some(id)
+}
+
+const SPAWN_PROMPT: &str = "You are a subagent spawned by another session.";
+
+fn spawn_prompt(body: &Value) -> bool {
+    let Some(first) = body["messages"].as_array().and_then(|messages| {
+        messages
+            .iter()
+            .find(|m| !matches!(m["role"].as_str(), Some("system" | "developer")))
+    }) else {
+        return false;
+    };
+    let content = &first["content"];
+    let text = content.as_str().or_else(|| {
+        let part = content.as_array()?.first()?;
+        (part["type"] == "text")
+            .then(|| part["text"].as_str())
+            .flatten()
+    });
+    first["role"] == "user" && text.and_then(|s| s.lines().next()) == Some(SPAWN_PROMPT)
+}
+
+pub(crate) fn client<'a>(headers: &'a HeaderMap, body: &Value) -> Client<'a> {
+    let id = session(headers);
+    let known =
+        id.is_some() || user_agent(headers) || headers.contains_key("x-opencode-parent-session-id");
+    let native = single_id(headers, "x-opencode-session-id");
+    let spawn_prompt = spawn_prompt(body);
+    let mut parent = None;
+    let mut conflict = false;
+    let mut has_parent = false;
+    if known {
+        for key in ["x-opencode-parent-session-id", "x-parent-session-id"] {
+            if !headers.contains_key(key) {
+                continue;
+            }
+            has_parent = true;
+            match single_id(headers, key) {
+                Some(candidate)
+                    if Some(candidate) != native && parent.is_none_or(|p| p == candidate) =>
+                {
+                    parent = Some(candidate);
+                }
+                _ => conflict = true,
+            }
+        }
+    }
+    let isolate = native.is_none() && (has_parent || spawn_prompt);
+    let evidence = (native.is_some() || isolate).then(|| SessionEvidence {
+        native: native.is_some(),
+        parent: parent
+            .filter(|_| native.is_some() && !conflict)
+            .map(|p| crate::server::session_tag(&format!("opencode:{p}"))),
+        spawn_prompt,
+        conflict: conflict || (has_parent && native.is_none()),
+    });
+    Client {
+        id,
+        known,
+        isolate,
+        evidence,
+    }
+}
+
+/// Resolve against all retained and in-flight requests before applying UI filters.
+pub(crate) fn session_relations<'a>(
+    events: impl Iterator<Item = &'a Event>,
+) -> BTreeMap<&'a str, Value> {
+    let mut evidence = BTreeMap::<&str, SessionEvidence>::new();
+    for event in events {
+        if let (Some(id), Some(observation)) =
+            (event.session_id.as_deref(), event.opencode.as_ref())
+        {
+            evidence.entry(id).or_default().merge(observation);
+        }
+    }
+    let mut result = BTreeMap::new();
+    for (&id, observed) in &evidence {
+        let kind = match (
+            observed.parent.is_some(),
+            observed.spawn_prompt,
+            observed.conflict,
+        ) {
+            (true, true, _) => "subagent",
+            (true, false, _) => "child",
+            (false, true, _) => "possible_subagent",
+            (false, false, true) => "child",
+            _ => continue,
+        };
+        let reported = observed.parent.as_deref();
+        let mut parent = reported.filter(|p| evidence.get(p).is_some_and(|e| e.native));
+        let pending = reported.filter(|_| parent.is_none());
+        let mut seen = BTreeSet::from([id]);
+        let mut ancestor = parent;
+        while let Some(next) = ancestor {
+            if !seen.insert(next) {
+                parent = None;
+                break;
+            }
+            ancestor = evidence.get(next).and_then(|e| e.parent.as_deref());
+        }
+        let mut relation = json!({"kind":kind,"parent_id":parent});
+        if let Some(pending) = pending {
+            relation["pending_parent_id"] = json!(pending);
+        }
+        result.insert(id, relation);
+    }
+    result
+}
+
+fn user_agent(headers: &HeaderMap) -> bool {
     headers
         .get("user-agent")
         .and_then(|h| h.to_str().ok())
@@ -261,8 +411,16 @@ pub(crate) fn capture_title(st: &State, session: &str, span: &Span, openai: bool
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .clone();
-    if let (Some(line), Some((tag, _))) = (line, tag)
-        && save_title(st, session, &tag, span.started_at_ms, span.id, &line).is_err()
+    if let (Some(line), Some(session_info)) = (line, tag)
+        && save_title(
+            st,
+            session,
+            &session_info.tag,
+            span.started_at_ms,
+            span.id,
+            &line,
+        )
+        .is_err()
     {
         eprintln!("kaponir: could not store OpenCode session title");
     }

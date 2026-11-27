@@ -1153,6 +1153,8 @@ td small { display: block; }
 .session-toggle[aria-expanded="false"] svg {transform:rotate(-90deg)}
 .session-children > th,.session-children > td {background:var(--panel-subtle)!important; font-weight:400}
 .sessions-table .session-children > th {padding-inline-start:24px}
+.sessions-table .session-branch .session-row > th {padding-inline-start:calc(10px + 18px * var(--session-depth))}
+.sessions-table .session-branch .session-children > th {padding-inline-start:calc(24px + 18px * var(--session-depth))}
 .request-leaf {position:relative; border:0; background:none; color:var(--accent); font-size:12px; padding:3px 0 3px 12px}
 .request-leaf::before {content:"";position:absolute;inset-inline-start:0;top:-4px;height:22px;width:8px;border-inline-start:1px solid var(--line-strong);border-block-end:1px solid var(--line-strong)}
 .request-reasons {display:block; color:var(--warning);font-size:12px;white-space:normal}

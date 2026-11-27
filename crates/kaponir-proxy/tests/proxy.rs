@@ -1553,6 +1553,195 @@ async fn session_metadata_groups_requests_and_sse_chunks_without_revealing_clien
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn opencode_subagents_follow_only_their_native_parent() {
+    const START: &str = "You are a subagent spawned by another session.\nReview the tests";
+    async fn send(base: &str, label: &str, prompt: &str, headers: &[(&str, &str)]) {
+        let body = json!({"model":label,"messages":[{"role":"system","content":"Fixture"},
+            {"role":"user","content":[{"type":"text","text":prompt}]}]});
+        let response = post_json(format!("{base}/v1/chat/completions"), &body, headers).await;
+        assert_eq!(response.status(), 200);
+        response.bytes().await.unwrap();
+    }
+    fn tag<'a>(traffic: &'a Value, label: &str) -> &'a str {
+        traffic["events"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["model"] == label)
+            .unwrap()["session_id"]
+            .as_str()
+            .unwrap()
+    }
+    let upstream = spawn(Router::new().route("/v1/chat/completions", post(|| async {
+        Json(json!({"choices":[{"message":{"role":"assistant","content":"Done"},"finish_reason":"stop"}]}))
+    }))).await;
+    let base = spawn(kaponir_proxy::router(state(&upstream, None))).await;
+    let child_a = [
+        ("x-opencode-session-id", "native-child-a"),
+        ("x-opencode-parent-session-id", "native-parent-a"),
+        ("x-opencode-session", "shared-affinity"),
+    ];
+    let child_b = [
+        ("x-opencode-session-id", "native-child-b"),
+        ("x-parent-session-id", "native-parent-b"),
+        ("x-opencode-session", "shared-affinity"),
+    ];
+    tokio::join!(
+        send(&base, "one", START, &child_a),
+        send(&base, "two", START, &child_b)
+    );
+    // Even an affinity equal to the reported parent is not a native identity.
+    send(
+        &base,
+        "affinity-only",
+        "Same question",
+        &[("x-opencode-session", "native-parent-a")],
+    )
+    .await;
+    let early = traffic_snapshot(&base, 3).await;
+    let early = &early["traffic"];
+    assert_eq!(
+        early["session_relations"][tag(early, "one")],
+        json!({"kind":"subagent","parent_id":null,"pending_parent_id":tag(early, "affinity-only")})
+    );
+    let parent_a = [
+        ("x-opencode-session-id", "native-parent-a"),
+        ("x-opencode-session", "shared-affinity"),
+    ];
+    let parent_b = [
+        ("x-opencode-session-id", "native-parent-b"),
+        ("x-opencode-session", "shared-affinity"),
+    ];
+    tokio::join!(
+        send(&base, "three", "Same question", &parent_a),
+        send(&base, "four", "Same question", &parent_b)
+    );
+    send(
+        &base,
+        "grandchild",
+        START,
+        &[
+            ("x-opencode-session-id", "native-grandchild"),
+            ("x-parent-session-id", "native-child-a"),
+        ],
+    )
+    .await;
+    send(&base, "resumed", "Continue", &child_a).await;
+    let weak = [("x-opencode-session", "native-parent-a")];
+    send(&base, "legacy", START, &weak).await;
+    send(&base, "second-legacy", START, &weak).await;
+    send(
+        &base,
+        "quote",
+        "What does this line mean?\nYou are a subagent spawned by another session.",
+        &[("x-opencode-session-id", "native-quote")],
+    )
+    .await;
+    send(
+        &base,
+        "branch",
+        "Follow up",
+        &[
+            ("x-opencode-session-id", "native-branch"),
+            ("x-parent-session-id", "native-parent-b"),
+        ],
+    )
+    .await;
+    send(
+        &base,
+        "override",
+        START,
+        &[
+            ("x-opencode-session-id", "native-override"),
+            ("x-parent-session-id", "native-parent-b"),
+            ("x-kaponir-session", "explicit-session"),
+        ],
+    )
+    .await;
+    tokio::join!(
+        send(&base, "stripped", START, &[]),
+        send(&base, "stripped-twice", START, &[])
+    );
+    let snapshot = traffic_snapshot(&base, 14).await;
+    let traffic = &snapshot["traffic"];
+    let links = &traffic["session_relations"];
+    for (child, parent) in [
+        ("one", "three"),
+        ("two", "four"),
+        ("grandchild", "one"),
+        ("resumed", "three"),
+    ] {
+        assert_eq!(
+            links[tag(traffic, child)],
+            json!({"kind":"subagent","parent_id":tag(traffic, parent)})
+        );
+    }
+    assert_eq!(tag(traffic, "one"), tag(traffic, "resumed"));
+    assert_ne!(tag(traffic, "one"), tag(traffic, "two"));
+    assert_ne!(tag(traffic, "legacy"), tag(traffic, "three"));
+    assert_ne!(tag(traffic, "legacy"), tag(traffic, "second-legacy"));
+    assert_ne!(tag(traffic, "stripped"), tag(traffic, "stripped-twice"));
+    assert_eq!(
+        links[tag(traffic, "stripped")],
+        json!({"kind":"possible_subagent","parent_id":null})
+    );
+    assert_eq!(
+        links[tag(traffic, "legacy")],
+        json!({"kind":"possible_subagent","parent_id":null})
+    );
+    assert_eq!(
+        links[tag(traffic, "branch")],
+        json!({"kind":"child","parent_id":tag(traffic,"four")})
+    );
+    for label in ["three", "four", "quote", "override"] {
+        assert!(links.get(tag(traffic, label)).is_none());
+    }
+    assert!(!snapshot.to_string().contains("native-parent"));
+
+    // Changing a claimed parent, contradicting the alias, and a cycle all leave
+    // the affected session unlinked rather than moving it between conversations.
+    send(
+        &base,
+        "reparent",
+        START,
+        &[
+            ("x-opencode-session-id", "native-child-b"),
+            ("x-parent-session-id", "native-parent-a"),
+        ],
+    )
+    .await;
+    send(
+        &base,
+        "aliases",
+        START,
+        &[
+            ("x-opencode-session-id", "native-alias"),
+            ("x-opencode-parent-session-id", "native-parent-a"),
+            ("x-parent-session-id", "native-parent-b"),
+        ],
+    )
+    .await;
+    send(
+        &base,
+        "cycle",
+        "Nested",
+        &[
+            ("x-opencode-session-id", "native-parent-a"),
+            ("x-parent-session-id", "native-grandchild"),
+        ],
+    )
+    .await;
+    let after = traffic_snapshot(&base, 17).await;
+    let after = &after["traffic"];
+    for label in ["one", "two", "grandchild", "aliases", "cycle"] {
+        assert_eq!(
+            after["session_relations"][tag(after, label)]["parent_id"],
+            Value::Null
+        );
+    }
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn opencode_titles_follow_the_native_session_across_protocols_and_ignore_partial_replies() {
     async fn provider(Json(body): Json<Value>) -> Response {
         if body["stream"] == true {

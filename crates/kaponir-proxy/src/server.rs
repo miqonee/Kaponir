@@ -400,14 +400,18 @@ async fn proxy_request(
         .filter(|s| !s.is_empty())
         .map(str::to_owned);
     let original = crate::conversation::Transcript::capture(&json);
-    let opencode = crate::opencode::session(&headers);
+    let client = crate::opencode::client(&headers, &json);
     let count_tokens = uri.path().ends_with("count_tokens");
-    let naming = crate::opencode::title_request(
-        &json,
-        opencode.is_some() || crate::opencode::user_agent(&headers),
-    );
+    let naming = crate::opencode::title_request(&json, client.known);
     let title_call = naming.is_some();
-    let (session, source) = session_id(&headers, opencode, api, &json);
+    let (session, source) = session_id(&headers, client.id, api, &json);
+    let (session, source) = if client.isolate && source != "explicit" {
+        // An affinity ID can be shared by the entire family. A child without
+        // its own ID must not inherit another chat's identity or memory.
+        (format!("unlinked-opencode:{}", span.id), "unlinked")
+    } else {
+        (session, source)
+    };
     let has_start = json
         .get("messages")
         .and_then(Value::as_array)
@@ -461,7 +465,16 @@ async fn proxy_request(
         *span
             .session
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((tag, source.into()));
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some(crate::traffic::SessionInfo {
+                tag,
+                source: source.into(),
+                opencode: if source == "explicit" {
+                    None
+                } else {
+                    client.evidence
+                },
+            });
     }
     *span
         .request_kind
@@ -522,7 +535,7 @@ async fn proxy_request(
                 &commands,
                 &chat,
                 &recipient,
-                source == "inferred",
+                matches!(source, "inferred" | "unlinked"),
                 title_call || count_tokens,
             )?;
             if let Some(capture) = &mut learning {
