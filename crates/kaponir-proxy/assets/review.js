@@ -342,7 +342,7 @@ function reviewCard(item, selectedPane) {
   if (item.state === "dismissed") footer.append(workButton("Вернуть на проверку", () => applyReview([{item,action:"reopen"}]), "secondary", ro));
   if (item.state === "active" || item.decision?.rule_id && ["masked","kept"].includes(item.state))
     footer.append(workButton("Отменить правило", () => confirmReview([item],"rollback"), "secondary", ro));
-  footer.append(item.in_dataset
+  if (datasetAvailable) footer.append(item.in_dataset
     ? workButton("Открыть в датасете", () => openFindingExample(item.dataset_id), "text-button")
     : workButton("В датасет", async () => collectFindings(await selectedPayload([item], true)), "text-button", ro));
   article.append(heading, tabs, verdict, footer);
@@ -722,7 +722,7 @@ function renderReviewSelection() {
     skip.title = tr("Закрыть без правила");
     controls.append(skip);
   }
-  controls.append(batchButton(modelCount!==count ? tr("Добавить примеры в датасет") : tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload(null, true)),"secondary",busy));
+  if (datasetAvailable) controls.append(batchButton(modelCount!==count ? tr("Добавить примеры в датасет") : tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload(null, true)),"secondary",busy));
   quick.replaceChildren();
   const selectAll = $("#review-select-all");
   selectAll.replaceChildren();

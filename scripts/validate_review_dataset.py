@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from pathlib import Path
 from threading import Barrier
 from urllib.error import HTTPError
@@ -214,15 +215,19 @@ def check_individual_path(page, api, base):
             card.get_by_role('button', name='Исправить').click()
             dialog = page.locator('#review-confirm')
             dialog.get_by_label('Что скрывать').select_option('whole')
-            dialog.get_by_role('button', name='Применить решение').click()
+            apply = dialog.get_by_role('button', name='Применить решение')
         else:
-            card.get_by_role('button', name=re.compile('^Скрывать каталог')).click()
+            apply = card.get_by_role('button', name=re.compile('^Скрывать каталог'))
+        with page.expect_response(lambda r: r.request.method == 'POST' and r.url.startswith(base + review + '/') and
+                                  r.url.endswith(('/mask', '/path-prefix', '/accept-proposal'))) as decision:
+            apply.click()
+        assert decision.value.ok
         wait_for(lambda: not rows('pending'))
         decided = rows('history')
         assert len(decided) == 3
         assert all(r['document_rule'].get('path_prefix') == (None if whole else root) for r in decided)
         masked = api('/api/v1/ui/mask', {'text':path, 'commit':False})['text']
-        assert ('.local/bin/kaponir' in masked) != whole and user not in masked
+        assert ('.local/bin/kaponir' in masked) != whole and user not in masked, (path, whole, masked)
 
 
 def check_path_group(page, api, base):
@@ -539,6 +544,62 @@ def check_rule_removal_recovery(api, home):
     assert api('/api/v1/ui/restore', {'text': before['text']})['text'] == text
 
 
+def check_disabled_installation(page, api, base):
+    dataset = '/api/v1/ui/dataset'
+    assert api('/api/v1/ui/info')['modules']['dataset'] is False
+    for path, method in [(dataset, 'GET'), (dataset + '?export=true', 'GET'), (dataset + '/preferences', 'PUT'),
+                         (dataset + '/collect', 'POST'), (dataset + '/import', 'POST'),
+                         (dataset + '/collections/saved/undo', 'POST'), ('/ui/dataset.js', 'HEAD'),
+                         ('/api/v1/ui/worker/privacy-suggest', 'POST')]:
+        try:
+            api(path, {} if method in ('PUT', 'POST') else None, method)
+        except HTTPError as error:
+            assert error.code == 404, (path, error.code)
+        else:
+            raise AssertionError(f'Disabled module served {path}')
+
+    page.evaluate("localStorage.setItem('kaponir-dataset-mode', 'on')")
+    page.goto(base + '/ui/#dataset')
+    expect(page).to_have_url(base + '/ui/#review')
+    # A fresh visit to the old bookmark must not load scripts or call APIs for the module.
+    page.goto('about:blank')
+    requests = []
+    page.on('request', lambda req: requests.append(req.url))
+    page.goto(base + '/ui/#dataset')
+    expect(page).to_have_url(base + '/ui/#review')
+    expect(page.locator('#tab-review')).to_be_visible()
+    open_review_actions(page)
+    expect(page.locator('[data-tab=dataset], #tab-dataset, [data-capture-review], #dataset-dialog, #discover-collect')).to_have_count(0)
+
+    review = '/api/v1/ui/review'
+    names = ['modulebirch', 'modulelarch']
+    for name in names:
+        api('/api/v1/ui/discover', {'remember':True, 'documents':[{'name':name, 'text':'Проект: ' + name}]})
+    first, other = [next(r for r in api(review + '?q=' + n)['items'] if r['value'] == n) for n in names]
+    assert 'in_dataset' not in first
+    page.locator('#review-query').fill(names[0])
+    page.locator('#review-list').get_by_role('button', name=names[0], exact=True).click()
+    expect(page.locator('#finding-detail')).not_to_contain_text('датасет')
+    expect(page.locator('#review-quick-actions')).not_to_contain_text('датасет')
+    page.locator('#finding-detail').get_by_role('button', name=re.compile('^Скрывать ·')).click()
+    wait_for(lambda: api(review + '?status=history&q=' + names[0])['total'] > 0)
+    masked = api('/api/v1/ui/mask', {'text': names[0], 'commit':False})
+    assert any(r['original'] == names[0] for r in masked['replacements']), masked
+    result = api(review + '/skip', {'keys':[other['key']]})
+    assert result['skipped'] == 1 and 'dataset' not in result
+
+    page.goto(base + '/ui/#discover')
+    if not page.locator('#d-settings').evaluate('node => node.open'):
+        page.locator('#d-settings > summary').click()
+    page.locator('#d-mode').select_option('fast')
+    page.locator('#d-remember').check()
+    page.locator('#d-text').fill('Проект: Северный Клён')
+    page.locator('#d-analyze').click()
+    expect(page.locator('#discover-findings')).to_be_visible()
+    expect(page.locator('#discover-destination')).to_have_text('Значения сохранены в находках. Откройте их для проверки.')
+    assert not any('/ui/dataset' in url for url in requests), requests
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('binary', type=Path)
@@ -552,15 +613,24 @@ def main():
     with tempfile.TemporaryDirectory() as home:
         cli = [str(args.binary.resolve()), '--home', home]
         subprocess.run(cli + ['init'], env=env, capture_output=True, check=True)
-        proc = subprocess.Popen(cli + ['serve', '--listen', base.split('//')[1]], env=env,
-                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        try:
-            wait_for(lambda: api('/api/v1/ui/info'))
-            with sync_playwright() as pw:
-                browser = pw.chromium.launch(executable_path=shutil.which('chromium'), args=['--no-sandbox'])
-                page = browser.new_page(viewport={'width':1440, 'height':980}, locale='ru-RU')
-                errors = []
-                page.on('pageerror', lambda error: errors.append(str(error)))
+        @contextmanager
+        def serving(extra_env=None):
+            proc = subprocess.Popen(cli + ['serve', '--listen', base.split('//')[1]], env={**env, **(extra_env or {})},
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            try:
+                wait_for(lambda: api('/api/v1/ui/info'))
+                yield
+            finally:
+                proc.terminate()
+                proc.wait()
+
+        dataset = '/api/v1/ui/dataset'
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(executable_path=shutil.which('chromium'), args=['--no-sandbox'])
+            page = browser.new_page(viewport={'width':1440, 'height':980}, locale='ru-RU')
+            errors = []
+            page.on('pageerror', lambda error: errors.append(str(error)))
+            with serving():
                 exercise(page, api, base)
                 check_path_group(page, api, base)
                 check_individual_path(page, api, base)
@@ -569,12 +639,22 @@ def main():
                 check_rule_update(page, api, base)
                 check_concurrent_rule_update(api)
                 check_rule_removal_recovery(api, Path(home))
-                assert not errors, errors
-                browser.close()
-        finally:
-            proc.terminate()
-            proc.wait()
-    print('Verified dataset capture and backfill, directory grouping, rule updates, individual review, scoped masking, replay and undo.')
+                api(dataset + '/preferences', {'capture_review': True}, 'PUT')
+                before = api(dataset + '?status=all&export=true')['items']
+                assert before
+            subprocess.run(cli + ['init', '--without-dataset'], env=env, capture_output=True, check=True)
+            subprocess.run(cli + ['init'], env=env, capture_output=True, check=True)
+            with serving():
+                check_disabled_installation(page, api, base)
+            with serving({'KAPONIR_DATASET_ENABLED':'true'}):
+                assert api(dataset + '?status=all&export=true')['items'] == before
+                assert api(dataset)['capture_review'] is True
+                page.goto('about:blank')
+                page.goto(base + '/ui/#dataset')
+                expect(page.locator('#dataset-capture')).to_be_checked()
+            assert not errors, errors
+            browser.close()
+    print('Verified dataset capture, review and masking with the module enabled and disabled, and restored annotations after re-enabling.')
 
 
 if __name__ == '__main__':

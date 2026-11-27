@@ -60,6 +60,8 @@ kaponir init --corp-domain mycompany.ru
 This creates the local configuration, keys, encrypted vault, and rule files in
 `~/.config/kaponir`. Back up `vault.key`: without it, saved mappings cannot be restored.
 
+For an installation without training examples, run `kaponir init --without-dataset`. With Docker Compose, set `KAPONIR_DATASET_ENABLED=false` in `.env`. Findings, rules and decision history work in either setup.
+
 ### 2. Mask and restore the actual result
 
 ```bash

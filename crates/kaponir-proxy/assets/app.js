@@ -3,6 +3,7 @@
 // в DOM только через textContent — никакого innerHTML со значениями.
 
 const $ = (sel, el = document) => el.querySelector(sel);
+const datasetAvailable = Boolean($('#tab-dataset'));
 
 // Ручной режим перекрывает системный; auto продолжает следовать настройке ОС.
 const themeMedia = matchMedia('(prefers-color-scheme: dark)');
@@ -176,6 +177,8 @@ async function api(path, { method = 'GET', body, timeoutMs = 45000 } = {}) {
   if (body !== undefined) headers['content-type'] = 'application/json';
   if (token) headers.authorization = 'Bearer ' + token;
   const r = await fetch(path, { method, headers, signal: AbortSignal.timeout(timeoutMs), body: body === undefined ? undefined : JSON.stringify(body) });
+  const availability = r.headers.get('x-kaponir-dataset-enabled');
+  if (availability !== null && (availability === 'true') !== datasetAvailable) location.reload();
   if (r.status === 401) {
     await askToken();
     return api(path, { method, body, timeoutMs });
@@ -247,6 +250,7 @@ function showTab(name, push = true) {
   if (route.startsWith('jobs/')) name = 'jobs';
   if (name === 's1') name = 'analysis';
   if (name === 'lab') name = 'mask';
+  if (name === 'dataset' && !datasetAvailable) name = 'review';
   if (!TABS[name]) name = 'overview';
   const nav = {mask:'lab',restore:'lab',discover:'lab','image-lab':'lab',analysis:'settings',worker:'settings',ocr:'settings',categorization:'settings',proxy:'connect',metrics:'connect',setup:'rules'}[name] || name;
   const changed = $('#tab-' + name).hidden;
@@ -915,14 +919,20 @@ function renderDiscover() {
   $('#discover-result-pane').hidden = D.view === 'input' && !D.report && !D.busy;
   $('#d-back-sessions').hidden = D.view !== 'sessions';
   $("#discover-findings").hidden=!foundKeys.length;
-  $("#discover-collect").hidden=!foundKeys.length;
-  $("#discover-collect").textContent=tr("В датасет все {{0}}",[foundKeys.length]);
+  if (datasetAvailable) {
+    $("#discover-collect").hidden = !foundKeys.length;
+    $("#discover-collect").textContent = tr("В датасет все {{0}}", [foundKeys.length]);
+  }
   $("#d-source-summary").textContent=D.scope||"";
   const destination = $("#discover-destination");
   destination.hidden = !D.report || !D.report.suggestions.length;
-  if (!destination.hidden) destination.textContent = tr(foundKeys.length ?
-    "Значения сохранены в находках. Откройте их для проверки или добавьте в датасет." :
-    "Предпросмотр документа. Для создания правила выберите значение и область действия.");
+  if (!destination.hidden) {
+    let hint = "Предпросмотр документа. Для создания правила выберите значение и область действия.";
+    if (foundKeys.length) hint = datasetAvailable
+      ? "Значения сохранены в находках. Откройте их для проверки или добавьте в датасет."
+      : "Значения сохранены в находках. Откройте их для проверки.";
+    destination.textContent = tr(hint);
+  }
   syncDiscoveryActions();
   const list = $('#d-list');
   const report = D.report;

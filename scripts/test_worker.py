@@ -608,6 +608,14 @@ class WorkerTests(unittest.TestCase):
             with urllib.request.urlopen(verify) as response:
                 self.assertEqual(json.load(response)['state'], 'missing')
             self.assertFalse(self.worker.enabled)
+            (self.home / 'config.toml').write_text('[serve]\ndataset_enabled = false\n')
+            self.worker.cfg = configuration(self.home)
+            suggest = urllib.request.Request(url+'/privacy-suggest', data=b'{}', headers=req.headers)
+            with self.assertRaises(urllib.error.HTTPError) as err:
+                urllib.request.urlopen(suggest)
+            self.assertEqual(err.exception.code, 404)
+            with patch.dict('os.environ', {'KAPONIR_DATASET_ENABLED':'true'}):
+                self.assertTrue(configuration(self.home)['dataset_enabled'])
             req.add_header('Origin','https://other.example')
             with self.assertRaises(urllib.error.HTTPError) as err:urllib.request.urlopen(req)
             self.assertEqual(err.exception.code,400)

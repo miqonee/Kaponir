@@ -1634,6 +1634,7 @@
   "Выбор подставит сценарий по замерам этой модели на стенде.": "Choose a priority to select a scenario using this model’s benchmark results.",
   "Выделите точное значение в тексте и запишите отметку.": "Select the exact text and save the annotation.",
   "Для поиска и проверки используется {{0}}.": "Discovery and review both use {{0}}.",
+  "Значения сохранены в находках. Откройте их для проверки.": "Values were saved to Findings. Open them for review.",
   "Значения сохранены в находках. Откройте их для проверки или добавьте в датасет.": "The values were saved to Findings. Open them to review or add them to the dataset.",
   "Источник модели и API": "Model source and API",
   "Меньше лишних скрытий": "Keep more public values",

@@ -40,7 +40,11 @@ pub fn router(state: Shared) -> Router {
     crate::learning::start(&state);
     crate::review::start(&state);
     crate::image_protection::start_cleanup(&state);
-    Router::new()
+    let mut routes = Router::new();
+    if state.cfg.dataset_enabled {
+        routes = routes.merge(crate::dataset::routes());
+    }
+    routes
         .route("/v1/messages", post(anthropic_messages))
         .route("/v1/messages/count_tokens", post(anthropic_messages))
         .route("/v1/chat/completions", post(openai_chat))
@@ -59,7 +63,6 @@ pub fn router(state: Shared) -> Router {
         .merge(crate::worker::routes())
         .merge(crate::learning::routes())
         .merge(crate::review::routes())
-        .merge(crate::dataset::routes())
         .merge(crate::providers::routes())
         .merge(crate::image_protection::routes())
         .layer(DefaultBodyLimit::max(64 << 20))
@@ -74,10 +77,26 @@ pub fn router(state: Shared) -> Router {
 // Время до заголовков ответа. Для SSE это НЕ полная длительность потока.
 async fn observe_request(State(st): State<Shared>, req: Request, next: Next) -> Response {
     let path = req.uri().path();
+    let ui_api = path.starts_with("/api/v1/ui/");
     let observe = path != "/api/v1/metrics"
         && (path.starts_with("/api/v1/") || path.starts_with("/v1/") || path.starts_with("/p/"));
     let started = std::time::Instant::now();
-    let response = next.run(req).await;
+    let mut response = next.run(req).await;
+    if ui_api {
+        // Open tabs learn about a deployment change on their next request or status poll.
+        response
+            .headers_mut()
+            .entry(header::CACHE_CONTROL)
+            .or_insert(HeaderValue::from_static("private, no-store"));
+        response.headers_mut().insert(
+            "x-kaponir-dataset-enabled",
+            HeaderValue::from_static(if st.cfg.dataset_enabled {
+                "true"
+            } else {
+                "false"
+            }),
+        );
+    }
     if observe {
         st.requests.observe(
             started.elapsed(),

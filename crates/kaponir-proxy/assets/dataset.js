@@ -41,6 +41,13 @@ function openDatasetDB() {
   });
 }
 async function datasetOperation(mode, operation) {
+  // A tab may outlive a server restart. Recheck the module before touching the local notebook.
+  const available = await fetch('dataset.js', {method:'HEAD', cache:'no-store'});
+  if (available.status === 404) {
+    location.reload();
+    throw new Error(tr('Сбор выключен'));
+  }
+  if (!available.ok) throw new Error('HTTP ' + available.status);
   const db = await openDatasetDB();
   try {
     return await new Promise((resolve, reject) => {

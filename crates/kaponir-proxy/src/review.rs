@@ -344,7 +344,10 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
                 records("review-decision")?,
                 records("review-declined")?,
                 records("review-deferred")?,
-                crate::dataset::example_index(v)?,
+                st.cfg
+                    .dataset_enabled
+                    .then(|| crate::dataset::example_index(v))
+                    .transpose()?,
             ))
         })?;
     for item in &mut all {
@@ -364,13 +367,15 @@ pub(crate) fn items(st: &Shared) -> anyhow::Result<Vec<Value>> {
         {
             item["deferred_at"] = record["created"].clone();
         }
-        let dataset_id = crate::dataset::finding_id(item);
         item["excerpt_id"] = json!(excerpt_signature(item));
-        let status = dataset.status(&dataset_id);
-        item["in_dataset"] = json!(status.is_some());
-        if let Some(status) = status {
-            item["dataset_id"] = json!(dataset_id);
-            item["dataset_status"] = json!(status);
+        if let Some(index) = &dataset {
+            let id = crate::dataset::finding_id(item);
+            let status = index.status(&id);
+            item["in_dataset"] = json!(status.is_some());
+            if let Some(status) = status {
+                item["dataset_id"] = json!(id);
+                item["dataset_status"] = json!(status);
+            }
         }
     }
     Ok(all)
@@ -582,9 +587,11 @@ fn cleanup(st: &Shared) {
             "review-job-cancelled",
             "review-recommendation",
             "review-selection",
-            "dataset-collection",
             "review-deferred",
-        ] {
+        ]
+        .into_iter()
+        .chain(st.cfg.dataset_enabled.then_some("dataset-collection"))
+        {
             for (id, bytes) in v.app_records(kind, 4000)? {
                 let record: Value = serde_json::from_slice(&bytes)?;
                 if now_ms().saturating_sub(record["created"].as_u64().unwrap_or(0))
@@ -1058,9 +1065,10 @@ async fn list(
                 .collect::<anyhow::Result<Vec<_>>>()
         })
         .map_err(internal)?;
-    let capture_review = st
-        .with_vault(|_, v| crate::dataset::capture_enabled(v))
-        .map_err(internal)?;
+    let capture_review = st.cfg.dataset_enabled
+        && st
+            .with_vault(|_, v| crate::dataset::capture_enabled(v))
+            .map_err(internal)?;
     let engine = st.engine();
     let sample_id = if engine.policy().strategy("PATH") == kaponir_core::Strategy::Hmac {
         kaponir_core::TokenId::Hash("a1b2c3".into())
@@ -2408,35 +2416,32 @@ async fn apply(
             rule["kind"].as_str().unwrap_or(&kind)
         } else {
             &kind
-        };
+        }
+        .to_owned();
         let confirmed = seen
             && (result["already_covered"] != true
                 || (applied_kind == kind && rule["scope"] == json!(scope)));
-        let label =
-            matches!(action.as_str(), "mask" | "keep").then_some((action.as_str(), applied_kind));
-        let captured = st.with_vault(|_, v| {
-            learning::transaction(v, || {
-                if !crate::dataset::capture_enabled(v)? {
-                    return Ok(Value::Null);
+        let label = matches!(action.as_str(), "mask" | "keep")
+            .then_some((action.as_str(), applied_kind.as_str()));
+        crate::dataset::record_review(&st, &mut result, |v| {
+            if !crate::dataset::capture_enabled(v)? {
+                return Ok(Value::Null);
+            }
+            let mut checked = 0;
+            let mut drafts = 0;
+            let mut record = |row: &Value, label, seen| -> anyhow::Result<()> {
+                use crate::dataset::Capture;
+                match crate::dataset::capture_finding(v, row, label, seen)? {
+                    Capture::Checked => checked += 1,
+                    Capture::Draft => drafts += 1,
+                    Capture::Unchanged => {}
                 }
-                let mut checked = 0;
-                let mut drafts = 0;
-                let mut record = |row: &Value, label, seen| -> anyhow::Result<()> {
-                    use crate::dataset::Capture;
-                    match crate::dataset::capture_finding(v, row, label, seen)? {
-                        Capture::Checked => checked += 1,
-                        Capture::Draft => drafts += 1,
-                        Capture::Unchanged => {}
-                    }
-                    Ok(())
-                };
-                record(&item, label, confirmed)?;
-                related_occurrences(v, &item, &req.occurrences, |row| record(row, None, false))?;
-                Ok(json!({"checked":checked,"drafts":drafts}))
-            })
+                Ok(())
+            };
+            record(&item, label, confirmed)?;
+            related_occurrences(v, &item, &req.occurrences, |row| record(row, None, false))?;
+            Ok(json!({"checked":checked,"drafts":drafts}))
         });
-        // Rule application and optional collection have independent outcomes.
-        result["dataset"] = captured.unwrap_or_else(|_| json!({"error":"dataset_capture_failed"}));
     }
     Ok(result)
 }
@@ -2489,27 +2494,22 @@ async fn skip_selected(
             Err(error) => failures.push(json!({"value":item["value"],"error":error.message()})),
         }
     }
-    let dataset = st
-        .with_vault(|_, v| {
-            learning::transaction(v, || {
-                let mut drafts = 0;
-                if !closed.is_empty() && crate::dataset::capture_enabled(v)? {
-                    for item in &closed {
-                        if matches!(
-                            crate::dataset::capture_finding(v, item, None, false)?,
-                            crate::dataset::Capture::Draft
-                        ) {
-                            drafts += 1;
-                        }
-                    }
+    let mut result = json!({"skipped":closed.len(),"failures":failures});
+    crate::dataset::record_review(&st, &mut result, |v| {
+        let mut drafts = 0;
+        if !closed.is_empty() && crate::dataset::capture_enabled(v)? {
+            for item in &closed {
+                if matches!(
+                    crate::dataset::capture_finding(v, item, None, false)?,
+                    crate::dataset::Capture::Draft
+                ) {
+                    drafts += 1;
                 }
-                Ok(json!({"drafts":drafts}))
-            })
-        })
-        .unwrap_or_else(|_| json!({"error":"dataset_capture_failed"}));
-    Ok(Json(
-        json!({"skipped":closed.len(),"failures":failures,"dataset":dataset}),
-    ))
+            }
+        }
+        Ok(json!({"drafts":drafts}))
+    });
+    Ok(Json(result))
 }
 
 fn apply_effect(

@@ -145,6 +145,8 @@ pub struct ProxyConfig {
     pub listen: String,
     /// Optional management API of the separate document worker.
     pub worker_url: Option<String>,
+    /// Installation-wide availability of dataset collection, editing and export.
+    pub dataset_enabled: bool,
     /// Protection for inline images on the proxy request path.
     pub ocr: ImageProtectionSettings,
     /// Куда уходят запросы Anthropic Messages (провайдер или следующий прокси, например 9router).
@@ -169,6 +171,7 @@ impl Default for ProxyConfig {
         Self {
             listen: "127.0.0.1:8787".into(),
             worker_url: None,
+            dataset_enabled: true,
             ocr: ImageProtectionSettings::default(),
             anthropic_upstream: "https://api.anthropic.com".into(),
             openai_upstream: "https://api.openai.com".into(),

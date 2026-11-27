@@ -703,7 +703,7 @@ for (const input of document.querySelectorAll("[data-capture-review]")) input.on
     syncCapturePreference(input.checked, info.editable);
   }
 };
-$("#dataset-collect-form").onsubmit = async event => {
+if (datasetAvailable) $("#dataset-collect-form").onsubmit = async event => {
   event.preventDefault();
   const button = $("#dataset-collect");
   if (button.disabled) return;
@@ -1086,7 +1086,7 @@ async function loadVaultDataset(continueAt = null, example = null) {
   if (focusedFilter) filter.querySelector('[aria-pressed="true"]')?.focus({preventScroll:true});
   refreshFilePickers();
 }
-$("#dataset-migrate").onclick = async () => {
+if (datasetAvailable) $("#dataset-migrate").onclick = async () => {
   try {
     const items = await datasetOperation("readonly", (store, done) => {
       const req = store.getAll();
@@ -1105,7 +1105,7 @@ $("#dataset-migrate").onclick = async () => {
     fail(e);
   }
 };
-TABS.dataset = async () => {
+if (datasetAvailable) TABS.dataset = async () => {
   const example = desk.openExample;
   desk.openExample = null;
   desk.edit = null;
@@ -1410,7 +1410,7 @@ async function refreshWorkerReadings() {
   } finally { desk.readingsPending = false; }
 }
 
-$("#discover-collect").onclick = async () => {
+if (datasetAvailable) $("#discover-collect").onclick = async () => {
   try {
     const receipt = await postOnce("/api/v1/ui/dataset/collect", { keys: D.report.finding_keys });
     $("#d-source-summary").replaceChildren(

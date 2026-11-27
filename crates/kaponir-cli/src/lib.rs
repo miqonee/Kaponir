@@ -122,6 +122,33 @@ impl Home {
         self.dir.join("config.toml")
     }
 
+    pub fn set_dataset_enabled(&self, enabled: bool) -> Result<()> {
+        let path = self.config_path();
+        let original = std::fs::read_to_string(&path)?;
+        let config: Config = toml::from_str(&original)?;
+        if config.serve.dataset_enabled == enabled {
+            return Ok(());
+        }
+        let mut doc = original.parse::<toml_edit::DocumentMut>()?;
+        doc["serve"]["dataset_enabled"] = toml_edit::value(enabled);
+        let permissions = std::fs::metadata(&path)?.permissions();
+        let tmp = path.with_extension(format!("dataset.{}.tmp", std::process::id()));
+        write_secret(&tmp, &doc.to_string())?;
+        let result = (|| -> Result<()> {
+            anyhow::ensure!(
+                std::fs::read_to_string(&path)? == original,
+                "config.toml changed during setup"
+            );
+            std::fs::set_permissions(&tmp, permissions)?;
+            std::fs::rename(&tmp, &path)?;
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = std::fs::remove_file(tmp);
+        }
+        result
+    }
+
     pub fn key_path(&self) -> PathBuf {
         self.dir.join("vault.key")
     }
@@ -353,6 +380,8 @@ disclosure = "l0"
 # `kaponir serve`: прокси для агентов и sidecar REST.
 [serve]
 listen = "127.0.0.1:8787"
+# Модуль обучающих примеров. KAPONIR_DATASET_ENABLED задаёт значение при развёртывании.
+dataset_enabled = true
 # Провайдер или следующий прокси в цепочке (например, 9router).
 anthropic_upstream = "https://api.anthropic.com"
 openai_upstream = "https://api.openai.com"

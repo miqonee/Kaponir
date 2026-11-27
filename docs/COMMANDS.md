@@ -20,6 +20,7 @@ KAPONIR_HOME=/path/to/space kaponir <команда>
 kaponir init
 kaponir init --corp-domain mycompany.ru --corp-domain example.internal
 kaponir init --wizard --language ru
+kaponir init --without-dataset
 kaponir init --learn contract.txt
 kaponir stats
 ```
@@ -27,6 +28,8 @@ kaponir stats
 `init` создаёт конфиг, ключи и правила; повторный запуск не должен менять существующие ключи.
 Мастер необязателен. `--learn` запускает локальный предпросмотр discover; с `--select ID` сохраняются
 только выбранные предложения.
+
+`init --without-dataset` отключает модуль «Датасет» и на новой, и на существующей установке. После изменения перезапустите прокси и отдельно запущенный воркер. Для обратного включения задайте `dataset_enabled = true` в секции `[serve]` файла `config.toml`. Переменная `KAPONIR_DATASET_ENABLED` со значением `true` или `false` имеет приоритет над файлом при запуске. В Compose задайте её в `.env` и примените изменения командой `docker compose up -d`. Импорт настроек сохраняет выбор принимающей установки.
 
 ## Маскирование и восстановление
 

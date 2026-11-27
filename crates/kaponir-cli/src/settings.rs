@@ -85,6 +85,8 @@ impl Home {
         let master = self.master_key()?;
         let vault = SqliteVault::open(&self.vault_path(), &master)?;
         let previous = self.load_config()?;
+        // The destination installation owns its modules, including for older bundles.
+        bundle.config.serve.dataset_enabled = previous.serve.dataset_enabled;
         // Absence means preserve, never implicitly erase a local credential.
         if bundle.config.serve.api_token.is_none() {
             bundle.config.serve.api_token = previous.serve.api_token;
