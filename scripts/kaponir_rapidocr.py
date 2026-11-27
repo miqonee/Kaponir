@@ -227,4 +227,9 @@ def ocr_pipe(threads):
 
 
 if __name__ == "__main__":
-    sys.exit(ocr_pipe(int(sys.argv[1])))
+    if sys.argv[1] == "--check":
+        engine = KaponirRapidOCR(1).engine
+        engine._load_det_model()
+        engine._load_rec_model()
+    else:
+        sys.exit(ocr_pipe(int(sys.argv[1])))

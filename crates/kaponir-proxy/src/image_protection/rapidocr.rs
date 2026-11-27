@@ -1,5 +1,5 @@
 use super::{Code, Failure, ocr::OUTPUT_LIMIT};
-use std::{process::Stdio, sync::Mutex};
+use std::{path::PathBuf, process::Stdio, sync::Mutex};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     process::{Child, Command},
@@ -8,7 +8,8 @@ use tokio::{
 
 const SCRIPT: &str = include_str!("../../../../scripts/kaponir_rapidocr.py");
 
-pub(super) struct LocalOcr {
+pub(crate) struct LocalOcr {
+    pub(crate) python: Option<PathBuf>,
     slots: Semaphore,
     idle: Mutex<Vec<Child>>,
 }
@@ -16,6 +17,7 @@ pub(super) struct LocalOcr {
 impl Default for LocalOcr {
     fn default() -> Self {
         Self {
+            python: None,
             slots: Semaphore::new(4),
             idle: Mutex::default(),
         }
@@ -23,8 +25,9 @@ impl Default for LocalOcr {
 }
 
 impl LocalOcr {
-    fn spawn() -> Result<Child, Failure> {
+    fn spawn(&self) -> Result<Child, Failure> {
         let python = std::env::var_os("KAPONIR_OCR_PYTHON")
+            .or_else(|| self.python.clone().map(PathBuf::into_os_string))
             .or_else(|| std::env::var_os("KAPONIR_WORKER_PYTHON"))
             .unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into());
         let threads = std::env::var("KAPONIR_OCR_THREADS").unwrap_or_else(|_| {
@@ -64,7 +67,7 @@ impl LocalOcr {
         }
         let mut child = match child {
             Some(child) => child,
-            None => Self::spawn()?,
+            None => self.spawn()?,
         };
         let data = Self::exchange(&mut child, png).await?;
         self.idle

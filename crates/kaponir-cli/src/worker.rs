@@ -44,13 +44,15 @@ pub fn run(
     home: &crate::Home,
     args: &[std::ffi::OsString],
 ) -> anyhow::Result<std::process::ExitCode> {
-    let python = std::env::var_os("KAPONIR_WORKER_PYTHON").unwrap_or_else(|| {
-        if cfg!(windows) {
-            "python".into()
-        } else {
-            "python3".into()
-        }
-    });
+    let python = std::env::var_os("KAPONIR_WORKER_PYTHON")
+        .or_else(|| crate::ocr::managed_python(home).map(PathBuf::into_os_string))
+        .unwrap_or_else(|| {
+            if cfg!(windows) {
+                "python".into()
+            } else {
+                "python3".into()
+            }
+        });
     // A file-backed stdin also works under Windows' short command-line limit.
     let ocr_script = serde_json::to_string(include_str!("../../../scripts/kaponir_rapidocr.py"))?;
     let code = format!(

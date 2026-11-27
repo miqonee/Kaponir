@@ -327,6 +327,11 @@ impl State {
         self
     }
 
+    pub fn with_ocr_python(mut self, python: Option<std::path::PathBuf>) -> Self {
+        self.images.local.python = python;
+        self
+    }
+
     pub(crate) fn refresh_suppressed(&self) {
         let sets = self
             .control

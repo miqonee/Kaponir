@@ -531,7 +531,9 @@ def exercise_worker(binary, chat, sample):
                     time.sleep(0.05)
             else:
                 raise RuntimeError("standalone OCR worker did not start")
-            with proxy(binary, chat.url, worker=worker_url, env={"KAPONIR_WORKER_TOKEN": key}) as p:
+            with proxy(binary, chat.url, worker=f"http://127.0.0.1:{free_port()}",
+                       env={"KAPONIR_WORKER_TOKEN": key, "KAPONIR_WORKER_URL": worker_url}) as p:
+                assert p.settings()["worker"] == worker_url + "/ocr/tsv"
                 settings = p.settings(node="worker", approved_recipient=worker_url + "/ocr/tsv")
                 assert settings["engine"] == "rapidocr" and settings["engine_state"] == "ready"
                 accepted(p, chat, [user_message(openai_image(sample))], [sample])
@@ -543,6 +545,37 @@ def exercise_worker(binary, chat, sample):
             if worker.poll() is None:
                 worker.terminate()
                 worker.wait(timeout=10)
+
+
+def exercise_managed_worker(binary, chat, sample):
+    address = f"127.0.0.1:{free_port()}"
+    recipient = f"http://{address}/ocr/tsv"
+    with proxy(binary, chat.url, env={"KAPONIR_WORKER_LISTEN": address,
+                                      "KAPONIR_WORKER_PYTHON": sys.executable}) as p:
+        current = p.settings()
+        assert current["worker_managed"] and current["worker"] == recipient
+
+        def worker_status():
+            return p.call("/api/v1/ui/worker").json()
+
+        assert worker_status()["state"] == "disabled"
+        declined = p.call("/api/v1/ui/ocr/settings", {**current["settings"], "node": "worker"}, "PUT")
+        assert declined.status == 503
+        assert worker_status()["state"] == "disabled"
+
+        settings = p.settings(node="worker", approved_recipient=recipient)
+        assert settings["engine"] == "rapidocr" and settings["engine_state"] == "ready", settings
+        state = worker_status()
+        assert state["online"] and not state["enabled"]
+        attachment = [user_message(openai_image(sample))]
+        accepted(p, chat, attachment, [sample])
+
+        p.stop()
+        p.start()
+        assert worker_status()["state"] == "disabled"
+        accepted(p, chat, attachment, [sample])
+        state = worker_status()
+        assert state["online"] and not state["enabled"]
 
 
 def exercise_review_and_history(binary, chat):
@@ -775,6 +808,7 @@ def run_tests(binary):
             assert not old.settings()["settings"]["enabled"]
             assert request(old, [user_message(openai_image(sample))]).status == 200
         exercise_worker(binary, chat, sample)
+        exercise_managed_worker(binary, chat, sample)
         report(sample)
         out["blocked"] += 1
         controlled, rejected = run_controlled(binary, chat, sample, wrap, yaml, repeated)
@@ -928,7 +962,10 @@ def main():
         if hasattr(signal, "SIGHUP"):
             signal.signal(signal.SIGHUP, lambda *_: restart.set())
         try:
-            with proxy(binary, chat.url) as p:
+            with proxy(binary, chat.url, env={
+                "KAPONIR_WORKER_LISTEN": f"127.0.0.1:{free_port()}",
+                "KAPONIR_WORKER_PYTHON": sys.executable,
+            }) as p:
                 # Simulate an existing installation so the walkthrough explicitly enables OCR.
                 p.settings(enabled=False)
                 print(json.dumps({"url": p.url, "token": TOKEN, "upstream": chat.url,

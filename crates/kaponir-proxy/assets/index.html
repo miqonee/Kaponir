@@ -140,12 +140,15 @@
   </header>
   <p class="ocr-notice" id="ocr-disabled-note" hidden data-i18n="Защита выключена. Поставщик может получить исходную картинку.">Защита выключена. Поставщик может получить исходную картинку.</p>
   <div class="ocr-settings-grid">
-    <fieldset class="ocr-mode"><legend data-i18n="Способ распознавания">Способ распознавания</legend>
-      <div class="choice-switch">
-        <label><input class="sr-only" type="radio" name="mode" value="local" checked/><span data-i18n="Локальный OCR">Локальный OCR</span></label>
-        <label><input class="sr-only" type="radio" name="mode" value="vision"/><span data-i18n="Доверенный API">Доверенный API</span></label>
-      </div>
-    </fieldset>
+    <div class="ocr-backend">
+      <fieldset class="ocr-mode"><legend data-i18n="Способ распознавания">Способ распознавания</legend>
+        <div class="choice-switch">
+          <label><input class="sr-only" type="radio" name="mode" value="local" checked/><span data-i18n="Локальный OCR">Локальный OCR</span></label>
+          <label><input class="sr-only" type="radio" name="mode" value="vision"/><span data-i18n="Доверенный API">Доверенный API</span></label>
+        </div>
+      </fieldset>
+      <label class="field" id="ocr-node-field" for="ocr-node" hidden><span data-i18n="Узел обработки">Узел обработки</span><select name="node" id="ocr-node"><option value="proxy" data-i18n="На компьютере прокси">На компьютере прокси</option><option value="worker" data-i18n="Отдельный worker">Отдельный worker</option></select></label>
+    </div>
     <div class="ocr-engine"><strong data-i18n="Состояние движка">Состояние движка</strong><p id="ocr-engine" role="status"></p><p id="ocr-recipient" class="hint"></p><p id="ocr-install" class="hint" hidden></p></div>
   </div>
   <div id="ocr-vision" hidden>
@@ -157,10 +160,14 @@
     <p id="ocr-check-result" class="form-status" role="status"></p>
   </div>
   <label class="check ocr-consent" id="ocr-consent-row" hidden><input type="checkbox" id="ocr-consent"/><span id="ocr-consent-label"></span></label>
+  <details id="ocr-setup" class="ocr-options">
+    <summary data-i18n="Как установить RapidOCR">Как установить RapidOCR</summary>
+    <p class="hint"><strong>Docker Compose.</strong> <span data-i18n="RapidOCR уже входит в образы. Соберите и запустите сервисы из папки проекта.">RapidOCR уже входит в образы. Соберите и запустите сервисы из папки проекта.</span> <code>docker compose up -d --build</code></p>
+    <p class="hint"><strong data-i18n="Запуск из бинарника.">Запуск из бинарника.</strong> <span data-i18n="На сервере прокси установите окружение командой">На сервере прокси установите окружение командой</span> <code>kaponir ocr setup</code>. <span data-i18n="Затем перезапустите прокси и выберите «На компьютере прокси».">Затем перезапустите прокси и выберите «На компьютере прокси».</span></p>
+  </details>
   <details id="ocr-options" class="ocr-options">
     <summary data-i18n="Дополнительные параметры">Дополнительные параметры</summary>
     <div class="ocr-option-fields">
-      <label class="field" id="ocr-node-field" for="ocr-node" hidden><span data-i18n="Узел обработки">Узел обработки</span><select name="node" id="ocr-node"><option value="proxy" data-i18n="На компьютере прокси">На компьютере прокси</option><option value="worker" data-i18n="Настроенный worker">Настроенный worker</option></select></label>
       <label class="field" id="ocr-languages-field" for="ocr-languages" hidden><span data-i18n="Языки внешнего OCR">Языки внешнего OCR</span><input name="languages" id="ocr-languages" required pattern="[A-Za-z0-9_]+([+][A-Za-z0-9_]+)*" maxlength="80" spellcheck="false"/></label>
       <label class="field"><span data-i18n="Лимит запроса, МиБ">Лимит запроса, МиБ</span><input name="max_mib" type="number" required min="1" max="24"/></label>
       <label class="field"><span data-i18n="Лимит запроса, Мп">Лимит запроса, Мп</span><input name="max_megapixels" type="number" required min="1" max="32"/></label>

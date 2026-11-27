@@ -63,9 +63,13 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
     let connections: Vec<_> = registry.connections.into_iter().filter(|p| p.enabled)
         .map(|p| json!({"id":p.id, "name":p.name, "kind":p.kind, "recipient":ocr::endpoint(&p), "models":p.models}))
         .collect();
+    let worker = ocr::worker_recipient(st);
+    let worker_managed = worker
+        .as_deref()
+        .is_some_and(|url| ocr::managed_worker(st, url).is_some());
     let recipient = match (settings.mode, settings.node) {
         (Mode::Local, Node::Proxy) => None,
-        (Mode::Local, Node::Worker) => ocr::worker_recipient(st),
+        (Mode::Local, Node::Worker) => worker.clone(),
         (Mode::Vision, _) => connections
             .iter()
             .find(|p| p["id"] == settings.connection_id)
@@ -74,7 +78,7 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
     };
     let mut engine = ocr::Backend::engine(settings);
     let (languages, failure) = match ocr::Backend::resolve(st, settings) {
-        Ok(backend) => match backend.capabilities(st).await {
+        Ok(backend) => match backend.capabilities(st, settings.enabled).await {
             Ok(capabilities) => {
                 engine = capabilities.engine;
                 let missing = capabilities.missing_languages(settings);
@@ -86,7 +90,7 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
     };
     Ok(json!({
         "settings":settings, "recipient":recipient, "connections":connections,
-        "worker":ocr::worker_recipient(st), "installed_languages":languages, "engine":engine,
+        "worker":worker, "worker_managed":worker_managed, "installed_languages":languages, "engine":engine,
         "engine_state": match failure {
             None => "ready",
             Some(Code::Consent | Code::Languages) => "needs_setup",

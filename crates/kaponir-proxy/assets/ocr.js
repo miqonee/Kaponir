@@ -62,27 +62,42 @@ function ocrEngineStatus(data, draft) {
   const recipient = draftRecipient();
   const matches = ["mode", "node", "languages", "connection_id", "model", "approved_recipient"]
     .every(key => draft[key] === saved[key]);
-  const state = matches ? data.engine_state : "needs_setup";
-  const label = tr({ready:"ocr.ready", needs_setup:"Нужна настройка", unavailable:"Недоступно"}[state]);
+  const state = matches ? data.engine_state : "pending";
+  const label = tr({ready:"ocr.ready", needs_setup:"Нужна настройка", unavailable:"Недоступно", pending:"Ожидает сохранения"}[state]);
+  const worker = draft.mode === "local" && draft.node === "worker";
   const rapid = draft.mode === "local" && (draft.node === "proxy" ||
-    saved.node === draft.node && data.engine === "rapidocr");
-  const engine = rapid ? "RapidOCR · PP-OCRv6 Small" : draft.mode === "local" ? tr("Настроенный worker") : draft.model;
+    saved.mode === "local" && saved.node === draft.node && data.engine === "rapidocr");
+  const engine = rapid ? "RapidOCR · PP-OCRv6 Small" : worker ? tr("Отдельный worker") : draft.model;
   const languages = rapid ? tr("Многоязычное распознавание") : draft.mode === "local" && matches && data.installed_languages.length
     ? draft.languages.split("+").map(lang => ({rus:tr("русский"),eng:tr("английский")})[lang] || lang).join(", ") : "";
   box.textContent = [label, engine, languages].filter(Boolean).join(" · ");
   box.dataset.state = state;
-  const reason = matches ? ocrError(data.failure ? {code:data.failure} : null) : tr("Сохраните параметры, чтобы применить их к прокси.");
+  let reason;
+  if (worker && !recipient) {
+    reason = tr("Задайте KAPONIR_WORKER_URL в окружении прокси и перезапустите его.");
+  } else if (worker && draft.approved_recipient !== recipient) {
+    reason = tr("Подтвердите адрес получателя и нажмите «Сохранить изменения».");
+  } else if (!matches) {
+    reason = tr("Сохраните параметры, чтобы применить их к прокси.");
+  } else if (worker && data.failure === "unavailable") {
+    reason = data.worker_managed
+      ? tr("Проверьте зависимости OCR и журнал запуска worker.")
+      : tr("Запустите worker и проверьте его адрес и KAPONIR_WORKER_TOKEN.");
+  } else {
+    reason = ocrError(data.failure ? {code:data.failure} : null);
+  }
   const installed = !rapid && draft.mode === "local" && matches && data.installed_languages.length
     ? tr("Установлены · {{0}}", [data.installed_languages.join(", ")]) : "";
   const missing = matches && data.failure === "languages" ?
     tr("Не хватает языков · {{0}}",[draft.languages.split("+").filter(lang => !data.installed_languages.includes(lang)).join(", ")]) : "";
-  $("#ocr-recipient").textContent = [ocrRecipientText(recipient), installed, missing, reason].filter(Boolean).join(" ");
+  $("#ocr-recipient").textContent = [worker && !recipient ? "" : ocrRecipientText(recipient), installed, missing, reason].filter(Boolean).join(" ");
   const install = $("#ocr-install");
-  install.hidden = !matches || draft.mode !== "local" || draft.node !== "proxy" ||
-    data.failure !== "unavailable";
-  if (!install.hidden) install.replaceChildren(tr("Установите зависимости в окружение Python для OCR."), " ",
-    h("code", {}, "python -m pip install rapidocr==3.10.0 onnxruntime==1.32.0"),
-    " ", tr("Укажите путь к этому Python в KAPONIR_OCR_PYTHON и перезапустите прокси."));
+  const needsInstall = matches && draft.mode === "local" && data.failure === "unavailable" &&
+    (!worker || data.worker_managed);
+  install.hidden = !needsInstall && !(worker && data.worker_managed);
+  if (needsInstall) install.replaceChildren(h("code", {}, "kaponir ocr setup"), " · ",
+    tr("Команда устанавливает RapidOCR. После установки перезапустите прокси."));
+  else if (!install.hidden) install.textContent = tr("Прокси запускает локальный worker автоматически после подтверждения адреса.");
 }
 
 function updateOcrForm() {
@@ -91,9 +106,10 @@ function updateOcrForm() {
   const vision = controls.mode.value === "vision";
   const recipient = draftRecipient();
   $("#ocr-vision").hidden = !vision;
-  $("#ocr-node-field").hidden = vision || !imageConfig.worker;
-  const workerLanguages = !vision && controls.node.value === "worker" &&
-    !(saved.node === "worker" && imageConfig.engine === "rapidocr");
+  const worker = !vision && controls.node.value === "worker";
+  $("#ocr-node-field").hidden = vision || (!imageConfig.worker && !worker);
+  const workerLanguages = worker && saved.mode === "local" && saved.node === "worker" &&
+    imageConfig.engine === "worker" && imageConfig.installed_languages.length > 0;
   $("#ocr-languages-field").hidden = !workerLanguages;
   $("#ocr-languages").disabled = !workerLanguages;
   $("#ocr-disabled-note").hidden = controls.enabled.checked;
@@ -103,7 +119,7 @@ function updateOcrForm() {
   $("#ocr-check").disabled = !vision || !controls.connection_id.value || !controls.model.value.trim();
   const draft = currentOcrDraft();
   const changed = Object.keys(saved).some(key => draft[key] !== saved[key]);
-  const authorizedRecipient = !recipient || draft.approved_recipient === recipient;
+  const authorizedRecipient = (!worker && !recipient) || (!!recipient && draft.approved_recipient === recipient);
   const checkedVision = !vision || (draft.connection_id === saved.connection_id && draft.model === saved.model &&
     draft.approved_recipient === saved.approved_recipient && imageConfig.engine_state === "ready") ||
     (proof?.recipient === recipient && proof?.model === draft.model && proof?.connection === draft.connection_id);
@@ -316,7 +332,7 @@ async function loadImageLab() {
   $("#ocr-upload-limits").textContent = tr("PNG, JPEG, WebP · до {{0}} МиБ и {{1}} Мп · до {{2}} пикселей по стороне",
     [data.settings.max_mib, data.settings.max_megapixels, data.max_edge]);
   const engine = !data.settings.enabled || data.engine === "rapidocr"
-    ? "RapidOCR" : data.engine === "vision" ? data.settings.model : tr("Настроенный worker");
+    ? "RapidOCR" : data.engine === "vision" ? data.settings.model : tr("Отдельный worker");
   const recipient = data.settings.enabled
     ? tr("Используются сохранённые настройки.") + " " + ocrRecipientText(data.recipient)
     : tr("Локальная проба на компьютере прокси. Защита в прокси выключена.");

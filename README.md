@@ -84,9 +84,9 @@ open a browser. For a real provider connection, open **Providers and API**, save
 and verify the route with synthetic data first.
 
 For file processing, `--dry-run`, proxy client setup, OCR, and Docker, see the examples below
-and the [CLI reference](docs/COMMANDS.md). Every native worker needs Python 3.12+, including
-for text files. Images/PDF and Qwen mode need additional dependencies; the regular
-mask/restore CLI and proxy do not require Python.
+and the [CLI reference](docs/COMMANDS.md). When running the binary, use `kaponir ocr setup`
+on the proxy host to install RapidOCR, then restart the proxy. Docker images include RapidOCR.
+The native worker requires Python 3.12+. [Image protection setup](docs/IMAGE_PROTECTION.md)
 
 ### Proxy for an existing client
 
@@ -248,6 +248,7 @@ docker compose up -d --build kaponir                 # proxy only
 docker compose up -d --build                         # proxy + worker management service
 ```
 
+Open **LLM settings → OCR & images** to test the bundled RapidOCR on the two-key example.
 Compose stores the vault, keys, queue, and models in volumes; the document directory is mounted
 read-only. Do not use `docker compose down -v` for a routine update: it deletes data and keys.
 See [worker and Compose](docs/WORKER.md#3-docker-compose) for details.

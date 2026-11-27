@@ -426,7 +426,7 @@ impl Drop for Ticket {
 pub(crate) struct Service {
     settings: RwLock<Settings>,
     queue: Arc<Queue>,
-    local: rapidocr::LocalOcr,
+    pub(crate) local: rapidocr::LocalOcr,
     settings_changes: tokio::sync::Mutex<()>,
 }
 impl Service {

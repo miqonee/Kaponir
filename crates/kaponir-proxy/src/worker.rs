@@ -31,10 +31,7 @@ pub(crate) async fn forward(
     path: &str,
     body: Option<Value>,
 ) -> Result<Json<Value>, ApiError> {
-    let configured = std::env::var("KAPONIR_WORKER_URL")
-        .ok()
-        .or_else(|| st.cfg.worker_url.clone());
-    let configured = configured.or_else(|| {
+    let configured = st.cfg.configured_worker_url().or_else(|| {
         st.worker_manager
             .as_ref()
             .filter(|m| m.running())
@@ -133,8 +130,7 @@ async fn status(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Val
     authorized(&st, &headers, true)?;
     if let Some(m) = &st.worker_manager
         && !m.running()
-        && std::env::var("KAPONIR_WORKER_URL").is_err()
-        && st.cfg.worker_url.is_none()
+        && st.cfg.configured_worker_url().is_none()
     {
         return Ok(Json(json!({
             "configured": true,
@@ -205,8 +201,7 @@ async fn stop(State(st): State<Shared>, headers: HeaderMap) -> Result<Json<Value
     authorized(&st, &headers, true)?;
     let _action = st.worker_actions.lock().await;
     if st.worker_manager.as_ref().is_some_and(|m| !m.running())
-        && std::env::var("KAPONIR_WORKER_URL").is_err()
-        && st.cfg.worker_url.is_none()
+        && st.cfg.configured_worker_url().is_none()
     {
         return status(State(st.clone()), headers).await;
     }

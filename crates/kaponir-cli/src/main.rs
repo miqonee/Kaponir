@@ -35,6 +35,11 @@ enum Cmd {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
         args: Vec<std::ffi::OsString>,
     },
+    /// Настройка локального распознавания изображений RapidOCR.
+    Ocr {
+        #[command(subcommand)]
+        action: OcrCmd,
+    },
     /// Перенос настроек, правил и подключений: тот же JSON, что в Web UI.
     Config {
         #[command(subcommand)]
@@ -117,6 +122,16 @@ enum Cmd {
         /// Не открывать браузер.
         #[arg(long)]
         no_open: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum OcrCmd {
+    /// Установить и проверить RapidOCR в окружении Kaponir.
+    Setup {
+        /// Исполняемый файл Python для создания окружения.
+        #[arg(long)]
+        python: Option<PathBuf>,
     },
 }
 
@@ -425,6 +440,15 @@ fn run(cli: Cli) -> Result<ExitCode> {
     });
     match cli.cmd {
         Cmd::Worker { args } => kaponir_cli::worker::run(&home, &args),
+        Cmd::Ocr {
+            action: OcrCmd::Setup { python },
+        } => {
+            let python = python
+                .as_deref()
+                .unwrap_or_else(|| Path::new(if cfg!(windows) { "python" } else { "python3" }));
+            kaponir_cli::ocr::setup(&home, python)?;
+            Ok(ExitCode::SUCCESS)
+        }
         Cmd::Config { action } => {
             match action {
                 ConfigCmd::Export {
@@ -1374,14 +1398,13 @@ fn serve(home: &Home, a: ServeArgs, open: bool) -> Result<ExitCode> {
     let control = Box::new(kaponir_cli::HomeControl {
         home: Home::new(home.dir.clone()),
     });
-    let external_worker = std::env::var("KAPONIR_WORKER_URL")
-        .ok()
-        .or_else(|| cfg.serve.worker_url.clone());
+    let external_worker = cfg.serve.configured_worker_url();
     let is_managed_worker_endpoint = external_worker
         .as_deref()
         .map(|u| u.trim_end_matches('/'))
         .is_some_and(|u| u == "http://127.0.0.1:8788" || u == "http://localhost:8788");
     let mut state = kaponir_proxy::State::new(engine, vault, cfg.owner.clone(), cfg.serve.clone())?
+        .with_ocr_python(kaponir_cli::ocr::managed_python(home))
         .with_control(control);
     if external_worker.is_none() || is_managed_worker_endpoint {
         match kaponir_cli::worker::ManagedWorker::new(

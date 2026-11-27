@@ -19,6 +19,7 @@ pub const DEFAULT_PACKS: &[&str] = &[
     "region-ru",
 ];
 
+pub mod ocr;
 pub mod s1;
 pub mod settings;
 pub mod worker;

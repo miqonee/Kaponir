@@ -175,6 +175,14 @@ impl Default for ProxyConfig {
     }
 }
 
+impl ProxyConfig {
+    pub fn configured_worker_url(&self) -> Option<String> {
+        std::env::var("KAPONIR_WORKER_URL")
+            .ok()
+            .or_else(|| self.worker_url.clone())
+    }
+}
+
 /// Подсказка модели. Без конкретных примеров токенов: модель могла бы повторить пример,
 /// и он восстановился бы в чужое значение.
 pub fn system_hint(prefix: &str) -> String {

@@ -1,3 +1,5 @@
+x-internal-no-proxy: &internal-no-proxy "localhost,127.0.0.1,::1,kaponir,worker${NO_PROXY:+,${NO_PROXY}}${no_proxy:+,${no_proxy}}"
+
 services:
   kaponir:
     build:
@@ -11,6 +13,8 @@ services:
       KAPONIR_API_TOKEN: ${KAPONIR_API_TOKEN:?Set KAPONIR_API_TOKEN}
       KAPONIR_WORKER_URL: http://worker:8788
       KAPONIR_WORKER_TOKEN: ${KAPONIR_WORKER_TOKEN:-${KAPONIR_API_TOKEN}}
+      NO_PROXY: *internal-no-proxy
+      no_proxy: *internal-no-proxy
     volumes:
       - kaponir-data:/data
     restart: unless-stopped
@@ -26,6 +30,8 @@ services:
       KAPONIR_WORKER_TOKEN: ${KAPONIR_WORKER_TOKEN:-${KAPONIR_API_TOKEN}}
       KAPONIR_API_TOKEN: ${KAPONIR_API_TOKEN:?Set KAPONIR_API_TOKEN}
       KAPONIR_WORKER_API_URL: http://kaponir:8787
+      NO_PROXY: *internal-no-proxy
+      no_proxy: *internal-no-proxy
     volumes:
       - kaponir-data:/data
       - kaponir-models:/models

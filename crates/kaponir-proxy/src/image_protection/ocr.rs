@@ -94,7 +94,11 @@ fn tsv(bytes: &[u8], width: u32, height: u32) -> Result<Reading, Failure> {
 }
 
 fn worker_url(st: &Shared) -> Option<String> {
-    let base = st.cfg.worker_url.as_deref()?.trim_end_matches('/');
+    let configured = st
+        .cfg
+        .configured_worker_url()
+        .or_else(|| st.worker_manager.as_ref().map(|manager| manager.endpoint()))?;
+    let base = configured.trim_end_matches('/');
     let url = reqwest::Url::parse(base).ok()?;
     if !matches!(url.scheme(), "http" | "https")
         || url.host_str().is_none()
@@ -126,6 +130,46 @@ pub(super) fn endpoint(provider: &Provider) -> String {
 
 pub(super) fn worker_recipient(st: &Shared) -> Option<String> {
     worker_url(st).map(|base| format!("{base}/ocr/tsv"))
+}
+
+pub(super) fn managed_worker<'a>(
+    st: &'a Shared,
+    recipient: &str,
+) -> Option<&'a std::sync::Arc<dyn crate::WorkerManager>> {
+    let base = recipient.trim_end_matches("/ocr/tsv");
+    st.worker_manager.as_ref().filter(|manager| {
+        let local = manager.endpoint();
+        base == local
+            || local
+                .strip_prefix("http://127.0.0.1:")
+                .is_some_and(|port| base.strip_prefix("http://localhost:") == Some(port))
+    })
+}
+
+async fn worker_status(
+    st: &Shared,
+    recipient: &str,
+    start_worker: bool,
+) -> Result<reqwest::Response, Failure> {
+    let base = recipient.trim_end_matches("/ocr/tsv");
+    let request = || worker_request(st.http.get(format!("{base}/ocr/status"))).send();
+    let mut response = request().await;
+    if start_worker
+        && response.as_ref().is_err_and(reqwest::Error::is_connect)
+        && let Some(manager) = managed_worker(st, recipient)
+    {
+        let _action = st.worker_actions.lock().await;
+        let child = manager.clone();
+        tokio::task::spawn_blocking(move || child.start())
+            .await
+            .map_err(|_| Failure::new(Code::Unavailable))?
+            .map_err(|_| Failure::new(Code::Unavailable))?;
+        while response.as_ref().is_err_and(reqwest::Error::is_connect) && manager.running() {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            response = request().await;
+        }
+    }
+    response.map_err(|_| Failure::new(Code::Unavailable))
 }
 
 #[derive(Clone, PartialEq, Eq, serde::Serialize, Deserialize)]
@@ -235,7 +279,11 @@ impl Backend {
         }
     }
 
-    pub(super) async fn capabilities(&self, st: &Shared) -> Result<Capabilities, Failure> {
+    pub(super) async fn capabilities(
+        &self,
+        st: &Shared,
+        start_worker: bool,
+    ) -> Result<Capabilities, Failure> {
         tokio::time::timeout(Duration::from_secs(3), async {
             match self {
                 Self::RapidOcr => {
@@ -246,11 +294,10 @@ impl Backend {
                     })
                 }
                 Self::Worker(recipient) => {
-                    let base = recipient.trim_end_matches("/ocr/tsv");
-                    let response = worker_request(st.http.get(format!("{base}/ocr/status")))
-                        .send()
-                        .await
-                        .map_err(|_| Failure::new(Code::Unavailable))?;
+                    let response = worker_status(st, recipient, start_worker).await?;
+                    if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+                        return Err(Failure::new(Code::QueueFull));
+                    }
                     if !response.status().is_success() {
                         return Err(Failure::new(Code::Unavailable));
                     }
@@ -281,7 +328,10 @@ impl Backend {
 
     pub async fn ready(&self, st: &Shared, settings: &Settings) -> Result<(), Failure> {
         if matches!(self, Self::Worker(_))
-            && self.capabilities(st).await?.missing_languages(settings)
+            && self
+                .capabilities(st, true)
+                .await?
+                .missing_languages(settings)
         {
             return Err(Failure::new(Code::Languages));
         }
