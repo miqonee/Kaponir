@@ -13,6 +13,7 @@ power a CLI, Web UI, LLM proxy, and document discovery worker. Use shared rules 
 agent, in a shell pipeline, or behind your own API.
 
 [Quick start](#quick-start) · [Features](#what-kaponir-does) ·
+[Web UI](#web-ui) · [Attachment protection](#protect-images-and-pdfs) ·
 [Comparison](#kaponir-and-presidio) · [Documentation](#documentation)
 
 ![Workflow: Kaponir masks a password before the LLM request and restores its token locally in the response](docs/images/kaponir-flow-en.svg)
@@ -37,8 +38,9 @@ Detection depends on your policy and data; review representative examples before
 | **Restore original values** | Stable tokens, DNS-compatible forms, HMAC pseudonyms, and IP surrogates; encrypted mappings; text, escaped JSON, and streaming restoration. An irreversible mode is also available. |
 | **Set your own policy** | Exact values, regex, Composite DSL templates, MASK/KEEP, per-kind strategies, and Personal/Team/Global scopes with enforced global rules. Language/domain packs and custom dictionaries extend detection. |
 | **Connect an AI agent** | OpenAI Chat Completions and Anthropic Messages; supported message text, tool results and arguments, buffered responses, SSE, and session memory. |
+| **Protect attachments** | Mask sensitive areas of inline PNG, JPEG, WebP, and PDF files before forwarding them. Download or inspect the processed copy. |
 | **Manage provider connections** | Up to 64 connections with encrypted keys, custom compatible endpoints, model pools, session affinity, and opt-in HTTP 429 retry. |
-| **Build rules from documents** | Local discovery plus optional local Qwen candidates; text, images, PDF, and exported sessions; persistent worker queue, review, and explicit rule confirmation. |
+| **Build rules from documents** | Search text, images, PDFs, and saved sessions with fast detectors or optional model-based discovery. Review findings and turn confirmed decisions into rules. |
 | **Operate and integrate** | English/Russian Web UI, sidecar REST, Docker Compose, settings transfer, sanitized events, JSON metrics, and Prometheus. |
 
 Optional **S1** scores already detected uncertain candidates using a local model or HTTP service.
@@ -60,7 +62,8 @@ kaponir init --corp-domain mycompany.ru
 This creates the local configuration, keys, encrypted vault, and rule files in
 `~/.config/kaponir`. Back up `vault.key`: without it, saved mappings cannot be restored.
 
-For an installation without training examples, run `kaponir init --without-dataset`. With Docker Compose, set `KAPONIR_DATASET_ENABLED=false` in `.env`. Findings, rules and decision history work in either setup.
+To disable the Dataset module at installation, use `kaponir init --without-dataset`.
+With Docker Compose, set `KAPONIR_DATASET_ENABLED=false` in `.env`. [Dataset guide](docs/DISCOVERY.md#датасет)
 
 ### 2. Mask and restore the actual result
 
@@ -82,13 +85,10 @@ kaponir ui --no-open
 ```
 
 The same UI is available after `kaponir serve`. `kaponir ui` without `--no-open` also tries to
-open a browser. For a real provider connection, open **Providers and API**, save a provider,
-and verify the route with synthetic data first.
+open a browser. Add a connection under **Proxy settings → API providers** and verify the route
+with synthetic data.
 
-For file processing, `--dry-run`, proxy client setup, OCR, and Docker, see the examples below
-and the [CLI reference](docs/COMMANDS.md). When running the binary, install RapidOCR in OCR settings
-or run `kaponir ocr setup` on the proxy host. Docker images include RapidOCR.
-The native worker requires Python 3.12+. [Image protection setup](docs/IMAGE_PROTECTION.md)
+For file processing, `--dry-run`, and proxy client setup, see the [CLI reference](docs/COMMANDS.md).
 
 ### Proxy for an existing client
 
@@ -110,27 +110,59 @@ verified the address, route, and rules with synthetic data.
 
 ## Web UI
 
-The dashboard shows proxy statistics and grouped sessions. **LLM settings** contains the model,
-resource measurements, discovery, categorization, and **Service and queue**. Open **Proxy settings**
-for provider connections and API access. The **Jobs** button in the header shows live progress.
-Each local model card shows file integrity
-and runtime readiness, with download and offline installation instructions. Settings can wait for
-missing files without downloading automatically. Completed turns are analyzed in the background;
-verified scores above 85% can create reversible rules. See [background learning](docs/LEARNING.md).
-Open **Findings → AI proposals** to accept or decline a model decision. Use the **Lab** to check text or find values in a document.
-Screenshots use synthetic traffic against a local fixture provider.
+The **Overview** shows proxy traffic, recent sessions, and findings awaiting a decision.
+Choose English or Russian and a light or dark theme from the sidebar.
+
+- In **Sessions**, model replies and tool calls appear under the user message that started them.
+  Expand a tool call to see its arguments and result. The **Request log** shows what was sent on each
+  call, along with the masking decisions. OpenCode subagents link to their parent session when
+  Kaponir can verify the relationship.
+- In **Findings**, search by value or context and filter by **AI advice → No / All / Yes**.
+  Open a finding to see its occurrences, make a manual decision, or accept or decline a proposal.
+  Use **Batch actions** to review selected rows or the entire filtered list with a model.
+- **Lab** brings together **Test text** for previewing replacements and **Find values** for
+  searching text, files, or saved proxy sessions.
+- The **Jobs** menu shows live stages, progress, and queued work. In **LLM settings**, choose models for
+  discovery and categorization, check local files and runtime readiness, and manage the analysis
+  service. Choosing a model applies its measured preset when one is available.
+  [Background analysis](docs/LEARNING.md)
+- **Dataset** is an optional module for collecting examples from findings, reviewing labels,
+  and exporting checked examples as JSONL. Findings, rules, and decision history remain available
+  in installations with the module disabled. [Dataset workflow](docs/DISCOVERY.md#датасет)
+
+Screenshots use synthetic traffic against a local test provider.
 
 ![Dashboard in dark mode](docs/images/console-dashboard-dark-en.png)
 
 <details>
-<summary>Light mode</summary>
+<summary>Findings and light mode</summary>
+
+![Findings with the AI advice filter and an open decision card](docs/images/console-findings-dark-en.png)
 
 ![Dashboard in light mode](docs/images/console-dashboard-light-en.png)
-
 
 </details>
 
 [Control panel guide](docs/CONTROL_PANEL.md) · [Worker guide](docs/WORKER.md)
+
+## Protect images and PDFs
+
+With protection enabled, the proxy checks base64 PNG, JPEG, WebP, and PDF attachments in
+OpenAI Chat Completions and Anthropic Messages requests. RapidOCR reads images and scans, and
+PDFium also reads the visible text layer and its character coordinates. Kaponir masks matched
+regions and rebuilds PDFs from the processed page images. A request can contain up to 15 PDF
+pages in total.
+
+Under **LLM settings → OCR and images**, install RapidOCR and enable attachment protection.
+You can also install RapidOCR on the proxy host with `kaponir ocr setup`. The Docker images
+include the OCR dependencies and both recognition profiles. Select **Russian + English** for
+Cyrillic and mixed-language content, then use **Test an image or PDF** to preview and download
+the processed file.
+
+The **URL mask** setting controls whether to cover the entire URL or only the matched portion
+when its boundaries are reliable. For a proxied request, **Request log → Images** shows what
+the provider received. If processing fails, the proxy stops the request before forwarding it.
+[Attachment setup, supported inputs, and limits](docs/IMAGE_PROTECTION.md)
 
 <a id="kaponir-and-microsoft-presidio"></a>
 
@@ -152,7 +184,7 @@ additional data-processing modules, and gateway integrations.
 | **LLM requests and responses** | Built-in Chat Completions/Anthropic proxy, SSE restoration, and supported tool arguments/results. | Documented gateway integrations, including LiteLLM; protocol handling, streaming, and restoration depend on the chosen integration. |
 | **Gateway integration and routing** | Sidecar REST with per-session streaming restoration, up to 64 provider connections, model pools, session affinity, and opt-in HTTP 429 retry. | Analyzer/anonymizer HTTP services; provider routing, keys, and session handling are supplied by the gateway or application integration. |
 | **Files and structured data** | CLI pipelines, configuration formats, and REST; discovery over text and extracted document content. | Python/REST, batch processing, and a dedicated structured/semi-structured data package. |
-| **Images and PDF** | Worker extracts text for discovery and review; optional Qwen candidate discovery. Does not redact source pixels. | Image-redactor uses OCR and detection to redact image pixels. |
+| **Images and PDF** | The proxy masks pixels in supported inline images and rebuilds PDFs from masked pages. The document worker extracts text for finding and reviewing sensitive values. | Image-redactor uses OCR and detection to redact image pixels. |
 | **Review and adaptation** | Web laboratory, decision review, saved suggestions → confirmed rules; optional S1 scoring and local training on confirmed decisions. | Analyzer decision explanations and configurable recognizers/models; a review and rule-approval workflow can be built around the APIs. |
 | **Running the workflow** | CLI + bilingual Web UI + proxy in one Rust binary; optional Python worker and Compose; provider pools and metrics. | Python packages, HTTP services, Docker/Kubernetes deployment examples, and ecosystem integrations. |
 
@@ -193,6 +225,11 @@ Use `kpn unmask North Wind` on the first line to share a name for one question. 
 `kpn mask -s North Wind; Blue Finch` to hide both names for the session. Write the question on
 the next line. [Chat masking commands](docs/COMMANDS.md#команды-маскирования-в-чате)
 
+Add an instruction to the agent's system prompt under
+**Proxy settings → Access and configuration → Agent system prompt**.
+For Helm configurations, send `values.yaml` or `helm template` output to let the proxy check the
+contents before forwarding. [Proxy settings guide](docs/CONTROL_PANEL.md#системный-промпт-агента)
+
 ### 3. Create rules from corporate documents
 
 ```bash
@@ -214,14 +251,13 @@ kaponir worker --input-root /absolute/path/to/documents run .
 kaponir discover --saved --json
 ```
 
-For a persistent queue, run `kaponir worker serve` alongside `kaponir serve`. The worker extracts
-text, passes it to discover, and stores suggestions; OCR model output does not become rules.
-Q4/Q5 downloads, job management, and Compose are described in the [worker guide](docs/WORKER.md).
+The native worker requires Python 3.12+. Run `kaponir worker serve` alongside `kaponir serve`
+for a persistent queue. The worker extracts text and saves findings for review.
 
-For model-based candidate discovery, select **Qwen3 semantic search (CPU) + local detectors** in the UI.
-Findings are checked against source text and require confirmation before becoming rules.
-Retained sessions appear in Events and can be analyzed through `@sessions`.
-TXT/Markdown/JSON/JSONL exports can also be submitted as files; directory watching is not implemented. [Worker setup and modes](docs/WORKER.md).
+In **Lab → Find values**, select **Text and files** or **Proxy sessions**. Use fast detectors for
+a local search or configure a model in **LLM settings → Discovery**. The search also accepts
+TXT, Markdown, JSON, and JSONL session exports. Use `@sessions` to select retained sessions
+from the worker. [Worker setup and discovery modes](docs/WORKER.md)
 
 ### 5. Integrate processing into a custom gateway
 
@@ -250,7 +286,7 @@ docker compose up -d --build kaponir                 # proxy only
 docker compose up -d --build                         # proxy + worker management service
 ```
 
-Open **LLM settings → OCR & images** to test the bundled RapidOCR on the two-key example.
+Open **LLM settings → OCR and images** to test the bundled RapidOCR on the two-key example.
 Compose stores the vault, keys, queue, and models in volumes; the document directory is mounted
 read-only. Do not use `docker compose down -v` for a routine update: it deletes data and keys.
 See [worker and Compose](docs/WORKER.md#3-docker-compose) for details.
@@ -263,10 +299,10 @@ See [worker and Compose](docs/WORKER.md#3-docker-compose) for details.
 - **Team** — rules shared by a team.
 - **Global** — global policy; `enforced = true` cannot be overridden by a lower-priority scope.
 
-Scopes organize rule priority and distribution, but they are not a ready-made multi-user RBAC
-model. Exact values, regex, Composite DSL templates, MASK/KEEP, types, categories, and strategies
-are supported. After rule changes, the Web UI rebuilds the engine without restarting and clears
-affected masking caches.
+Scopes organize rule priority and distribution. Exact values, regex, Composite DSL templates,
+MASK/KEEP, types, categories, and strategies are supported. In **Rules**, open the Team, Personal,
+or Global group to manage rules and domains. Audit and export cover all groups. Saving rule
+changes rebuilds the engine and clears affected masking caches without a restart.
 
 ```bash
 kaponir rule add --value 'Example Client' --kind CLIENT
@@ -332,7 +368,7 @@ Understand these boundaries before using Kaponir with real data:
 - **Not every model will preserve meaning.** Substitutions change the text visible to the model; exact restoration is possible only for tokens returned without distortion.
 - **Traffic inspection is bounded.** The latest 200 inspectors and persistent counters are separate from the learning history.
 - **Helm checks before forwarding.** Pasted YAML, tool output and inline `.yaml` or `.yml` attachments go through local masking. For a packaged chart (`.tgz`, `.tar.gz`) or a YAML reference without accessible contents, the gateway returns HTTP 422. Send `values.yaml` or the output of `helm template`.
-- **Agent steps in a conversation.** Open a user message to read its model replies and tool calls in order. Expand a tool to inspect its arguments and result. The request log shows what reached the provider on each call. Replaying the same history stays in the same turn. Clients sending identical questions without history can send a fresh `X-Kaponir-Turn` per user message and reuse it with `X-Kaponir-Session` on all related calls.
+- **Grouping requests into turns.** Replaying the same history stays in the same turn. Clients sending identical questions without history can send a fresh `X-Kaponir-Turn` per user message and reuse it with `X-Kaponir-Session` on all related calls.
 - **Model confidence is not measured accuracy.** Background learning can auto-apply verified findings above the configured threshold; review its journal and use rollback.
 - **Team/Global are not RBAC.** Separate user roles and a shared multi-server vault are not implemented.
 - **The server trusts the workspace owner.** Kaponir does not protect data from a host administrator who controls the process, memory, keys, and vault.
@@ -378,6 +414,7 @@ Start with the [documentation index](docs/README.md). Main routes:
 
 - [CLI reference](docs/COMMANDS.md) — commands, flags, formats, and examples.
 - [Control panel](docs/CONTROL_PANEL.md) — UI, providers, pools, and events.
+- [Image and PDF protection](docs/IMAGE_PROTECTION.md) — RapidOCR setup, PDF handling, and inspection of processed attachments.
 - [Discover](docs/DISCOVERY.md) — suggestions, collection, confirmations, and API.
 - [Worker](docs/WORKER.md) — queue, OCR, PDF, and Docker Compose.
 - [S1](docs/S1.md) — L0/L1/L2 disclosure, shadow/active modes, HTTP, and training.

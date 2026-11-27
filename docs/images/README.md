@@ -38,10 +38,13 @@ image. Update the workflow SVGs directly when the documented flow changes.
 
 ## Консоль после переработки
 
-`console-dashboard-dark.png`, `console-dashboard-light.png`, их варианты `-en.png` и `console-documents-dark.png`
-сняты `scripts/validate_console.py` на синтетическом трафике локального fixture-поставщика.
-Скрипт также проверяет 390/768/1440 px, RU/EN, потоковые ответы, аудит и запуск воркера.
-Полные снимки и журнал сохраняются в `artifacts/console` (также доступны как артефакт CI).
+Снимки «Обзора» (`console-dashboard-*.png`) и «Находок» (`console-findings-dark*.png`)
+получены в Chromium на синтетических данных с локальным тестовым поставщиком.
+Варианты с суффиксом `-en` показывают английский интерфейс и английский текст примеров.
+
+Снимок `console-documents-dark.png` получен при запуске `scripts/validate_console.py`.
+Этот скрипт проверяет 390/768/1440 px, RU/EN, потоковые ответы, аудит и запуск воркера.
+Его снимки и журнал сохраняются в `artifacts/console` и доступны как артефакт CI.
 
 `console-learning-dark.png` и `console-learning-history-dark.png` сняты
 `scripts/validate_local_learning.py --screenshots` при настоящей обработке Qwen3.5-0.8B
