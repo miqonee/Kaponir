@@ -415,7 +415,7 @@ def controlled_tsv(sample, replacements=None, joined=False, omit_lines=()):
     return "\n".join(lines) + "\n"
 
 
-def run_controlled(binary, chat, sample, wrap, yaml):
+def run_controlled(binary, chat, sample, wrap, yaml, repeated):
     with tempfile.TemporaryDirectory(prefix="kaponir-tsv-") as location:
         bin_path, tsv_path = Path(location, "tesseract"), Path(location, "selected.tsv")
         delay = Path(location, "delay")
@@ -449,6 +449,17 @@ def run_controlled(binary, chat, sample, wrap, yaml):
             for sample_ in (wrap, yaml):
                 tsv_path.write_text(controlled_tsv(sample_))
                 accepted(p, chat, [user_message(openai_image(sample_))], [sample_])
+            # The second value is legible, but the OCR missed its field separator.
+            tsv_path.write_text(controlled_tsv(repeated, {(2, 1): [("accessKey", 0.0, 1.0)]}))
+            event = accepted(p, chat, [user_message(openai_image(repeated))], [repeated])
+            attachment = event["inspector"]["images"]["attachments"][0]
+            assert len(attachment["areas"]) == 2
+            preview = p.call("/api/v1/ui/ocr/preview", repeated.raw,
+                             headers={"content-type": repeated.mime})
+            assert preview.status == 200
+            result = preview.json()
+            assert result["image"]["areas"] == attachment["areas"]
+            assert base64.b64decode(result["data"].split(",", 1)[1]) == next(binary_parts(chat.records[-1][2]))
             tsv_path.write_text(controlled_tsv(yaml, omit_lines=(2,)))
             details = blocked(p, chat, [user_message(openai_image(yaml), openai_image(sample))], {"boundaries"}, 422)
             assert details["field"] == "secretKey"
@@ -481,7 +492,7 @@ def run_controlled(binary, chat, sample, wrap, yaml):
                 assert not child.exists(), "disconnect did not stop the Tesseract child"
                 assert len(chat.records) == before + 1  # The independent text request.
                 accepted(p, chat, call, [sample])
-    return (5, 2) if sys.platform == "linux" else (4, 1)
+    return (6, 2) if sys.platform == "linux" else (5, 1)
 
 
 def exercise_worker(binary, chat, sample):
@@ -748,7 +759,7 @@ def run_tests(binary):
         exercise_worker(binary, chat, sample)
         report(sample)
         out["blocked"] += 1
-        controlled, rejected = run_controlled(binary, chat, sample, wrap, yaml)
+        controlled, rejected = run_controlled(binary, chat, sample, wrap, yaml, repeated)
         exercise_review_and_history(binary, chat)
         out["review_and_history"] = "passed"
         out["controlled_tsv_accepted"] = controlled

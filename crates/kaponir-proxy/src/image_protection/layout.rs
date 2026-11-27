@@ -3,11 +3,14 @@
 use super::ocr::{Reading, Word};
 use super::{Area, Code, Failure, Reason, Rect};
 use image::RgbImage;
-use kaponir_core::{Engine, Format, Input, MaskOptions, MemoryVault, Scope, Verdict};
+use kaponir_core::{
+    Category, Engine, Format, Input, Known, MaskOptions, MemoryVault, Scope, Strategy, TokenForm,
+    Verdict,
+};
 use kaponir_recognizers::kv::{
     FieldAssignment, KeyValue, credential_reference, yaml_block_indicator,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::ops::Range;
 use std::sync::{
     OnceLock,
@@ -537,10 +540,30 @@ pub(super) fn mask(
     let ink = Ink::read(image, cancelled)?;
     let rows = physical_rows(reading.words);
     let columns = columns(&rows, &ink, width, height, glyph);
-    let mut areas: Vec<Area> = Vec::new();
-    let mut review_values = BTreeMap::new();
-    static KEY_VALUE: OnceLock<KeyValue> = OnceLock::new();
-    let key_value = KEY_VALUE.get_or_init(KeyValue::new);
+    let options = MaskOptions {
+        scope,
+        irreversible: true,
+        journal: false,
+        explain: true,
+        ..MaskOptions::default()
+    };
+    let detect = |doc: &Document, options: &MaskOptions| {
+        if cancelled.load(Relaxed) {
+            return Err(Failure::new(Code::Cancelled));
+        }
+        engine
+            .mask_without_s1(
+                &Input {
+                    text: &doc.text,
+                    format: Format::Auto,
+                },
+                options,
+                &mut MemoryVault::new(),
+            )
+            .map_err(|_| Failure::new(Code::Rules))
+    };
+
+    let mut documents = Vec::new();
     for column in columns {
         if cancelled.load(Relaxed) {
             return Err(Failure::new(Code::Cancelled));
@@ -548,22 +571,38 @@ pub(super) fn mask(
         let Some(doc) = Document::build(&rows, column, glyph, &ink) else {
             continue;
         };
-        let masked = engine
-            .mask_without_s1(
-                &Input {
-                    text: &doc.text,
-                    format: Format::Auto,
-                },
-                &MaskOptions {
-                    scope,
-                    irreversible: true,
-                    journal: false,
-                    explain: true,
-                    ..MaskOptions::default()
-                },
-                &mut MemoryVault::new(),
-            )
-            .map_err(|_| Failure::new(Code::Rules))?;
+        let masked = detect(&doc, &options)?;
+        documents.push((doc, masked));
+    }
+    // OCR can read a repeated value while dropping the separator that identified it
+    // as a credential. Remember confirmed values for this image, including other columns.
+    let mut seen = HashSet::new();
+    let known = documents
+        .iter()
+        .flat_map(|(_, masked)| &masked.replacements)
+        .filter(|r| {
+            r.protected && r.category == Category::Credential && seen.insert(r.original.as_str())
+        })
+        .map(|r| Known {
+            text: r.original.clone(),
+            canonical: r.original.clone(),
+            kind: r.kind.clone(),
+            scope: r.scope,
+            strategy: Strategy::Hmac,
+            form: TokenForm::Snake,
+        })
+        .collect();
+    let repeat_options = MaskOptions {
+        known,
+        explain: false,
+        ..options
+    };
+    let mut areas: Vec<Area> = Vec::new();
+    let mut review_values = BTreeMap::new();
+    static KEY_VALUE: OnceLock<KeyValue> = OnceLock::new();
+    let key_value = KEY_VALUE.get_or_init(KeyValue::new);
+    for (doc, masked) in documents {
+        let column = doc.column;
         for field in key_value.field_assignments(engine.lexicon(), &doc.text) {
             let matches = |start: usize, end: usize, key: &str| {
                 key.strip_prefix("key:").is_some_and(|key| key == field.key)
@@ -611,7 +650,20 @@ pub(super) fn mask(
                 review_id: None,
             });
         }
-        for replacement in masked.replacements {
+        let mut replacements = masked.replacements;
+        if !repeat_options.known.is_empty() {
+            replacements.extend(
+                detect(&doc, &repeat_options)?
+                    .replacements
+                    .into_iter()
+                    .filter(|r| r.recognizer == "session")
+                    .map(|mut r| {
+                        r.category = Category::Credential;
+                        r
+                    }),
+            );
+        }
+        for replacement in replacements {
             let rectangles = doc.span_rectangles(replacement.start, replacement.end, width, height);
             if rectangles.is_empty() {
                 return Err(Failure::new(Code::Boundaries));
