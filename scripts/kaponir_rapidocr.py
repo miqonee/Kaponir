@@ -1,6 +1,7 @@
 """Multilingual RapidOCR for Kaponir's local image paths.
 
 The stdio protocol is a big-endian u32 payload length followed by a PNG.
+The high bit requests optional character geometry for URL masks.
 An empty payload probes availability. The reply is a status byte, a u32
 length and a TSV payload. Nothing in this protocol is written to logs.
 """
@@ -14,6 +15,8 @@ import sys
 MAX_PNG = 32 << 20
 MAX_TSV = 2 << 20
 MAX_WORDS = 10_000
+CHARACTER_BOXES = 1 << 31
+MIN_BOUNDARY_CONFIDENCE = 0.85
 TSV_HEADER = "level\tpage_num\tblock_num\tpar_num\tline_num\tword_num\tleft\ttop\twidth\theight\tconf\ttext\n"
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
@@ -61,7 +64,7 @@ def duplicated_separator(rect, labels):
     return False
 
 
-def word_boxes(line, pieces, width, height):
+def word_boxes(line, pieces, width, height, character_boxes=False):
     """Join character boxes at the whitespace boundaries of the transcription.
 
     RapidOCR can return one box per character when a line mixes scripts. A
@@ -89,7 +92,14 @@ def word_boxes(line, pieces, width, height):
         offset += len(part)
         if offset in ends:
             end = ends[offset]
-            groups.append((line[start:end].strip(), min(scores), union(rects)))
+            word = line[start:end].strip()
+            centers = []
+            looks_like_url = "://" in word or ("." in word and ("/" in word or word.lower().startswith("www.")))
+            if (character_boxes and looks_like_url and word.isascii()
+                    and not any(ch.isspace() for ch in word) and len(rects) == len(word)):
+                centers = [str((rect[0] + rect[2]) // 2) if score >= MIN_BOUNDARY_CONFIDENCE else "-"
+                           for rect, score in zip(rects, scores, strict=True)]
+            groups.append((word, min(scores), union(rects), centers))
             start = end
             rects = []
             scores = []
@@ -121,7 +131,7 @@ class KaponirRapidOCR:
             **{key: str(path) for key, path in paths.items()},
         })
 
-    def tsv(self, png):
+    def tsv(self, png, character_boxes=False):
         if len(png) > MAX_PNG:
             raise OcrLimitError
         if len(png) < 33 or not png.startswith(PNG_MAGIC) or png[12:16] != b"IHDR":
@@ -141,7 +151,8 @@ class KaponirRapidOCR:
             det.limit_type, det.limit_side_len = "max", 1800
         else:
             det.limit_type, det.limit_side_len = "min", 736
-        result = self.engine(pixels, use_cls=False, return_word_box=True)
+        result = self.engine(pixels, use_cls=False, return_word_box=True,
+                             return_single_char_box=character_boxes)
 
         words_in_image = []
         for index, (line, score, polygon) in enumerate(
@@ -156,33 +167,41 @@ class KaponirRapidOCR:
             if rect is None:
                 raise OcrImageError
             pieces = result.word_results or ()
-            words = (word_boxes(line, pieces[index - 1], width, height)
+            words = (word_boxes(line, pieces[index - 1], width, height, character_boxes)
                      if index <= len(pieces) else [])
-            for order, (word, confidence, rect) in enumerate(
-                words or [(line, float(score), rect)], 1
+            for order, (word, confidence, rect, centers) in enumerate(
+                words or [(line, float(score), rect, [])], 1
             ):
                 if len(words_in_image) == MAX_WORDS or len(word.encode("utf-8")) > 1024:
                     raise OcrLimitError
                 if not math.isfinite(confidence):
                     raise OcrImageError
                 confidence = max(0, min(100, 100 * confidence))
-                words_in_image.append((index, order, word, confidence, rect))
+                words_in_image.append((index, order, word, confidence, rect, centers))
 
         # The detector sometimes puts the same colon in both the label box
         # and the value line. Redundant separators obscure the label boundary.
         labels = {":": [], "=": []}
-        for _, _, word, _, rect in words_in_image:
+        for _, _, word, _, rect, _ in words_in_image:
             if len(word) > 1 and word[-1] in labels:
                 labels[word[-1]].append(rect)
         records = [TSV_HEADER]
-        for index, order, word, confidence, rect in words_in_image:
+        geometry_budget = MAX_TSV // 4
+        for index, order, word, confidence, rect, centers in words_in_image:
             if word in labels and duplicated_separator(rect, labels[word]):
                 continue
             x0, y0, x1, y1 = rect
             records.append(
                 f"5\t1\t1\t1\t{index}\t{order}\t{x0}\t{y0}\t{x1-x0}\t{y1-y0}\t{confidence:.3f}\t{word}\n"
             )
+            if centers and geometry_budget > 0:
+                record = "#char-centers\t" + ",".join(centers) + "\n"
+                geometry_budget -= len(record)
+                if geometry_budget >= 0:
+                    records.append(record)
         data = "".join(records).encode("utf-8")
+        if len(data) > MAX_TSV and character_boxes:
+            data = "".join(row for row in records if not row.startswith("#char-centers\t")).encode("utf-8")
         if len(data) > MAX_TSV:
             raise OcrLimitError
         return data
@@ -201,6 +220,8 @@ def ocr_pipe(threads):
         if len(header) != 4:
             return 1
         length, = struct.unpack(">I", header)
+        character_boxes = bool(length & CHARACTER_BOXES)
+        length &= ~CHARACTER_BOXES
         if length > MAX_PNG:
             return 1
         png = receive.read(length)
@@ -211,7 +232,7 @@ def ocr_pipe(threads):
             if engine is None:
                 engine = KaponirRapidOCR(threads)
             if png:
-                data = engine.tsv(png)
+                data = engine.tsv(png, character_boxes)
         except OcrImageError:
             status = 2
         except OcrLimitError:

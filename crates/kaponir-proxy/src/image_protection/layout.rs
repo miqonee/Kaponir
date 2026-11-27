@@ -1,8 +1,8 @@
 //! Translate UTF-8 ranges into the oriented raster. Field assignments additionally use
 //! the visible row and column boundaries, including glyphs omitted by OCR.
 use super::ocr::{Reading, Word};
-use super::{Area, Code, Failure, Reason, Rect};
-use image::RgbImage;
+use super::{Area, Code, Failure, Reason, Rect, UrlMask, raster};
+use image::{Rgb, RgbImage};
 use kaponir_core::{
     Category, Engine, Format, Input, Known, MaskOptions, MemoryVault, Scope, Strategy, TokenForm,
     Verdict,
@@ -276,7 +276,13 @@ impl Document {
         Some(top.saturating_sub(pad).max(previous)..(bottom + pad).min(next))
     }
 
-    fn span_rectangles(&self, start: usize, end: usize, width: u32, height: u32) -> Vec<Rect> {
+    fn span_rectangles(
+        &self,
+        start: usize,
+        end: usize,
+        image: &RgbImage,
+        url_mask: UrlMask,
+    ) -> Vec<Rect> {
         self.rows
             .iter()
             .filter_map(|row| {
@@ -284,12 +290,149 @@ impl Document {
                     .iter()
                     .zip(&row.letters)
                     .filter(|(_, range)| range.start < end && start < range.end)
-                    .map(|(w, _)| w.rect)
+                    .map(|(word, range)| {
+                        let full = word.rect.pad(self.pad(), image.width(), image.height());
+                        if url_mask == UrlMask::Partial {
+                            let within =
+                                start.saturating_sub(range.start)..end.min(range.end) - range.start;
+                            partial_url_rect(image, word, within, full).unwrap_or(full)
+                        } else {
+                            full
+                        }
+                    })
                     .reduce(Rect::union)
-                    .map(|rect| rect.pad(self.pad(), width, height))
             })
             .collect()
     }
+}
+
+fn inline_url(text: &str) -> bool {
+    let text = text.trim_matches(['\'', '"', '(', ')', '<', '>', '`']);
+    if text.contains("://") {
+        return reqwest::Url::parse(text).is_ok_and(|url| url.has_host());
+    }
+    let bare = text.to_ascii_lowercase();
+    (bare.starts_with("www.") || (bare.contains('.') && bare.contains('/')))
+        && reqwest::Url::parse(&format!("https://{bare}"))
+            .is_ok_and(|url| url.domain().is_some_and(|host| host.contains('.')))
+}
+
+// CTC positions can drift into the next glyph in proportional text. A stable
+// advance across the word keeps the two raster separators tied to its text.
+fn regular_character_spacing(centers: &[Option<u32>]) -> bool {
+    let trusted = || {
+        centers
+            .iter()
+            .enumerate()
+            .filter_map(|(index, value)| value.map(|x| (index as f64, f64::from(x))))
+    };
+    let (count, sum_i, sum_x, sum_ii, sum_ix) = trusted().fold(
+        (0u32, 0.0, 0.0, 0.0, 0.0),
+        |(count, sum_i, sum_x, sum_ii, sum_ix), (i, x)| {
+            (
+                count + 1,
+                sum_i + i,
+                sum_x + x,
+                sum_ii + i * i,
+                sum_ix + i * x,
+            )
+        },
+    );
+    if count < 4 || (count as usize) * 4 < centers.len() * 3 {
+        return false;
+    }
+    let count = f64::from(count);
+    let advance = (count * sum_ix - sum_i * sum_x) / (count * sum_ii - sum_i * sum_i);
+    let origin = (sum_x - advance * sum_i) / count;
+    advance >= 4.0 && trusted().all(|(i, x)| (x - (origin + i * advance)).abs() <= advance / 3.0)
+}
+
+// CTC centers indicate which glyphs meet at the cut. Look for low ink at
+// that boundary in the source raster. If the neighboring strokes cannot be
+// separated reliably, the caller covers the entire OCR word.
+fn url_cut(
+    image: &RgbImage,
+    rect: Rect,
+    background: Rgb<u8>,
+    previous: u32,
+    next: u32,
+    start: bool,
+) -> Option<u32> {
+    let gap = next.checked_sub(previous)?;
+    if !(4..=rect.height().max(4)).contains(&gap) {
+        return None;
+    }
+    let radius = (gap / 6).max(1);
+    let ink: Vec<_> = (previous..=next)
+        .map(|x| {
+            (rect.y0..rect.y1)
+                .filter(|&y| {
+                    image
+                        .get_pixel(x, y)
+                        .0
+                        .into_iter()
+                        .zip(background.0)
+                        .any(|(observed, base)| observed.abs_diff(base) > 16)
+                })
+                .count() as u32
+        })
+        .collect();
+    let quiet = rect.height() / 12;
+    let mut candidates = (radius..=gap - radius).filter(|&index| {
+        ink[index as usize] <= quiet
+            && ink[..index as usize].iter().any(|&count| count > quiet)
+            && ink[index as usize + 1..].iter().any(|&count| count > quiet)
+    });
+    let cut = if start {
+        candidates.next()?
+    } else {
+        candidates.next_back()?
+    };
+    Some(if start {
+        previous + cut - 1
+    } else {
+        previous + cut + 1
+    })
+}
+
+fn partial_url_rect(
+    image: &RgbImage,
+    word: &Word,
+    range: Range<usize>,
+    mut full: Rect,
+) -> Option<Rect> {
+    let centers = &word.character_centers;
+    if centers.len() != word.text.len()
+        || range.is_empty()
+        || range.end > centers.len()
+        || (range.start == 0 && range.end == centers.len())
+        || !inline_url(&word.text)
+        || !regular_character_spacing(centers)
+    {
+        return None;
+    }
+    let background = raster::background(image, word.rect)?;
+    if range.start > 0 {
+        full.x0 = url_cut(
+            image,
+            word.rect,
+            background,
+            centers[range.start - 1]?,
+            centers[range.start]?,
+            true,
+        )?;
+    }
+    if range.end < centers.len() {
+        full.x1 = url_cut(
+            image,
+            word.rect,
+            background,
+            centers[range.end - 1]?,
+            centers[range.end]?,
+            false,
+        )?;
+    }
+    (full.x0 < full.x1).then_some(full)
 }
 
 fn scalar_reference(value: &str) -> bool {
@@ -520,6 +663,7 @@ pub(super) fn mask(
     scope: Scope,
     cancelled: &AtomicBool,
     link_reviews: bool,
+    url_mask: UrlMask,
 ) -> Result<Masks, Failure> {
     if reading.words.is_empty() {
         return Err(Failure::new(Code::Empty));
@@ -664,18 +808,23 @@ pub(super) fn mask(
             );
         }
         for replacement in replacements {
-            let rectangles = doc.span_rectangles(replacement.start, replacement.end, width, height);
+            let rectangles =
+                doc.span_rectangles(replacement.start, replacement.end, image, url_mask);
             if rectangles.is_empty() {
                 return Err(Failure::new(Code::Boundaries));
             }
             let rectangles: Vec<_> = rectangles
                 .into_iter()
                 .filter(|rect| {
-                    !areas.iter().flat_map(|a| &a.rectangles).any(|known| {
-                        known.x0 <= rect.x0 + doc.pad()
-                            && known.x1 + doc.pad() >= rect.x1
-                            && known.y0 <= rect.y0 + doc.pad()
-                            && known.y1 + doc.pad() >= rect.y1
+                    !areas.iter().any(|area| {
+                        area.rectangles.iter().any(|known| {
+                            known.contains(*rect)
+                                || (matches!(area.reason, Reason::FieldValue | Reason::FieldRow)
+                                    && known.x0 <= rect.x0 + doc.pad()
+                                    && known.x1 + doc.pad() >= rect.x1
+                                    && known.y0 <= rect.y0 + doc.pad()
+                                    && known.y1 + doc.pad() >= rect.y1)
+                        })
                     })
                 })
                 .collect();

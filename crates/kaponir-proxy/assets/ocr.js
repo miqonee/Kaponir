@@ -313,19 +313,27 @@ function coveredCount(areas) {
     [number(areas.length)]);
 }
 
-function imageComparison(image, images) {
+function positionImageRegion(node, rect, image) {
+  for (const [key,value,max] of [["left",rect.x0,image.width],["top",rect.y0,image.height],
+    ["width",rect.x1-rect.x0,image.width],["height",rect.y1-rect.y0,image.height]])
+    node.style.setProperty(key,(value/max*100)+"%");
+}
+
+function imageComparison(image, images, { initialArea = null, onSelect } = {}) {
   const selection = new Map();
-  let selected, factor = 1;
+  let selected = initialArea, clicked = false, factor = 1;
   const viewports = [], surfaces = [];
   const select = area => {
-    selected = selected === area ? null : area;
+    selected = clicked && selected === area ? null : area;
+    clicked = true;
     for (const [id, nodes] of selection)
       for (const node of nodes) node.setAttribute("aria-pressed", String(id === selected));
     const mark = surfaces[0].querySelector('[data-ocr-area="' + selected + '"]');
     if (mark) mark.scrollIntoView({block:"nearest",inline:"nearest"});
+    onSelect?.(selected, surfaces[0]);
   };
   function mark(area, node) {
-    node.setAttribute("aria-pressed", "false");
+    node.setAttribute("aria-pressed", String(area.id === selected));
     node.dataset.ocrArea = area.id;
     node.addEventListener("click", () => select(area.id));
     if (!selection.has(area.id)) selection.set(area.id, []);
@@ -338,9 +346,7 @@ function imageComparison(image, images) {
     for (const area of image.areas) for (const rect of area.rectangles) {
       const marker = mark(area,h("button",{type:"button",class:"ocr-marker","aria-label":area.id + ". " + imageAreaLabel(area)},
         h("span",{},area.id)));
-      for (const [key,value,max] of [["left",rect.x0,image.width],["top",rect.y0,image.height],
-        ["width",rect.x1-rect.x0,image.width],["height",rect.y1-rect.y0,image.height]])
-        marker.style.setProperty(key,(value/max*100)+"%");
+      positionImageRegion(marker, rect, image);
       surface.append(marker);
     }
     const viewport = h("div",{class:"ocr-viewport",tabindex:"0",role:"region","aria-label":tr(label)},surface);
@@ -575,18 +581,21 @@ async function openImageAttachment(event,audit,attachment,areaId) {
   const sent = imageButton("Отправлено поставщику",()=>load("sent",true));
   const original = imageButton("Показать оригинал",()=>load("original",true));
   const originalDescription = h("span",{class:"hint"});
+  function originalProblem() {
+    return attachment.original_until_ms == null ? "Оригинал не сохранялся" :
+      attachment.original_until_ms <= Date.now() ? "Срок хранения истёк" : "";
+  }
   function updateControls() {
-    const text = attachment.original_until_ms == null ? tr("Оригинал не сохранялся") :
-      attachment.original_until_ms <= Date.now() ? tr("Срок хранения истёк") : "";
-    original.disabled = !!text;
-    originalDescription.hidden = !text;
-    originalDescription.textContent = text;
+    const problem = originalProblem();
+    original.disabled = !!problem;
+    originalDescription.hidden = !problem && !attachment.areas.length;
+    originalDescription.textContent = tr(problem || "Нажмите на область, чтобы показать её оригинал.");
     sent.disabled = !attachment.preview_until_ms;
     sent.textContent = tr(audit.stage === "sent" ? "Отправлено поставщику" : "После защиты");
   }
   updateControls();
   const controller = new AbortController();
-  let variation = 0, currentUrl, refresh;
+  let variation = 0, revealVersion = 0, currentUrl, refresh;
   const pending = new Set(["queued","validating","reading","masking","encoding","ready","sending"]);
   function describe() {
     const elapsed = pending.has(audit.stage) && event.started_at_ms ?
@@ -594,8 +603,39 @@ async function openImageAttachment(event,audit,attachment,areaId) {
     status.textContent = [ocrStageLabel(audit),elapsed,ocrError(audit.failure),
       audit.stage === "blocked" ? tr("Поставщику ничего не отправлено") : ""].filter(Boolean).join(" · ");
   }
+  function imageLoadError(error) {
+    return tr(({attachment_expired:"Срок хранения истёк",attachment_removed:"Изображение удалено по лимиту хранения",
+      original_not_saved:"Оригинал не сохранялся"})[error.message] || error.message);
+  }
+  async function reveal(area, surface) {
+    const version = ++revealVersion;
+    for (const image of surface.querySelectorAll(".ocr-revealed")) image.remove();
+    if (area == null) {
+      status.textContent = tr(audit.stage === "sent" ? "Отправлено поставщику" : "После защиты");
+      return;
+    }
+    if (originalProblem()) {
+      status.textContent = tr(originalProblem());
+      return;
+    }
+    status.textContent = tr("Загрузка…");
+    try {
+      const response = await fetchOcrBody(imagePath(event,attachment,"area-" + area),{signal:controller.signal});
+      const {fragments} = await response.json();
+      if (version !== revealVersion || !surface.isConnected || !dialog.open) return;
+      for (const fragment of fragments) {
+        const image = h("img",{class:"ocr-revealed",src:fragment.data,alt:"",draggable:"false"});
+        positionImageRegion(image, fragment.rect, attachment);
+        surface.append(image);
+      }
+      status.textContent = tr("Выбранная область раскрыта");
+    } catch (error) {
+      if (version === revealVersion && !controller.signal.aborted) status.textContent = imageLoadError(error);
+    }
+  }
   async function load(variant, explicit) {
     const version = ++variation;
+    revealVersion++;
     if (variant === "original" && !explicit) return;
     sent.setAttribute("aria-pressed",String(variant === "sent"));
     original.setAttribute("aria-pressed",String(variant === "original"));
@@ -608,14 +648,17 @@ async function openImageAttachment(event,audit,attachment,areaId) {
       if (currentUrl) URL.revokeObjectURL(currentUrl);
       currentUrl = src;
       const label = variant === "original" ? "Оригинал" : audit.stage === "sent" ? "Отправлено поставщику" : "После защиты";
-      const view = imageComparison(attachment,[{source:src,label}]);
+      const view = imageComparison(attachment,[{source:src,label}],{
+        initialArea: areaId == null ? null : Number(areaId),
+        onSelect: variant === "sent" ? reveal : undefined,
+      });
       replaceImageView(result,view);
       status.textContent = variant === "sent" ? tr(label) : tr("Оригинал");
-      if (areaId) view.querySelector('.ocr-region[data-ocr-area="' + Number(areaId) + '"]')?.click();
+      if (areaId != null) view.querySelector('.ocr-marker[data-ocr-area="' + Number(areaId) + '"]')
+        ?.scrollIntoView({block:"nearest",inline:"nearest"});
     } catch (error) {
       if (version !== variation || controller.signal.aborted) return;
-      status.textContent = tr(({attachment_expired:"Срок хранения истёк",attachment_removed:"Изображение удалено по лимиту хранения",
-        original_not_saved:"Оригинал не сохранялся"})[error.message] || error.message);
+      status.textContent = imageLoadError(error);
     }
   }
   dialog.replaceChildren(h("div",{class:"inspector-shell"},

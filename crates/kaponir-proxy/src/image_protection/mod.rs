@@ -46,6 +46,14 @@ pub enum Node {
     Worker,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum UrlMask {
+    #[default]
+    Full,
+    Partial,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct Settings {
@@ -61,6 +69,7 @@ pub struct Settings {
     pub timeout_ms: u64,
     pub parallelism: usize,
     pub queue_limit: usize,
+    pub url_mask: UrlMask,
     pub save_originals: bool,
     pub original_hours: u64,
 }
@@ -79,6 +88,7 @@ impl Default for Settings {
             timeout_ms: 20_000,
             parallelism: 2,
             queue_limit: 8,
+            url_mask: UrlMask::Full,
             save_originals: false,
             original_hours: 24,
         }
@@ -692,12 +702,16 @@ async fn process(
                 let layout::Masks {
                     areas,
                     review_values,
-                } = layout::mask(&engine, &pixels, text, scope, cancelled, link_reviews)?;
-                for area in &areas {
-                    for rect in &area.rectangles {
-                        rect.fill(&mut pixels);
-                    }
-                }
+                } = layout::mask(
+                    &engine,
+                    &pixels,
+                    text,
+                    scope,
+                    cancelled,
+                    link_reviews,
+                    settings.url_mask,
+                )?;
+                raster::paint(&mut pixels, &areas, cancelled)?;
                 Ok((pixels, areas, review_values))
             })
             .await

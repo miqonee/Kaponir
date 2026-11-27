@@ -55,11 +55,11 @@ class Fixture:
     mime: str = "image/png"
 
 
-def fixture(lines, size=(1000, 262), font_size=44, jpeg=False, photo=False, webp=False):
+def fixture(lines, size=(1000, 262), font_size=44, jpeg=False, photo=False, webp=False, font_path=None):
     """Pixel labels come from the drawing, independently of OCR."""
     background = (249, 250, 252)
     image = Image.new("RGB", size, background)
-    font = ImageFont.truetype(os.environ.get(
+    font = ImageFont.truetype(font_path or os.environ.get(
         "KAPONIR_TEST_MONO", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"), font_size)
     ink = (24, 35, 52)
     draw = ImageDraw.Draw(image)
@@ -148,7 +148,7 @@ def assert_pixels(raw, sample):
     assert not image.info, image.info
     for box in sample.secrets:
         covered = image.crop(box)
-        assert covered.getextrema() == ((0, 0),) * 3, f"incomplete value at {box}"
+        assert all(low == high for low, high in covered.getextrema()), f"incomplete value at {box}"
     for box in sample.public:
         original = sample.reference.crop(box)
         cut = image.crop(box)
@@ -582,6 +582,54 @@ def exercise_managed_worker(binary, chat, sample):
         assert state["online"] and not state["enabled"]
 
 
+def exercise_url_masks(p, chat):
+    domain = "auroraprivate.com"
+    sample = fixture([(64, 32, [("https://", False), (domain, True), ("/help/index.html", False)]),
+                      (64, 114, [("replicas: 3", False)])], size=(1800, 210), font_size=26)
+    assert p.call("/api/v1/rules", {"scope": "team", "rule": {
+        "id": "ocr-url-fixture", "kind": "DOM", "action": "mask", "value": domain,
+    }}).status == 200
+
+    def check(image, partial):
+        background = image.reference.getpixel((0, 0))
+        uniform = tuple((value, value) for value in background)
+
+        def painted(raw, fixture, attachment):
+            output = Image.open(BytesIO(raw))
+            assert output.format == "PNG" and output.mode == "RGB" and not output.info
+            assert output.crop(fixture.secrets[0]).getextrema() == uniform
+            for box in fixture.public[:2]:
+                if partial:
+                    before = fixture.reference.crop(box)
+                    after = output.crop(box)
+                    ink = [left == right for left, right in zip(
+                        getattr(before, "get_flattened_data", before.getdata)(),
+                        getattr(after, "get_flattened_data", after.getdata)(), strict=True,
+                    ) if left != background]
+                    assert ink and sum(ink) / len(ink) >= 0.98, box
+                else:
+                    assert output.crop(box).getextrema() == uniform
+            control = fixture.public[-1]
+            assert ImageChops.difference(output.crop(control), fixture.reference.crop(control)).getbbox() is None
+            assert attachment["areas"][0]["kind"] == "DOM"
+
+        accepted(p, chat, [user_message(openai_image(image))], [image], expected=painted)
+
+    assert p.settings()["settings"]["url_mask"] == "full"
+    check(sample, False)
+    p.settings(url_mask="partial")
+    check(sample, True)
+    dark = ImageOps.invert(sample.reference)
+    raw = BytesIO()
+    dark.save(raw, "PNG")
+    check(Fixture(raw.getvalue(), dark, sample.secrets, sample.public, sample.words), True)
+    proportional = fixture([(64, 32, [("https://", False), (domain, True), ("/help/index.html", False)]),
+                            (64, 114, [("replicas: 3", False)])], size=(1800, 210), font_size=31,
+                           font_path="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+    check(proportional, False)
+    p.settings(url_mask="full")
+
+
 def exercise_review_and_history(binary, chat):
     value = "10.23.45.67"
     source = fixture([(64, 32, [("Address: ", False), (value, True)]),
@@ -753,10 +801,25 @@ def run_tests(binary):
             assert p.call(url, auth=False).status == 401
             assert p.call(url.replace(saved["session_id"], "other-session")).status == 404
             assert p.call(url).body == sample.raw
+            selected = attachment["areas"][0]
+            area_url = attachment_url(saved, attachment, f"area-{selected['id']}")
+            assert p.call(area_url, auth=False).status == 401
+            assert p.call(area_url.replace(saved["session_id"], "other-session")).status == 404
+            assert p.call(attachment_url(saved, attachment, "area-999")).status == 404
+            cropped = p.call(area_url)
+            assert cropped.status == 200 and cropped.headers["Cache-Control"] == "private, no-store"
+            assert base64_image(sample.raw) not in cropped.body.decode()
+            for fragment, rect in zip(cropped.json()["fragments"], selected["rectangles"], strict=True):
+                assert fragment["rect"] == rect
+                x0, y0, x1, y1 = (rect[key] for key in ("x0", "y0", "x1", "y1"))
+                image = Image.open(BytesIO(base64.b64decode(fragment["data"].split(",", 1)[1])))
+                assert image.size == (x1 - x0, y1 - y0) and not image.info
+                assert ImageChops.difference(image, sample.reference.crop((x0, y0, x1, y1))).getbbox() is None
             # Expire only the encrypted original. Its subsequent read cannot return data.
             with sqlite3.connect(p.home / "vault.db") as db:
                 db.execute("UPDATE traffic_images SET expires=1 WHERE event=? AND original=1", (saved["id"],))
             assert p.call(url).status == 410
+            assert p.call(area_url).status == 410
             p.stop()
             p.start()
             assert p.settings()["settings"]["save_originals"]
@@ -785,6 +848,8 @@ def run_tests(binary):
             assert_pixels(list(binary_parts(chat.records[-1][2]))[0], sample)
             report(sample)
             chat.mode = "good"
+            exercise_url_masks(p, chat)
+            out["url_mask_modes"] = "passed"
 
             vision_id = p.connection(vision.url, pool=False)
             selection = {"connection_id": vision_id, "model": "fixture-vision"}

@@ -1,4 +1,4 @@
-use super::{Code, Failure};
+use super::{Area, Code, Failure};
 use image::codecs::{
     jpeg::JpegDecoder,
     png::{CompressionType, FilterType, PngDecoder, PngEncoder},
@@ -6,7 +6,9 @@ use image::codecs::{
 };
 use image::{DynamicImage, ImageDecoder, ImageEncoder, ImageFormat, Limits, Rgb, RgbImage};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::io::Cursor;
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
 pub(super) const MAX_EDGE: u32 = 8192;
 pub(super) const MAX_PNG_BYTES: usize = 32 << 20;
@@ -53,13 +55,78 @@ impl Rect {
         }
     }
 
-    pub fn fill(self, image: &mut RgbImage) {
+    fn fill(self, image: &mut RgbImage, color: Rgb<u8>) {
         let stride = image.width() as usize * 3;
         for y in self.y0 as usize..self.y1 as usize {
             let row = y * stride;
-            image.as_mut()[row + self.x0 as usize * 3..row + self.x1 as usize * 3].fill(0);
+            for pixel in image.as_mut()[row + self.x0 as usize * 3..row + self.x1 as usize * 3]
+                .as_chunks_mut::<3>()
+                .0
+            {
+                *pixel = color.0;
+            }
         }
     }
+}
+
+/// Sample a bounded band around the region. A single solid color is written
+/// later so no original shape or alpha survives inside the mask.
+pub(super) fn background(image: &RgbImage, rect: Rect) -> Option<Rgb<u8>> {
+    let mut buckets = BTreeMap::<[u8; 3], (u32, [u32; 3])>::new();
+    let mut samples = 0;
+    let mut sample = |x, y| {
+        let color = image.get_pixel(x, y).0;
+        let (count, sum) = buckets.entry(color.map(|part| part >> 3)).or_default();
+        *count += 1;
+        for (channel, value) in sum.iter_mut().zip(color) {
+            *channel += u32::from(value);
+        }
+        samples += 1;
+    };
+    for inset in [1, (rect.height() / 4).clamp(2, 10)] {
+        for x in (rect.x0..rect.x1).step_by(rect.width().div_ceil(48).max(1) as usize) {
+            if let Some(y) = rect.y0.checked_sub(inset) {
+                sample(x, y);
+            }
+            let y = rect.y1 + inset - 1;
+            if y < image.height() {
+                sample(x, y);
+            }
+        }
+        for y in (rect.y0..rect.y1).step_by(rect.height().div_ceil(48).max(1) as usize) {
+            if let Some(x) = rect.x0.checked_sub(inset) {
+                sample(x, y);
+            }
+            let x = rect.x1 + inset - 1;
+            if x < image.width() {
+                sample(x, y);
+            }
+        }
+    }
+    let (count, sum) = buckets.into_values().max_by_key(|(count, _)| *count)?;
+    (samples >= 8 && count * 2 >= samples)
+        .then(|| Rgb(sum.map(|channel| ((channel + count / 2) / count) as u8)))
+}
+
+pub(super) fn paint(
+    image: &mut RgbImage,
+    areas: &[Area],
+    cancelled: &AtomicBool,
+) -> Result<(), Failure> {
+    let mut paint = Vec::new();
+    for &rect in areas.iter().flat_map(|area| &area.rectangles) {
+        if cancelled.load(Relaxed) {
+            return Err(Failure::new(Code::Cancelled));
+        }
+        paint.push((rect, background(image, rect).unwrap_or(Rgb([0; 3]))));
+    }
+    for (rect, color) in paint {
+        if cancelled.load(Relaxed) {
+            return Err(Failure::new(Code::Cancelled));
+        }
+        rect.fill(image, color);
+    }
+    Ok(())
 }
 
 fn image_error(err: image::ImageError) -> Failure {

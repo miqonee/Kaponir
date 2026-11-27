@@ -360,10 +360,14 @@ async fn image(
     let result: ResultResponse = async {
         authorized(&st, &headers, true)?;
         let missing = || error(StatusCode::NOT_FOUND, "attachment_not_found");
-        let original = match variant.as_str() {
-            "original" => true,
-            "sent" => false,
-            _ => return Err(missing()),
+        let (original, area_id) = match variant.as_str() {
+            "original" => (true, None),
+            "sent" => (false, None),
+            _ => {
+                let area_id = variant.strip_prefix("area-")
+                    .and_then(|id| id.parse::<usize>().ok()).ok_or_else(missing)?;
+                (true, Some(area_id))
+            }
         };
         let entry = st.traffic.event_by_id(event).ok_or_else(missing)?;
         let tag = entry
@@ -381,6 +385,10 @@ async fn image(
             .iter()
             .find(|a| a.id == attachment)
             .ok_or_else(missing)?;
+        let excerpt = area_id.map(|id| {
+            let selected = data.areas.iter().find(|area| area.id == id).ok_or_else(missing)?;
+            Ok::<_, ApiError>((data.width, data.height, selected.rectangles.clone()))
+        }).transpose()?;
         let expires = if original {
             data.original_until_ms
         } else {
@@ -400,8 +408,8 @@ async fn image(
         if expires <= time {
             return Err(error(StatusCode::GONE, "attachment_expired"));
         }
-        let contents = tokio::task::spawn_blocking(move || {
-            st.with_vault(|_, v| {
+        tokio::task::spawn_blocking(move || {
+            let contents = st.with_vault(|_, v| {
                 Ok(v.traffic_image(
                     kaponir_vault::TrafficImage {
                         event,
@@ -411,13 +419,34 @@ async fn image(
                     },
                     time,
                 )?)
-            })
+            }).map_err(|_| Failure::new(Code::Storage).api())?
+              .ok_or_else(|| error(StatusCode::GONE, "attachment_removed"))?;
+            if let Some((width, height, rectangles)) = excerpt {
+                let mut remaining_pixels = u64::from(width) * u64::from(height);
+                let image = super::raster::open(&contents.1, &mut remaining_pixels)
+                    .and_then(super::raster::Source::decode).map_err(|e| e.api())?;
+                if image.dimensions() != (width, height) {
+                    return Err(Failure::new(Code::Boundaries).api());
+                }
+                let mut fragments = Vec::with_capacity(rectangles.len());
+                let mut remaining_bytes = super::raster::MAX_PNG_BYTES;
+                for rect in rectangles {
+                    if !rect.valid(width, height) {
+                        return Err(Failure::new(Code::Boundaries).api());
+                    }
+                    let crop = image::imageops::crop_imm(&image, rect.x0, rect.y0, rect.width(), rect.height()).to_image();
+                    let png = super::raster::png(&crop).map_err(|e| e.api())?;
+                    remaining_bytes = remaining_bytes.checked_sub(png.len())
+                        .ok_or_else(|| Failure::new(Code::Limits).api())?;
+                    fragments.push(json!({"rect":rect, "data":format!("data:image/png;base64,{}", STANDARD.encode(png))}));
+                }
+                Ok(Json(json!({"fragments":fragments})).into_response())
+            } else {
+                Ok(([(header::CONTENT_TYPE, contents.0)], contents.1).into_response())
+            }
         })
         .await
         .map_err(|_| Failure::new(Code::Storage).api())?
-        .map_err(|_| Failure::new(Code::Storage).api())?
-        .ok_or_else(|| error(StatusCode::GONE, "attachment_removed"))?;
-        Ok(([(header::CONTENT_TYPE, contents.0)], contents.1).into_response())
     }
     .await;
     private(result.unwrap_or_else(IntoResponse::into_response))

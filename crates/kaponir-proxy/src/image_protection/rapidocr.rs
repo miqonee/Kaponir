@@ -12,6 +12,7 @@ use tokio::{
 };
 
 const SCRIPT: &str = include_str!("../../../../scripts/kaponir_rapidocr.py");
+const CHARACTER_BOXES: u32 = 1 << 31;
 
 pub(crate) struct LocalOcr {
     pub(crate) python: Option<PathBuf>,
@@ -62,7 +63,7 @@ impl LocalOcr {
             .map_err(|_| Failure::new(Code::Unavailable))
     }
 
-    pub(super) async fn call(&self, png: &[u8]) -> Result<Vec<u8>, Failure> {
+    pub(super) async fn call(&self, png: &[u8], character_boxes: bool) -> Result<Vec<u8>, Failure> {
         let _slot = self
             .slots
             .acquire()
@@ -89,7 +90,7 @@ impl LocalOcr {
             Some(child) => child,
             None => Self::spawn(&python)?,
         };
-        let data = Self::exchange(&mut child, png).await?;
+        let data = Self::exchange(&mut child, png, character_boxes).await?;
         self.idle
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -97,11 +98,16 @@ impl LocalOcr {
         Ok(data)
     }
 
-    async fn exchange(child: &mut Child, png: &[u8]) -> Result<Vec<u8>, Failure> {
+    async fn exchange(
+        child: &mut Child,
+        png: &[u8],
+        character_boxes: bool,
+    ) -> Result<Vec<u8>, Failure> {
         let size = u32::try_from(png.len()).map_err(|_| Failure::new(Code::Limits))?;
+        let frame = size | if character_boxes { CHARACTER_BOXES } else { 0 };
         let io_error = |_| Failure::new(Code::Unavailable);
         let input = child.stdin.as_mut().expect("piped OCR input");
-        input.write_u32(size).await.map_err(io_error)?;
+        input.write_u32(frame).await.map_err(io_error)?;
         input.write_all(png).await.map_err(io_error)?;
         input.flush().await.map_err(io_error)?;
         let output = child.stdout.as_mut().expect("piped OCR output");

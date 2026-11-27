@@ -16,11 +16,12 @@ const browser = await chromium.launch({
   headless: true,
 });
 const context = await browser.newContext({viewport:{width:1366,height:768},locale:"ru-RU"});
-const errors = [], originalReads = [];
+const errors = [], originalReads = [], areaReads = [];
 const page = await context.newPage();
 page.on("pageerror", error=>errors.push(error.message));
 page.on("request", request=>{
   if (request.url().includes("/ocr/images/") && request.url().endsWith("/original")) originalReads.push(request.url());
+  if (request.url().includes("/ocr/images/") && /\/area-\d+$/.test(request.url())) areaReads.push(request.url());
 });
 await page.addInitScript(({token})=>{
   if (!localStorage.getItem("kaponir-language")) localStorage.setItem("kaponir-language","ru");
@@ -67,6 +68,12 @@ try {
   await page.getByText("docker compose up -d --build",{exact:true}).waitFor();
   await page.getByText("kaponir ocr setup",{exact:true}).waitFor();
   await setup.click();
+  const extra = page.locator("#ocr-options > summary");
+  await extra.click();
+  const urlMask = page.getByLabel("Маска для URL");
+  assert.equal(await urlMask.inputValue(),"full");
+  await urlMask.selectOption("partial");
+  await extra.click();
   const node = page.getByLabel("Узел обработки");
   await node.selectOption("worker");
   await page.getByText(/Подтвердите адрес получателя и нажмите/).waitFor();
@@ -82,6 +89,7 @@ try {
   await page.getByText("Настройки сохранены",{exact:true}).waitFor();
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#ocr-enabled").checked);
+  await page.waitForFunction(()=>document.querySelector("#ocr-url-mask").value==="partial");
   assert.equal(new URL(page.url()).hash,"#ocr");
   await capture("01-nastroyki.png");
   await page.getByRole("link",{name:"Проверить изображение"}).press("Enter");
@@ -150,6 +158,9 @@ try {
   assert.equal(sha(await previewBytes.body()),wire.images[0]);
   assert.equal(await inspector.getByRole("button",{name:"Показать оригинал"}).isDisabled(),true);
   assert.equal(originalReads.length,0);
+  await inspector.locator(".ocr-marker").first().click();
+  await page.waitForFunction(()=>document.querySelector("#ocr-image-dialog .form-status")?.textContent === "Оригинал не сохранялся");
+  assert.equal(areaReads.length,0);
   await inspector.getByRole("button",{name:"Закрыть"}).click();
   assert.equal(await card.evaluate(node=>node===document.activeElement),true);
   await dialogue.getByText("Результат инструмента",{exact:true}).first().click();
@@ -214,8 +225,25 @@ try {
   await page.getByRole("link",{name:"Sessions",exact:true}).click();
   await page.locator("#tab-events").getByRole("button",{name:"Open conversation"}).first().click();
   await card.waitFor();
-  await card.press("Enter");
+  await dialogue.getByText("Request log",{exact:false}).first().click();
+  await dialogue.getByRole("button",{name:"Images",exact:true}).last().click();
+  await page.locator("#inspector-dialog .ocr-attachment").first().click();
   await inspector.getByRole("heading",{name:"Sent to provider"}).waitFor();
+  assert.equal(originalReads.length,0);
+  assert.equal(areaReads.length,0);
+  const firstMark = inspector.locator(".ocr-marker").first();
+  await firstMark.click();
+  await inspector.getByText("Selected region revealed",{exact:true}).waitFor();
+  await page.waitForFunction(()=>document.querySelector("#ocr-image-dialog .ocr-revealed")?.naturalWidth > 0);
+  assert.equal(areaReads.length,1);
+  assert.equal(originalReads.length,0);
+  await firstMark.click();
+  await inspector.locator(".ocr-revealed").waitFor({state:"detached"});
+  const nextRegion = inspector.locator(".ocr-region").nth(1);
+  await nextRegion.press("Enter");
+  await inspector.getByText("Selected region revealed",{exact:true}).waitFor();
+  assert.equal(areaReads.length,2);
+  assert.notEqual(areaReads[0],areaReads[1]);
   assert.equal(originalReads.length,0);
   await inspector.getByRole("button",{name:"Show original"}).click();
   await inspector.getByRole("heading",{name:"Original",exact:true}).waitFor();

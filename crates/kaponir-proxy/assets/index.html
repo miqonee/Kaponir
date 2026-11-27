@@ -173,6 +173,7 @@
   <details id="ocr-options" class="ocr-options">
     <summary data-i18n="Дополнительные параметры">Дополнительные параметры</summary>
     <div class="ocr-option-fields">
+      <label class="field" for="ocr-url-mask"><span data-i18n="Маска для URL">Маска для URL</span><select name="url_mask" id="ocr-url-mask"><option value="full" data-i18n="Весь URL">Весь URL</option><option value="partial" data-i18n="Только совпавшая часть">Только совпавшая часть</option></select></label>
       <label class="field" id="ocr-languages-field" for="ocr-languages" hidden><span data-i18n="Языки внешнего OCR">Языки внешнего OCR</span><input name="languages" id="ocr-languages" required pattern="[A-Za-z0-9_]+([+][A-Za-z0-9_]+)*" maxlength="80" spellcheck="false"/></label>
       <label class="field"><span data-i18n="Лимит запроса, МиБ">Лимит запроса, МиБ</span><input name="max_mib" type="number" required min="1" max="24"/></label>
       <label class="field"><span data-i18n="Лимит запроса, Мп">Лимит запроса, Мп</span><input name="max_megapixels" type="number" required min="1" max="32"/></label>

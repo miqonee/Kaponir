@@ -89,8 +89,9 @@ class OcrChildren:
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     @staticmethod
-    def exchange(child, png):
-        child.stdin.write(struct.pack('>I', len(png)))
+    def exchange(child, png, character_boxes):
+        length = len(png) | ((1 << 31) if character_boxes else 0)
+        child.stdin.write(struct.pack('>I', length))
         child.stdin.write(png)
         child.stdin.flush()
         reply = child.stdout.read(5)
@@ -106,7 +107,7 @@ class OcrChildren:
             raise OcrPipeError(1)
         return data
 
-    def call(self, png, timeout, check=None, on_start=None):
+    def call(self, png, timeout, check=None, on_start=None, character_boxes=False):
         with self.lock:
             child = self.idle.pop() if self.idle else None
         if child is None or child.poll() is not None:
@@ -117,7 +118,7 @@ class OcrChildren:
             if on_start is not None:
                 on_start(child)
             with ThreadPoolExecutor(max_workers=1) as executor:
-                reply = executor.submit(self.exchange, child, png)
+                reply = executor.submit(self.exchange, child, png, character_boxes)
                 try:
                     while True:
                         remaining = deadline - time.monotonic()
@@ -151,6 +152,8 @@ def ocr_text(tsv):
     lines = []
     current = None
     for row in tsv.decode('utf-8').splitlines()[1:]:
+        if not row.startswith('5\t'):
+            continue
         columns = row.split('\t', 11)
         group = columns[2:5]
         if group != current:
@@ -1823,7 +1826,8 @@ def handler(worker, token):
                 def check_connection():
                     if select.select([self.connection], [], [], 0)[0] and not self.connection.recv(1, socket.MSG_PEEK):
                         raise ConnectionError('ocr_cancelled')
-                tsv = ocr_children.call(png, timeout_ms / 1000, check=check_connection)
+                tsv = ocr_children.call(png, timeout_ms / 1000, check=check_connection,
+                                        character_boxes=self.headers.get('x-ocr-character-boxes') == '1')
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/tab-separated-values; charset=utf-8')
                 self.send_header('Cache-Control', 'private, no-store')

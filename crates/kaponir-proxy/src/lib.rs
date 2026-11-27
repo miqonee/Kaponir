@@ -38,6 +38,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 pub use image_protection::Settings as ImageProtectionSettings;
+pub use image_protection::UrlMask as ImageProtectionUrlMask;
 pub use server::router;
 pub use state::{Cx, State};
 

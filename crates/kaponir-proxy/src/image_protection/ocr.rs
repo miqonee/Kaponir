@@ -1,5 +1,5 @@
 //! Local and worker OCR return TSV. Trusted Vision returns normalized coordinates.
-use super::{Code, Failure, Mode, Node, Rect, Settings};
+use super::{Code, Failure, Mode, Node, Rect, Settings, UrlMask};
 use crate::{
     Shared,
     providers::{self, Provider},
@@ -23,6 +23,7 @@ pub(super) struct Word {
     pub text: String,
     pub rect: Rect,
     pub confidence: f32,
+    pub character_centers: Vec<Option<u32>>,
 }
 pub(super) struct Suggestion {
     pub category: Category,
@@ -37,7 +38,7 @@ pub(super) struct Reading {
 
 fn tsv(bytes: &[u8], width: u32, height: u32) -> Result<Reading, Failure> {
     let text = std::str::from_utf8(bytes).map_err(|_| Failure::new(Code::Unreadable))?;
-    let mut rows = text.lines();
+    let mut rows = text.lines().peekable();
     if !rows
         .next()
         .is_some_and(|header| header.starts_with("level\tpage_num\tblock_num"))
@@ -45,7 +46,7 @@ fn tsv(bytes: &[u8], width: u32, height: u32) -> Result<Reading, Failure> {
         return Err(Failure::new(Code::Unreadable));
     }
     let mut words = Vec::new();
-    for row in rows {
+    while let Some(row) = rows.next() {
         if !row.starts_with("5\t") {
             continue;
         }
@@ -79,12 +80,38 @@ fn tsv(bytes: &[u8], width: u32, height: u32) -> Result<Reading, Failure> {
         if number(1)? != 1 || !rect.valid(width, height) || !(0.0..=100.0).contains(&confidence) {
             return Err(Failure::new(Code::Unreadable));
         }
+        let character_centers = rows
+            .next_if(|line| line.starts_with("#char-centers\t"))
+            .and_then(|line| {
+                let values = line.strip_prefix("#char-centers\t")?;
+                let centers = values
+                    .split(',')
+                    .map(|value| {
+                        if value == "-" {
+                            Some(None)
+                        } else {
+                            value.parse::<u32>().ok().map(Some)
+                        }
+                    })
+                    .take(word.len() + 1)
+                    .collect::<Option<Vec<_>>>()?;
+                (word.is_ascii()
+                    && centers.len() == word.len()
+                    && centers
+                        .iter()
+                        .flatten()
+                        .all(|x| (rect.x0..rect.x1).contains(x))
+                    && centers.iter().flatten().is_sorted_by(|a, b| a < b))
+                .then_some(centers)
+            })
+            .unwrap_or_default();
         words.push(Word {
             group,
             order: number(5)?,
             text: word.to_owned(),
             rect,
             confidence,
+            character_centers,
         });
     }
     Ok(Reading {
@@ -287,7 +314,7 @@ impl Backend {
         tokio::time::timeout(Duration::from_secs(3), async {
             match self {
                 Self::RapidOcr => {
-                    st.images.local.call(&[]).await?;
+                    st.images.local.call(&[], false).await?;
                     Ok(Capabilities {
                         engine: "rapidocr",
                         languages: vec!["rus".into(), "eng".into()],
@@ -346,13 +373,24 @@ impl Backend {
         width: u32,
         height: u32,
     ) -> Result<Reading, Failure> {
+        let character_boxes = settings.url_mask == UrlMask::Partial;
         match self {
-            Self::RapidOcr => tsv(&st.images.local.call(&png).await?, width, height),
+            Self::RapidOcr => tsv(
+                &st.images.local.call(&png, character_boxes).await?,
+                width,
+                height,
+            ),
             Self::Worker(recipient) => {
-                let response = worker_request(st.http.post(recipient))
+                let request = worker_request(st.http.post(recipient))
                     .header(header::CONTENT_TYPE, "image/png")
                     .header("x-ocr-languages", &settings.languages)
-                    .header("x-ocr-timeout-ms", settings.timeout_ms)
+                    .header("x-ocr-timeout-ms", settings.timeout_ms);
+                let request = if character_boxes {
+                    request.header("x-ocr-character-boxes", "1")
+                } else {
+                    request
+                };
+                let response = request
                     .body(png)
                     .send()
                     .await
@@ -453,6 +491,7 @@ fn parse_vision(text: &str, width: u32, height: u32) -> Result<Reading, Failure>
             text: word.text,
             rect,
             confidence: 75.0,
+            character_centers: Vec::new(),
         });
     }
     let suggestions = response
