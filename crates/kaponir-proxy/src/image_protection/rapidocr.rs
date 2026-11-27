@@ -19,7 +19,7 @@ pub(crate) struct LocalOcr {
     pub(crate) python: Option<PathBuf>,
     pub(crate) runtime: Option<Box<dyn crate::OcrRuntime>>,
     slots: Semaphore,
-    idle: Mutex<Vec<(OsString, Child)>>,
+    idle: Mutex<Vec<(OsString, String, Child)>>,
 }
 
 impl Default for LocalOcr {
@@ -47,15 +47,24 @@ impl LocalOcr {
             .unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into())
     }
 
-    fn spawn(python: &OsStr) -> Result<Child, Failure> {
-        let threads = std::env::var("KAPONIR_OCR_THREADS").unwrap_or_else(|_| {
-            std::thread::available_parallelism()
-                .map_or(1, std::num::NonZeroUsize::get)
-                .min(4)
-                .to_string()
-        });
+    fn available_cpus() -> usize {
+        std::thread::available_parallelism().map_or(1, std::num::NonZeroUsize::get)
+    }
+
+    fn configured_threads(cpus: usize) -> String {
+        std::env::var("KAPONIR_OCR_THREADS").unwrap_or_else(|_| cpus.min(4).to_string())
+    }
+
+    pub(super) fn parallel_page_threads() -> Option<usize> {
+        let cpus = Self::available_cpus();
+        let threads = Self::configured_threads(cpus).parse::<usize>().ok()?;
+        let share = threads.min(cpus / 2);
+        (share > 0).then_some(share)
+    }
+
+    fn spawn(python: &OsStr, threads: &str) -> Result<Child, Failure> {
         Command::new(python)
-            .args(["-u", "-c", SCRIPT, &threads])
+            .args(["-u", "-c", SCRIPT, threads])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -69,6 +78,7 @@ impl LocalOcr {
         png: &[u8],
         character_boxes: bool,
         profile: Profile,
+        page_threads: Option<usize>,
     ) -> Result<Vec<u8>, Failure> {
         let _slot = self
             .slots
@@ -76,13 +86,24 @@ impl LocalOcr {
             .await
             .map_err(|_| Failure::new(Code::Unavailable))?;
         let python = self.python();
+        let threads = page_threads.map_or_else(
+            || Self::configured_threads(Self::available_cpus()),
+            |threads| threads.to_string(),
+        );
         let mut child = {
             let mut idle = self
                 .idle
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            idle.retain(|(interpreter, _)| interpreter == &python);
-            idle.pop().map(|(_, child)| child)
+            idle.retain(|(interpreter, _, _)| interpreter == &python);
+            if let Some(index) = idle.iter().rposition(|(_, count, _)| count == &threads) {
+                Some(idle.swap_remove(index).2)
+            } else {
+                // Replace an idle session when switching thread counts to keep
+                // the number of resident children bounded by the slot count.
+                drop(idle.pop());
+                None
+            }
         };
         // The current call owns the child. Cancelling it drops an incomplete
         // exchange so the next request cannot read its OCR result.
@@ -94,13 +115,13 @@ impl LocalOcr {
         }
         let mut child = match child {
             Some(child) => child,
-            None => Self::spawn(&python)?,
+            None => Self::spawn(&python, &threads)?,
         };
         let data = Self::exchange(&mut child, png, character_boxes, profile).await?;
         self.idle
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push((python, child));
+            .push((python, threads, child));
         Ok(data)
     }
 

@@ -750,6 +750,12 @@ def exercise_pdf(p, chat, scan):
     result = lab.json()
     assert len(result["pages"]) == 3 and result["data"].startswith("data:application/pdf;base64,")
     preview = [bytes_from_url(entry["data"]) for entry in result["pages"]]
+    # A pair must preserve the serial result even with different page layouts.
+    parallelism = p.settings()["settings"]["parallelism"]
+    p.settings(parallelism=1)
+    serial = p.call("/api/v1/ui/ocr/preview", data, headers={"content-type": "application/pdf"})
+    assert serial.status == 200 and serial.json()["pages"] == result["pages"], serial.body[:250]
+    p.settings(parallelism=parallelism)
     with pdfium.PdfDocument(data) as source:
         assert source.count_attachments() == 1
         assert "PDF_FIXTURE_HIDDEN_TEXT" in source[0].get_textpage().get_text_range()

@@ -13,6 +13,7 @@ use image::RgbImage;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
+    ops::Range,
     sync::{
         Arc, Mutex, RwLock,
         atomic::{AtomicBool, Ordering::Relaxed},
@@ -459,6 +460,22 @@ impl Ticket {
             notified.await;
         }
     }
+
+    fn try_borrow(&self, parallelism: usize) -> Option<Self> {
+        let mut counts = self
+            .queue
+            .counts
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if counts.waiting != 0 || counts.active >= parallelism {
+            return None;
+        }
+        counts.active += 1;
+        Some(Self {
+            queue: self.queue.clone(),
+            active: true,
+        })
+    }
 }
 impl Drop for Ticket {
     fn drop(&mut self) {
@@ -476,14 +493,53 @@ impl Drop for Ticket {
     }
 }
 
-#[derive(Clone, Copy, Default, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
+pub enum InstallFailure {
+    PythonEnvironment,
+    Dependencies,
+    RuntimeCheck,
+    CyrillicModel,
+}
+
+impl std::fmt::Display for InstallFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::PythonEnvironment => "Could not create the OCR environment. Install Python with venv support or pass --python",
+            Self::Dependencies => "Could not install OCR dependencies. Check PyPI access and try Python 3.12 or 3.13 with --python",
+            Self::RuntimeCheck => "could not verify the OCR runtime",
+            Self::CyrillicModel => "Could not install the Cyrillic RapidOCR model. Check access to ModelScope",
+        })
+    }
+}
+
+impl std::error::Error for InstallFailure {}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 enum InstallState {
     #[default]
     Idle,
     Installing,
     Ready,
-    Failed,
+    Failed(Option<InstallFailure>),
+}
+
+impl InstallState {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Idle => "idle",
+            Self::Installing => "installing",
+            Self::Ready => "ready",
+            Self::Failed(_) => "failed",
+        }
+    }
+
+    fn failure(self) -> Option<InstallFailure> {
+        match self {
+            Self::Failed(failure) => failure,
+            _ => None,
+        }
+    }
 }
 
 pub(crate) struct Service {
@@ -576,7 +632,7 @@ impl Drop for CancelOnDrop {
 }
 struct Work {
     ticket: Arc<Ticket>,
-    cancelled: CancelOnDrop,
+    cancelled: Arc<AtomicBool>,
 }
 impl Work {
     async fn cpu<T: Send + 'static>(
@@ -584,7 +640,7 @@ impl Work {
         f: impl FnOnce(&AtomicBool) -> Result<T, Failure> + Send + 'static,
     ) -> Result<T, Failure> {
         let ticket = self.ticket.clone();
-        let cancelled = self.cancelled.0.clone();
+        let cancelled = self.cancelled.clone();
         tokio::task::spawn_blocking(move || {
             let _ticket = ticket;
             if cancelled.load(Relaxed) {
@@ -633,6 +689,175 @@ struct ProcessedPage {
     png: Vec<u8>,
     original: Option<(Vec<u8>, &'static str)>,
 }
+
+#[derive(Default)]
+struct PageTimings {
+    ocr: Option<Range<Instant>>,
+    rules_ms: u64,
+    encode_ms: u64,
+}
+
+impl PageTimings {
+    fn record(self, timings: &mut Timings) {
+        if let Some(ocr) = self.ocr {
+            timings.ocr_ms += (ocr.end - ocr.start).as_millis() as u64;
+        }
+        timings.rules_ms += self.rules_ms;
+        timings.encode_ms += self.encode_ms;
+    }
+
+    fn ocr_overlap_ms(&self, other: &Self) -> u64 {
+        match (&self.ocr, &other.ocr) {
+            (Some(a), Some(b)) => a
+                .end
+                .min(b.end)
+                .saturating_duration_since(a.start.max(b.start))
+                .as_millis() as u64,
+            _ => 0,
+        }
+    }
+}
+
+struct InputPage {
+    raster: Raster,
+    native_text: Option<pdf::PageText>,
+    attachment: Attachment,
+}
+
+impl InputPage {
+    async fn render(
+        renderer: &mut pdf::Renderer,
+        index: usize,
+        attachment: Attachment,
+        timings: &mut Timings,
+    ) -> Result<Self, Failure> {
+        let started = Instant::now();
+        let (pixels, native_text) = renderer.read_page(index).await?;
+        timings.decode_ms += elapsed(started);
+        Ok(Self {
+            raster: Raster {
+                pixels,
+                original: None,
+            },
+            native_text,
+            attachment,
+        })
+    }
+}
+
+struct PageProtection<'a> {
+    st: &'a Shared,
+    settings: &'a Settings,
+    backend: ocr::Backend,
+    engine: Arc<kaponir_core::Engine>,
+    span: Option<&'a Span>,
+    original_size: Mutex<usize>,
+}
+
+impl PageProtection<'_> {
+    async fn redact(
+        &self,
+        work: &Work,
+        page: InputPage,
+        page_threads: Option<usize>,
+        report_stages: bool,
+    ) -> Result<(ProcessedPage, PageTimings), Failure> {
+        let InputPage {
+            raster: Raster {
+                pixels,
+                mut original,
+            },
+            native_text,
+            mut attachment,
+        } = page;
+        let is_pdf = attachment.pdf.is_some();
+        let (w, h) = pixels.dimensions();
+        let mut timings = PageTimings::default();
+        let encoding_started = Instant::now();
+        let (pixels, input, blank) = work
+            .cpu(move |_| {
+                // A uniform PDF page has no visible content to recognize.
+                let blank = is_pdf && pixels.pixels().all(|pixel| pixel == pixels.get_pixel(0, 0));
+                let input = raster::png(&pixels)?;
+                Ok((pixels, input, blank))
+            })
+            .await?;
+        timings.encode_ms += elapsed(encoding_started);
+        if is_pdf && self.settings.save_originals {
+            original = Some((input.clone(), "image/png"));
+        }
+        if let Some((bytes, _)) = &original {
+            let mut used = self
+                .original_size
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            *used = used
+                .checked_add(bytes.len())
+                .filter(|&size| size <= raster::MAX_PNG_BYTES)
+                .ok_or_else(|| Failure::new(Code::Limits))?;
+        }
+        let (png, areas, review_values) = if blank {
+            (input, Vec::new(), Vec::new())
+        } else {
+            let ocr_started = Instant::now();
+            let mut text = self
+                .backend
+                .read(self.st, self.settings, input, w, h, page_threads)
+                .await?;
+            timings.ocr = Some(ocr_started..Instant::now());
+            text.native_text = native_text;
+            let progress = self.span.filter(|_| report_stages);
+            if let Some(span) = progress {
+                set_stage(span, Stage::Masking);
+            }
+            let rules_started = Instant::now();
+            let engine = self.engine.clone();
+            let link_reviews = self.span.is_some();
+            let scope = self.st.cfg.scope;
+            let url_mask = self.settings.url_mask;
+            let (pixels, areas, review_values) = work
+                .cpu(move |cancelled| {
+                    let mut pixels = pixels;
+                    let layout::Masks {
+                        areas,
+                        review_values,
+                    } = layout::mask(
+                        &engine,
+                        &pixels,
+                        text,
+                        scope,
+                        cancelled,
+                        link_reviews,
+                        url_mask,
+                    )?;
+                    raster::paint(&mut pixels, &areas, cancelled)?;
+                    Ok((pixels, areas, review_values))
+                })
+                .await?;
+            timings.rules_ms += elapsed(rules_started);
+            if let Some(span) = progress {
+                set_stage(span, Stage::Encoding);
+            }
+            let encoding_started = Instant::now();
+            let png = work.cpu(move |_| raster::png(&pixels)).await?;
+            timings.encode_ms += elapsed(encoding_started);
+            (png, areas, review_values)
+        };
+        attachment.width = w;
+        attachment.height = h;
+        attachment.areas = areas;
+        Ok((
+            ProcessedPage {
+                attachment,
+                review_values,
+                png,
+                original,
+            },
+            timings,
+        ))
+    }
+}
+
 struct Processed {
     pages: Vec<ProcessedPage>,
     pdf: Option<Vec<u8>>,
@@ -696,9 +921,10 @@ async fn process(
         wait_ms: elapsed(started),
         ..Timings::default()
     };
+    let cancel_on_drop = CancelOnDrop(Arc::new(AtomicBool::new(false)));
     let work = Work {
         ticket,
-        cancelled: CancelOnDrop(Arc::new(AtomicBool::new(false))),
+        cancelled: cancel_on_drop.0.clone(),
     };
     if let Some(span) = span {
         set_stage(span, Stage::Validating);
@@ -708,11 +934,21 @@ async fn process(
     timings.decode_ms = elapsed(decode_started);
     let backend = ocr::Backend::resolve(st, &settings)?;
     backend.ready(st, &settings).await?;
-    let engine = st.engine();
-    let scope = st.cfg.scope;
+    let parallel_threads = if matches!(backend, ocr::Backend::RapidOcr) {
+        rapidocr::LocalOcr::parallel_page_threads()
+    } else {
+        None
+    };
+    let protection = PageProtection {
+        st,
+        settings: &settings,
+        backend,
+        engine: st.engine(),
+        span,
+        original_size: Mutex::default(),
+    };
     let mut output = Vec::with_capacity(images.len());
     let mut encoded_size = 0;
-    let mut original_size = 0;
     let mut wire_size = 0;
     let mut current = 0;
     let mut remaining_pdf_pages = MAX_PDF_PAGES;
@@ -758,11 +994,23 @@ async fn process(
                 (Some(renderer), None, attachments)
             }
         };
-        let is_pdf = renderer.is_some();
         let mut pages = Vec::with_capacity(attachments.len());
-        for (index, mut attachment) in attachments.into_iter().enumerate() {
+        let mut attachments = attachments.into_iter().enumerate().peekable();
+        let mut threads = None;
+        while let Some((index, attachment)) = attachments.next() {
+            // Reuse a spare queue slot for this pair. The two raw rasters
+            // together must fit inside the existing single-page pixel limit.
+            let spare = if parallel_threads.is_some()
+                && let Some(renderer) = &renderer
+                && let Some((next, _)) = attachments.peek()
+                && renderer.pixels(index) + renderer.pixels(*next) <= settings.max_pixels()
+            {
+                work.ticket.try_borrow(settings.parallelism)
+            } else {
+                None
+            };
             let i = current;
-            current += 1;
+            current += if spare.is_some() { 2 } else { 1 };
             if let Some(span) = span {
                 update(span, |audit| {
                     audit.current = current;
@@ -770,109 +1018,63 @@ async fn process(
                     audit.timings = timings;
                 });
             }
-            let (
-                Raster {
-                    pixels,
-                    mut original,
-                },
-                native_text,
-            ) = if let Some(renderer) = &mut renderer {
-                let started = Instant::now();
-                let (pixels, native_text) = renderer.read_page(index).await.map_err(|e| e.at(i))?;
-                timings.decode_ms += elapsed(started);
-                (
-                    Raster {
-                        pixels,
-                        original: None,
+            let page = if let Some(renderer) = &mut renderer {
+                InputPage::render(renderer, index, attachment, &mut timings)
+                    .await
+                    .map_err(|e| e.at(i))?
+            } else {
+                InputPage {
+                    raster: raster.take().expect("one standalone image"),
+                    native_text: None,
+                    attachment,
+                }
+            };
+            let (first, second) = if let Some(ticket) = spare {
+                // The last odd page can reuse the same warm OCR process.
+                threads = parallel_threads;
+                let second_work = Work {
+                    ticket: Arc::new(ticket),
+                    cancelled: work.cancelled.clone(),
+                };
+                let (next, attachment) = attachments.next().expect("paired PDF page");
+                let renderer = renderer.as_mut().expect("PDF renderer for paired pages");
+                let next_page = InputPage::render(renderer, next, attachment, &mut timings)
+                    .await
+                    .map_err(|e| e.at(i + 1))?;
+                let (first, second) = tokio::try_join!(
+                    async {
+                        protection
+                            .redact(&work, page, threads, false)
+                            .await
+                            .map_err(|e| e.at(i))
                     },
-                    native_text,
-                )
+                    async {
+                        protection
+                            .redact(&second_work, next_page, threads, false)
+                            .await
+                            .map_err(|e| e.at(i + 1))
+                    },
+                )?;
+                (first, Some(second))
             } else {
-                (raster.take().expect("one standalone image"), None)
+                let first = protection
+                    .redact(&work, page, threads, true)
+                    .await
+                    .map_err(|e| e.at(i))?;
+                (first, None)
             };
-            let (w, h) = pixels.dimensions();
-            let encoding_started = Instant::now();
-            let (pixels, input, blank) = work
-                .cpu(move |_| {
-                    // A uniform PDF page has no visible content to recognize.
-                    let blank =
-                        is_pdf && pixels.pixels().all(|pixel| pixel == pixels.get_pixel(0, 0));
-                    let input = raster::png(&pixels)?;
-                    Ok((pixels, input, blank))
-                })
-                .await
-                .map_err(|e| e.at(i))?;
-            timings.encode_ms += elapsed(encoding_started);
-            if is_pdf && settings.save_originals {
-                original = Some((input.clone(), "image/png"));
-            }
-            if let Some((bytes, _)) = &original {
-                original_size += bytes.len();
-                if original_size > raster::MAX_PNG_BYTES {
-                    return Err(Failure::new(Code::Limits).at(i));
+            let overlap = second
+                .as_ref()
+                .map_or(0, |(_, timings)| first.1.ocr_overlap_ms(timings));
+            for (offset, (page, page_timings)) in std::iter::once(first).chain(second).enumerate() {
+                encoded_size += page.png.len();
+                if encoded_size > raster::MAX_PNG_BYTES {
+                    return Err(Failure::new(Code::Limits).at(i + offset));
                 }
+                page_timings.record(&mut timings);
+                pages.push(page);
             }
-            let (png, areas, review_values) = if blank {
-                (input, Vec::new(), Vec::new())
-            } else {
-                let ocr_started = Instant::now();
-                let mut text = backend
-                    .read(st, &settings, input, w, h)
-                    .await
-                    .map_err(|e| e.at(i))?;
-                text.native_text = native_text;
-                timings.ocr_ms += elapsed(ocr_started);
-                if let Some(span) = span {
-                    set_stage(span, Stage::Masking);
-                }
-                let rules_started = Instant::now();
-                let engine = engine.clone();
-                let link_reviews = span.is_some();
-                let (pixels, areas, review_values) = work
-                    .cpu(move |cancelled| {
-                        let mut pixels = pixels;
-                        let layout::Masks {
-                            areas,
-                            review_values,
-                        } = layout::mask(
-                            &engine,
-                            &pixels,
-                            text,
-                            scope,
-                            cancelled,
-                            link_reviews,
-                            settings.url_mask,
-                        )?;
-                        raster::paint(&mut pixels, &areas, cancelled)?;
-                        Ok((pixels, areas, review_values))
-                    })
-                    .await
-                    .map_err(|e| e.at(i))?;
-                timings.rules_ms += elapsed(rules_started);
-                if let Some(span) = span {
-                    set_stage(span, Stage::Encoding);
-                }
-                let encoding_started = Instant::now();
-                let png = work
-                    .cpu(move |_| raster::png(&pixels))
-                    .await
-                    .map_err(|e| e.at(i))?;
-                timings.encode_ms += elapsed(encoding_started);
-                (png, areas, review_values)
-            };
-            encoded_size += png.len();
-            if encoded_size > raster::MAX_PNG_BYTES {
-                return Err(Failure::new(Code::Limits).at(i));
-            }
-            attachment.width = w;
-            attachment.height = h;
-            attachment.areas = areas;
-            pages.push(ProcessedPage {
-                attachment,
-                review_values,
-                png,
-                original,
-            });
+            timings.ocr_ms = timings.ocr_ms.saturating_sub(overlap);
         }
         let pdf = if let Some(renderer) = renderer {
             renderer.finish().await.map_err(|e| e.at(first))?;
@@ -1035,5 +1237,33 @@ pub(crate) async fn protect(
             });
             Err(failure)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_pdf_pair_leaves_the_next_free_slot_to_a_queued_request() {
+        let queue = Arc::new(Queue::default());
+        let settings = Settings {
+            parallelism: 2,
+            ..Settings::default()
+        };
+        let first = Ticket::acquire(queue.clone(), &settings).await.unwrap();
+        let spare = first.try_borrow(settings.parallelism).unwrap();
+        assert!(first.try_borrow(settings.parallelism).is_none());
+
+        let waiting = Ticket::acquire(queue, &settings);
+        tokio::pin!(waiting);
+        assert!(futures_util::poll!(waiting.as_mut()).is_pending());
+        drop(spare);
+        assert!(first.try_borrow(settings.parallelism).is_none());
+
+        let next = waiting.await.unwrap();
+        assert!(first.try_borrow(settings.parallelism).is_none());
+        drop(next);
+        assert!(first.try_borrow(settings.parallelism).is_some());
     }
 }
