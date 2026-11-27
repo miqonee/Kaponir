@@ -363,7 +363,7 @@ impl Backend {
         tokio::time::timeout(Duration::from_secs(3), async {
             match self {
                 Self::RapidOcr => {
-                    st.images.local.call(&[], false, profile).await?;
+                    st.images.local.call(&[], false, profile, None).await?;
                     Ok(Capabilities {
                         engine: "rapidocr",
                         languages: vec!["rus".into(), "eng".into()],
@@ -422,12 +422,16 @@ impl Backend {
         png: Vec<u8>,
         width: u32,
         height: u32,
+        page_threads: Option<usize>,
     ) -> Result<Reading, Failure> {
         let character_boxes = settings.url_mask == UrlMask::Partial;
         let profile = settings.profile;
         match self {
             Self::RapidOcr => tsv(
-                &st.images.local.call(&png, character_boxes, profile).await?,
+                &st.images
+                    .local
+                    .call(&png, character_boxes, profile, page_threads)
+                    .await?,
                 width,
                 height,
                 profile,

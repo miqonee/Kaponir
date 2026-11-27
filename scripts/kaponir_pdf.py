@@ -100,7 +100,7 @@ def render(pdfium, source, output, page_limit, pixel_limit, page_pixels, byte_le
         for size in sizes:
             output.write(struct.pack(">II", *size))
         for index, (w, h) in enumerate(sizes):
-            # Wait for the proxy to release the previous raster.
+            # The proxy requests each raster when it has space to process it.
             if source.read(1) != b"\x01":
                 raise ValueError("missing page request")
             page = document[index]

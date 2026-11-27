@@ -151,6 +151,11 @@ impl Renderer {
         self.pages.len()
     }
 
+    pub(super) fn pixels(&self, index: usize) -> u64 {
+        let Page { width, height } = self.pages[index];
+        u64::from(width) * u64::from(height)
+    }
+
     pub(super) async fn read_page(
         &mut self,
         index: usize,
