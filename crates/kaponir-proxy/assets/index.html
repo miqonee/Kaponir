@@ -134,11 +134,11 @@
 <section class="tab" id="tab-ocr" hidden>
 <form id="ocr-settings" class="panel ocr-settings" aria-labelledby="ocr-settings-title">
   <header class="ocr-settings-head">
-    <div><h2 id="ocr-settings-title" data-i18n="Защита изображений">Защита изображений</h2>
-      <p class="hint" data-i18n="Скрывает секреты на картинках перед отправкой модели.">Скрывает секреты на картинках перед отправкой модели.</p></div>
-    <label class="check ocr-switch"><input type="checkbox" name="enabled" id="ocr-enabled"/><span data-i18n="Защищать изображения перед отправкой">Защищать изображения перед отправкой</span></label>
+    <div><h2 id="ocr-settings-title" data-i18n="Защита изображений и PDF">Защита изображений и PDF</h2>
+      <p class="hint" data-i18n="Закрашивает чувствительные данные на изображениях и страницах PDF перед отправкой.">Закрашивает чувствительные данные на изображениях и страницах PDF перед отправкой.</p></div>
+    <label class="check ocr-switch"><input type="checkbox" name="enabled" id="ocr-enabled"/><span data-i18n="Защищать изображения и PDF перед отправкой">Защищать изображения и PDF перед отправкой</span></label>
   </header>
-  <p class="ocr-notice" id="ocr-disabled-note" hidden data-i18n="Защита выключена. Поставщик может получить исходную картинку.">Защита выключена. Поставщик может получить исходную картинку.</p>
+  <p class="ocr-notice" id="ocr-disabled-note" hidden data-i18n="Защита выключена. Поставщик может получить исходное вложение.">Защита выключена. Поставщик может получить исходное вложение.</p>
   <div class="ocr-settings-grid">
     <div class="ocr-backend">
       <fieldset class="ocr-mode"><legend data-i18n="Способ распознавания">Способ распознавания</legend>
@@ -185,13 +185,13 @@
     <label class="check"><input type="checkbox" name="save_originals"/><span data-i18n="Сохранять оригиналы для аудита">Сохранять оригиналы для аудита</span></label>
   </details>
   <div class="ocr-settings-actions">
-    <a class="primary" href="#image-lab" data-go="image-lab" data-i18n="Проверить изображение">Проверить изображение</a>
+    <a class="primary" href="#image-lab" data-go="image-lab" data-i18n="Проверить изображение или PDF">Проверить изображение или PDF</a>
     <span class="hint" data-i18n="Лаборатория использует сохранённые настройки.">Лаборатория использует сохранённые настройки.</span>
     <button type="submit" id="ocr-save" class="secondary" disabled data-i18n="Сохранить изменения">Сохранить изменения</button>
   </div>
   <p class="form-status" id="ocr-save-result" role="status"></p>
 </form>
-<p class="hint ocr-limits" data-i18n="Поддерживаются статические PNG, JPEG и WebP, переданные в теле запроса. Изображения по ссылке, ID файла или внутри PDF этим режимом не проверяются.">Поддерживаются статические PNG, JPEG и WebP, переданные в теле запроса. Изображения по ссылке, ID файла или внутри PDF этим режимом не проверяются.</p>
+<p class="hint ocr-limits" data-i18n="Приложите статический PNG, JPEG, WebP или PDF в теле запроса. PDF пересобирается из обработанных страниц.">Приложите статический PNG, JPEG, WebP или PDF в теле запроса. PDF пересобирается из обработанных страниц.</p>
 </section>
 <section class="tab" hidden id="tab-proxy">
 <div class="settings-grid">
@@ -210,13 +210,13 @@
 <section class="tab" hidden="" id="tab-setup"><div class="wizard-shell"><aside class="wizard-aside"><span class="brand-symbol"><svg><use href="#i-shield"></use></svg></span><h2 data-i18n="Защита, настроенная под вас">Защита, настроенная под вас</h2><p data-i18n="Выберите сценарий работы и добавьте важные названия. Базовая защита уже включена.">Выберите сценарий работы и добавьте важные названия. Базовая защита уже включена.</p><div class="quiet-note" data-i18n="Настройки можно изменить позже. Пропуск шага ничего не удаляет.">Настройки можно изменить позже. Пропуск шага ничего не удаляет.</div></aside><div class="wizard"><div class="wizard-progress" id="wizard-progress"></div><form id="setup-form"><div id="wizard-body"></div><div class="wizard-actions"><button class="text-button" data-i18n="Пропустить" id="wizard-skip" type="button">Пропустить</button><span class="grow"></span><button data-i18n="Назад" id="wizard-back" type="button">Назад</button><button class="primary" data-i18n="Продолжить" id="wizard-next" type="submit">Продолжить</button></div></form></div></div></section>
 <section class="tab" hidden="" id="tab-metrics"><p class="hint" data-i18n="Экспорт Prometheus: /metrics">Экспорт Prometheus: /metrics</p><div class="toolbar"><button data-i18n="Обновить" id="metrics-refresh">Обновить</button></div><p class="hint" data-i18n="Счётчики с запуска сервера, включая предпросмотры. Сохраняются при изменении правил; обнуляются при перезапуске.">Счётчики с запуска сервера, включая предпросмотры. Сохраняются при изменении правил; обнуляются при перезапуске.</p><p id="metrics-status" role="status"></p><div class="table-wrap panel" id="metrics-content"></div><h3 data-i18n="Последние сбои S1">Последние сбои S1</h3><p class="hint" data-i18n="До 64 событий без исходных данных. При сбое сохраняется решение локальной политики.">До 64 событий без исходных данных. При сбое сохраняется решение локальной политики.</p><div class="table-wrap panel" id="metrics-events"></div></section>
 <nav class="section-tabs lab-navigation" id="lab-navigation" hidden aria-label="Лаборатория" data-i18n-aria-label="Лаборатория">
-<a href="#mask" data-go="mask" data-i18n="Проверка текста">Проверка текста</a><a href="#image-lab" data-go="image-lab" data-i18n="Проверка изображения">Проверка изображения</a><a href="#discover" data-go="discover" data-i18n="Найти значения">Найти значения</a><a href="#restore" data-go="restore" data-i18n="Восстановление">Восстановление</a>
+<a href="#mask" data-go="mask" data-i18n="Проверка текста">Проверка текста</a><a href="#image-lab" data-go="image-lab" data-i18n="Проверка изображения или PDF">Проверка изображения или PDF</a><a href="#discover" data-go="discover" data-i18n="Найти значения">Найти значения</a><a href="#restore" data-go="restore" data-i18n="Восстановление">Восстановление</a>
 <a class="lab-return" href="#review" data-go="review"><svg aria-hidden="true"><use href="#i-arrow"></use></svg><span data-i18n="К находкам">К находкам</span></a></nav>
 <section class="tab" id="tab-image-lab" hidden>
 <div class="panel ocr-lab">
-  <header class="ocr-lab-head"><h2 data-i18n="Проверка изображения">Проверка изображения</h2><a href="#ocr" data-go="ocr" data-i18n="К настройкам OCR">К настройкам OCR</a></header>
+  <header class="ocr-lab-head"><h2 data-i18n="Проверка изображения или PDF">Проверка изображения или PDF</h2><a href="#ocr" data-go="ocr" data-i18n="К настройкам OCR">К настройкам OCR</a></header>
   <div id="ocr-drop" class="ocr-drop">
-    <label class="field" for="ocr-file"><span data-i18n="Выберите, вставьте или перетащите изображение">Выберите, вставьте или перетащите изображение</span><input id="ocr-file" type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" aria-describedby="ocr-upload-limits"/></label>
+    <label class="field" for="ocr-file"><span data-i18n="Выберите, вставьте или перетащите изображение или PDF">Выберите, вставьте или перетащите изображение или PDF</span><input id="ocr-file" type="file" accept="image/png,image/jpeg,image/webp,application/pdf,.png,.jpg,.jpeg,.webp,.pdf" aria-describedby="ocr-upload-limits"/></label>
     <p class="hint" id="ocr-upload-limits"></p>
   </div>
   <p class="hint" id="ocr-lab-recipient"></p>

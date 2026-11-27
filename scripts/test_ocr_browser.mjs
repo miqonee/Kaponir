@@ -47,8 +47,8 @@ const user = {role:"user",content:[{type:"text",text:"Проверь конфи�
 
 try {
   await page.goto(config.url + "/ui/#ocr");
-  await page.getByRole("checkbox",{name:"Защищать изображения перед отправкой"}).waitFor();
-  await page.getByText("Защита выключена. Поставщик может получить исходную картинку.").waitFor();
+  await page.getByRole("checkbox",{name:"Защищать изображения и PDF перед отправкой"}).waitFor();
+  await page.getByText("Защита выключена. Поставщик может получить исходное вложение.").waitFor();
   if (config.install_ocr) {
     const options = page.locator("#ocr-options > summary");
     await options.click();
@@ -77,7 +77,7 @@ try {
   const node = page.getByLabel("Узел обработки");
   await node.selectOption("worker");
   await page.getByText(/Подтвердите адрес получателя и нажмите/).waitFor();
-  await page.getByRole("checkbox",{name:"Защищать изображения перед отправкой"}).check();
+  await page.getByRole("checkbox",{name:"Защищать изображения и PDF перед отправкой"}).check();
   const save = page.getByRole("button",{name:"Сохранить изменения"});
   assert(await save.isDisabled());
   await page.getByRole("checkbox",{name:/Разрешить передачу исходных пикселей/}).check();
@@ -205,7 +205,7 @@ try {
   await page.getByRole("radio",{name:"English"}).check({force:true});
   await page.getByRole("radio",{name:"Dark theme"}).check({force:true});
   await page.goto(config.url + "/ui/#ocr");
-  await page.getByRole("heading",{name:"Image protection"}).waitFor();
+  await page.getByRole("heading",{name:"Image and PDF protection"}).waitFor();
   await page.getByText(/Ready · RapidOCR · PP-OCRv6 Small/).waitFor();
   assert.equal(await page.locator("html").getAttribute("data-theme"),"dark");
   await capture("05-settings-dark-en.png");
@@ -250,8 +250,37 @@ try {
   assert.equal(originalReads.length,1);
   const original = await context.request.get(originalReads[0],{headers:auth});
   assert.equal(sha(await original.body()),sha(fixture));
+
+  await page.goto(config.url + "/ui/#image-lab");
+  await page.locator("#ocr-file").setInputFiles({name:"fixture.pdf",mimeType:"application/pdf",buffer:Buffer.from(config.pdf,"base64")});
+  await page.getByRole("button",{name:"Run check"}).click();
+  const pagePicker = page.getByRole("combobox",{name:"PDF page"});
+  await pagePicker.waitFor();
+  assert.equal(await pagePicker.locator("option").count(),3);
+  await pagePicker.selectOption("1");
+  await page.getByRole("heading",{name:"2 regions covered"}).waitFor();
+  await pagePicker.selectOption("2");
+  await page.getByRole("heading",{name:"No matches"}).waitFor();
+  const pdfDownload = page.waitForEvent("download");
+  await page.getByRole("link",{name:"Download protected PDF"}).click();
+  const savedPdf = await readFile(await (await pdfDownload).path());
+  assert.equal(savedPdf.subarray(0,5).toString(),"%PDF-");
+
+  const pdfUser = {role:"user",content:[{type:"text",text:"Review the PDF fixture"},
+    {type:"file",file:{filename:"fixture.pdf",file_data:"data:application/pdf;base64," + config.pdf}}]};
+  assert.equal((await hit("/v1/chat/completions",{model,messages:[pdfUser]},"ocr-pdf-browser")).status(),200);
+  await page.getByRole("link",{name:"Sessions",exact:true}).click();
+  await page.locator("#tab-events").getByRole("button",{name:"Open conversation"}).first().click();
+  await dialogue.getByText("Request log",{exact:false}).first().click();
+  await dialogue.getByRole("button",{name:"Images",exact:true}).last().click();
+  await page.locator("#inspector-dialog .ocr-attachment").filter({hasText:"PDF · page 2 of 3"}).click();
+  await inspector.getByRole("heading",{name:/PDF · page 2 of 3/}).waitFor();
+  await inspector.locator(".ocr-marker").first().click();
+  await inspector.getByText("Selected region revealed",{exact:true}).waitFor();
+  assert.equal(areaReads.length,3);
+  assert.equal(originalReads.length,1);
   assert.deepEqual(errors,[]);
-  console.log("1366×768 · Russian/light and English/dark · no browser exceptions · upstream and inspector PNG hashes match");
+  console.log("1366×768 · Russian/light and English/dark · image parity, PDF pages, download and region reveal verified");
 } finally {
   await browser.close();
 }

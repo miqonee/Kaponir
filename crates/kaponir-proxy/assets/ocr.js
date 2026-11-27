@@ -1,22 +1,24 @@
 "use strict";
 
 const imageSettings = $("#ocr-settings");
-const imageLab = { file: null, status: null, running: null, result: null, fileVersion: 0 };
+const imageLab = { file: null, status: null, running: null, result: null, fileVersion: 0, page: 0 };
 let imageConfig, proof, catalogVersion = 0, loadingImageSettings = 0;
 let ocrInstallTimer, ocrInstallSubmitting = false, ocrInstallWarning = "";
 
 const ocrErrors = {
-  inline_required: "Приложите статический PNG, JPEG или WebP в теле запроса.",
-  format: "Выберите статический PNG, JPEG или WebP.",
+  inline_required: "Приложите PNG, JPEG, WebP или PDF в теле запроса.",
+  format: "Выберите PNG, JPEG, WebP или PDF.",
   invalid_image: "Файл повреждён. Экспортируйте изображение заново.",
+  invalid_pdf: "Не удалось прочитать PDF. Экспортируйте исправный PDF без пароля.",
+  pdf_unavailable: "Для PDF установите окружение OCR на прокси или добавьте pypdfium2 и Pillow в его Python.",
   animated: "Сохраните один кадр в PNG, JPEG или WebP.",
-  limits: "Уменьшите размер изображения или число вложений.",
+  limits: "Уменьшите размер вложений или отправьте меньше изображений и страниц PDF.",
   unavailable: "RapidOCR или настроенный worker недоступен. Проверьте установку и адрес узла.",
   languages: "Установите выбранные языки OCR на worker.",
   empty: "Текст не удалось уверенно прочитать. Попробуйте снимок крупнее.",
   unreadable: "Текст не удалось уверенно прочитать. Попробуйте снимок крупнее.",
   boundaries: "Не удалось определить границы чувствительного значения. Отправка остановлена.",
-  timeout: "Время проверки истекло. Попробуйте меньше изображений или увеличьте тайм-аут.",
+  timeout: "Время проверки истекло. Отправьте меньше изображений или страниц PDF.",
   queue_full: "Очередь проверки заполнена. Повторите, когда освободится обработчик.",
   cancelled: "Проверка отменена.",
   encoding: "Не удалось сохранить обработанное изображение.",
@@ -288,9 +290,9 @@ imageSettings.addEventListener("submit", async event => {
 function ocrStageLabel(audit) {
   const total = audit.total ?? audit.attachments?.length ?? 0;
   if (audit.stage === "reading" && total > 1)
-    return tr("Читаем текст · изображение {{0}} из {{1}}", [audit.current, total]);
+    return tr("Читаем текст · {{0}} из {{1}}", [audit.current, total]);
   return tr(({queued:"Ожидает свободного обработчика", validating:"Проверяем формат и размер", reading:"Читаем текст", masking:"Закрашиваем области",
-    encoding:"Сохраняем обработанное изображение", ready:"Готово к отправке", sending:"Передаём поставщику…",
+    encoding:"Сохраняем обработанное вложение", ready:"Готово к отправке", sending:"Передаём поставщику…",
     sent:"Отправлено поставщику", provider_error:"Ошибка поставщика после обработки",
     blocked:"Отправка остановлена", disabled:"Защита была выключена", cancelled:"Проверка отменена.",
     legacy:"Данные об обработке изображения отсутствуют"})[audit.stage] || "");
@@ -403,8 +405,8 @@ async function loadImageLab() {
   const data = await api("/api/v1/ui/ocr/settings");
   if (location.hash !== "#image-lab") return;
   imageLab.status = data;
-  $("#ocr-upload-limits").textContent = tr("PNG, JPEG, WebP · до {{0}} МиБ и {{1}} Мп · до {{2}} пикселей по стороне",
-    [data.settings.max_mib, data.settings.max_megapixels, data.max_edge]);
+  $("#ocr-upload-limits").textContent = tr("PNG, JPEG, WebP, PDF · до {{0}} МиБ и {{1}} Мп · до {{2}} пикселей по стороне и {{3}} страниц PDF",
+    [data.settings.max_mib, data.settings.max_megapixels, data.max_edge, data.max_images]);
   const engine = !data.settings.enabled || data.engine === "rapidocr"
     ? "RapidOCR" : data.engine === "vision" ? data.settings.model : tr("Отдельный worker");
   const recipient = data.settings.enabled
@@ -422,6 +424,7 @@ function chooseOcrFile(file) {
   imageLab.running?.abort();
   imageLab.file = file;
   imageLab.result = null;
+  imageLab.page = 0;
   if (labOriginalUrl) URL.revokeObjectURL(labOriginalUrl);
   labOriginalUrl = null;
   const input = $("#ocr-file");
@@ -450,7 +453,7 @@ drop.addEventListener("drop",event=>{
 });
 document.addEventListener("paste", event => {
   if (location.hash !== "#image-lab") return;
-  const file = [...(event.clipboardData?.files || [])].find(file => file.type.startsWith("image/"));
+  const file = [...(event.clipboardData?.files || [])].find(file => file.type.startsWith("image/") || file.type === "application/pdf");
   if (file) { event.preventDefault(); chooseOcrFile(file); }
 });
 $("#ocr-example").addEventListener("click",async()=>{
@@ -477,16 +480,25 @@ async function fetchOcrBody(path, options = {}) {
 let labOriginalUrl;
 function renderImagePreview(result) {
   if (labOriginalUrl) URL.revokeObjectURL(labOriginalUrl);
-  labOriginalUrl = URL.createObjectURL(result.original);
-  const status = result.image.areas.length ? coveredCount(result.image.areas) :
-    tr("Текст прочитан. Совпадений с правилами нет.");
-  const comparison = imageComparison(result.image,[{source:labOriginalUrl,label:"Оригинал"},
-    {source:result.data,label:"После защиты"}]);
+  const pdf = !!result.pages;
+  labOriginalUrl = pdf ? null : URL.createObjectURL(result.original);
+  const heading = h("h2",{}), contents = h("div",{});
+  function show(index) {
+    const page = pdf ? result.pages[index] : result;
+    heading.textContent = coveredCount(page.image.areas);
+    replaceImageView(contents,imageComparison(page.image,[{source:pdf ? page.original : labOriginalUrl,label:"Оригинал"},
+      {source:page.data,label:"После защиты"}]));
+  }
+  const pagePicker = pdf && result.pages.length > 1 ? h("select",{"aria-label":tr("Страница PDF"),
+    onchange:event=>{imageLab.page = Number(event.target.value);show(imageLab.page);}},
+    result.pages.map(({image},index)=>h("option",{value:index,selected:index === imageLab.page},pdfPageLabel(image)))) : null;
+  show(imageLab.page);
   replaceImageView($("#ocr-lab-output"),h("section",{class:"panel ocr-preview"},
-    h("header",{class:"ocr-lab-head"},h("h2",{},status),
-      h("a",{class:"secondary",href:result.data,download:"kaponir-protected.png"},tr("Скачать обработанное изображение"))),
+    h("header",{class:"ocr-lab-head"},heading,pagePicker,
+      h("a",{class:"secondary",href:result.data,download:pdf ? "kaponir-protected.pdf" : "kaponir-protected.png"},
+        tr(pdf ? "Скачать обработанный PDF" : "Скачать обработанное изображение"))),
     h("p",{class:"hint"},tr("Время обработки · {{0}} мс",[number(result.elapsed_ms)]), " · ",
-      tr("Распознавание · {{0}} мс",[number(result.timings.ocr_ms)])),comparison));
+      tr("Распознавание · {{0}} мс",[number(result.timings.ocr_ms)])),contents));
 }
 
 $("#ocr-run").addEventListener("click",async()=>{
@@ -501,7 +513,7 @@ $("#ocr-run").addEventListener("click",async()=>{
   const control = new AbortController();
   const started = Date.now();
   const progress = () => {
-    status.textContent = tr("Проверяем изображение · {{0}} с", [Math.floor((Date.now()-started)/1000)]);
+    status.textContent = tr("Проверяем вложение · {{0}} с", [Math.floor((Date.now()-started)/1000)]);
   };
   progress();
   const timer = setInterval(progress, 1000);
@@ -540,21 +552,25 @@ function attachmentStatus(audit, attachment) {
   if (audit.stage === "sent") return coveredCount(attachment.areas);
   return ocrStageLabel(audit);
 }
+function pdfPageLabel(attachment) {
+  return attachment.pdf.total ? tr("PDF · страница {{0}} из {{1}}",[attachment.pdf.number,attachment.pdf.total]) : "PDF";
+}
 function ocrAttachmentCards(audit, event, filter = () => true) {
   if (!audit) return null;
   const attachments = audit.attachments.filter(filter);
   if (!attachments.length) return audit.stage === "legacy"
     ? h("p",{class:"hint"},ocrStageLabel(audit)) : null;
+  const failed = audit.attachments[audit.failure?.attachment];
   const status = audit.stage === "blocked" ? h("div",{class:"event-error-banner",role:"status"},
     h("strong",{},tr("Поставщику ничего не отправлено")), " ",
-    Number.isInteger(audit.failure?.attachment) && audit.attachments.length > 1
-      ? tr("Изображение {{0}}",[audit.failure.attachment+1]) + " · " : "",
+    failed && audit.attachments.length > 1
+      ? (failed.pdf ? pdfPageLabel(failed) : tr("Изображение {{0}}",[audit.failure.attachment+1])) + " · " : "",
     ocrError(audit.failure,event.error?.message || "")) : null;
   const list = h("ul",{class:"ocr-attachments","aria-label":tr("Вложения изображения")});
   for (const [index,attachment] of attachments.entries()) {
     const label = h("span",{class:"ocr-attachment-label"},
       h("strong",{},attachmentStatus(audit,attachment)),
-      h("small",{},tr("Изображение {{0}}",[index+1])));
+      h("small",{},attachment.pdf ? pdfPageLabel(attachment) : tr("Изображение {{0}}",[index+1])));
     const thumbnail = h("span",{class:"ocr-thumbnail","aria-hidden":"true"},icon("eye-off"));
     const trigger = h("button",{type:"button",class:"ocr-attachment",
       "data-session-focus":"image-"+attachment.id,
@@ -576,7 +592,8 @@ async function openImageAttachment(event,audit,attachment,areaId) {
   const dialog = $("#ocr-image-dialog");
   const result = h("div",{class:"inspector-body"});
   const status = h("p",{class:"form-status",role:"status"});
-  const title = h("h2",{id:"ocr-image-title"},attachmentStatus(audit,attachment));
+  const titleText = () => [attachment.pdf && pdfPageLabel(attachment), attachmentStatus(audit,attachment)].filter(Boolean).join(" · ");
+  const title = h("h2",{id:"ocr-image-title"},titleText());
   const close = h("form",{method:"dialog"},h("button",{class:"secondary",autofocus:true},tr("Закрыть")));
   const sent = imageButton("Отправлено поставщику",()=>load("sent",true));
   const original = imageButton("Показать оригинал",()=>load("original",true));
@@ -682,7 +699,7 @@ async function openImageAttachment(event,audit,attachment,areaId) {
         if (!dialog.open || controller.signal.aborted || !updated.inspector?.images) return;
         audit = updated.inspector.images;
         attachment = audit.attachments.find(item=>item.id===attachment.id) || attachment;
-        title.textContent = attachmentStatus(audit,attachment);
+        title.textContent = titleText();
         updateControls();
         if (!pending.has(audit.stage)) {
           if (attachment.preview_until_ms) {

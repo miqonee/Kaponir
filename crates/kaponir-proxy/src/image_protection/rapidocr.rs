@@ -33,7 +33,7 @@ impl Default for LocalOcr {
 }
 
 impl LocalOcr {
-    fn python(&self) -> OsString {
+    pub(super) fn python(&self) -> OsString {
         std::env::var_os("KAPONIR_OCR_PYTHON")
             .or_else(|| {
                 self.runtime

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the real proxy against recording Chat and Vision HTTP servers.
 
-Requires Pillow, DejaVu Sans Mono, RapidOCR and a Kaponir binary.
+Requires the managed OCR dependencies, DejaVu Sans Mono and a Kaponir binary.
 All screenshots and credentials are synthetic.
 """
 from __future__ import annotations
@@ -29,6 +29,7 @@ import threading
 import time
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+import zlib
 
 try:
     from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageOps, PngImagePlugin
@@ -108,6 +109,45 @@ def helm(**options):
     return fixture(rows, **options)
 
 
+def pdf_fixture(scan):
+    """A printed page, a scanned page and a blank page, with hidden source data."""
+    text = (f'BT /F1 22 Tf 32 184 Td ({FIELDS[0][0]}{FIELDS[0][1]}) Tj '
+            '0 -34 Td (replicas: 3) Tj 0 -30 Td 3 Tr (PDF_FIXTURE_HIDDEN_TEXT) Tj ET').encode()
+    w, h = scan.reference.size
+    def stream(data, fields=b""):
+        return b"<< /Length %d " % len(data) + fields + b" >>\nstream\n" + data + b"\nendstream"
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R /Names << /EmbeddedFiles << /Names [(source.txt) 10 0 R] >> >> >>",
+        b"<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 500 250] /Contents 6 0 R "
+        b"/Resources << /Font << /F1 7 0 R >> >> >>",
+        (f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {w / 2} {h / 2}] "
+         "/Contents 8 0 R /Resources << /XObject << /Sheet 9 0 R >> >> >>").encode(),
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 500 250] >>",
+        stream(text),
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Courier >>",
+        stream(f"q {w / 2} 0 0 {h / 2} 0 0 cm /Sheet Do Q".encode()),
+        stream(zlib.compress(scan.reference.tobytes()),
+               (f"/Type /XObject /Subtype /Image /Width {w} /Height {h} /ColorSpace /DeviceRGB "
+                "/BitsPerComponent 8 /Filter /FlateDecode").encode()),
+        b"<< /Type /Filespec /F (source.txt) /EF << /F 11 0 R >> >>",
+        stream(b"PDF_FIXTURE_EMBEDDED_VALUE", b"/Type /EmbeddedFile"),
+        b"<< /Subject (PDF_FIXTURE_PRIVATE_METADATA) >>",
+    ]
+    data = bytearray(b"%PDF-1.7\n")
+    offsets = []
+    for index, obj in enumerate(objects, 1):
+        offsets.append(len(data))
+        data += f"{index} 0 obj\n".encode() + obj + b"\nendobj\n"
+    xref = len(data)
+    data += f"xref\n0 {len(objects)+1}\n0000000000 65535 f \n".encode()
+    for offset in offsets:
+        data += f"{offset:010d} 00000 n \n".encode()
+    data += (f"trailer\n<< /Size {len(objects)+1} /Root 1 0 R /Info 12 0 R >>\n"
+             f"startxref\n{xref}\n%%EOF\n").encode()
+    return bytes(data)
+
+
 def base64_image(source):
     return base64.b64encode(source).decode("ascii")
 
@@ -132,8 +172,10 @@ def binary_parts(payload):
                 assert block["source"]["media_type"] == "image/png"
                 yield base64.b64decode(block["source"]["data"])
             elif block["type"] == "file" and block.get("file", {}).get("file_data"):
-                assert block["file"]["file_data"].startswith("data:image/png;base64,")
-                yield base64.b64decode(block["file"]["file_data"].split(",", 1)[1])
+                data = block["file"]["file_data"]
+                if not data.startswith("data:application/pdf;base64,"):
+                    assert data.startswith("data:image/png;base64,")
+                    yield base64.b64decode(data.split(",", 1)[1])
             else:
                 yield from visit(block.get("content"))
     yield from visit(payload.get("system"))
@@ -630,6 +672,107 @@ def exercise_url_masks(p, chat):
     p.settings(url_mask="full")
 
 
+def exercise_pdf(p, chat, scan):
+    import pypdfium2 as pdfium
+
+    def bytes_from_url(url):
+        return base64.b64decode(url.split(",", 1)[1])
+
+    def raster(page):
+        bitmap = page.render(scale=2, draw_annots=True)
+        try:
+            return bitmap.to_pil().convert("RGB")
+        finally:
+            bitmap.close()
+
+    data = pdf_fixture(scan)
+    raw = base64_image(data)
+    document = {"type": "document", "title": "pdf-private-title", "context": "pdf-private-context",
+                "source": {"type": "base64", "media_type": "application/pdf", "data": raw}}
+    # MIME and filename do not need to agree when the bytes are a PDF.
+    file = {"type": "file", "file": {"filename": "pdf-private-name.bin",
+            "file_data": "data:application/octet-stream;base64," + raw}}
+    p.settings(save_originals=True)
+    before = len(chat.records)
+    lab = p.call("/api/v1/ui/ocr/preview", data, headers={"content-type": "application/pdf"})
+    assert lab.status == 200 and len(chat.records) == before, lab.body[:250]
+    result = lab.json()
+    assert len(result["pages"]) == 3 and result["data"].startswith("data:application/pdf;base64,")
+    preview = [bytes_from_url(entry["data"]) for entry in result["pages"]]
+    with pdfium.PdfDocument(data) as source:
+        assert source.count_attachments() == 1
+        assert "PDF_FIXTURE_HIDDEN_TEXT" in source[0].get_textpage().get_text_range()
+        before_text = raster(source[0])
+        # The vector secret starts after 11 Courier glyphs at 13.2 pt each.
+        secret = (math.floor((32 + 11 * 13.2) * 2), 90, 910, 141)
+        public = (60, 163, 415, 215)
+        mask = Image.open(BytesIO(preview[0]))
+        assert before_text.crop(secret).getextrema()[0][0] < 120
+        assert mask.crop(secret).getextrema() == ((255, 255),) * 3
+        assert ImageChops.difference(mask.crop(public), before_text.crop(public)).getbbox() is None
+        assert_pixels(preview[1], scan)
+        assert Image.open(BytesIO(preview[2])).getextrema() == ((255,255),) * 3
+
+    def check_pdf(pdf):
+        assert pdf != data and b"PDF_FIXTURE_" not in pdf
+        with pdfium.PdfDocument(pdf) as rebuilt:
+            assert len(rebuilt) == 3 and rebuilt.count_attachments() == 0
+            assert not rebuilt.get_metadata_dict()["Subject"]
+            for i, page in enumerate(rebuilt):
+                textpage = page.get_textpage()
+                assert not textpage.get_text_range().strip()
+                textpage.close()
+                assert ImageChops.difference(raster(page), Image.open(BytesIO(preview[i]))).getbbox() is None
+                page.close()
+
+    check_pdf(bytes_from_url(result["data"]))
+    for path, part, image in [("/v1/chat/completions", file, openai_image(scan)),
+                              ("/v1/messages", document, anthropic_image(scan))]:
+        before = len(chat.records)
+        reply = request(p, [user_message(part, image)], path=path)
+        assert reply.status == 200, reply.body[:250]
+        assert len(chat.records) == before + 1
+        wire = chat.records[-1][2]["messages"][-1]["content"][1]
+        if part == file:
+            assert wire["file"]["filename"] == "protected.pdf"
+            output = bytes_from_url(wire["file"]["file_data"])
+        else:
+            assert set(wire) == {"type", "source"}
+            assert wire["source"]["media_type"] == "application/pdf"
+            output = base64.b64decode(wire["source"]["data"])
+        check_pdf(output)
+        event = p.event()
+        audit = event["inspector"]["images"]
+        assert audit["stage"] == "sent" and len(audit["attachments"]) == 4
+        for i, attachment in enumerate(audit["attachments"][:3]):
+            assert attachment["pdf"] == {"number": i+1, "total": 3}
+            assert p.call(attachment_url(event, attachment, "sent")).body == preview[i]
+        assert "pdf" not in audit["attachments"][3]
+        attachment = audit["attachments"][0]
+        original = p.call(attachment_url(event, attachment, "original"))
+        assert original.status == 200 and original.headers["Content-Type"] == "image/png"
+        assert original.body == bytes_from_url(result["pages"][0]["original"])
+        area = p.call(attachment_url(event, attachment, f"area-{attachment['areas'][0]['id']}"))
+        assert area.status == 200 and area.json()["fragments"]
+        assert raw[:250] not in json.dumps(event) and base64_image(output)[:250] not in json.dumps(event)
+
+    def pdf_part(pdf):
+        return {"type": "file", "file": {"filename": "fixture.pdf", "file_data": base64_image(pdf)}}
+
+    blocked(p, chat, [user_message(file, pdf_part(b"%PDF-1.7\ndamaged"))], {"invalid_pdf"}, 422)
+    blocked(p, chat, [user_message({"type":"file","file":{"filename":"fixture.pdf","file_id":"file-id"}})],
+            {"inline_required"}, 422)
+    with pdfium.PdfDocument.new() as large:
+        for _ in range(9):
+            large.new_page(128, 128).close()
+        out = BytesIO()
+        large.save(out)
+    blocked(p, chat, [user_message(pdf_part(out.getvalue()))], {"limits"}, 413)
+    p.settings(max_megapixels=1)
+    blocked(p, chat, [user_message(file)], {"limits"}, 413)
+    p.settings(max_megapixels=20, save_originals=False)
+
+
 def exercise_review_and_history(binary, chat):
     value = "10.23.45.67"
     source = fixture([(64, 32, [("Address: ", False), (value, True)]),
@@ -850,6 +993,8 @@ def run_tests(binary):
             chat.mode = "good"
             exercise_url_masks(p, chat)
             out["url_mask_modes"] = "passed"
+            exercise_pdf(p, chat, sample)
+            out["pdf_protection"] = "passed"
 
             vision_id = p.connection(vision.url, pool=False)
             selection = {"connection_id": vision_id, "model": "fixture-vision"}
@@ -1047,6 +1192,7 @@ def main():
                 # Simulate an existing installation so the walkthrough explicitly enables OCR.
                 p.settings(enabled=False)
                 print(json.dumps({"url": p.url, "token": TOKEN, "upstream": chat.url,
+                                  "pdf": base64_image(pdf_fixture(helm())),
                                   "install_ocr": args.browser_install_fixture,
                                   "fixture_pid": os.getpid() if hasattr(signal, "SIGHUP") else None}), flush=True)
                 while not running.wait(0.1):
