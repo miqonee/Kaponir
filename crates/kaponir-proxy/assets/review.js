@@ -564,7 +564,6 @@ function showFinding(item, moveFocus = true) {
   for (const button of $("#review-list").querySelectorAll(".finding-value")) {
     const current = button.id === "finding-" + item?.key;
     button.setAttribute("aria-expanded", String(current));
-    button.closest("tr")?.classList.toggle("previewing", current);
   }
   if (!item) { detail.replaceChildren(); return; }
   ReviewUI.detailVersion = JSON.stringify([item, activeReview(item)?.id, activeReview(item)?.state, I18N.language, ReviewUI.data.editable]);
@@ -604,7 +603,7 @@ function findingRow(item) {
     h("td",{},record,item.path_group ? h("small",{class:"hint"},pathGroupCounts(item.path_group.paths)) : item.occurrence_keys ? h("small",{class:"hint"},tr("Вхождений · {{0}}",[number(item.occurrence_keys.length)])) : null,h("small",{class:"mobile-source"},findingSource(item))),
     h("td",{class:"source-cell"},findingSource(item)),h("td",{},kindLabel(rule?.kind && rule.kind !== "KEEP" ? rule.kind : item.kind), " / ",
       h("span",{class:"hint"},withoutRule ? tr("Без правила") : scope ? scopeLabel(scope) : tr("Область не задана"))),
-    h("td",{},h("span",{class:"table-verdict", "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),issue ? h("small",{class:"hint review-issue"},reviewError(issue)) : null,item.deferred_at ? h("small",{class:"hint"},tr("Отложено")) : null,item.in_dataset?h("small",{class:"hint"},datasetMark(item)):null));
+    h("td",{},h("span",{class:"event-status finding-status", "data-issue":!!issue, "data-proposal":!!item.proposal && !item.proposal.declined && pendingFinding(item)},decisionStatus(item)),issue ? h("small",{class:"hint review-issue"},reviewError(issue)) : null,item.deferred_at ? h("small",{class:"hint"},tr("Отложено")) : null,item.in_dataset?h("small",{class:"hint"},datasetMark(item)):null));
   return row;
 }
 function syncPageCheck() {
@@ -620,6 +619,7 @@ function renderReview() {
     button.setAttribute("aria-pressed", String(button.dataset.reviewView === (advice ? "pending" : ReviewUI.view)));
   $("#review-advice-filter").checked = advice;
   $("#review-advice-filter").closest("label").hidden = !["pending","proposals"].includes(ReviewUI.view);
+  $("#review-groups").disabled = !data.items.length;
   const nodes=[];
   const filters=reviewFilters();
   const filtered=!!(filters.q || filters.kind || filters.action || filters.source!=="all" || filters.sort!=="recent");
@@ -627,8 +627,14 @@ function renderReview() {
   $("#review-match-count").textContent=tr(["pending","proposals"].includes(ReviewUI.view) ? "Значений в выборке · {{0}}" : "Находок в выборке · {{0}}", [number(data.total)]);
   if (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob) nodes.push(h("div",{class:"inline-notice"},tr(ReviewUI.view === "all" ? "Все вхождения, включая обработанные" : ReviewUI.jobId || ReviewUI.learningJob ? "Результаты выбранного запуска" : "Находки из выбранных источников"),
     workButton("Все находки",()=>showReview())));
-  function table(items) {
-    return h("table",{class:"findings-table"},h("thead",{},h("tr",{},...["","Значение","Источник","Тип / область правила","Состояние"].map((title,i)=>h("th",{class:i===2?"source-cell":""},tr(title))))),h("tbody",{},items.map(findingRow)));
+  function table(items, title) {
+    const columns = ["Выбрать значение", "Значение", "Источник", "Тип / область правила", "Состояние"];
+    return h("table", {class:"console-table findings-table"},
+      h("caption", {class:"sr-only"}, title),
+      h("thead", {}, h("tr", {}, columns.map((label, index) =>
+        h("th", {scope:"col", class:index === 2 ? "source-cell" : null},
+          index === 0 ? h("span", {class:"sr-only"}, tr(label)) : tr(label))))),
+      h("tbody", {}, items.map(findingRow)));
   }
   if(!data.items.length) {
     const scoped=!!(ReviewUI.jobId || ReviewUI.learningJob || ReviewUI.keys || ReviewUI.filterSet);
@@ -642,8 +648,8 @@ function renderReview() {
           workButton("Найти значения в документе",()=>{showTab("discover");showDiscoverView("input");})));
   }
   else if(ReviewUI.groups) {
-    for(const kind of new Set(data.items.map(i=>i.kind)))nodes.push(h("details",{open:true,class:"review-group"},h("summary",{},kindLabel(kind)),table(data.items.filter(i=>i.kind===kind))));
-  } else nodes.push(table(data.items));
+    for(const kind of new Set(data.items.map(i=>i.kind)))nodes.push(h("details",{open:true,class:"review-group"},h("summary",{},kindLabel(kind)),table(data.items.filter(i=>i.kind===kind),kindLabel(kind))));
+  } else nodes.push(table(data.items,tr("Находки")));
   $("#review-list").replaceChildren(...nodes);
   $("#review-pagination").replaceChildren(workButton("Назад",()=>{ReviewUI.offset-=data.limit;loadReview(true);},"secondary",!ReviewUI.offset),
     h("span",{class:"hint"},tr("{{0}}–{{1}} из {{2}}",[data.total?data.offset+1:0,data.offset+data.items.length,data.total])),
@@ -703,7 +709,7 @@ function renderReviewSelection() {
       ? tr("Создать правила маскирования · {{0}}", [manualCount]) : tr("Создать правила маскирования");
     if (selected) controls.append(batchButton(label, manualCount === selected ? tr("Скрыть") : label, maskSelectedFindings, "primary", busy || !manualCount));
     if (source) controls.append(batchButton(tr(selected || modelCount!==count ? "Проверить моделью · {{0}}" : "Проверить моделью все {{0}}", [modelCount]),
-      tr("Проверить моделью"), () => requestReview(), manualCount ? "secondary" : "primary", busy));
+      tr("Проверить"), () => requestReview(), manualCount ? "secondary" : "primary", busy));
   }
   if (selected && manualCount && ReviewUI.view !== "history") {
     const skip = workButton("Пропустить", skipSelectedFindings, "secondary", busy);
@@ -712,7 +718,9 @@ function renderReviewSelection() {
   }
   controls.append(batchButton(modelCount!==count ? tr("Добавить примеры в датасет") : tr(selected?"В датасет · {{0}}":"В датасет все {{0}}",[count]), tr("В датасет"),async()=>collectFindings(await selectedPayload(null, true)),"secondary",busy));
   quick.replaceChildren();
-  if(!ReviewUI.snapshot && data.total>selected)quick.append(workButton(tr("Выбрать все {{0}} по фильтру",[data.total]),async()=>{
+  const selectAll = $("#review-select-all");
+  selectAll.replaceChildren();
+  if(!ReviewUI.snapshot && data.total>selected)selectAll.append(workButton(tr("Выбрать все {{0}} по фильтру",[data.total]),async()=>{
     const version = ReviewUI.selectionVersion;
     const snap = await api("/api/v1/ui/review/selection", {method:"POST", body:reviewFilters()});
     if (location.hash !== "#review" || version !== ReviewUI.selectionVersion) return;
@@ -964,8 +972,8 @@ async function requestReview(items, scenario) {
   finally{setReviewBusy(false);renderReviewSelection();}
 }
 function lockReviewResults(locked) {
-  for (const id of ["review-pagination", "review-list", "review-selection", "review-quick-actions"]) $("#" + id).inert = locked;
-  $("#review-select-page").disabled = locked;
+  for (const id of ["review-pagination", "review-list", "review-selection", "review-quick-actions", "review-select-all"]) $("#" + id).inert = locked;
+  $("#review-select-page").disabled = locked || !ReviewUI.data?.items.length;
 }
 async function loadReview(options) {
   clearTimeout(ReviewUI.filterTimer);
@@ -1028,6 +1036,11 @@ function resetReviewFilters() {
   changedFilter();
   $("#review-query").focus();
 }
+$("#review-actions-toggle").onclick = event => {
+  const actions = $("#review-actions");
+  actions.hidden = !actions.hidden;
+  event.currentTarget.setAttribute("aria-expanded", String(!actions.hidden));
+};
 $("#review-advice-filter").onchange = event => { ReviewUI.view = event.target.checked ? "proposals" : "pending"; changedFilter(); };
 $("#review-clear-filters").onclick=resetReviewFilters;
 for(const b of document.querySelectorAll("[data-review-view]")) b.onclick=()=>{ReviewUI.view=b.dataset.reviewView;changedFilter();};

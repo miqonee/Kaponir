@@ -557,7 +557,7 @@ function sessionsTable(events, compact = false) {
         onlyIssues ? workButton("Все запросы", () => $("#events-filter [data-filter=all]").click()) : null);
   }
   const prefix = compact ? "recent" : "traffic";
-  return h("table", {class:"sessions-table"}, h("thead", {}, h("tr", {},
+  return h("table", {class:"console-table sessions-table"}, h("thead", {}, h("tr", {},
     ["Сессия / запрос","Последняя активность","Модель","Запросы","Замены","Состояние","Действия"].map(title => h("th", {scope:"col"}, tr(title))))),
     entries.map(({key,rows,issues}) => {
       const latest = rows[0], active = rows.filter(e=>e.outcome === "in_progress").length;

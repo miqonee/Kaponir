@@ -14,7 +14,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 from playwright.sync_api import expect, sync_playwright
-from validate_console import free_port, wait_for
+from validate_console import free_port, open_review_actions, wait_for
 
 
 def exercise(page, api, base):
@@ -50,6 +50,7 @@ def exercise(page, api, base):
 
     page.goto(base + '/ui/#review')
     expect(page.locator('#review-capture')).to_be_enabled()
+    open_review_actions(page)
     page.locator('#review-capture').check()
     wait_for(lambda: api(dataset)['capture_review'])
     page.reload()
@@ -266,6 +267,7 @@ def check_path_group(page, api, base):
     page.reload()
     page.locator('#review-query').fill(root)
     open_group()
+    open_review_actions(page)
     page.locator('#review-capture').check()
     card.get_by_role('button', name='Скрывать этот каталог').click()
     wait_for(lambda: not any(row.get('path_group') for row in query('pending')['items']))

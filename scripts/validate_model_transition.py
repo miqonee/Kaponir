@@ -13,7 +13,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from playwright.sync_api import expect, sync_playwright
-from validate_console import free_port, wait_for
+from validate_console import free_port, open_review_actions, wait_for
 
 
 def check_model_selection(page, base, upstream, api, catalog_reads, slow_started, release_slow):
@@ -359,6 +359,7 @@ def main():
                     buttons=page.locator('#review-list .finding-value')
                     wait_for(lambda:api('/api/v1/ui/review?status=proposals')['total']==3)
                     expect(buttons).to_have_count(3)
+                    open_review_actions(page)
                     page.locator('#review-capture').check()
                     wait_for(lambda:api('/api/v1/ui/dataset')['capture_review'])
                     labels=buttons.all_text_contents()

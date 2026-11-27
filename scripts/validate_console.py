@@ -40,6 +40,12 @@ def wait_for(check, timeout=20):
     raise AssertionError(f'condition timed out: {last}')
 
 
+def open_review_actions(page):
+    toggle = page.locator('#review-actions-toggle')
+    if toggle.get_attribute('aria-expanded') == 'false':
+        toggle.click()
+
+
 def choose_preference(page, preference, value):
     menu = page.locator('#menu-toggle')
     if menu.is_visible() and menu.get_attribute('aria-expanded') != 'true':

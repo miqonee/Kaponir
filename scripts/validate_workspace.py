@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.request import Request, urlopen
 
 from playwright.sync_api import expect, sync_playwright
-from validate_console import choose_preference, free_port, wait_for
+from validate_console import choose_preference, free_port, open_review_actions, wait_for
 
 
 def word(number):
@@ -52,6 +52,7 @@ def verify_repeated_findings(page, api, output):
     section = page.locator('#tab-review')
     section.locator('[data-review-view=pending]').click()
     section.locator('#review-query').fill(value)
+    open_review_actions(page)
     expect(section.get_by_role('button', name='В датасет все 1', exact=True)).to_be_visible()
     section.locator('.finding-value').click()
     occurrences = section.get_by_role('button', name='Показать вхождения · 4')
@@ -213,6 +214,8 @@ def main():
                     expect(section.locator('#review-query')).to_be_visible()
                     section.locator('#review-query').fill('zorgworkspace')
                     expect(section.locator('#review-list')).to_have_attribute('aria-busy','false')
+                    expect(section.locator('#review-actions')).to_be_hidden()
+                    open_review_actions(page)
                     expect(section.get_by_role('button',name='В датасет все 137',exact=True)).to_be_visible()
                     expect(section.locator('#review-match-count')).to_contain_text('137')
                     first_check=section.locator('.findings-table input[type=checkbox]').first
@@ -342,6 +345,7 @@ def main():
                     choose_preference(page, 'language', 'ru')
                     api('/api/v1/ui/mask', {'text':'Путь /srv/zorgfinaldraft/config.toml', 'commit':True})
                     page.goto(base+'/ui/#review')
+                    open_review_actions(page)
                     section.locator('#review-query').fill('zorgfinaldraft')
                     section.get_by_role('button',name='В датасет все 1',exact=True).click()
                     section.get_by_role('button',name='Открыть добавленные примеры').click()
