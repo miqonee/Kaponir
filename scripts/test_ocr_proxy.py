@@ -759,18 +759,59 @@ def exercise_pdf(p, chat, scan):
     def pdf_part(pdf):
         return {"type": "file", "file": {"filename": "fixture.pdf", "file_data": base64_image(pdf)}}
 
+    def page_copies(count, *, size=(500, 250), image=None):
+        with pdfium.PdfDocument.new() as pdf:
+            bitmap = pdfium.PdfBitmap.from_pil(image) if image is not None else None
+            try:
+                for _ in range(count):
+                    page = pdf.new_page(*size)
+                    try:
+                        if bitmap is not None:
+                            obj = pdfium.PdfImage.new(pdf)
+                            obj.set_bitmap(bitmap)
+                            obj.set_matrix(pdfium.PdfMatrix(image.width / 2, 0, 0, image.height / 2, 45, 650))
+                            page.insert_obj(obj)
+                            page.gen_content()
+                    finally:
+                        page.close()
+                out = BytesIO()
+                pdf.save(out)
+                return out.getvalue()
+            finally:
+                if bitmap is not None:
+                    bitmap.close()
+
     blocked(p, chat, [user_message(file, pdf_part(b"%PDF-1.7\ndamaged"))], {"invalid_pdf"}, 422)
     blocked(p, chat, [user_message({"type":"file","file":{"filename":"fixture.pdf","file_id":"file-id"}})],
             {"inline_required"}, 422)
-    with pdfium.PdfDocument.new() as large:
-        for _ in range(9):
-            large.new_page(128, 128).close()
-        out = BytesIO()
-        large.save(out)
-    blocked(p, chat, [user_message(pdf_part(out.getvalue()))], {"limits"}, 413)
-    p.settings(max_megapixels=1)
-    blocked(p, chat, [user_message(file)], {"limits"}, 413)
-    p.settings(max_megapixels=20, save_originals=False)
+    blocked(p, chat, [user_message(pdf_part(page_copies(16, size=(100, 100))))], {"limits"}, 413)
+    eight_pages = pdf_part(page_copies(8, size=(100, 100)))
+    blocked(p, chat, [user_message(eight_pages, eight_pages)], {"limits"}, 413)
+    p.settings(max_megapixels=1, save_originals=False)
+    # Limit one page and the aggregate separately, including multiple documents.
+    blocked(p, chat, [user_message(pdf_part(page_copies(1, size=(595, 842))))], {"limits"}, 413)
+    blocked(p, chat, [user_message(pdf_part(page_copies(5)))], {"limits"}, 413)
+    three_pages = pdf_part(page_copies(3))
+    blocked(p, chat, [user_message(three_pages, three_pages)], {"limits"}, 413)
+
+    status = p.settings(max_megapixels=20)
+    assert status["max_pdf_pages"] == 15 and status["max_pdf_megapixels"] == 40
+    a4 = page_copies(15, size=(595, 842), image=scan.reference)
+    before = len(chat.records)
+    response = request(p, [user_message(pdf_part(a4))])
+    assert response.status == 200 and len(chat.records) == before + 1, response.body[:250]
+    wire = chat.records[-1][2]["messages"][-1]["content"][1]["file"]["file_data"]
+    event = p.event()
+    audit = event["inspector"]["images"]
+    assert audit["stage"] == "sent"
+    with pdfium.PdfDocument(bytes_from_url(wire)) as rebuilt:
+        assert len(rebuilt) == len(audit["attachments"]) == 15
+        for index, (page, attachment) in enumerate(zip(rebuilt, audit["attachments"], strict=True)):
+            assert attachment["pdf"] == {"number": index+1, "total": 15}
+            assert len(attachment["areas"]) == len(scan.secrets)
+            saved = p.call(attachment_url(event, attachment, "sent")).body
+            assert ImageChops.difference(raster(page), Image.open(BytesIO(saved))).getbbox() is None
+            page.close()
 
 
 def exercise_review_and_history(binary, chat):

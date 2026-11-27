@@ -29,6 +29,7 @@ pub(crate) use web::routes;
 
 const SETTINGS: &str = "image-protection:v1";
 const MAX_IMAGES: usize = 8;
+const MAX_PDF_PAGES: usize = 15;
 const PREVIEW_HOURS: u64 = 7 * 24;
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
@@ -119,8 +120,18 @@ impl Settings {
     fn max_pixels(&self) -> u64 {
         u64::from(self.max_megapixels) * 1_000_000
     }
+    fn max_pdf_pixels(&self) -> u64 {
+        self.max_pixels() * 2
+    }
     fn timeout(&self) -> Duration {
         Duration::from_millis(self.timeout_ms)
+    }
+    fn request_timeout(&self, has_pdf: bool) -> Duration {
+        if has_pdf {
+            (self.timeout() * 2).min(Duration::from_secs(60))
+        } else {
+            self.timeout()
+        }
     }
 }
 
@@ -592,14 +603,13 @@ impl InputImage {
         Ok(bytes)
     }
 }
-struct NormalizedPage {
-    attachment: Attachment,
+struct Raster {
     pixels: RgbImage,
     original: Option<(Vec<u8>, &'static str)>,
 }
-struct Normalized {
-    pages: Vec<NormalizedPage>,
-    pdf_sizes: Option<Vec<pdf::Size>>,
+enum Decoded {
+    Image(Raster),
+    Pdf(Vec<u8>),
 }
 struct ProcessedPage {
     attachment: Attachment,
@@ -617,103 +627,44 @@ impl Processed {
     }
 }
 
-async fn normalize(
-    st: &Shared,
+async fn decode(
     work: &Work,
     images: Vec<InputImage>,
     metadata: Vec<Attachment>,
     settings: &Settings,
-) -> Result<Vec<Normalized>, Failure> {
+) -> Result<Vec<(Decoded, Attachment)>, Failure> {
     let mut remaining_bytes = settings.max_bytes();
-    let inputs = work
-        .cpu(move |cancelled| {
-            images
-                .into_iter()
-                .zip(metadata)
-                .enumerate()
-                .map(|(i, (image, attachment))| {
+    let mut remaining_pixels = settings.max_pixels();
+    let save_originals = settings.save_originals;
+    work.cpu(move |cancelled| {
+        images
+            .into_iter()
+            .zip(metadata)
+            .enumerate()
+            .map(|(i, (image, attachment))| {
+                let decoded = || {
                     if cancelled.load(Relaxed) {
                         return Err(Failure::new(Code::Cancelled));
                     }
-                    let invalid = if attachment.pdf.is_some() {
-                        Code::InvalidPdf
-                    } else {
-                        Code::InvalidImage
-                    };
-                    let bytes = image
-                        .decode(&mut remaining_bytes, invalid)
-                        .map_err(|e| e.at(i))?;
-                    Ok((bytes, attachment))
-                })
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .await?;
-    let mut remaining = settings.max_pixels();
-    let mut extra_pages = MAX_IMAGES - inputs.len();
-    let mut normalized = Vec::with_capacity(inputs.len());
-    let save_originals = settings.save_originals;
-    for (i, (bytes, attachment)) in inputs.into_iter().enumerate() {
-        if attachment.pdf.is_some() {
-            let pages = pdf::render(
-                &st.images.local.python(),
-                &bytes,
-                extra_pages + 1,
-                &mut remaining,
-            )
-            .await
-            .map_err(|e| e.at(i))?;
-            let total = pages.len();
-            extra_pages -= total - 1;
-            let (pdf_sizes, pages) = pages
-                .into_iter()
-                .enumerate()
-                .map(|(index, page)| {
-                    let mut attachment = attachment.clone();
-                    let number = index + 1;
-                    if index > 0 {
-                        attachment.id.push_str(&format!("-p{number}"));
+                    if attachment.pdf.is_some() {
+                        return image
+                            .decode(&mut remaining_bytes, Code::InvalidPdf)
+                            .map(Decoded::Pdf);
                     }
-                    attachment.pdf = Some(PdfPage { number, total });
-                    (
-                        page.size,
-                        NormalizedPage {
-                            attachment,
-                            pixels: page.pixels,
-                            original: None,
-                        },
-                    )
-                })
-                .unzip();
-            normalized.push(Normalized {
-                pages,
-                pdf_sizes: Some(pdf_sizes),
-            });
-        } else {
-            let (page, unused_pixels) = work
-                .cpu(move |_| {
-                    let mut remaining = remaining;
-                    let source = raster::open(&bytes, &mut remaining)?;
+                    let bytes = image.decode(&mut remaining_bytes, Code::InvalidImage)?;
+                    let source = raster::open(&bytes, &mut remaining_pixels)?;
                     let mime = source.mime;
                     let pixels = source.decode()?;
-                    Ok((
-                        NormalizedPage {
-                            attachment,
-                            pixels,
-                            original: save_originals.then_some((bytes, mime)),
-                        },
-                        remaining,
-                    ))
-                })
-                .await
-                .map_err(|e| e.at(i))?;
-            remaining = unused_pixels;
-            normalized.push(Normalized {
-                pages: vec![page],
-                pdf_sizes: None,
-            });
-        }
-    }
-    Ok(normalized)
+                    Ok(Decoded::Image(Raster {
+                        pixels,
+                        original: save_originals.then_some((bytes, mime)),
+                    }))
+                };
+                Ok((decoded().map_err(|e| e.at(i))?, attachment))
+            })
+            .collect()
+    })
+    .await
 }
 
 async fn process(
@@ -737,17 +688,8 @@ async fn process(
         set_stage(span, Stage::Validating);
     }
     let decode_started = Instant::now();
-    let images = normalize(st, &work, images, metadata, &settings).await?;
+    let images = decode(&work, images, metadata, &settings).await?;
     timings.decode_ms = elapsed(decode_started);
-    if let Some(span) = span {
-        update(span, |audit| {
-            audit.attachments = images
-                .iter()
-                .flat_map(|item| &item.pages)
-                .map(|page| page.attachment.clone())
-                .collect();
-        });
-    }
     let backend = ocr::Backend::resolve(st, &settings)?;
     backend.ready(st, &settings).await?;
     let engine = st.engine();
@@ -757,16 +699,52 @@ async fn process(
     let mut original_size = 0;
     let mut wire_size = 0;
     let mut current = 0;
-    for image in images {
-        let is_pdf = image.pdf_sizes.is_some();
-        let mut pages = Vec::with_capacity(image.pages.len());
+    let mut remaining_pdf_pages = MAX_PDF_PAGES;
+    let mut remaining_pdf_pixels = settings.max_pdf_pixels();
+    for (image, attachment) in images {
         let first = current;
-        for NormalizedPage {
-            mut attachment,
-            pixels,
-            mut original,
-        } in image.pages
-        {
+        let (mut renderer, mut raster, attachments) = match image {
+            Decoded::Image(raster) => (None, Some(raster), vec![attachment]),
+            Decoded::Pdf(bytes) => {
+                if let Some(span) = span {
+                    set_stage(span, Stage::Validating);
+                }
+                let started = Instant::now();
+                let renderer = pdf::Renderer::open(
+                    &st.images.local.python(),
+                    &bytes,
+                    remaining_pdf_pages,
+                    settings.max_pixels(),
+                    &mut remaining_pdf_pixels,
+                )
+                .await
+                .map_err(|e| e.at(first))?;
+                timings.decode_ms += elapsed(started);
+                let total = renderer.len();
+                remaining_pdf_pages -= total;
+                let attachments: Vec<_> = (1..=total)
+                    .map(|number| {
+                        let mut page = attachment.clone();
+                        if number > 1 {
+                            page.id.push_str(&format!("-p{number}"));
+                        }
+                        page.pdf = Some(PdfPage { number, total });
+                        page
+                    })
+                    .collect();
+                if let Some(span) = span {
+                    update(span, |audit| {
+                        audit
+                            .attachments
+                            .splice(first..first + 1, attachments.iter().cloned());
+                    });
+                }
+                (Some(renderer), None, attachments)
+            }
+        };
+        let is_pdf = renderer.is_some();
+        let mut pages = Vec::with_capacity(attachments.len());
+        for (index, mut attachment) in attachments.into_iter().enumerate() {
             let i = current;
             current += 1;
             if let Some(span) = span {
@@ -776,6 +754,20 @@ async fn process(
                     audit.timings = timings;
                 });
             }
+            let Raster {
+                pixels,
+                mut original,
+            } = if let Some(renderer) = &mut renderer {
+                let started = Instant::now();
+                let pixels = renderer.read_page(index).await.map_err(|e| e.at(i))?;
+                timings.decode_ms += elapsed(started);
+                Raster {
+                    pixels,
+                    original: None,
+                }
+            } else {
+                raster.take().expect("one standalone image")
+            };
             let (w, h) = pixels.dimensions();
             let encoding_started = Instant::now();
             let (pixels, input, blank) = work
@@ -859,7 +851,8 @@ async fn process(
                 original,
             });
         }
-        let pdf = if let Some(sizes) = image.pdf_sizes {
+        let pdf = if let Some(renderer) = renderer {
+            let sizes = renderer.finish().await.map_err(|e| e.at(first))?;
             if let Some(span) = span {
                 set_stage(span, Stage::Encoding);
             }
@@ -905,6 +898,8 @@ pub(crate) async fn protect(
         .take(MAX_IMAGES)
         .map(|b| b.disposition.clone())
         .collect();
+    let timeout =
+        settings.request_timeout(metadata.iter().any(|attachment| attachment.pdf.is_some()));
     let audit = Audit {
         attachments: metadata.clone(),
         stage: if settings.enabled {
@@ -992,7 +987,7 @@ pub(crate) async fn protect(
         .map_err(|_| Failure::new(Code::Storage))?;
         Ok((output, timings))
     };
-    match tokio::time::timeout(settings.timeout(), result)
+    match tokio::time::timeout(timeout, result)
         .await
         .unwrap_or_else(|_| Err(Failure::new(Code::Timeout)))
     {

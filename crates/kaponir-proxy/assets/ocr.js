@@ -405,8 +405,8 @@ async function loadImageLab() {
   const data = await api("/api/v1/ui/ocr/settings");
   if (location.hash !== "#image-lab") return;
   imageLab.status = data;
-  $("#ocr-upload-limits").textContent = tr("PNG, JPEG, WebP, PDF · до {{0}} МиБ и {{1}} Мп · до {{2}} пикселей по стороне и {{3}} страниц PDF",
-    [data.settings.max_mib, data.settings.max_megapixels, data.max_edge, data.max_images]);
+  $("#ocr-upload-limits").textContent = tr("PNG, JPEG, WebP, PDF · до {{0}} МиБ · до {{1}} Мп на изображение или страницу · PDF до {{2}} страниц и {{3}} Мп суммарно",
+    [data.settings.max_mib, data.settings.max_megapixels, data.max_pdf_pages, data.max_pdf_megapixels]);
   const engine = !data.settings.enabled || data.engine === "rapidocr"
     ? "RapidOCR" : data.engine === "vision" ? data.settings.model : tr("Отдельный worker");
   const recipient = data.settings.enabled

@@ -13,10 +13,10 @@ class LimitError(Exception):
     pass
 
 
-def render(pdfium, source, output, page_limit, pixel_limit, byte_limit):
-    data = source.read(byte_limit + 1)
-    if len(data) > byte_limit:
-        raise LimitError
+def render(pdfium, source, output, page_limit, pixel_limit, page_pixels, byte_length):
+    data = source.read(byte_length)
+    if len(data) != byte_length:
+        raise ValueError("incomplete document")
     with pdfium.PdfDocument(data) as document:
         count = len(document)
         if count == 0:
@@ -35,12 +35,17 @@ def render(pdfium, source, output, page_limit, pixel_limit, byte_limit):
                 raise ValueError("invalid page size")
             w, h = math.ceil(width * SCALE), math.ceil(height * SCALE)
             pixel_limit -= w * h
-            if max(w, h) > MAX_EDGE or pixel_limit < 0:
+            if max(w, h) > MAX_EDGE or w * h > page_pixels or pixel_limit < 0:
                 raise LimitError
             sizes.append((width, height, w, h))
 
         output.write(struct.pack(">BB", 0, count))
+        for size in sizes:
+            output.write(struct.pack(">ddII", *size))
         for index, (width, height, w, h) in enumerate(sizes):
+            # Wait for the proxy to release the previous raster.
+            if source.read(1) != b"\x01":
+                raise ValueError("missing page request")
             page = document[index]
             try:
                 # Use static appearances. No interactive form environment is loaded.
@@ -50,8 +55,10 @@ def render(pdfium, source, output, page_limit, pixel_limit, byte_limit):
                     with bitmap.to_pil().convert("RGB") as image:
                         if image.size != (w, h):
                             raise ValueError("unexpected raster size")
-                        output.write(struct.pack(">ddII", width, height, w, h))
-                        output.write(image.tobytes())
+                        pixels = image.tobytes()
+                        output.write(b"\x00")
+                        output.write(pixels)
+                        del pixels
                 finally:
                     bitmap.close()
             finally:

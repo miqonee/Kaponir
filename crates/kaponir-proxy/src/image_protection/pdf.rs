@@ -4,7 +4,7 @@ use image::RgbImage;
 use std::{ffi::OsStr, process::Stdio};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    process::{Child, Command},
+    process::{Child, ChildStdin, ChildStdout, Command},
 };
 
 const SCRIPT: &str = include_str!("../../../../scripts/kaponir_pdf.py");
@@ -27,9 +27,10 @@ pub(super) struct Size {
     height: f64,
 }
 
-pub(super) struct Page {
-    pub size: Size,
-    pub pixels: RgbImage,
+struct Page {
+    size: Size,
+    width: u32,
+    height: u32,
 }
 
 fn spawn(python: &OsStr, mode: &str, limits: &[String]) -> Result<Child, Failure> {
@@ -44,7 +45,7 @@ fn spawn(python: &OsStr, mode: &str, limits: &[String]) -> Result<Child, Failure
         .map_err(|_| Failure::new(Code::PdfUnavailable))
 }
 
-async fn status(output: &mut tokio::process::ChildStdout, invalid: Code) -> Result<(), Failure> {
+async fn status(output: &mut ChildStdout, invalid: Code) -> Result<(), Failure> {
     match output.read_u8().await {
         Ok(0) => Ok(()),
         Ok(1) => Err(Failure::new(Code::PdfUnavailable)),
@@ -53,66 +54,108 @@ async fn status(output: &mut tokio::process::ChildStdout, invalid: Code) -> Resu
     }
 }
 
-pub(super) async fn render(
-    python: &OsStr,
-    bytes: &[u8],
-    max_pages: usize,
-    remaining_pixels: &mut u64,
-) -> Result<Vec<Page>, Failure> {
-    let invalid = |_| Failure::new(Code::InvalidPdf);
-    if !signature(bytes) {
-        return Err(Failure::new(Code::InvalidPdf));
-    }
-    let mut child = spawn(
-        python,
-        "render",
-        &[
-            max_pages.to_string(),
-            remaining_pixels.to_string(),
-            bytes.len().to_string(),
-        ],
-    )?;
-    let mut input = child.stdin.take().expect("piped PDF input");
-    // A missing dependency can close stdin before the attachment is written.
-    let written = input.write_all(bytes).await;
-    drop(input);
-    let mut output = child.stdout.take().expect("piped PDF output");
-    status(&mut output, Code::InvalidPdf).await?;
-    written.map_err(invalid)?;
-    let count = output.read_u8().await.map_err(invalid)? as usize;
-    if count == 0 || count > max_pages {
-        return Err(Failure::new(Code::Limits));
-    }
-    let mut pages = Vec::with_capacity(count);
-    for _ in 0..count {
-        let size = Size {
-            width: output.read_f64().await.map_err(invalid)?,
-            height: output.read_f64().await.map_err(invalid)?,
-        };
-        let w = output.read_u32().await.map_err(invalid)?;
-        let h = output.read_u32().await.map_err(invalid)?;
-        if !(1..=raster::MAX_EDGE).contains(&w)
-            || !(1..=raster::MAX_EDGE).contains(&h)
-            || (size.width * 2.0).ceil() != f64::from(w)
-            || (size.height * 2.0).ceil() != f64::from(h)
-        {
+pub(super) struct Renderer {
+    child: Child,
+    input: ChildStdin,
+    output: ChildStdout,
+    pages: Vec<Page>,
+}
+
+impl Renderer {
+    pub(super) async fn open(
+        python: &OsStr,
+        bytes: &[u8],
+        max_pages: usize,
+        max_page_pixels: u64,
+        remaining_pixels: &mut u64,
+    ) -> Result<Self, Failure> {
+        let invalid = |_| Failure::new(Code::InvalidPdf);
+        if !signature(bytes) {
+            return Err(Failure::new(Code::InvalidPdf));
+        }
+        let mut child = spawn(
+            python,
+            "render",
+            &[
+                max_pages.to_string(),
+                remaining_pixels.to_string(),
+                max_page_pixels.to_string(),
+                bytes.len().to_string(),
+            ],
+        )?;
+        let mut input = child.stdin.take().expect("piped PDF input");
+        // A missing dependency can close stdin before the attachment is written.
+        let written = input.write_all(bytes).await;
+        let mut output = child.stdout.take().expect("piped PDF output");
+        status(&mut output, Code::InvalidPdf).await?;
+        written.map_err(invalid)?;
+        let count = output.read_u8().await.map_err(invalid)? as usize;
+        if count == 0 || count > max_pages {
             return Err(Failure::new(Code::Limits));
         }
-        let pixels = u64::from(w) * u64::from(h);
-        *remaining_pixels = remaining_pixels
-            .checked_sub(pixels)
-            .ok_or_else(|| Failure::new(Code::Limits))?;
-        let mut rgb = vec![0; (pixels * 3) as usize];
-        output.read_exact(&mut rgb).await.map_err(invalid)?;
-        pages.push(Page {
-            size,
-            pixels: RgbImage::from_raw(w, h, rgb).expect("validated PDF raster size"),
-        });
+        let mut pages = Vec::with_capacity(count);
+        for _ in 0..count {
+            let size = Size {
+                width: output.read_f64().await.map_err(invalid)?,
+                height: output.read_f64().await.map_err(invalid)?,
+            };
+            let width = output.read_u32().await.map_err(invalid)?;
+            let height = output.read_u32().await.map_err(invalid)?;
+            let pixels = u64::from(width) * u64::from(height);
+            if !(1..=raster::MAX_EDGE).contains(&width)
+                || !(1..=raster::MAX_EDGE).contains(&height)
+                || (size.width * 2.0).ceil() != f64::from(width)
+                || (size.height * 2.0).ceil() != f64::from(height)
+                || pixels > max_page_pixels
+            {
+                return Err(Failure::new(Code::Limits));
+            }
+            *remaining_pixels = remaining_pixels
+                .checked_sub(pixels)
+                .ok_or_else(|| Failure::new(Code::Limits))?;
+            pages.push(Page {
+                size,
+                width,
+                height,
+            });
+        }
+        Ok(Self {
+            child,
+            input,
+            output,
+            pages,
+        })
     }
-    if output.read_u8().await.is_ok() || !child.wait().await.map_err(invalid)?.success() {
-        return Err(Failure::new(Code::InvalidPdf));
+
+    pub(super) fn len(&self) -> usize {
+        self.pages.len()
     }
-    Ok(pages)
+
+    pub(super) async fn read_page(&mut self, index: usize) -> Result<RgbImage, Failure> {
+        let invalid = |_| Failure::new(Code::InvalidPdf);
+        let written = self.input.write_u8(1).await;
+        status(&mut self.output, Code::InvalidPdf).await?;
+        written.map_err(invalid)?;
+        let Page { width, height, .. } = self.pages[index];
+        let mut rgb = vec![0; (u64::from(width) * u64::from(height) * 3) as usize];
+        self.output.read_exact(&mut rgb).await.map_err(invalid)?;
+        Ok(RgbImage::from_raw(width, height, rgb).expect("validated PDF raster size"))
+    }
+
+    pub(super) async fn finish(self) -> Result<Vec<Size>, Failure> {
+        let Self {
+            mut child,
+            input,
+            mut output,
+            pages,
+        } = self;
+        let invalid = |_| Failure::new(Code::InvalidPdf);
+        drop(input);
+        if output.read_u8().await.is_ok() || !child.wait().await.map_err(invalid)?.success() {
+            return Err(Failure::new(Code::InvalidPdf));
+        }
+        Ok(pages.into_iter().map(|page| page.size).collect())
+    }
 }
 
 pub(super) async fn assemble<'a>(

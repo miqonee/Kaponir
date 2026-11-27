@@ -168,6 +168,8 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
         },
         "failure": failure,
         "max_images":super::MAX_IMAGES,
+        "max_pdf_pages":super::MAX_PDF_PAGES,
+        "max_pdf_megapixels":settings.max_pdf_pixels() / 1_000_000,
         "max_edge":super::raster::MAX_EDGE,
     }))
 }
@@ -293,7 +295,7 @@ async fn preview(State(st): State<Shared>, headers: HeaderMap, bytes: Bytes) -> 
     if bytes.len() > settings.max_bytes() {
         return Err(Failure::new(Code::Limits).api());
     }
-    let timeout = settings.timeout();
+    let timeout = settings.request_timeout(is_pdf);
     let started = Instant::now();
     let (mut output, timings) = tokio::time::timeout(
         timeout,
