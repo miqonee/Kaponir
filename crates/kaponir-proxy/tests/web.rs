@@ -406,6 +406,36 @@ async fn model_review_is_async_durable_and_stale_results_cannot_be_applied() {
     assert_eq!(list["items"][0]["probability"], item["probability"]);
     assert_eq!(list["items"][0]["recommendation"]["kind"], item["kind"]);
     assert_eq!(list["items"][0]["recommendation"]["verdict_only"], true);
+    let review_url = format!("{base}/api/v1/ui/review");
+    let finding_key = key.as_str().unwrap();
+    for (filter, total) in [("pending", 1), ("proposals", 1), ("without_proposals", 0)] {
+        let (status, page) = call(
+            "GET",
+            format!("{review_url}?keys={finding_key}&status={filter}&limit=1"),
+            None,
+        )
+        .await;
+        assert_eq!(status, 200, "{page}");
+        assert_eq!(page["total"], total, "{filter}: {page}");
+    }
+    let (status, result) = call(
+        "POST",
+        format!(
+            "{review_url}/detector/{}/decline-proposal",
+            item["id"].as_str().unwrap()
+        ),
+        Some(json!({"proposal_id":list["items"][0]["proposal"]["id"]})),
+    )
+    .await;
+    assert_eq!(status, 200, "{result}");
+    let (status, selection) = call(
+        "POST",
+        format!("{review_url}/selection"),
+        Some(json!({"keys":finding_key,"status":"without_proposals"})),
+    )
+    .await;
+    assert_eq!(status, 200, "{selection}");
+    assert_eq!(selection["total"], 1);
     let rules = call("GET", format!("{base}/api/v1/rules"), None).await.1;
     assert!(!rules.to_string().contains("review-"));
     mask(

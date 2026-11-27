@@ -64,6 +64,7 @@ function detectorReason(item) {
 function showReview(keys = [], view = "pending", source = "all") {
   clearPicking(); ReviewUI.filterSet=null; ReviewUI.browseSet=null; ReviewUI.jobId=null; ReviewUI.learningJob=null; ReviewUI.detailKey=null;
   setReviewFeedback("");
+  $("#review-advice-all").checked = true;
   for(const [id,value] of [["review-source",source],["review-query",""],["review-action",""],["review-kind",""]]) $("#"+id).value=value;
   ReviewUI.keys = keys.join(","); ReviewUI.offset = 0; ReviewUI.view = view; ReviewUI.selected.clear();
   const url = new URL(location.href);
@@ -407,8 +408,11 @@ function inferenceDetails(job) {
         h("td",{},`${trace.completion_tokens??"—"} / ${trace.max_output_tokens??"—"}`),h("td",{},trace.context_tokens??"—"),
         h("td",{},trace.finish_reason||"—",trace.finish_reason==="length"?" · "+tr(trace.token_count_method==="runtime_tokenizer"&&(trace.total_tokens??0)>=(trace.context_tokens??Infinity)?"Исчерпан контекст":(trace.completion_tokens??0)>=(trace.max_output_tokens??Infinity)?"Достигнут лимит ответа":"Провайдер остановил ответ по лимиту"):"",trace.http_status>=400?` · HTTP ${trace.http_status}`:"",trace.runtime_exit_code!=null?` · exit ${trace.runtime_exit_code}`:"",trace.error?" · "+learningError(trace.error):"",trace.structured_output?h("div",{class:"hint"},tr(trace.structured_output==="json_prompt"?"JSON по инструкции":"Ограничение JSON Schema")):null)))))));
 }
+function reviewStatus() {
+  return ReviewUI.view === "pending" ? $("#review-advice-filter input:checked").value : ReviewUI.view;
+}
 function reviewFilters() {
-  const query = {status: ReviewUI.view, source: $("#review-source").value, sort: $("#review-sort").value,
+  const query = {status: reviewStatus(), source: $("#review-source").value, sort: $("#review-sort").value,
     q: $("#review-query").value, kind: $("#review-kind").value, action: $("#review-action").value};
   if (ReviewUI.learningJob) query.learning_job=ReviewUI.learningJob;
   if (ReviewUI.keys) query.keys = ReviewUI.keys;
@@ -616,17 +620,13 @@ function syncPageCheck() {
 function renderReview() {
   const data=ReviewUI.data;
   if (!data) return;
-  const advice = ReviewUI.view === "proposals";
-  for (const button of document.querySelectorAll("[data-review-view]"))
-    button.setAttribute("aria-pressed", String(button.dataset.reviewView === (advice ? "pending" : ReviewUI.view)));
-  $("#review-advice-filter").checked = advice;
-  $("#review-advice-filter").closest("label").hidden = !["pending","proposals"].includes(ReviewUI.view);
   $("#review-groups").disabled = !data.items.length;
   const nodes=[];
   const filters=reviewFilters();
   const filtered=!!(filters.q || filters.kind || filters.action || filters.source!=="all" || filters.sort!=="recent");
-  $("#review-clear-filters").hidden=!filtered && !advice;
-  $("#review-match-count").textContent=tr(["pending","proposals"].includes(ReviewUI.view) ? "Значений в выборке · {{0}}" : "Находок в выборке · {{0}}", [number(data.total)]);
+  const hasFilters = filtered || filters.status !== ReviewUI.view;
+  $("#review-clear-filters").hidden = !hasFilters;
+  $("#review-match-count").textContent=tr(ReviewUI.view === "pending" ? "Значений в выборке · {{0}}" : "Находок в выборке · {{0}}", [number(data.total)]);
   if (ReviewUI.keys || ReviewUI.filterSet || ReviewUI.jobId || ReviewUI.learningJob) nodes.push(h("div",{class:"inline-notice"},tr(ReviewUI.view === "all" ? "Все вхождения, включая обработанные" : ReviewUI.jobId || ReviewUI.learningJob ? "Результаты выбранного запуска" : "Находки из выбранных источников"),
     workButton("Все находки",()=>showReview())));
   function table(items, title) {
@@ -640,12 +640,13 @@ function renderReview() {
   }
   if(!data.items.length) {
     const scoped=!!(ReviewUI.jobId || ReviewUI.learningJob || ReviewUI.keys || ReviewUI.filterSet);
-    nodes.push(h("div",{class:"empty-state"}, icon("search"), h("strong",{},tr(ReviewUI.view === "proposals" && !filtered ? "Готовых предложений ИИ пока нет" : "Находок по этим условиям нет")),
-      ReviewUI.view === "proposals" && !filtered ? h("p", {}, tr("Откройте находку на проверку и запросите предложение ИИ.")) : null,
-      filters.q && ["pending","proposals"].includes(ReviewUI.view)
+    const emptyProposals = filters.status === "proposals" && !filtered;
+    nodes.push(h("div",{class:"empty-state"}, icon("search"), h("strong",{},tr(emptyProposals ? "Готовых предложений ИИ пока нет" : "Находок по этим условиям нет")),
+      emptyProposals ? h("p", {}, tr("Откройте находку на проверку и запросите предложение ИИ.")) : null,
+      filters.q && ReviewUI.view === "pending"
         ? workButton("Искать в разобранных", () => $("#review-navigation [data-review-view=history]").click()) :
-      filtered ? workButton("Сбросить фильтры", resetReviewFilters) :
-        ReviewUI.view === "proposals" ? workButton("Нужно решить", () => $("#review-navigation [data-review-view=pending]").click()) :
+      emptyProposals ? workButton("Нужно решить", () => $("#review-navigation [data-review-view=pending]").click()) :
+        hasFilters ? workButton("Сбросить фильтры", resetReviewFilters) :
         scoped || ReviewUI.view==="history" ? workButton("Открыть находки",()=>showReview()) :
           workButton("Найти значения в документе",()=>{showTab("discover");showDiscoverView("input");})));
   }
@@ -708,7 +709,8 @@ function renderReviewSelection() {
   };
   const list = [...ReviewUI.selected.values()];
   const manualCount = ReviewUI.snapshot ? pickedCount() : list.filter(pendingFinding).length;
-  if (ReviewUI.view !== "history" && ReviewUI.view !== "proposals") {
+  const proposalView = reviewStatus() === "proposals";
+  if (ReviewUI.view !== "history" && !proposalView) {
     const label = manualCount && (!ReviewUI.snapshot || ReviewUI.view === "pending")
       ? tr("Создать правила маскирования · {{0}}", [manualCount]) : tr("Создать правила маскирования");
     if (selected) controls.append(batchButton(label, manualCount === selected ? tr("Скрыть") : label, maskSelectedFindings, "primary", busy || !manualCount));
@@ -731,7 +733,6 @@ function renderReviewSelection() {
     clearPicking();ReviewUI.snapshot=snap;renderReview();
   }));
   if(selected)selectionHead.append(workButton("Снять выбор",()=>{clearPicking();renderReview(); $("#review-select-page").focus({preventScroll:true});}));
-  const proposalView = ReviewUI.view === "proposals";
   const eligible = item => pendingFinding(item) && item.proposal && !item.proposal.declined &&
     (!ReviewUI.jobId || item.proposal.job === ReviewUI.jobId);
   if (proposalView || list.length && list.every(eligible) || ReviewUI.jobId && ReviewUI.outcome === "succeeded") {
@@ -998,6 +999,9 @@ async function loadReview(options) {
   const preferenceVersion = captureVersion;
   const request=++ReviewUI.request;
   const background = options?.background === true;
+  for (const button of document.querySelectorAll("[data-review-view]"))
+    button.setAttribute("aria-pressed", String(button.dataset.reviewView === ReviewUI.view));
+  $("#review-advice-filter").hidden = ReviewUI.view !== "pending";
   if (!background) lockReviewResults(true);
   $("#review-list").setAttribute("aria-busy", "true");
   try {
@@ -1048,7 +1052,7 @@ function changedFilter(event) {
   ReviewUI.filterTimer = setTimeout(loadReview, 250);
 }
 function resetReviewFilters() {
-  if (ReviewUI.view === "proposals") ReviewUI.view = "pending";
+  $("#review-advice-all").checked = true;
   for(const [key, value] of [["source","all"],["sort","recent"],["query",""],["kind",""],["action",""]])
     $("#review-"+key).value=value;
   changedFilter();
@@ -1059,9 +1063,13 @@ $("#review-actions-toggle").onclick = event => {
   actions.hidden = !actions.hidden;
   event.currentTarget.setAttribute("aria-expanded", String(!actions.hidden));
 };
-$("#review-advice-filter").onchange = event => { ReviewUI.view = event.target.checked ? "proposals" : "pending"; changedFilter(); };
+$("#review-advice-filter").onchange = changedFilter;
 $("#review-clear-filters").onclick=resetReviewFilters;
-for(const b of document.querySelectorAll("[data-review-view]")) b.onclick=()=>{ReviewUI.view=b.dataset.reviewView;changedFilter();};
+for (const button of document.querySelectorAll("[data-review-view]")) button.onclick = () => {
+  ReviewUI.view = button.dataset.reviewView;
+  $("#review-advice-all").checked = true;
+  changedFilter();
+};
 for(const id of ["review-source","review-sort","review-kind","review-action"])$("#"+id).onchange=changedFilter;
 $("#review-query").oninput=changedFilter;
 $("#review-refresh").onclick=()=>{ReviewUI.browseSet=null;loadReview();};

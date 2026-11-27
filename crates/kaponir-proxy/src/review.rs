@@ -737,6 +737,9 @@ fn filtered(st: &Shared, q: &Filters) -> anyhow::Result<(usize, Vec<Value>)> {
                     Some("all" | "selection") => true,
                     Some("history") => !is_pending,
                     Some("proposals") => is_pending && item["proposal"]["declined"] == false,
+                    Some("without_proposals") => {
+                        is_pending && item["proposal"]["declined"] != false
+                    }
                     _ => is_pending,
                 }
                 && q.source

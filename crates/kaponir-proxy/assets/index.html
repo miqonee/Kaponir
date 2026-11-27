@@ -304,8 +304,14 @@
 </div>
 <search class="finding-search" aria-label="Поиск находок" data-i18n-aria-label="Поиск находок">
   <label class="review-search"><svg aria-hidden="true"><use href="#i-search"></use></svg><span class="sr-only" data-i18n="Поиск по значению и контексту">Поиск по значению и контексту</span><input id="review-query" type="search" data-i18n-placeholder="Поиск по значению и контексту" placeholder="Поиск по значению и контексту"/></label>
-  <label class="check advice-filter"><input id="review-advice-filter" type="checkbox"/><span data-i18n="Есть совет ИИ">Есть совет ИИ</span></label>
-  <button id="review-clear-filters" type="button" class="text-button" hidden data-i18n="Сбросить фильтры">Сбросить фильтры</button>
+  <div class="seg advice-filter" id="review-advice-filter" role="radiogroup" aria-labelledby="review-advice-label">
+    <span id="review-advice-label" data-i18n="Советы ИИ">Советы ИИ</span>
+    <div class="advice-options">
+      <input class="sr-only" type="radio" name="review-advice" id="review-advice-no" value="without_proposals"/><label for="review-advice-no" data-i18n="Нет">Нет</label>
+      <input class="sr-only" type="radio" name="review-advice" id="review-advice-all" value="pending" checked/><label for="review-advice-all" data-i18n="Все">Все</label>
+      <input class="sr-only" type="radio" name="review-advice" id="review-advice-yes" value="proposals"/><label for="review-advice-yes" data-i18n="Да">Да</label>
+    </div>
+  </div>
   <button type="button" class="icon-button" id="review-refresh" aria-label="Обновить" data-i18n-aria-label="Обновить" title="Обновить" data-i18n-title="Обновить"><svg aria-hidden="true"><use href="#i-refresh"></use></svg></button>
   <details class="finding-filters"><summary><svg aria-hidden="true"><use href="#i-settings"></use></svg><span data-i18n="Фильтры">Фильтры</span></summary>
     <div class="review-filters">
@@ -315,6 +321,7 @@
       <label class="field"><span data-i18n="Действие в запросе">Действие в запросе</span><select id="review-action"><option value="" data-i18n="Все">Все</option><option value="mask" data-i18n="Замаскировано">Замаскировано</option><option value="keep" data-i18n="Оставлено в тексте">Оставлено в тексте</option></select></label>
     </div>
   </details>
+  <button id="review-clear-filters" type="button" class="text-button" hidden data-i18n="Сбросить фильтры">Сбросить фильтры</button>
 </search>
 <div class="review-feedback"><div id="review-result" class="form-status" role="status"></div><button type="button" class="secondary" id="review-open-errors" aria-haspopup="dialog" aria-controls="review-errors" hidden data-i18n="Разобрать ошибки">Разобрать ошибки</button></div>
 <div class="finding-layout">
