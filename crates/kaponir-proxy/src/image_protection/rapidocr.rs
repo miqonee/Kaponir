@@ -1,4 +1,4 @@
-use super::{Code, Failure, ocr::OUTPUT_LIMIT};
+use super::{Code, Failure, Profile, ocr::OUTPUT_LIMIT};
 use std::{
     ffi::{OsStr, OsString},
     path::PathBuf,
@@ -13,6 +13,7 @@ use tokio::{
 
 const SCRIPT: &str = include_str!("../../../../scripts/kaponir_rapidocr.py");
 const CHARACTER_BOXES: u32 = 1 << 31;
+const RUSSIAN_ENGLISH: u32 = 1 << 30;
 
 pub(crate) struct LocalOcr {
     pub(crate) python: Option<PathBuf>,
@@ -63,7 +64,12 @@ impl LocalOcr {
             .map_err(|_| Failure::new(Code::Unavailable))
     }
 
-    pub(super) async fn call(&self, png: &[u8], character_boxes: bool) -> Result<Vec<u8>, Failure> {
+    pub(super) async fn call(
+        &self,
+        png: &[u8],
+        character_boxes: bool,
+        profile: Profile,
+    ) -> Result<Vec<u8>, Failure> {
         let _slot = self
             .slots
             .acquire()
@@ -90,7 +96,7 @@ impl LocalOcr {
             Some(child) => child,
             None => Self::spawn(&python)?,
         };
-        let data = Self::exchange(&mut child, png, character_boxes).await?;
+        let data = Self::exchange(&mut child, png, character_boxes, profile).await?;
         self.idle
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -102,9 +108,16 @@ impl LocalOcr {
         child: &mut Child,
         png: &[u8],
         character_boxes: bool,
+        profile: Profile,
     ) -> Result<Vec<u8>, Failure> {
         let size = u32::try_from(png.len()).map_err(|_| Failure::new(Code::Limits))?;
-        let frame = size | if character_boxes { CHARACTER_BOXES } else { 0 };
+        let mut frame = size;
+        if character_boxes {
+            frame |= CHARACTER_BOXES;
+        }
+        if profile == Profile::RussianEnglish {
+            frame |= RUSSIAN_ENGLISH;
+        }
         let io_error = |_| Failure::new(Code::Unavailable);
         let input = child.stdin.as_mut().expect("piped OCR input");
         input.write_u32(frame).await.map_err(io_error)?;
@@ -120,6 +133,7 @@ impl LocalOcr {
             0 => {}
             2 => return Err(Failure::new(Code::Unreadable)),
             3 => return Err(Failure::new(Code::Limits)),
+            4 => return Err(Failure::new(Code::ProfileUnavailable)),
             _ => return Err(Failure::new(Code::Unavailable)),
         }
         let mut data = vec![0; size];

@@ -89,8 +89,8 @@ class OcrChildren:
                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
     @staticmethod
-    def exchange(child, png, character_boxes):
-        length = len(png) | ((1 << 31) if character_boxes else 0)
+    def exchange(child, png, character_boxes, russian_english):
+        length = len(png) | ((1 << 31) if character_boxes else 0) | ((1 << 30) if russian_english else 0)
         child.stdin.write(struct.pack('>I', length))
         child.stdin.write(png)
         child.stdin.flush()
@@ -107,7 +107,7 @@ class OcrChildren:
             raise OcrPipeError(1)
         return data
 
-    def call(self, png, timeout, check=None, on_start=None, character_boxes=False):
+    def call(self, png, timeout, check=None, on_start=None, character_boxes=False, russian_english=False):
         with self.lock:
             child = self.idle.pop() if self.idle else None
         if child is None or child.poll() is not None:
@@ -118,7 +118,7 @@ class OcrChildren:
             if on_start is not None:
                 on_start(child)
             with ThreadPoolExecutor(max_workers=1) as executor:
-                reply = executor.submit(self.exchange, child, png, character_boxes)
+                reply = executor.submit(self.exchange, child, png, character_boxes, russian_english)
                 try:
                     while True:
                         remaining = deadline - time.monotonic()
@@ -1791,13 +1791,23 @@ def handler(worker, token):
             for name, header in (headers or {}).items(): self.send_header(name, header)
             self.send_header('Content-Type','application/json');self.send_header('Cache-Control','no-store');self.send_header('Content-Length',str(len(raw)));self.end_headers();self.wfile.write(raw)
         def dispatch_ocr(self, path):
+            profile = self.headers.get('x-ocr-profile', 'standard')
+            if profile not in ('standard', 'ru_en'):
+                self.respond(422, {'error': 'ocr_profile'})
+                return
+            russian_english = profile == 'ru_en'
+            headers = {'X-Kaponir-OCR-Engine': 'rapidocr', 'X-Kaponir-OCR-Profile': profile}
             if path == '/ocr/status' and self.command == 'GET':
                 if not ocr_slots.acquire(blocking=False):
                     self.respond(429, {'error': 'ocr_queue_full'})
                     return
                 try:
-                    ocr_children.call(b'', 3)
-                    self.respond(200, ['rus', 'eng'], {'X-Kaponir-OCR-Engine': 'rapidocr'})
+                    ocr_children.call(b'', 3, russian_english=russian_english)
+                    self.respond(200, ['rus', 'eng'], headers)
+                except OcrPipeError as error:
+                    status, code = ((424, 'ocr_profile_unavailable') if error.status == 4
+                                    else (503, 'rapidocr_unavailable'))
+                    self.respond(status, {'error': code})
                 except OSError:
                     self.respond(503, {'error': 'rapidocr_unavailable'})
                 finally:
@@ -1837,8 +1847,11 @@ def handler(worker, token):
                     if select.select([self.connection], [], [], 0)[0] and not self.connection.recv(1, socket.MSG_PEEK):
                         raise ConnectionError('ocr_cancelled')
                 tsv = ocr_children.call(png, timeout_ms / 1000, check=check_connection,
-                                        character_boxes=self.headers.get('x-ocr-character-boxes') == '1')
+                                        character_boxes=self.headers.get('x-ocr-character-boxes') == '1',
+                                        russian_english=russian_english)
                 self.send_response(200)
+                for name, value in headers.items():
+                    self.send_header(name, value)
                 self.send_header('Content-Type', 'text/tab-separated-values; charset=utf-8')
                 self.send_header('Cache-Control', 'private, no-store')
                 self.send_header('Content-Length', str(len(tsv)))
@@ -1849,9 +1862,10 @@ def handler(worker, token):
             except (TimeoutError, subprocess.TimeoutExpired):
                 self.respond(504, {'error': 'ocr_timeout'})
             except OcrPipeError as error:
-                status, code = {2: (422, 'ocr_unreadable'), 3: (413, 'ocr_limits')}.get(
+                status, code = {2: (422, 'ocr_unreadable'), 3: (413, 'ocr_limits'),
+                                4: (424, 'ocr_profile_unavailable')}.get(
                     error.status, (503, 'rapidocr_unavailable'))
-                self.respond(status, {'error': code}, {'X-Kaponir-OCR-Engine': 'rapidocr'})
+                self.respond(status, {'error': code}, headers)
             except OSError:
                 self.respond(503, {'error': 'rapidocr_unavailable'})
             finally:

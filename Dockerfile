@@ -17,8 +17,10 @@ FROM ${KAPONIR_BUILD} AS selected
 
 FROM python:3.13-slim-trixie AS ocr-runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgomp1 libstdc++6 && rm -rf /var/lib/apt/lists/*
-COPY scripts/requirements-ocr.txt scripts/requirements-worker.txt /tmp/
-RUN pip install --no-cache-dir -r /tmp/requirements-worker.txt
+COPY scripts/requirements-ocr.txt scripts/requirements-worker.txt scripts/kaponir_rapidocr.py /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements-worker.txt \
+    && python -I /tmp/kaponir_rapidocr.py --install-cyrillic \
+    && rm /tmp/kaponir_rapidocr.py
 
 FROM ocr-runtime AS proxy
 COPY --from=selected /out/kaponir /usr/local/bin/kaponir

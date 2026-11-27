@@ -5,8 +5,8 @@ use super::pdf::PageText;
 use super::{Area, Code, Failure, Reason, Rect, UrlMask, raster};
 use image::{Rgb, RgbImage};
 use kaponir_core::{
-    Category, Engine, Format, Input, Known, MaskOptions, MemoryVault, Scope, Strategy, TokenForm,
-    Verdict,
+    Category, Engine, Format, Input, Known, MaskOptions, MemoryVault, Replacement, Scope, Strategy,
+    TokenForm, Verdict,
 };
 use kaponir_recognizers::kv::{
     FieldAssignment, KeyValue, credential_reference, yaml_block_indicator,
@@ -95,6 +95,7 @@ fn runs(values: impl IntoIterator<Item = bool>, merge_gap: u32) -> Vec<Range<u32
     out
 }
 
+#[derive(Clone)]
 struct Row {
     rect: Rect,
     words: Vec<Word>,
@@ -206,7 +207,7 @@ struct Document {
 }
 impl Document {
     fn build(rows: &[Row], column: Extent, glyph: u32, ink: &Ink) -> Option<Self> {
-        let mut rows: Vec<_> = rows
+        let rows: Vec<_> = rows
             .iter()
             .filter_map(|row| {
                 let words: Vec<_> = row
@@ -221,36 +222,68 @@ impl Document {
                 (!words.is_empty()).then(|| Row::new(words))
             })
             .collect();
-        let left = rows.iter().map(|row| row.rect.x0).min()?;
-        let mut text = String::new();
-        let unit = (glyph * 3 / 5).max(3);
-        for row in &mut rows {
-            if !text.is_empty() {
-                text.push('\n');
+        let mut doc = Self {
+            text: String::new(),
+            rows,
+            column,
+            glyph,
+            bands: runs(ink.vertical(column), (glyph / 5).clamp(3, 9)),
+        };
+        doc.assemble_text()?;
+        Some(doc)
+    }
+
+    fn assemble_text(&mut self) -> Option<()> {
+        let left = self.rows.iter().map(|row| row.rect.x0).min()?;
+        self.text.clear();
+        let unit = (self.glyph * 3 / 5).max(3);
+        for row in &mut self.rows {
+            row.letters.clear();
+            if !self.text.is_empty() {
+                self.text.push('\n');
             }
-            let start = text.len();
-            text.extend(std::iter::repeat_n(
+            let start = self.text.len();
+            self.text.extend(std::iter::repeat_n(
                 ' ',
                 (row.rect.x0.saturating_sub(left) / unit).min(120) as usize,
             ));
             for (i, word) in row.words.iter().enumerate() {
                 if i > 0 {
-                    text.push(' ');
+                    self.text.push(' ');
                 }
-                let at = text.len();
-                text.push_str(&word.text);
-                row.letters.push(at..text.len());
+                let at = self.text.len();
+                self.text.push_str(&word.text);
+                row.letters.push(at..self.text.len());
             }
-            row.text = start..text.len();
+            row.text = start..self.text.len();
         }
-        let bands = runs(ink.vertical(column), (glyph / 5).clamp(3, 9));
-        Some(Self {
-            text,
-            rows,
-            column,
-            glyph,
-            bands,
-        })
+        Some(())
+    }
+
+    fn alternate(&self) -> Option<Self> {
+        if !self
+            .rows
+            .iter()
+            .flat_map(|row| &row.words)
+            .any(|word| word.alternate.is_some())
+        {
+            return None;
+        }
+        let mut doc = Self {
+            text: String::new(),
+            rows: self.rows.clone(),
+            column: self.column,
+            glyph: self.glyph,
+            bands: self.bands.clone(),
+        };
+        for word in doc.rows.iter_mut().flat_map(|row| &mut row.words) {
+            if let Some(text) = word.alternate.take() {
+                word.text = text;
+                word.character_centers.clear();
+            }
+        }
+        doc.assemble_text()?;
+        Some(doc)
     }
 
     fn pad(&self) -> u32 {
@@ -361,6 +394,43 @@ fn same_region(a: Rect, b: Rect) -> bool {
     let width = a.x1.min(b.x1).saturating_sub(a.x0.max(b.x0));
     let height = a.y1.min(b.y1).saturating_sub(a.y0.max(b.y0));
     width * 5 >= a.width().min(b.width()) * 4 && height * 4 >= a.height().min(b.height()) * 3
+}
+
+fn add_detector_area(
+    areas: &mut Vec<Area>,
+    rectangles: Vec<Rect>,
+    replacement: &Replacement,
+    merge: bool,
+) -> Result<usize, Failure> {
+    // A second transcription can supply the rest of a partly read phrase.
+    if merge
+        && let [rect] = rectangles.as_slice()
+        && let Some(area) = areas.iter_mut().find(|area| {
+            area.rectangles.len() == 1
+                && area.category == replacement.category
+                && area.kind == replacement.kind
+                && area.scope == replacement.scope
+                && same_region(area.rectangles[0], *rect)
+        })
+    {
+        area.rectangles[0] = area.rectangles[0].union(*rect);
+        return Ok(area.id);
+    }
+    let id = areas.len();
+    if id == MAX_AREAS {
+        return Err(Failure::new(Code::Limits));
+    }
+    areas.push(Area {
+        id,
+        rectangles,
+        category: replacement.category,
+        kind: replacement.kind.clone(),
+        scope: replacement.scope,
+        reason: Reason::Detector,
+        field: None,
+        review_id: None,
+    });
+    Ok(id)
 }
 
 // CTC positions can drift into the next glyph in proportional text. A stable
@@ -761,15 +831,22 @@ pub(super) fn mask(
         let Some(doc) = Document::build(&rows, column, glyph, &ink) else {
             continue;
         };
+        // Evaluate both transcriptions against local rules on the same layout.
+        // An alternate can add coverage without taking away a primary match.
+        let alternate = doc.alternate();
         let masked = detect(&doc.text, &options)?;
-        documents.push((doc, masked));
+        documents.push((doc, masked, false));
+        if let Some(doc) = alternate {
+            let masked = detect(&doc.text, &options)?;
+            documents.push((doc, masked, true));
+        }
     }
     // OCR can read a repeated value while dropping the separator that identified it
     // as a credential. Remember confirmed values for this image, including other columns.
     let mut seen = HashSet::new();
     let known = documents
         .iter()
-        .flat_map(|(_, masked)| &masked.replacements)
+        .flat_map(|(_, masked, _)| &masked.replacements)
         .filter(|r| {
             r.protected && r.category == Category::Credential && seen.insert(r.original.as_str())
         })
@@ -791,7 +868,7 @@ pub(super) fn mask(
     let mut review_values = BTreeMap::new();
     static KEY_VALUE: OnceLock<KeyValue> = OnceLock::new();
     let key_value = KEY_VALUE.get_or_init(KeyValue::new);
-    for (doc, masked) in documents {
+    for (doc, masked, alternate) in documents {
         let column = doc.column;
         for field in key_value.field_assignments(engine.lexicon(), &doc.text) {
             let matches = |start: usize, end: usize, key: &str| {
@@ -816,7 +893,15 @@ pub(super) fn mask(
                 continue;
             }
             let (rectangles, whole) = complete_field(&doc, &ink, height, &field)?;
-            if rectangles.is_empty() {
+            if rectangles.is_empty()
+                || (alternate
+                    && rectangles.iter().all(|rect| {
+                        areas
+                            .iter()
+                            .flat_map(|area| &area.rectangles)
+                            .any(|known| known.contains(*rect))
+                    }))
+            {
                 continue;
             }
             if areas.len() == MAX_AREAS {
@@ -877,10 +962,10 @@ pub(super) fn mask(
             if rectangles.is_empty() {
                 continue;
             }
-            if areas.len() == MAX_AREAS {
-                return Err(Failure::new(Code::Limits));
-            }
             if replacement.recognizer == "config-keys" && replacement.protected {
+                if areas.len() == MAX_AREAS {
+                    return Err(Failure::new(Code::Limits));
+                }
                 // Structured formats such as env name/value pairs may not be a
                 // simple assignment on the same line. Cover the full visible row.
                 let mut full = Vec::new();
@@ -914,19 +999,10 @@ pub(super) fn mask(
                     review_id: None,
                 });
             } else {
+                let id = add_detector_area(&mut areas, rectangles, &replacement, alternate)?;
                 if link_reviews && !replacement.protected {
-                    review_values.insert(areas.len(), replacement.original.clone());
+                    review_values.insert(id, replacement.original);
                 }
-                areas.push(Area {
-                    id: areas.len(),
-                    rectangles,
-                    category: replacement.category,
-                    kind: replacement.kind,
-                    scope: replacement.scope,
-                    reason: Reason::Detector,
-                    field: None,
-                    review_id: None,
-                });
             }
         }
         // Suggestions are optional, and follow the same category decision
@@ -984,35 +1060,7 @@ pub(super) fn mask(
             }) {
                 continue;
             }
-            // The native text may supply the rest of a phrase the OCR read only
-            // in part. Keep both masks' coverage under one audit entry.
-            let id = if rectangles.len() == 1
-                && let Some(area) = areas.iter_mut().find(|area| {
-                    area.rectangles.len() == 1
-                        && area.category == replacement.category
-                        && area.kind == replacement.kind
-                        && area.scope == replacement.scope
-                        && same_region(area.rectangles[0], rectangles[0])
-                }) {
-                area.rectangles[0] = area.rectangles[0].union(rectangles[0]);
-                area.id
-            } else {
-                let id = areas.len();
-                if id == MAX_AREAS {
-                    return Err(Failure::new(Code::Limits));
-                }
-                areas.push(Area {
-                    id,
-                    rectangles,
-                    category: replacement.category,
-                    kind: replacement.kind,
-                    scope: replacement.scope,
-                    reason: Reason::Detector,
-                    field: None,
-                    review_id: None,
-                });
-                id
-            };
+            let id = add_detector_area(&mut areas, rectangles, &replacement, true)?;
             if link_reviews && !replacement.protected {
                 review_values.insert(id, replacement.original);
             }

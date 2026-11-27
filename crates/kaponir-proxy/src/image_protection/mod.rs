@@ -50,6 +50,15 @@ pub enum Node {
 
 #[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
+pub enum Profile {
+    #[default]
+    Standard,
+    #[serde(rename = "ru_en")]
+    RussianEnglish,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum UrlMask {
     #[default]
     Full,
@@ -62,6 +71,7 @@ pub struct Settings {
     pub enabled: bool,
     pub mode: Mode,
     pub node: Node,
+    pub profile: Profile,
     pub languages: String,
     pub connection_id: String,
     pub model: String,
@@ -81,6 +91,7 @@ impl Default for Settings {
             enabled: false,
             mode: Mode::Local,
             node: Node::Proxy,
+            profile: Profile::Standard,
             languages: "rus+eng".into(),
             connection_id: String::new(),
             model: String::new(),
@@ -146,6 +157,7 @@ pub(crate) enum Code {
     Animated,
     Limits,
     Unavailable,
+    ProfileUnavailable,
     Languages,
     Empty,
     Unreadable,
@@ -174,6 +186,9 @@ impl Code {
             Self::Animated => "Export one frame as a static PNG, JPEG or WebP.",
             Self::Limits => "Reduce the attachment size or send fewer images and PDF pages.",
             Self::Unavailable => "RapidOCR or the configured OCR worker is unavailable.",
+            Self::ProfileUnavailable => {
+                "The Russian + English OCR profile is unavailable. Install the updated RapidOCR runtime on the selected node."
+            }
             Self::Languages => "Install the selected OCR languages on the worker.",
             Self::Empty | Self::Unreadable => {
                 "Text could not be read confidently. Try a larger or sharper image."
@@ -205,6 +220,7 @@ impl Code {
             Self::Timeout => StatusCode::GATEWAY_TIMEOUT,
             Self::QueueFull => StatusCode::TOO_MANY_REQUESTS,
             Self::Unavailable
+            | Self::ProfileUnavailable
             | Self::PdfUnavailable
             | Self::Languages
             | Self::Consent

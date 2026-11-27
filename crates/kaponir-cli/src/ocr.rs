@@ -55,6 +55,18 @@ fn check(python: &Path) -> Result<()> {
     Ok(())
 }
 
+fn install_cyrillic(python: &Path) -> Result<()> {
+    let status = Command::new(python)
+        .args(["-I", "-c", SCRIPT, "--install-cyrillic"])
+        .status()
+        .context("installing the Cyrillic RapidOCR model")?;
+    ensure!(
+        status.success(),
+        "could not install the Cyrillic RapidOCR model; check access to ModelScope"
+    );
+    Ok(())
+}
+
 pub fn default_python() -> &'static Path {
     Path::new(if cfg!(windows) { "python" } else { "python3" })
 }
@@ -79,6 +91,7 @@ pub fn setup(home: &Home, python: &Path) -> Result<()> {
     if let Some(managed) = managed_python(home)
         && check(&managed).is_ok()
     {
+        install_cyrillic(&managed)?;
         println!("RapidOCR is ready in {}", managed.display());
         return Ok(());
     }
@@ -122,6 +135,7 @@ pub fn setup(home: &Home, python: &Path) -> Result<()> {
     );
     check(&managed)?;
     fs::write(ready, b"")?;
+    install_cyrillic(&managed)?;
     println!("RapidOCR is ready in {}.", managed.display());
     Ok(())
 }

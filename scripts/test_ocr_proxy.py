@@ -109,6 +109,29 @@ def helm(**options):
     return fixture(rows, **options)
 
 
+def mixed_script_sample(p):
+    lines = [
+        ("Компания ", "Северный Ветер", " принят"),
+        ("Проект ", "Лаборатория Сосна", " принят"),
+        ("Сотрудник ", "Анна Сорокина", " принят"),
+        ("Группа ", "Новый Контур", " принят"),
+        ("Запись ", "РечьСевер", " принят"),
+        ("Перевозчик ", "S7 Airlines", " работает"),
+        ("Заявка ", "JRB-A01Z9", " открыта"),
+        ("Домен ", "edge-radar.example", " проверен"),
+        ("Узел ", "vault42.ops.example", " активен"),
+    ]
+    for index, (_, value, _) in enumerate(lines):
+        assert p.call("/api/v1/rules", {"scope": "team", "rule": {
+            "id": f"mixed-ocr-{index}", "kind": "CUSTOM", "action": "mask", "value": value,
+        }}).status == 200
+    assert p.call("/api/v1/rules", {"scope": "team", "rule": {
+        "id": "mixed-ocr-brand", "kind": "CUSTOM", "action": "mask", "value": "S7",
+    }}).status == 200
+    return fixture([(52, 25 + 62 * i, [(label, False), (value, True), (suffix, False)])
+                    for i, (label, value, suffix) in enumerate(lines)], size=(1400, 700), font_size=31)
+
+
 def pdf_fixture(scan, *, printed=None):
     """A printed page, a scanned page and a blank page, with hidden source data."""
     text = printed or (f'BT /F1 22 Tf 32 184 Td ({FIELDS[0][0]}{FIELDS[0][1]}) Tj '
@@ -477,21 +500,28 @@ import time
 source = Path(os.environ["KAPONIR_TEST_TSV"])
 delay = source.with_name("delay")
 while header := sys.stdin.buffer.read(4):
-    size, = struct.unpack(">I", header)
+    frame, = struct.unpack(">I", header)
+    size = frame & ((1 << 30) - 1)
+    status = 4 if frame & (1 << 30) else 0
     data = b""
-    if size:
-        sys.stdin.buffer.read(size)
+    sys.stdin.buffer.read(size)
+    if size and not status:
         if delay.exists():
             delay.with_name("pid").write_text(str(os.getpid()))
             time.sleep(float(delay.read_text()))
         data = source.read_bytes()
-    sys.stdout.buffer.write(struct.pack(">BI", 0, len(data)) + data)
+    sys.stdout.buffer.write(struct.pack(">BI", status, len(data)) + data)
     sys.stdout.buffer.flush()
 """)
         bin_path.chmod(0o700)
         env = {"KAPONIR_OCR_PYTHON": str(bin_path), "KAPONIR_TEST_TSV": str(tsv_path)}
         with proxy(binary, chat.url, env=env) as p:
             call = [user_message(openai_image(sample))]
+            unavailable = p.settings(profile="ru_en")
+            assert unavailable["engine_state"] == "needs_setup"
+            assert unavailable["failure"] == "profile_unavailable"
+            blocked(p, chat, call, {"profile_unavailable"}, 503)
+            assert p.settings(profile="standard")["engine_state"] == "ready"
             tsv_path.write_text(controlled_tsv(sample, {
                 (1, 2): [('AKE_001', 0.12, 0.48), ('11-Аа9_8x0', 0.52, 0.89)],
                 (2, 2): [('DEMO_7RqQ-I110_9U', 0.06, 0.93)],
@@ -583,6 +613,10 @@ def exercise_worker(binary, chat, sample):
                 settings = p.settings(node="worker", approved_recipient=worker_url + "/ocr/tsv")
                 assert settings["engine"] == "rapidocr" and settings["engine_state"] == "ready"
                 accepted(p, chat, [user_message(openai_image(sample))], [sample])
+                mixed = mixed_script_sample(p)
+                settings = p.settings(profile="ru_en")
+                assert settings["engine"] == "rapidocr" and settings["engine_state"] == "ready", settings
+                accepted(p, chat, [user_message(openai_image(mixed))], [mixed])
                 worker.terminate()
                 worker.wait(timeout=10)
                 blocked(p, chat, [user_message(openai_image(sample))], {"unavailable"}, 503)
@@ -622,6 +656,23 @@ def exercise_managed_worker(binary, chat, sample):
         accepted(p, chat, attachment, [sample])
         state = worker_status()
         assert state["online"] and not state["enabled"]
+
+
+def exercise_russian_english(binary, chat):
+    with proxy(binary, chat.url) as p:
+        sample = mixed_script_sample(p)
+        assert p.settings()["settings"]["profile"] == "standard"
+        settings = p.settings(profile="ru_en")
+        assert settings["engine_state"] == "ready", settings
+        before = len(chat.records)
+        preview = p.call("/api/v1/ui/ocr/preview", sample.raw, headers={"Content-Type": "image/png"})
+        assert preview.status == 200, preview.body[:250]
+        assert len(chat.records) == before
+        event = accepted(p, chat, [user_message(openai_image(sample))], [sample])
+        attachment, = event["inspector"]["images"]["attachments"]
+        assert len(attachment["areas"]) == len(sample.secrets), attachment["areas"]
+        expected = base64.b64decode(preview.json()["data"].split(",", 1)[1])
+        assert list(binary_parts(chat.records[-1][2])) == [expected]
 
 
 def exercise_url_masks(p, chat):
@@ -1143,6 +1194,8 @@ def run_tests(binary):
             assert request(old, [user_message(openai_image(sample))]).status == 200
         exercise_worker(binary, chat, sample)
         exercise_managed_worker(binary, chat, sample)
+        exercise_russian_english(binary, chat)
+        out["russian_english"] = "passed"
         report(sample)
         out["blocked"] += 1
         controlled, rejected = run_controlled(binary, chat, sample, wrap, yaml, repeated)

@@ -147,7 +147,10 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
     };
     let mut engine = ocr::Backend::engine(settings);
     let (languages, failure) = match ocr::Backend::resolve(st, settings) {
-        Ok(backend) => match backend.capabilities(st, settings.enabled).await {
+        Ok(backend) => match backend
+            .capabilities(st, settings.enabled, settings.profile)
+            .await
+        {
             Ok(capabilities) => {
                 engine = capabilities.engine;
                 let missing = capabilities.missing_languages(settings);
@@ -163,7 +166,7 @@ async fn status(st: &Shared, settings: &Settings) -> Result<Value, ApiError> {
         "can_install":can_install(st, settings, worker_managed), "install_state":*st.images.install_state(),
         "engine_state": match failure {
             None => "ready",
-            Some(Code::Consent | Code::Languages) => "needs_setup",
+            Some(Code::Consent | Code::Languages | Code::ProfileUnavailable) => "needs_setup",
             Some(_) => "unavailable",
         },
         "failure": failure,

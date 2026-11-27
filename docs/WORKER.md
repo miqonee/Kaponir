@@ -75,7 +75,7 @@ docker compose up -d --build
 Compose добавляет имена `kaponir` и `worker` в `NO_PROXY` для связи между контейнерами.
 
 Модели, очередь и Vault находятся в volumes. Входной каталог смонтирован read-only.
-Образ воркера содержит Pillow, pypdfium2 и RapidOCR с PP-OCRv6 Small. Qwen и llama-server загружаются
+Образ воркера содержит Pillow, pypdfium2 и RapidOCR с PP-OCRv6 Small и кириллической моделью PP-OCRv5. Qwen и llama-server загружаются
 отдельно по кнопке. Не удаляйте volumes при обычном обновлении.
 
 Для заранее собранного Linux-бинарника нужной архитектуры:

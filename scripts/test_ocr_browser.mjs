@@ -49,6 +49,13 @@ try {
   await page.goto(config.url + "/ui/#ocr");
   await page.getByRole("checkbox",{name:"Защищать изображения и PDF перед отправкой"}).waitFor();
   await page.getByText("Защита выключена. Поставщик может получить исходное вложение.").waitFor();
+  const profile = page.getByLabel("Профиль распознавания");
+  const save = page.getByRole("button",{name:"Сохранить изменения"});
+  assert.equal(await profile.inputValue(),"standard");
+  await profile.selectOption("ru_en");
+  await page.locator("#ocr-engine[data-state=pending]").waitFor();
+  await save.click();
+  await page.getByText("Настройки сохранены",{exact:true}).waitFor();
   if (config.install_ocr) {
     const options = page.locator("#ocr-options > summary");
     await options.click();
@@ -78,7 +85,6 @@ try {
   await node.selectOption("worker");
   await page.getByText(/Подтвердите адрес получателя и нажмите/).waitFor();
   await page.getByRole("checkbox",{name:"Защищать изображения и PDF перед отправкой"}).check();
-  const save = page.getByRole("button",{name:"Сохранить изменения"});
   assert(await save.isDisabled());
   await page.getByRole("checkbox",{name:/Разрешить передачу исходных пикселей/}).check();
   await save.click();
@@ -89,6 +95,7 @@ try {
   await page.getByText("Настройки сохранены",{exact:true}).waitFor();
   await page.reload();
   await page.waitForFunction(()=>document.querySelector("#ocr-enabled").checked);
+  await page.waitForFunction(()=>document.querySelector("#ocr-profile").value==="ru_en");
   await page.waitForFunction(()=>document.querySelector("#ocr-url-mask").value==="partial");
   assert.equal(new URL(page.url()).hash,"#ocr");
   await capture("01-nastroyki.png");
@@ -206,7 +213,7 @@ try {
   await page.getByRole("radio",{name:"Dark theme"}).check({force:true});
   await page.goto(config.url + "/ui/#ocr");
   await page.getByRole("heading",{name:"Image and PDF protection"}).waitFor();
-  await page.getByText(/Ready · RapidOCR · PP-OCRv6 Small/).waitFor();
+  await page.getByText(/Ready · RapidOCR · Russian \+ English/).waitFor();
   assert.equal(await page.locator("html").getAttribute("data-theme"),"dark");
   await capture("05-settings-dark-en.png");
   await page.getByRole("link",{name:"Test an image"}).click();

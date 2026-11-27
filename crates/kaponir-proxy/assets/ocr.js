@@ -14,6 +14,7 @@ const ocrErrors = {
   animated: "Сохраните один кадр в PNG, JPEG или WebP.",
   limits: "Уменьшите размер вложений или отправьте меньше изображений и страниц PDF.",
   unavailable: "RapidOCR или настроенный worker недоступен. Проверьте установку и адрес узла.",
+  profile_unavailable: "Установите кириллическую модель RapidOCR на выбранном узле.",
   languages: "Установите выбранные языки OCR на worker.",
   empty: "Текст не удалось уверенно прочитать. Попробуйте снимок крупнее.",
   unreadable: "Текст не удалось уверенно прочитать. Попробуйте снимок крупнее.",
@@ -63,15 +64,17 @@ function ocrEngineStatus(data, draft) {
   const box = $("#ocr-engine");
   const saved = data.settings;
   const recipient = draftRecipient();
-  const matches = ["mode", "node", "languages", "connection_id", "model", "approved_recipient"]
+  const matches = ["mode", "node", "profile", "languages", "connection_id", "model", "approved_recipient"]
     .every(key => draft[key] === saved[key]);
   const state = matches ? data.engine_state : "pending";
   const label = tr({ready:"ocr.ready", needs_setup:"Нужна настройка", unavailable:"Недоступно", pending:"Ожидает сохранения"}[state]);
   const worker = draft.mode === "local" && draft.node === "worker";
   const rapid = draft.mode === "local" && (draft.node === "proxy" ||
     saved.mode === "local" && saved.node === draft.node && data.engine === "rapidocr");
-  const engine = rapid ? "RapidOCR · PP-OCRv6 Small" : worker ? tr("Отдельный worker") : draft.model;
-  const languages = rapid ? tr("Многоязычное распознавание") : draft.mode === "local" && matches && data.installed_languages.length
+  const mixed = draft.profile === "ru_en";
+  const engine = rapid ? (mixed ? `RapidOCR · ${tr("Русский + английский")}` : "RapidOCR · PP-OCRv6 Small")
+    : worker ? tr("Отдельный worker") : draft.model;
+  const languages = !rapid && draft.mode === "local" && matches && data.installed_languages.length
     ? draft.languages.split("+").map(lang => ({rus:tr("русский"),eng:tr("английский")})[lang] || lang).join(", ") : "";
   box.textContent = [label, engine, languages].filter(Boolean).join(" · ");
   box.dataset.state = state;
@@ -82,6 +85,8 @@ function ocrEngineStatus(data, draft) {
     reason = tr("Подтвердите адрес получателя и нажмите «Сохранить изменения».");
   } else if (!matches) {
     reason = tr("Сохраните параметры, чтобы применить их к прокси.");
+  } else if (worker && !data.worker_managed && data.failure === "profile_unavailable") {
+    reason = tr("Обновите внешний worker и выполните kaponir ocr setup на его компьютере.");
   } else if (worker && data.failure === "unavailable") {
     reason = data.worker_managed
       ? tr("Проверьте зависимости OCR и журнал запуска worker.")
@@ -95,7 +100,7 @@ function ocrEngineStatus(data, draft) {
     tr("Не хватает языков · {{0}}",[draft.languages.split("+").filter(lang => !data.installed_languages.includes(lang)).join(", ")]) : "";
   $("#ocr-recipient").textContent = [worker && !recipient ? "" : ocrRecipientText(recipient), installed, missing, reason].filter(Boolean).join(" ");
   const install = $("#ocr-install");
-  const needsInstall = matches && draft.mode === "local" && data.failure === "unavailable" &&
+  const needsInstall = matches && draft.mode === "local" && ["unavailable", "profile_unavailable"].includes(data.failure) &&
     (!worker || data.worker_managed);
   install.hidden = !needsInstall && !(worker && data.worker_managed);
   if (needsInstall) install.textContent = data.can_install ? tr("Установка на сервере прокси.") :
@@ -109,7 +114,7 @@ function ocrEngineStatus(data, draft) {
   button.textContent = tr(data.install_state === "failed" ? "Повторить установку" : "Установить RapidOCR");
   const progress = $("#ocr-install-progress");
   const message = ocrInstallWarning || (installing ? "Скачиваем и проверяем RapidOCR…" :
-    needsInstall && data.install_state === "failed" ? "Не удалось установить RapidOCR. Проверьте Python с модулем venv и доступ к PyPI, затем повторите." :
+    needsInstall && data.install_state === "failed" ? "Не удалось установить RapidOCR. Проверьте Python с модулем venv и доступ к PyPI и ModelScope, затем повторите." :
     matches && draft.mode === "local" && (!worker || data.worker_managed) && data.install_state === "ready"
       ? "RapidOCR установлен." : "");
   progress.textContent = message ? tr(message) : "";
@@ -124,6 +129,7 @@ function updateOcrForm() {
   $("#ocr-vision").hidden = !vision;
   const worker = !vision && controls.node.value === "worker";
   $("#ocr-node-field").hidden = vision || (!imageConfig.worker && !worker);
+  $("#ocr-profile-field").hidden = vision;
   const workerLanguages = worker && saved.mode === "local" && saved.node === "worker" &&
     imageConfig.engine === "worker" && imageConfig.installed_languages.length > 0;
   $("#ocr-languages-field").hidden = !workerLanguages;
