@@ -126,7 +126,7 @@ function jobGroup(job) {
   return ["queued", "collecting", "paused"].includes(job.state) ? job.state : "history";
 }
 function jobTitle(job) {
-  if (job.family === "ocr") return tr("Защита изображений");
+  if (job.family === "ocr") return tr("Защита изображений и PDF");
   if (job.family === "review" && job.automatic)
     return tr("Автопроверка находок · {{0}}", [number(job.total)]);
   if (job.family === "review") return job.total != null ? tr("Проверка находок · {{0}}", [number(job.total)]) : tr("Проверка находок");

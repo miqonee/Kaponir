@@ -1,6 +1,6 @@
 use super::{
     Attachment, Code, Failure, InputImage, InstallState, Mode, Node, SETTINGS, Settings, elapsed,
-    now_ms, ocr, process,
+    now_ms, ocr, pdf, process, wire,
 };
 use crate::{
     Shared, providers,
@@ -283,7 +283,13 @@ async fn preview(State(st): State<Shared>, headers: HeaderMap, bytes: Bytes) -> 
     {
         return Err(Failure::new(Code::Consent).api());
     }
-    settings.save_originals = false;
+    let is_pdf = pdf::signature(&bytes)
+        || headers
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .is_some_and(wire::pdf_mime);
+    // PDF originals here are rendered page previews returned only to the Lab caller.
+    settings.save_originals = is_pdf;
     if bytes.len() > settings.max_bytes() {
         return Err(Failure::new(Code::Limits).api());
     }
@@ -296,18 +302,35 @@ async fn preview(State(st): State<Shared>, headers: HeaderMap, bytes: Bytes) -> 
             settings,
             None,
             vec![InputImage::Bytes(bytes.to_vec())],
-            vec![Attachment::default()],
+            vec![Attachment {
+                pdf: is_pdf.then(super::PdfPage::default),
+                ..Default::default()
+            }],
             started,
         ),
     )
     .await
     .unwrap_or_else(|_| Err(Failure::new(Code::Timeout)))
     .map_err(|e| e.api())?;
-    let item = output.pop().expect("one preview attachment");
-    Ok(private(Json(json!({
-        "image":item.attachment, "data":format!("data:image/png;base64,{}", STANDARD.encode(item.png)),
-        "elapsed_ms":elapsed(started), "timings":timings,
-    })).into_response()))
+    let mut item = output.pop().expect("one preview attachment");
+    let mut reply = json!({"elapsed_ms":elapsed(started), "timings":timings});
+    let png_url = |png: Vec<u8>| format!("data:image/png;base64,{}", STANDARD.encode(png));
+    if let Some(pdf) = item.pdf {
+        let pages: Vec<_> = item.pages.into_iter().map(|page| {
+            let (original, _) = page.original.expect("Lab PDF raster original");
+            json!({"image":page.attachment,"data":png_url(page.png),"original":png_url(original)})
+        }).collect();
+        reply["data"] = json!(format!(
+            "data:application/pdf;base64,{}",
+            STANDARD.encode(pdf)
+        ));
+        reply["pages"] = json!(pages);
+    } else {
+        let page = item.pages.pop().expect("one preview raster");
+        reply["data"] = json!(png_url(page.png));
+        reply["image"] = json!(page.attachment);
+    }
+    Ok(private(Json(reply).into_response()))
 }
 
 async fn review_links(

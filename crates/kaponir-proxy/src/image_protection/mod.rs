@@ -1,6 +1,7 @@
-//! Image protection in the request path. OCR data never enters the text vault or S1.
+//! Image and PDF protection in the request path. OCR data never enters the text vault or S1.
 mod layout;
 mod ocr;
+mod pdf;
 mod rapidocr;
 mod raster;
 mod web;
@@ -129,6 +130,8 @@ pub(crate) enum Code {
     InlineRequired,
     Format,
     InvalidImage,
+    InvalidPdf,
+    PdfUnavailable,
     Animated,
     Limits,
     Unavailable,
@@ -150,11 +153,15 @@ pub(crate) enum Code {
 impl Code {
     fn message(self) -> &'static str {
         match self {
-            Self::InlineRequired => "Attach a static PNG, JPEG or WebP as inline base64.",
-            Self::Format => "Use a static PNG, JPEG or WebP.",
+            Self::InlineRequired => "Attach a static PNG, JPEG, WebP or PDF as inline base64.",
+            Self::Format => "Use a static PNG, JPEG, WebP or PDF.",
             Self::InvalidImage => "The image is damaged. Export it again and retry.",
+            Self::InvalidPdf => "The PDF cannot be rendered. Send a valid PDF without a password.",
+            Self::PdfUnavailable => {
+                "PDF rendering is unavailable. Install the managed OCR runtime or add pypdfium2 and Pillow to the proxy's OCR Python."
+            }
             Self::Animated => "Export one frame as a static PNG, JPEG or WebP.",
-            Self::Limits => "Reduce the image size or attach fewer images.",
+            Self::Limits => "Reduce the attachment size or send fewer images and PDF pages.",
             Self::Unavailable => "RapidOCR or the configured OCR worker is unavailable.",
             Self::Languages => "Install the selected OCR languages on the worker.",
             Self::Empty | Self::Unreadable => {
@@ -163,7 +170,7 @@ impl Code {
             Self::Boundaries => {
                 "The full boundaries of the sensitive field could not be determined."
             }
-            Self::Timeout => "Image protection timed out. Try fewer or smaller images.",
+            Self::Timeout => "Attachment protection timed out. Try fewer images or PDF pages.",
             Self::QueueFull => {
                 "The image protection queue is full. Retry when a slot becomes available."
             }
@@ -187,6 +194,7 @@ impl Code {
             Self::Timeout => StatusCode::GATEWAY_TIMEOUT,
             Self::QueueFull => StatusCode::TOO_MANY_REQUESTS,
             Self::Unavailable
+            | Self::PdfUnavailable
             | Self::Languages
             | Self::Consent
             | Self::VisionAddress
@@ -290,6 +298,12 @@ pub(crate) struct Area {
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub(crate) struct PdfPage {
+    pub number: usize,
+    pub total: usize,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub(crate) struct Attachment {
     pub id: String,
     pub message_id: String,
@@ -297,6 +311,8 @@ pub(crate) struct Attachment {
     pub latest: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pdf: Option<PdfPage>,
     pub width: u32,
     pub height: u32,
     pub areas: Vec<Area>,
@@ -559,7 +575,7 @@ enum InputImage {
     Base64 { data: String, offset: usize },
 }
 impl InputImage {
-    fn decode(self, remaining: &mut usize) -> Result<Vec<u8>, Failure> {
+    fn decode(self, remaining: &mut usize, invalid: Code) -> Result<Vec<u8>, Failure> {
         let bytes = match self {
             Self::Bytes(bytes) => bytes,
             Self::Base64 { data, offset } => {
@@ -567,9 +583,7 @@ impl InputImage {
                 if value.len() > remaining.div_ceil(3) * 4 {
                     return Err(Failure::new(Code::Limits));
                 }
-                STANDARD
-                    .decode(value)
-                    .map_err(|_| Failure::new(Code::InvalidImage))?
+                STANDARD.decode(value).map_err(|_| Failure::new(invalid))?
             }
         };
         *remaining = remaining
@@ -578,59 +592,128 @@ impl InputImage {
         Ok(bytes)
     }
 }
-struct Normalized {
+struct NormalizedPage {
+    attachment: Attachment,
     pixels: RgbImage,
     original: Option<(Vec<u8>, &'static str)>,
 }
-struct Processed {
+struct Normalized {
+    pages: Vec<NormalizedPage>,
+    pdf_sizes: Option<Vec<pdf::Size>>,
+}
+struct ProcessedPage {
     attachment: Attachment,
     review_values: Vec<(usize, String)>,
     png: Vec<u8>,
     original: Option<(Vec<u8>, &'static str)>,
 }
+struct Processed {
+    pages: Vec<ProcessedPage>,
+    pdf: Option<Vec<u8>>,
+}
+impl Processed {
+    fn payload(&self) -> &[u8] {
+        self.pdf.as_deref().unwrap_or_else(|| &self.pages[0].png)
+    }
+}
 
-fn normalize(
+async fn normalize(
+    st: &Shared,
+    work: &Work,
     images: Vec<InputImage>,
+    metadata: Vec<Attachment>,
     settings: &Settings,
-    cancelled: &AtomicBool,
 ) -> Result<Vec<Normalized>, Failure> {
     let mut remaining_bytes = settings.max_bytes();
-    let images = images
-        .into_iter()
-        .enumerate()
-        .map(|(i, image)| {
-            if cancelled.load(Relaxed) {
-                return Err(Failure::new(Code::Cancelled));
-            }
-            image.decode(&mut remaining_bytes).map_err(|e| e.at(i))
+    let inputs = work
+        .cpu(move |cancelled| {
+            images
+                .into_iter()
+                .zip(metadata)
+                .enumerate()
+                .map(|(i, (image, attachment))| {
+                    if cancelled.load(Relaxed) {
+                        return Err(Failure::new(Code::Cancelled));
+                    }
+                    let invalid = if attachment.pdf.is_some() {
+                        Code::InvalidPdf
+                    } else {
+                        Code::InvalidImage
+                    };
+                    let bytes = image
+                        .decode(&mut remaining_bytes, invalid)
+                        .map_err(|e| e.at(i))?;
+                    Ok((bytes, attachment))
+                })
+                .collect::<Result<Vec<_>, _>>()
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .await?;
     let mut remaining = settings.max_pixels();
-    // Validate every header and the aggregate raster budget before decoding a raster.
-    let sources = images
-        .iter()
-        .enumerate()
-        .map(|(i, source)| raster::open(source, &mut remaining).map_err(|e| e.at(i)))
-        .collect::<Result<Vec<_>, _>>()?;
-    let decoded = sources
-        .into_iter()
-        .enumerate()
-        .map(|(i, source)| {
-            if cancelled.load(Relaxed) {
-                return Err(Failure::new(Code::Cancelled));
-            }
-            let mime = source.mime;
-            Ok((source.decode().map_err(|e| e.at(i))?, mime))
-        })
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(decoded
-        .into_iter()
-        .zip(images)
-        .map(|((pixels, mime), source)| Normalized {
-            pixels,
-            original: settings.save_originals.then_some((source, mime)),
-        })
-        .collect())
+    let mut extra_pages = MAX_IMAGES - inputs.len();
+    let mut normalized = Vec::with_capacity(inputs.len());
+    let save_originals = settings.save_originals;
+    for (i, (bytes, attachment)) in inputs.into_iter().enumerate() {
+        if attachment.pdf.is_some() {
+            let pages = pdf::render(
+                &st.images.local.python(),
+                &bytes,
+                extra_pages + 1,
+                &mut remaining,
+            )
+            .await
+            .map_err(|e| e.at(i))?;
+            let total = pages.len();
+            extra_pages -= total - 1;
+            let (pdf_sizes, pages) = pages
+                .into_iter()
+                .enumerate()
+                .map(|(index, page)| {
+                    let mut attachment = attachment.clone();
+                    let number = index + 1;
+                    if index > 0 {
+                        attachment.id.push_str(&format!("-p{number}"));
+                    }
+                    attachment.pdf = Some(PdfPage { number, total });
+                    (
+                        page.size,
+                        NormalizedPage {
+                            attachment,
+                            pixels: page.pixels,
+                            original: None,
+                        },
+                    )
+                })
+                .unzip();
+            normalized.push(Normalized {
+                pages,
+                pdf_sizes: Some(pdf_sizes),
+            });
+        } else {
+            let (page, unused_pixels) = work
+                .cpu(move |_| {
+                    let mut remaining = remaining;
+                    let source = raster::open(&bytes, &mut remaining)?;
+                    let mime = source.mime;
+                    let pixels = source.decode()?;
+                    Ok((
+                        NormalizedPage {
+                            attachment,
+                            pixels,
+                            original: save_originals.then_some((bytes, mime)),
+                        },
+                        remaining,
+                    ))
+                })
+                .await
+                .map_err(|e| e.at(i))?;
+            remaining = unused_pixels;
+            normalized.push(Normalized {
+                pages: vec![page],
+                pdf_sizes: None,
+            });
+        }
+    }
+    Ok(normalized)
 }
 
 async fn process(
@@ -654,91 +737,152 @@ async fn process(
         set_stage(span, Stage::Validating);
     }
     let decode_started = Instant::now();
-    let decode_settings = settings.clone();
-    let images = work
-        .cpu(move |cancelled| normalize(images, &decode_settings, cancelled))
-        .await?;
+    let images = normalize(st, &work, images, metadata, &settings).await?;
     timings.decode_ms = elapsed(decode_started);
+    if let Some(span) = span {
+        update(span, |audit| {
+            audit.attachments = images
+                .iter()
+                .flat_map(|item| &item.pages)
+                .map(|page| page.attachment.clone())
+                .collect();
+        });
+    }
     let backend = ocr::Backend::resolve(st, &settings)?;
     backend.ready(st, &settings).await?;
     let engine = st.engine();
     let scope = st.cfg.scope;
     let mut output = Vec::with_capacity(images.len());
     let mut encoded_size = 0;
-    for (i, (mut image, mut attachment)) in images.into_iter().zip(metadata).enumerate() {
-        if let Some(span) = span {
-            update(span, |audit| {
-                audit.current = i + 1;
-                audit.stage = Stage::Reading;
-                audit.timings = timings;
+    let mut original_size = 0;
+    let mut wire_size = 0;
+    let mut current = 0;
+    for image in images {
+        let is_pdf = image.pdf_sizes.is_some();
+        let mut pages = Vec::with_capacity(image.pages.len());
+        let first = current;
+        for NormalizedPage {
+            mut attachment,
+            pixels,
+            mut original,
+        } in image.pages
+        {
+            let i = current;
+            current += 1;
+            if let Some(span) = span {
+                update(span, |audit| {
+                    audit.current = current;
+                    audit.stage = Stage::Reading;
+                    audit.timings = timings;
+                });
+            }
+            let (w, h) = pixels.dimensions();
+            let encoding_started = Instant::now();
+            let (pixels, input, blank) = work
+                .cpu(move |_| {
+                    // A uniform PDF page has no visible content to recognize.
+                    let blank =
+                        is_pdf && pixels.pixels().all(|pixel| pixel == pixels.get_pixel(0, 0));
+                    let input = raster::png(&pixels)?;
+                    Ok((pixels, input, blank))
+                })
+                .await
+                .map_err(|e| e.at(i))?;
+            timings.encode_ms += elapsed(encoding_started);
+            if is_pdf && settings.save_originals {
+                original = Some((input.clone(), "image/png"));
+            }
+            if let Some((bytes, _)) = &original {
+                original_size += bytes.len();
+                if original_size > raster::MAX_PNG_BYTES {
+                    return Err(Failure::new(Code::Limits).at(i));
+                }
+            }
+            let (png, areas, review_values) = if blank {
+                (input, Vec::new(), Vec::new())
+            } else {
+                let ocr_started = Instant::now();
+                let text = backend
+                    .read(st, &settings, input, w, h)
+                    .await
+                    .map_err(|e| e.at(i))?;
+                timings.ocr_ms += elapsed(ocr_started);
+                if let Some(span) = span {
+                    set_stage(span, Stage::Masking);
+                }
+                let rules_started = Instant::now();
+                let engine = engine.clone();
+                let link_reviews = span.is_some();
+                let (pixels, areas, review_values) = work
+                    .cpu(move |cancelled| {
+                        let mut pixels = pixels;
+                        let layout::Masks {
+                            areas,
+                            review_values,
+                        } = layout::mask(
+                            &engine,
+                            &pixels,
+                            text,
+                            scope,
+                            cancelled,
+                            link_reviews,
+                            settings.url_mask,
+                        )?;
+                        raster::paint(&mut pixels, &areas, cancelled)?;
+                        Ok((pixels, areas, review_values))
+                    })
+                    .await
+                    .map_err(|e| e.at(i))?;
+                timings.rules_ms += elapsed(rules_started);
+                if let Some(span) = span {
+                    set_stage(span, Stage::Encoding);
+                }
+                let encoding_started = Instant::now();
+                let png = work
+                    .cpu(move |_| raster::png(&pixels))
+                    .await
+                    .map_err(|e| e.at(i))?;
+                timings.encode_ms += elapsed(encoding_started);
+                (png, areas, review_values)
+            };
+            encoded_size += png.len();
+            if encoded_size > raster::MAX_PNG_BYTES {
+                return Err(Failure::new(Code::Limits).at(i));
+            }
+            attachment.width = w;
+            attachment.height = h;
+            attachment.areas = areas;
+            pages.push(ProcessedPage {
+                attachment,
+                review_values,
+                png,
+                original,
             });
         }
-        let (w, h) = image.pixels.dimensions();
-        let ocr_started = Instant::now();
-        let (pixels, input) = work
-            .cpu(move |_| {
-                let input = raster::png(&image.pixels)?;
-                Ok((image.pixels, input))
-            })
+        let pdf = if let Some(sizes) = image.pdf_sizes {
+            if let Some(span) = span {
+                set_stage(span, Stage::Encoding);
+            }
+            let encoding_started = Instant::now();
+            let bytes = pdf::assemble(
+                &st.images.local.python(),
+                sizes,
+                pages.iter().map(|page| page.png.as_slice()),
+                raster::MAX_PNG_BYTES - wire_size,
+            )
             .await
-            .map_err(|e| e.at(i))?;
-        image.pixels = pixels;
-        timings.encode_ms += elapsed(ocr_started);
-        let ocr_started = Instant::now();
-        let text = backend
-            .read(st, &settings, input, w, h)
-            .await
-            .map_err(|e| e.at(i))?;
-        timings.ocr_ms += elapsed(ocr_started);
-        if let Some(span) = span {
-            set_stage(span, Stage::Masking);
+            .map_err(|e| e.at(first))?;
+            timings.encode_ms += elapsed(encoding_started);
+            Some(bytes)
+        } else {
+            None
+        };
+        let processed = Processed { pages, pdf };
+        wire_size += processed.payload().len();
+        if wire_size > raster::MAX_PNG_BYTES {
+            return Err(Failure::new(Code::Limits).at(first));
         }
-        let rules_started = Instant::now();
-        let engine = engine.clone();
-        let link_reviews = span.is_some();
-        let (pixels, areas, review_values) = work
-            .cpu(move |cancelled| {
-                let mut pixels = image.pixels;
-                let layout::Masks {
-                    areas,
-                    review_values,
-                } = layout::mask(
-                    &engine,
-                    &pixels,
-                    text,
-                    scope,
-                    cancelled,
-                    link_reviews,
-                    settings.url_mask,
-                )?;
-                raster::paint(&mut pixels, &areas, cancelled)?;
-                Ok((pixels, areas, review_values))
-            })
-            .await
-            .map_err(|e| e.at(i))?;
-        timings.rules_ms += elapsed(rules_started);
-        if let Some(span) = span {
-            set_stage(span, Stage::Encoding);
-        }
-        let encoding_started = Instant::now();
-        let png = work
-            .cpu(move |_| raster::png(&pixels))
-            .await
-            .map_err(|e| e.at(i))?;
-        timings.encode_ms += elapsed(encoding_started);
-        encoded_size += png.len();
-        if encoded_size > raster::MAX_PNG_BYTES {
-            return Err(Failure::new(Code::Limits).at(i));
-        }
-        attachment.width = w;
-        attachment.height = h;
-        attachment.areas = areas;
-        output.push(Processed {
-            attachment,
-            review_values,
-            png,
-            original: image.original,
-        });
+        output.push(processed);
     }
     Ok((output, timings))
 }
@@ -810,7 +954,7 @@ pub(crate) async fn protect(
             st.with_vault(|_, v| {
                 crate::learning::transaction(v, || {
                     let mut output = processed;
-                    for item in &mut output {
+                    for item in output.iter_mut().flat_map(|item| &mut item.pages) {
                         use kaponir_core::Vault as _;
                         for (id, value) in item.review_values.drain(..) {
                             if let Some(area) = item.attachment.areas.get_mut(id - 1) {
@@ -854,10 +998,14 @@ pub(crate) async fn protect(
     {
         Ok((processed, timings)) => {
             for (block, item) in blocks.iter().zip(&processed) {
-                block.replace(body, &item.png);
+                block.replace(body, item.payload());
             }
             update(span, |audit| {
-                audit.attachments = processed.into_iter().map(|item| item.attachment).collect();
+                audit.attachments = processed
+                    .into_iter()
+                    .flat_map(|item| item.pages)
+                    .map(|page| page.attachment)
+                    .collect();
                 audit.stage = Stage::Ready;
                 audit.timings = timings;
             });

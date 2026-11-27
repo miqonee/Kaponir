@@ -21,6 +21,14 @@ enum Rewrite {
     DataUrl,
     OpenAiFile,
     AnthropicSource,
+    OpenAiPdf,
+    AnthropicPdf,
+}
+
+impl Rewrite {
+    fn pdf(&self) -> bool {
+        matches!(self, Self::OpenAiPdf | Self::AnthropicPdf)
+    }
 }
 
 fn image_mime(value: &str) -> bool {
@@ -73,6 +81,53 @@ fn image_base64(value: &str) -> bool {
         })
 }
 
+pub(super) fn pdf_mime(value: &str) -> bool {
+    value
+        .split(';')
+        .next()
+        .is_some_and(|mime| mime.trim().eq_ignore_ascii_case("application/pdf"))
+}
+
+fn pdf_file(data: &str, filename: &Value, media_type: &Value) -> bool {
+    if media_type.as_str().is_some_and(pdf_mime)
+        || filename
+            .as_str()
+            .and_then(|name| name.rsplit_once('.'))
+            .is_some_and(|(_, ext)| ext.eq_ignore_ascii_case("pdf"))
+    {
+        return true;
+    }
+    let payload = match data.split_once(',') {
+        Some((header, payload))
+            if header
+                .get(..5)
+                .is_some_and(|s| s.eq_ignore_ascii_case("data:")) =>
+        {
+            if pdf_mime(&header[5..]) {
+                return true;
+            }
+            payload
+        }
+        _ => data,
+    };
+    let len = payload.len().min(super::pdf::HEADER_PREFIX.div_ceil(3) * 4);
+    payload
+        .get(..len / 4 * 4)
+        .and_then(|part| STANDARD.decode(part).ok())
+        .is_some_and(|bytes| super::pdf::signature(&bytes))
+}
+
+fn inline_encoding(data: &str) -> Encoding {
+    if data
+        .get(..5)
+        .is_some_and(|s| s.eq_ignore_ascii_case("data:"))
+    {
+        Encoding::DataUrl
+    } else {
+        Encoding::Base64
+    }
+}
+
 /// Returns the data field relative to the block. Inspect known binary wrappers even
 /// when their declared MIME or filename disagrees with their actual content.
 fn input(block: &Value) -> Option<(&'static str, Encoding, Rewrite)> {
@@ -102,25 +157,22 @@ fn input(block: &Value) -> Option<(&'static str, Encoding, Rewrite)> {
             } else {
                 "/file_data"
             };
+            let pdf = pdf_file(data, &file["filename"], &file["media_type"]);
             if file["file_id"].is_string() || file["file_url"].is_string() {
-                Some((field, Opaque, Rewrite::OpenAiFile))
+                let rewrite = if pdf {
+                    Rewrite::OpenAiPdf
+                } else {
+                    Rewrite::OpenAiFile
+                };
+                Some((field, Opaque, rewrite))
+            } else if pdf {
+                Some((field, inline_encoding(data), Rewrite::OpenAiPdf))
             } else if image_data_url(data)
                 || image_base64(data.split_once(',').map_or(data, |(_, payload)| payload))
                 || image_name(&file["filename"])
                 || file["media_type"].as_str().is_some_and(image_mime)
             {
-                Some((
-                    field,
-                    if data
-                        .get(..5)
-                        .is_some_and(|s| s.eq_ignore_ascii_case("data:"))
-                    {
-                        DataUrl
-                    } else {
-                        Base64
-                    },
-                    Rewrite::OpenAiFile,
-                ))
+                Some((field, inline_encoding(data), Rewrite::OpenAiFile))
             } else {
                 None
             }
@@ -128,8 +180,10 @@ fn input(block: &Value) -> Option<(&'static str, Encoding, Rewrite)> {
         "document" => {
             let source = &block["source"];
             let data = source["data"].as_str().unwrap_or_default();
+            let pdf = pdf_file(data, &block["title"], &source["media_type"]);
             let encoding = match source["type"].as_str() {
                 Some("url" | "file" | "file_id") => Opaque,
+                Some("base64") if pdf => inline_encoding(data),
                 Some("base64")
                     if source["media_type"].as_str().is_some_and(image_mime)
                         || image_base64(data)
@@ -139,7 +193,12 @@ fn input(block: &Value) -> Option<(&'static str, Encoding, Rewrite)> {
                 }
                 _ => return None,
             };
-            Some(("/source/data", encoding, Rewrite::AnthropicSource))
+            let rewrite = if pdf {
+                Rewrite::AnthropicPdf
+            } else {
+                Rewrite::AnthropicSource
+            };
+            Some(("/source/data", encoding, rewrite))
         }
         _ => None,
     }
@@ -236,6 +295,7 @@ fn collect(
                     .unwrap_or_default()
                     .as_bytes(),
             );
+            let pdf = rewrite.pdf().then(super::PdfPage::default);
             out.push(Block {
                 path,
                 data,
@@ -247,6 +307,7 @@ fn collect(
                     role: if role == "function" { "tool" } else { role }.to_owned(),
                     tool_id: tool_id.map(str::to_owned),
                     latest,
+                    pdf,
                     ..Default::default()
                 },
             });
@@ -291,11 +352,34 @@ impl Block {
         })
     }
 
-    pub fn replace(&self, body: &mut Value, png: &[u8]) {
-        let encoded = STANDARD.encode(png);
+    pub fn replace(&self, body: &mut Value, bytes: &[u8]) {
+        let encoded = STANDARD.encode(bytes);
+        if self.rewrite.pdf() {
+            let block = body.pointer_mut(&self.path).expect("validated PDF block");
+            if matches!(self.rewrite, Rewrite::AnthropicPdf) {
+                let cache = block["cache_control"].take();
+                *block = json!({"type":"document","source":{
+                    "type":"base64", "media_type":"application/pdf", "data":encoded,
+                }});
+                if !cache.is_null() {
+                    block["cache_control"] = cache;
+                }
+            } else {
+                let data = format!("data:application/pdf;base64,{encoded}");
+                if block["file"].is_object() {
+                    *block =
+                        json!({"type":"file","file":{"filename":"protected.pdf","file_data":data}});
+                } else {
+                    let kind = block["type"].take();
+                    *block = json!({"type":kind,"filename":"protected.pdf","file_data":data});
+                }
+            }
+            return;
+        }
         let data = match self.rewrite {
             Rewrite::DataUrl | Rewrite::OpenAiFile => format!("data:image/png;base64,{encoded}"),
             Rewrite::AnthropicSource => encoded,
+            Rewrite::OpenAiPdf | Rewrite::AnthropicPdf => unreachable!(),
         };
         *body
             .pointer_mut(&self.data)
@@ -331,6 +415,7 @@ impl Block {
                 *block = json!({"type":"image_url","image_url":image});
             }
             Rewrite::DataUrl => {}
+            Rewrite::OpenAiPdf | Rewrite::AnthropicPdf => unreachable!(),
         }
     }
 }
@@ -378,11 +463,12 @@ pub(crate) fn legacy_snapshot<'de, D: serde::Deserializer<'de>>(
         }
     } else if (trimmed.starts_with('{') || trimmed.starts_with("[{"))
         && (trimmed.contains("data:image/")
+            || trimmed.contains("application/pdf")
             || trimmed.contains("\"image_url\"")
             || (trimmed.contains("\"source\"")
                 && (trimmed.contains("\"image\"") || trimmed.contains("image/")))
-            || (trimmed.contains("\"file_data\"")
-                && ["iVBORw0KG", "/9j/", "UklGR"]
+            || ((trimmed.contains("\"file_data\"") || trimmed.contains("\"source\""))
+                && ["iVBORw0KG", "/9j/", "UklGR", "JVBERi0"]
                     .iter()
                     .any(|s| trimmed.contains(s))))
     {

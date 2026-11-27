@@ -48,6 +48,10 @@ fn check(python: &Path) -> Result<()> {
         status.success(),
         "RapidOCR could not load its bundled models"
     );
+    let status = Command::new(python)
+        .args(["-I", "-c", "import pypdfium2; from PIL import Image"])
+        .status()?;
+    ensure!(status.success(), "PDFium or Pillow could not load");
     Ok(())
 }
 

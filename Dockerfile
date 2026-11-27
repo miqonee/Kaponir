@@ -17,8 +17,8 @@ FROM ${KAPONIR_BUILD} AS selected
 
 FROM python:3.13-slim-trixie AS ocr-runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgomp1 libstdc++6 && rm -rf /var/lib/apt/lists/*
-COPY scripts/requirements-ocr.txt /tmp/requirements-ocr.txt
-RUN pip install --no-cache-dir -r /tmp/requirements-ocr.txt
+COPY scripts/requirements-ocr.txt scripts/requirements-worker.txt /tmp/
+RUN pip install --no-cache-dir -r /tmp/requirements-worker.txt
 
 FROM ocr-runtime AS proxy
 COPY --from=selected /out/kaponir /usr/local/bin/kaponir
@@ -30,8 +30,6 @@ CMD ["serve", "--listen", "0.0.0.0:8787"]
 
 FROM ocr-runtime AS worker
 RUN apt-get update && apt-get install -y --no-install-recommends fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
-COPY scripts/requirements-worker.txt /tmp/requirements-worker.txt
-RUN pip install --no-cache-dir -r /tmp/requirements-worker.txt
 COPY --from=selected /out/kaponir /usr/local/bin/kaponir
 ENV KAPONIR_HOME=/data KAPONIR_INPUT_ROOT=/inputs KAPONIR_MODEL_DIR=/models KAPONIR_WORKER_LISTEN=0.0.0.0:8788
 EXPOSE 8788
