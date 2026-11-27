@@ -1,7 +1,8 @@
 #!/bin/sh
 set -eu
 umask 077
-if [ ! -f "${KAPONIR_HOME:-/data}/vault.key" ]; then
+data_dir="${KAPONIR_HOME:-/data}"
+if [ ! -f "$data_dir/vault.db" ] || [ ! -f "$data_dir/config.toml" ]; then
     if [ "${KAPONIR_DATASET_ENABLED:-}" = false ]; then
         kaponir init --without-dataset
     else

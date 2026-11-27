@@ -25,6 +25,7 @@ fn call(home: &Path, args: &[&str]) -> Output {
         .arg(home)
         .args(args)
         .env_remove("KAPONIR_VAULT_KEY")
+        .env_remove("KAPONIR_VAULT_KEY_FILE")
         .env_remove("KAPONIR_TOKEN_KEY")
         .env_remove("KAPONIR_API_TOKEN")
         .output()

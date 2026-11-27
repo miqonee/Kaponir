@@ -150,7 +150,7 @@ system_hint = true
     (home/'config.toml').write_text(config); save(f'{folder}/config.toml',config)
     log=open(OUT/f'{folder}/server.log','w')
     env=dict(os.environ)
-    for name in ['KAPONIR_API_TOKEN','KAPONIR_VAULT_KEY','KAPONIR_TOKEN_KEY']: env.pop(name,None)
+    for name in ['KAPONIR_API_TOKEN','KAPONIR_VAULT_KEY','KAPONIR_VAULT_KEY_FILE','KAPONIR_TOKEN_KEY']: env.pop(name,None)
     proc=subprocess.Popen([str(BIN),'--home',str(home),'serve'],stdout=log,stderr=log,env=env)
     base=f'http://127.0.0.1:{listen}'
     for _ in range(100):

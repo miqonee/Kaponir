@@ -113,6 +113,30 @@ pub struct Home {
     pub dir: PathBuf,
 }
 
+/// Читает один явно настроенный источник. Ошибка внешнего секрета должна остановить запуск.
+pub fn external_vault_key() -> Result<Option<[u8; 32]>> {
+    match (
+        std::env::var_os("KAPONIR_VAULT_KEY"),
+        std::env::var_os("KAPONIR_VAULT_KEY_FILE"),
+    ) {
+        (Some(_), Some(_)) => bail!("set only one of KAPONIR_VAULT_KEY and KAPONIR_VAULT_KEY_FILE"),
+        (Some(value), None) => {
+            let hex = value.to_str().context("KAPONIR_VAULT_KEY must be hex")?;
+            Ok(Some(
+                kaponir_vault::key_from_hex(hex).context("KAPONIR_VAULT_KEY")?,
+            ))
+        }
+        (None, Some(path)) => {
+            let hex =
+                std::fs::read_to_string(path).context("cannot read KAPONIR_VAULT_KEY_FILE")?;
+            Ok(Some(
+                kaponir_vault::key_from_hex(&hex).context("KAPONIR_VAULT_KEY_FILE")?,
+            ))
+        }
+        (None, None) => Ok(None),
+    }
+}
+
 impl Home {
     pub fn new(dir: PathBuf) -> Self {
         Self { dir }
@@ -200,17 +224,14 @@ impl Home {
         }
     }
 
-    /// Мастер-ключ vault: `KAPONIR_VAULT_KEY` (hex) или файл `vault.key`.
+    /// Внешний ключ или локальный ключ, созданный при инициализации.
     pub fn master_key(&self) -> Result<[u8; 32]> {
-        if let Ok(k) = std::env::var("KAPONIR_VAULT_KEY") {
-            return kaponir_vault::key_from_hex(&k).context("KAPONIR_VAULT_KEY");
+        if let Some(key) = external_vault_key()? {
+            return Ok(key);
         }
         let p = self.key_path();
         let s = std::fs::read_to_string(&p).with_context(|| {
-            format!(
-                "vault key not found at {} — run `kaponir init`",
-                p.display()
-            )
+            format!("cannot read {} — supply the original vault key for an existing vault, or run `kaponir init` for a new one", p.display())
         })?;
         kaponir_vault::key_from_hex(&s).with_context(|| format!("{}", p.display()))
     }

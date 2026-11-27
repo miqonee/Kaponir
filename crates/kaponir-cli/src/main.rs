@@ -45,7 +45,7 @@ enum Cmd {
         #[command(subcommand)]
         action: ConfigCmd,
     },
-    /// Создать каталог данных, ключ vault, конфиг и файлы правил.
+    /// Подготовить vault, конфиг и файлы правил. Без внешнего ключа создаёт локальный.
     Init {
         /// Корпоративный домен (можно несколько): записывается в личные правила.
         #[arg(long = "corp-domain")]
@@ -532,6 +532,7 @@ fn run(cli: Cli) -> Result<ExitCode> {
 // ---------- init ----------
 
 fn init(home: &Home, corp_domains: &[String], without_dataset: bool) -> Result<ExitCode> {
+    let external_key = kaponir_cli::external_vault_key()?;
     std::fs::create_dir_all(home.dir.join("rules"))
         .with_context(|| format!("{}", home.dir.display()))?;
     #[cfg(unix)]
@@ -540,7 +541,11 @@ fn init(home: &Home, corp_domains: &[String], without_dataset: bool) -> Result<E
         std::fs::set_permissions(&home.dir, std::fs::Permissions::from_mode(0o700))?;
     }
     let mut created = Vec::new();
-    if !home.key_path().exists() {
+    if external_key.is_none() && !home.key_path().try_exists()? {
+        anyhow::ensure!(
+            !home.vault_path().try_exists()?,
+            "existing vault requires its original key: supply KAPONIR_VAULT_KEY, KAPONIR_VAULT_KEY_FILE or restore vault.key"
+        );
         let key = kaponir_vault::generate_key()?;
         kaponir_cli::write_secret(
             &home.key_path(),
@@ -548,6 +553,8 @@ fn init(home: &Home, corp_domains: &[String], without_dataset: bool) -> Result<E
         )?;
         created.push(home.key_path());
     }
+    // Check the supplied key before changing an existing installation's settings or rules.
+    drop(open_vault(home)?);
     if !home.config_path().exists() {
         let mut config = kaponir_cli::CONFIG_TEMPLATE.parse::<toml_edit::DocumentMut>()?;
         if without_dataset {
@@ -568,20 +575,23 @@ fn init(home: &Home, corp_domains: &[String], without_dataset: bool) -> Result<E
     if !corp_domains.is_empty() {
         add_domains(home, Scope::Personal, corp_domains)?;
     }
-    // Проверяем, что всё открывается.
-    let vault = open_vault(home)?;
     engine(home)?;
-    drop(vault);
     for p in &created {
         eprintln!("created {}", p.display());
     }
     if created.is_empty() {
         eprintln!("already initialized: {}", home.dir.display());
     }
+    if external_key.is_some() {
+        eprintln!("vault key: externally managed. Keep the original secret to restore this vault.");
+    } else {
+        eprintln!(
+            "vault key: {} — back it up to restore this vault.",
+            home.key_path().display()
+        );
+    }
     eprintln!(
-        "vault key: {} — back it up; without it masked data cannot be restored.\n\
-         For identical HMAC tokens across a team, share a token key via KAPONIR_TOKEN_KEY or {}.",
-        home.key_path().display(),
+        "For identical HMAC tokens across a team, share a token key via KAPONIR_TOKEN_KEY or {}.",
         home.token_key_path().display()
     );
     Ok(ExitCode::SUCCESS)

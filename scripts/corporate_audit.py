@@ -38,7 +38,7 @@ def read(path):
 
 def cli(home, args, text=None):
     env = dict(os.environ)
-    for name in ['KAPONIR_VAULT_KEY', 'KAPONIR_TOKEN_KEY', 'KAPONIR_API_TOKEN']:
+    for name in ['KAPONIR_VAULT_KEY', 'KAPONIR_VAULT_KEY_FILE', 'KAPONIR_TOKEN_KEY', 'KAPONIR_API_TOKEN']:
         env.pop(name, None)
     p = subprocess.run([str(BIN), '--home', str(home), *args], input=text, text=True,
                        capture_output=True, env=env)

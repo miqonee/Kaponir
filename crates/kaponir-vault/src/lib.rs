@@ -1231,7 +1231,7 @@ pub fn key_to_hex(k: &[u8; 32]) -> String {
 
 pub fn key_from_hex(s: &str) -> Result<[u8; 32], VaultError> {
     let s = s.trim();
-    if s.len() != 64 || !s.is_ascii() {
+    if s.len() != 64 || !s.bytes().all(|b| b.is_ascii_hexdigit()) {
         return Err(VaultError::Crypto("key must be 64 hex chars".into()));
     }
     let mut k = [0u8; 32];

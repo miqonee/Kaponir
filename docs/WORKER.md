@@ -74,6 +74,9 @@ docker compose up -d --build
 Если отдельный токен воркера не задан, используется токен доступа к прокси.
 Compose добавляет имена `kaponir` и `worker` в `NO_PROXY` для связи между контейнерами.
 
+Для мастер-ключа из HashiCorp Vault задайте прокси `KAPONIR_VAULT_KEY` или укажите путь к
+смонтированному секрету в `KAPONIR_VAULT_KEY_FILE`. [Примеры подключения и восстановления](SECURITY.md#мастер-ключ-контейнера-из-hashicorp-vault).
+
 Модели, очередь и Vault находятся в volumes. Входной каталог смонтирован read-only.
 Образ воркера содержит Pillow, pypdfium2 и RapidOCR с PP-OCRv6 Small и кириллической моделью PP-OCRv5. Qwen и llama-server загружаются
 отдельно по кнопке. Не удаляйте volumes при обычном обновлении.
