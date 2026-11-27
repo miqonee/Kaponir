@@ -4,7 +4,7 @@ import argparse,csv,json,os,re,shutil,subprocess,tempfile,threading,time,urllib.
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from pathlib import Path
 from playwright.sync_api import expect, sync_playwright
-from validate_console import choose_preference, free_port, wait_for
+from validate_console import choose_preference, free_port, open_review_actions, wait_for
 from validate_dataset import check_dataset_ui
 
 def check_local_presets(page, api, output):
@@ -220,6 +220,7 @@ def check_manual_mask(page, base, api):
     if not filters.evaluate('el => el.open'):
         filters.locator('summary').click()
     review.locator('#review-query').fill('zorghand')
+    open_review_actions(page)
     select_all = review.get_by_role('button', name='Выбрать все 3 по фильтру')
     expect(select_all).to_be_visible()
     review.get_by_role('button', name=names[0], exact=True).click()
@@ -454,6 +455,7 @@ def main():
                     assert not page.locator('#analysis-enabled-help').is_visible()
                     page.keyboard.press('Escape');assert not page.locator('#setting-help-popup').is_visible()
                     page.evaluate("showTab('review')");page.locator('#review-list .finding-value').first.wait_for()
+                    open_review_actions(page)
                     page.get_by_role('button', name='Параметры проверки', exact=True).click()
                     expect(page.locator('#review-options')).to_be_visible()
                     expect(page.locator('#review-options #review-scenario-choice')).to_have_count(0)
