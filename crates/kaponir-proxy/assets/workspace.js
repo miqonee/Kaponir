@@ -1379,7 +1379,8 @@ async function loadWorkspaceModels() {
 }
 const basicSettings = TABS.settings;
 TABS.settings = async () => {
-  await Promise.all([basicSettings(), loadWorkspaceModels()]);
+  basicSettings();
+  await loadWorkspaceModels();
 };
 
 async function refreshWorkerReadings() {

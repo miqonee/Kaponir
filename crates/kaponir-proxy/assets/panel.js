@@ -1049,6 +1049,7 @@ function renderSettings() {
       ),
     ),
   );
+  return loadSystemPrompt();
 }
 async function loadAnalysis() {
   await Promise.all([loadLearningSettings(), loadWorkerSummary(), loadLearningHistory()]);
@@ -1521,7 +1522,7 @@ Object.assign(TABS, {
   overview: loadDashboard,
   events: loadDashboard,
   connect: renderConnection,
-  settings: loadSystemPrompt,
+  settings: () => {},
   proxy: renderSettings,
   setup: renderWizard,
   analysis: loadAnalysis,
@@ -1606,7 +1607,7 @@ $("#config-import").addEventListener("click", async () => {
     await api("/api/v1/ui/config/import", { method: "POST", body: bundle });
     window.dispatchEvent(new Event("kaponir-settings-imported"));
     await loadInfo();
-    renderSettings();
+    await renderSettings();
     $("#config-json").value = "";
     $("#config-file").value = "";
     refreshFilePickers();
