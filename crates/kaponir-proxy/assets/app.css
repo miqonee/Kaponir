@@ -1401,11 +1401,7 @@ body:has(#tab-review:not([hidden]) #review-selection:not([hidden])) .toast {top:
   position: relative; display: grid; flex: 1 1 auto; gap: 3px;
   grid-template-columns: repeat(3, minmax(3rem, 1fr));
 }
-.advice-options label { gap: 5px; padding-inline: 6px; font-size: 13px; }
-.advice-options input:checked + label::before {
-  content: ""; width: 5px; height: 9px; border: solid currentColor; border-width: 0 2px 2px 0;
-  transform: translateY(-1px) rotate(45deg);
-}
+.advice-options label { padding-inline: 6px; font-size: 13px; }
 @media (hover: hover) {
   .advice-options input:not(:checked) + label:hover { background: var(--soft); color: var(--text); }
 }
